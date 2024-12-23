@@ -289,6 +289,97 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Approval routes
+  app.post("/api/approvals", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const [approval] = await db.insert(approvals)
+        .values({
+          ...req.body,
+          approverId: req.user!.id,
+          department: req.user!.department,
+          updatedAt: new Date()
+        })
+        .returning();
+
+      if (req.body.status) {
+        // Get the request details
+        const [request] = await db
+          .select()
+          .from(purchaseRequests)
+          .where(eq(purchaseRequests.id, approval.requestId))
+          .limit(1);
+
+        if (request) {
+          // Create notification for the request owner
+          await createNotification(
+            request.requesterId,
+            `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,
+            'approval_update',
+            request.id
+          );
+        }
+      }
+
+      res.json(approval);
+    } catch (error: any) {
+      console.error("Error creating approval:", error);
+      res.status(500).json({
+        error: "Failed to create approval",
+        message: error.message
+      });
+    }
+  });
+
+  app.put("/api/approvals/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const [approval] = await db
+        .update(approvals)
+        .set({
+          ...req.body,
+          updatedAt: new Date()
+        })
+        .where(eq(approvals.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!approval) {
+        return res.status(404).json({ error: "Approval not found" });
+      }
+
+      // Get the request details
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, approval.requestId))
+        .limit(1);
+
+      if (request && req.body.status) {
+        // Create notification for the request owner
+        await createNotification(
+          request.requesterId,
+          `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,
+          'approval_update',
+          request.id
+        );
+      }
+
+      res.json(approval);
+    } catch (error: any) {
+      console.error("Error updating approval:", error);
+      res.status(500).json({
+        error: "Failed to update approval",
+        message: error.message
+      });
+    }
+  });
+
   // Sub-purposes routes
   app.get("/api/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
