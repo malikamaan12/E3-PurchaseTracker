@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { NewPurchaseRequest } from "@db/schema";
+import type { NewPurchaseRequest, PurchaseRequest } from "@db/schema";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -43,29 +43,42 @@ const priorities = [
   { label: "Urgent", value: "urgent" },
 ] as const;
 
-export default function NewRequest() {
+interface NewRequestProps {
+  editMode?: boolean;
+  initialData?: PurchaseRequest;
+}
+
+export default function NewRequest({ editMode = false, initialData }: NewRequestProps) {
   const [, setLocation] = useLocation();
-  const { createRequest } = usePurchaseRequests();
+  const { createRequest, updateRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
-  const [freightAmount, setFreightAmount] = useState(0);
+  const [items, setItems] = useState(() =>
+    initialData?.items.map((item) => ({
+      name: item.name,
+      quantity: Number(item.quantity),
+      estimatedCost: Number(item.estimatedCost),
+    })) || [{ name: "", quantity: 1, estimatedCost: 0 }]
+  );
+  const [freightAmount, setFreightAmount] = useState(
+    initialData ? Number(initialData.freightAmount) : 0
+  );
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      items: [{ name: "", quantity: 1, estimatedCost: 0 }],
-      vendorId: undefined,
-      vendor: "",
-      purpose: "",
-      purposeType: "event",
-      subPurposeId: undefined,
-      priority: "medium",
-      currency: "QAR",
-      status: "draft",
-      totalEstimatedCost: "0",
-      freightAmount: "0",
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      items: items,
+      vendorId: initialData?.vendorId,
+      vendor: initialData?.vendor || "",
+      purpose: initialData?.purpose || "",
+      purposeType: initialData?.purposeType || "event",
+      subPurposeId: initialData?.subPurposeId,
+      priority: initialData?.priority || "medium",
+      currency: initialData?.currency || "QAR",
+      status: initialData?.status || "draft",
+      totalEstimatedCost: initialData?.totalEstimatedCost || "0",
+      freightAmount: initialData?.freightAmount || "0",
     },
   });
 
@@ -97,31 +110,39 @@ export default function NewRequest() {
 
       const formattedData = {
         ...values,
-        items: items.map(item => ({
+        items: items.map((item) => ({
           name: item.name,
           quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
+          estimatedCost: Number(item.estimatedCost),
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendorId: Number(values.vendorId),
-        status: values.status || "draft"
+        status: values.status || "draft",
       };
 
-      console.log('Submitting request with data:', formattedData);
+      console.log("Submitting request with data:", formattedData);
 
       try {
-        await createRequest(formattedData);
+        if (editMode && initialData) {
+          await updateRequest({
+            id: initialData.id,
+            data: formattedData,
+          });
+        } else {
+          await createRequest(formattedData);
+        }
+
         toast({
           title: "Success",
-          description: "Request created successfully",
+          description: `Request ${editMode ? "updated" : "created"} successfully`,
         });
         setLocation("/");
       } catch (error: any) {
-        console.error("Create request error:", error);
+        console.error(`${editMode ? "Update" : "Create"} request error:`, error);
         toast({
           title: "Error",
-          description: error.message || "Failed to create request",
+          description: error.message || `Failed to ${editMode ? "update" : "create"} request`,
           variant: "destructive",
         });
       }
@@ -131,7 +152,7 @@ export default function NewRequest() {
 
       const errorMessages = Object.entries(errors)
         .map(([field, error]) => `${field}: ${error?.message}`)
-        .join('\n');
+        .join("\n");
 
       toast({
         title: "Validation Error",
@@ -156,7 +177,7 @@ export default function NewRequest() {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === 'quantity' || field === 'estimatedCost' ? Number(value) : value,
+      [field]: field === "quantity" || field === "estimatedCost" ? Number(value) : value,
     };
     setItems(newItems);
   };
@@ -170,7 +191,7 @@ export default function NewRequest() {
 
         const errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
-          .join('\n');
+          .join("\n");
 
         toast({
           title: "Validation Error",
@@ -201,7 +222,9 @@ export default function NewRequest() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Create New Purchase Request</CardTitle>
+            <CardTitle>
+              {editMode ? "Edit Purchase Request" : "Create New Purchase Request"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
