@@ -10,10 +10,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@db/schema";
 import type { NewUser } from "@db/schema";
+import { Loader2 } from "lucide-react";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const { login, register } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<NewUser>({
     resolver: zodResolver(insertUserSchema),
@@ -29,13 +31,20 @@ export default function AuthPage() {
 
   const onSubmit = async (data: NewUser) => {
     try {
+      setIsLoading(true);
       if (activeTab === "login") {
-        await login(data);
+        // For login, we only need username and password
+        await login({
+          username: data.username,
+          password: data.password,
+        } as NewUser);
       } else {
         await register(data);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Auth error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -158,22 +167,16 @@ export default function AuthPage() {
                               </FormControl>
                               <SelectContent>
                                 {/* Management */}
-                                <SelectItem value="Admin">Admin</SelectItem>
+                                <SelectItem value="Management">Management</SelectItem>
                                 <SelectItem value="CEO Office">CEO Office</SelectItem>
                                 <SelectItem value="Director">Director</SelectItem>
                                 <SelectItem value="Finance">Finance</SelectItem>
                                 {/* Business */}
-                                <SelectItem value="Sales">Sales</SelectItem>
-                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                <SelectItem value="Business Growth">Business Growth</SelectItem>
+                                <SelectItem value="Business">Business</SelectItem>
                                 {/* Operations */}
-                                <SelectItem value="Branding">Branding</SelectItem>
-                                <SelectItem value="Logistics">Logistics</SelectItem>
-                                <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+                                <SelectItem value="Operations">Operations</SelectItem>
                                 {/* Support */}
-                                <SelectItem value="IT">IT</SelectItem>
-                                <SelectItem value="HR">HR</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
+                                <SelectItem value="Support">Support</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -183,7 +186,10 @@ export default function AuthPage() {
                     </>
                   )}
 
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
                     {activeTab === "login" ? "Login" : "Register"}
                   </Button>
                 </form>
