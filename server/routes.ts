@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
+import XLSX from 'xlsx';
+import { Parser } from 'json2csv';
 import {
   purchaseRequests,
   approvals,
@@ -528,6 +530,89 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedRequest);
     } catch (error: any) {
       console.error("Error analyzing request priority:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Add export endpoint
+  app.get("/api/requests/export", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const exportFormat = req.query.format as string || 'xlsx';
+      const dateStr = format(new Date(), "yyyyMMdd");
+
+      // Get all requests with relations
+      const requests = await db.query.purchaseRequests.findMany({
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true
+        },
+        orderBy: desc(purchaseRequests.createdAt)
+      });
+
+      // Transform data for export
+      const exportData = requests.map(request => ({
+        'Request Number': request.requestNumber,
+        'Title': request.title,
+        'Description': request.description,
+        'Status': request.status,
+        'Priority': request.priority,
+        'Priority Score': request.priorityScore,
+        'Requester': request.requester.username,
+        'Department': request.requester.department,
+        'Purpose Type': request.purposeType,
+        'Sub Purpose': request.subPurpose?.name || '',
+        'Total Cost': Number(request.totalEstimatedCost),
+        'Currency': request.currency,
+        'Company Name': request.companyName,
+        'Contact Person': request.contactPerson,
+        'Contact Number': request.contactNumber,
+        'Created At': format(new Date(request.createdAt), 'PPpp'),
+        'Updated At': format(new Date(request.updatedAt), 'PPpp'),
+        'Approvals': request.approvals.map(a => 
+          `${a.department}: ${a.status}`
+        ).join('; '),
+        'Items': request.items.map((item: any) =>
+          `${item.name} (${item.quantity} x ${item.estimatedCost})`
+        ).join('; ')
+      }));
+
+      if (exportFormat === 'csv') {
+        const fields = Object.keys(exportData[0]);
+        const parser = new Parser({ fields });
+        const csv = parser.parse(exportData);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=procurement_report_${dateStr}.csv`);
+        return res.send(csv);
+      } else {
+        // Default to XLSX
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Procurement Requests");
+
+        // Fix column widths
+        const maxWidth = Object.keys(exportData[0]).reduce((acc, key) => {
+          return Math.max(acc, key.length);
+        }, 10);
+        worksheet["!cols"] = [{ wch: maxWidth }];
+
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=procurement_report_${dateStr}.xlsx`);
+        return res.send(buffer);
+      }
+    } catch (error: any) {
+      console.error("Error exporting requests:", error);
       res.status(500).send(error.message);
     }
   });

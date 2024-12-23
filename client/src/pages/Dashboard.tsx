@@ -14,10 +14,16 @@ import {
 } from "@/components/ui/select";
 import RequestCard from "@/components/RequestCard";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
-import { Plus, LogOut, Search } from "lucide-react";
+import { Plus, LogOut, Search, Download } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -30,8 +36,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Special roles that can see all requests
-  const isSpecialRole = user?.department === 'CEO Office' || 
-                       user?.department === 'Director' || 
+  const isSpecialRole = user?.department === 'CEO Office' ||
+                       user?.department === 'Director' ||
                        user?.department === 'Finance';
 
   // Get unique values for filters
@@ -53,7 +59,7 @@ export default function Dashboard() {
       const matchesDepartment = departmentFilter === "all" || r.requester.department === departmentFilter;
       const matchesPurposeType = purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
       const matchesPriority = priorityFilter === "all" || r.priority === priorityFilter;
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
@@ -99,6 +105,33 @@ export default function Dashboard() {
     }) || []
   );
 
+  const handleExport = async (format: 'xlsx' | 'csv') => {
+    try {
+      const response = await fetch(`/api/requests/export?format=${format}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Create a blob from the response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `procurement_report_${date}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      // You can add toast notification here for error feedback
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -131,7 +164,7 @@ export default function Dashboard() {
         {/* Filter Section */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div className="relative">
                 <Input
                   placeholder="Search requests..."
@@ -178,8 +211,8 @@ export default function Dashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setDepartmentFilter("all");
                   setPurposeTypeFilter("all");
@@ -189,6 +222,23 @@ export default function Dashboard() {
               >
                 Clear Filters
               </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                    Export as Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardContent>
         </Card>
