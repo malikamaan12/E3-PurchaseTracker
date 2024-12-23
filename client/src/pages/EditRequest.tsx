@@ -129,9 +129,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         status: values.status || "draft",
       };
 
-      // Remove date fields that cause validation issues
-      delete formattedData.createdAt;
-      delete formattedData.updatedAt;
+      // Remove unnecessary fields that cause validation issues
+      delete (formattedData as any).createdAt;
+      delete (formattedData as any).updatedAt;
+      delete (formattedData as any).approvals;
+      delete (formattedData as any).requester;
+      delete (formattedData as any).subPurpose;
 
       try {
         await updateRequest({
@@ -145,8 +148,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-
-        // Use Anthropic to analyze the error
         const analysis = await analyzeFormError(formattedData, error);
         if (analysis) {
           toast({
@@ -165,8 +166,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     } catch (error: any) {
       console.error("Form validation error:", error);
       const errors = form.formState.errors;
+      console.log("Form validation errors:", errors);
 
-      // Use Anthropic to analyze form validation errors
       const analysis = await analyzeFormError(values, errors);
       if (analysis) {
         toast({
