@@ -4,6 +4,33 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import { purchaseRequests, approvals, users, subPurposes } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { format } from "date-fns";
+
+async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
+  // Get today's date in YYYYMMDD format
+  const dateStr = format(new Date(), "yyyyMMdd");
+
+  // Get the sub-purpose code (first 3 letters) or use purpose type if no sub-purpose
+  let purposeCode = purposeType.substring(0, 3).toUpperCase();
+  if (subPurposeId) {
+    const [subPurpose] = await db.select()
+      .from(subPurposes)
+      .where(eq(subPurposes.id, subPurposeId))
+      .limit(1);
+    if (subPurpose) {
+      purposeCode = subPurpose.name.substring(0, 3).toUpperCase();
+    }
+  }
+
+  // Get the current sequence number for today
+  const existingRequests = await db.select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.createdAt, new Date(dateStr)));
+
+  const sequenceNumber = (existingRequests.length + 1).toString().padStart(3, '0');
+
+  return `${purposeCode}/${dateStr}/${sequenceNumber}`;
+}
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -40,8 +67,11 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
+    const requestNumber = await generateRequestNumber(req.body.purposeType, req.body.subPurposeId);
+
     const request = await db.insert(purchaseRequests).values({
       ...req.body,
+      requestNumber,
       requesterId: req.user!.id,
       status: req.body.status || "draft"
     }).returning();

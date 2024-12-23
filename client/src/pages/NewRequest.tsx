@@ -26,13 +26,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NewPurchaseRequest as NewPurchaseRequestType } from "@db/schema";
+
+const priorities = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Urgent", value: "urgent" },
+] as const;
 
 export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
 
-  const form = useForm<NewPurchaseRequest>({
+  const form = useForm<NewPurchaseRequestType>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
@@ -43,10 +51,11 @@ export default function NewRequest() {
       subPurposeId: undefined,
       totalEstimatedCost: 0,
       status: "draft",
+      priority: "medium", // Added default value for priority
     },
   });
 
-  const onSubmit = async (data: NewPurchaseRequest) => {
+  const onSubmit = async (data: NewPurchaseRequestType) => {
     try {
       await createRequest({
         ...data,
@@ -252,6 +261,35 @@ export default function NewRequest() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {priorities.map(({ label, value }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
 
                 <DepartmentSelect
                   label="Additional Approvers"

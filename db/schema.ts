@@ -22,6 +22,7 @@ export const subPurposes = pgTable("sub_purposes", {
 
 export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
+  requestNumber: text("request_number").unique().notNull(),
   requesterId: integer("requester_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
@@ -34,6 +35,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
+  priority: text("priority").notNull().default("medium"),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -80,7 +82,8 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
-  purposeType: z.enum(["event", "project", "mall", "business_growth"])
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  priority: z.enum(["low", "medium", "high", "urgent"])
 });
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {

@@ -47,6 +47,19 @@ export default function RequestCard({
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "bg-red-500";
+      case "high":
+        return "bg-orange-500";
+      case "medium":
+        return "bg-yellow-500";
+      default:
+        return "bg-blue-500";
+    }
+  };
+
   const handleApproval = async (status: "approved" | "rejected") => {
     if (!user) return;
 
@@ -74,10 +87,20 @@ export default function RequestCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-xl">{request.title}</CardTitle>
-        <Badge className={getStatusColor(request.status)}>
-          {request.status.toUpperCase()}
-        </Badge>
+        <div>
+          <CardTitle className="text-xl">{request.title}</CardTitle>
+          <div className="text-sm text-gray-500 mt-1">
+            Request #{request.requestNumber}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className={getPriorityColor(request.priority)}>
+            {request.priority.toUpperCase()}
+          </Badge>
+          <Badge className={getStatusColor(request.status)}>
+            {request.status.toUpperCase()}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
@@ -134,7 +157,7 @@ export default function RequestCard({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">
-                  {request.purposeType.replace('_', ' ').toUpperCase()}
+                  {request.purposeType.replace("_", " ").toUpperCase()}
                 </Badge>
                 {request.subPurpose && (
                   <Badge variant="outline">
