@@ -81,35 +81,26 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (request) {
       console.log("Loading request data:", request);
+
+      // Reset form with all available data
       form.reset({
-        title: request.title,
-        description: request.description,
-        items: request.items,
-        companyName: request.companyName,
-        contactPerson: request.contactPerson,
-        contactNumber: request.contactNumber,
-        accountNumber: request.accountNumber,
-        purpose: request.purpose,
-        purposeType: request.purposeType,
-        subPurposeId: request.subPurposeId,
-        priority: request.priority,
-        currency: request.currency,
-        status: request.status,
+        ...request,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
-        requestNumber: request.requestNumber,
-        requesterId: request.requesterId,
+        items: request.items || [{ name: "", quantity: 1, estimatedCost: 0 }],
       });
 
-      if (Array.isArray(request.items)) {
+      // Set items state
+      if (Array.isArray(request.items) && request.items.length > 0) {
         setItems(request.items.map(item => ({
-          name: item.name,
-          quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
+          name: item.name || "",
+          quantity: Number(item.quantity) || 1,
+          estimatedCost: Number(item.estimatedCost) || 0
         })));
       }
 
-      setFreightAmount(Number(request.freightAmount));
+      // Set freight amount
+      setFreightAmount(Number(request.freightAmount) || 0);
     }
   }, [request, form]);
 
@@ -122,7 +113,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + item.quantity * item.estimatedCost,
+      (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
       0
     );
     return itemsTotal + freightAmount;
@@ -163,7 +154,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
-      const errors = form.formState.errors;
       toast({
         title: "Validation Error",
         description: "Please check all required fields",
@@ -178,10 +168,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-        const analysis = await analyzeFormError(form.getValues(), errors);
+        console.error("Form validation errors:", errors);
         toast({
           title: "Validation Error",
-          description: analysis || "Please check all required fields and try again",
+          description: "Please check all required fields and try again",
           variant: "destructive",
         });
         return;
@@ -209,11 +199,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     }
   };
 
-  const updateItem = (index: number, field: string, value: string) => {
+  const updateItem = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === "quantity" || field === "estimatedCost" ? Number(value) : value,
+      [field]: field === "name" ? value : Number(value),
     };
     setItems(newItems);
   };
@@ -255,6 +245,78 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+                {/* Purpose Type, Sub-purpose, and Priority Section */}
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Type</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="purposeType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select purpose type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="event">Event</SelectItem>
+                              <SelectItem value="project">Project</SelectItem>
+                              <SelectItem value="mall">Mall</SelectItem>
+                              <SelectItem value="business_growth">Business Growth</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="subPurposeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
+                          <FormControl>
+                            <SubPurposeSelect
+                              purposeType={form.watch("purposeType")}
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Priority</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {priorities.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Basic Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
@@ -292,18 +354,44 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   />
                 </div>
 
+                {/* Items Section with Currency */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addItem}
-                      className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
+                    <div className="flex items-center gap-4">
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2">
+                            <FormLabel className="text-[#191160] whitespace-nowrap mb-0">Currency:</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="w-[100px] border-[#7156a2]/20 focus:border-[#7156a2]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {currencies.map(({ label, value }) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addItem}
+                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 transition-colors"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -343,7 +431,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </div>
                         <div className="w-32 text-right">
                           <p className="text-sm text-[#191160]">
-                            Total: {(item.quantity * item.estimatedCost).toFixed(2)}
+                            {form.watch("currency")} {(item.quantity * item.estimatedCost).toFixed(2)}
                           </p>
                         </div>
                         <Button
@@ -379,7 +467,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       <div className="flex justify-between text-[#191160]">
                         <span>Items Total:</span>
                         <span className="font-medium">
-                          {items
+                          {form.watch("currency")} {items
                             .reduce(
                               (sum, item) => sum + item.quantity * item.estimatedCost,
                               0
@@ -389,20 +477,21 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       </div>
                       <div className="flex justify-between text-[#191160]">
                         <span>Freight Amount:</span>
-                        <span>{freightAmount.toFixed(2)}</span>
+                        <span>{form.watch("currency")} {freightAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between pt-2 border-t border-[#7156a2]/20">
                         <span className="text-lg font-semibold text-[#191160]">
                           Total Estimated Cost:
                         </span>
                         <span className="text-lg font-bold text-[#7156a2]">
-                          {calculateTotalCost().toFixed(2)}
+                          {form.watch("currency")} {calculateTotalCost().toFixed(2)}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Vendor Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -479,121 +568,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       )}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Details</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="purposeType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                <SelectValue placeholder="Select purpose type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="event">Event</SelectItem>
-                              <SelectItem value="project">Project</SelectItem>
-                              <SelectItem value="mall">Mall</SelectItem>
-                              <SelectItem value="business_growth">Business Growth</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="subPurposeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
-                          <FormControl>
-                            <SubPurposeSelect
-                              purposeType={form.watch("purposeType")}
-                              value={field.value}
-                              onChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="purpose"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Purpose Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] transition-colors"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="priority"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Priority</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {priorities.map(({ label, value }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Currency</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {currencies.map(({ label, value }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <DepartmentSelect
-                    label="Additional Approvers"
-                    onChange={() => {}}
-                    multiple
-                  />
                 </div>
 
                 <div className="flex justify-between pt-6">
