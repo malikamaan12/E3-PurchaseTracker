@@ -28,6 +28,7 @@ import {
 import { Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "./ApprovalFlow";
+import RequestStatusTimeline from "./RequestStatusTimeline";
 import { mandatoryDepartments } from "@db/schema";
 import type { PurchaseRequest } from "@db/schema";
 
@@ -71,6 +72,7 @@ export default function RequestCard({
         await createApproval({
           requestId: request.id,
           department,
+          approverId: user!.id,
           isMandatory: true,
           status: "pending"
         });
@@ -92,7 +94,7 @@ export default function RequestCard({
         department: user.department,
         status,
         comments,
-        isMandatory: mandatoryDepartments.includes(user.department as any)
+        isMandatory: mandatoryDepartments.includes(user.department)
       });
 
       // Special handling for Finance department approval
@@ -324,11 +326,6 @@ export default function RequestCard({
           </div>
 
           <div className="space-y-2">
-            <h4 className="font-medium">Vendor</h4>
-            <p className="text-sm text-gray-600">{request.vendor}</p>
-          </div>
-
-          <div className="space-y-2">
             <h4 className="font-medium">Purpose</h4>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -345,7 +342,13 @@ export default function RequestCard({
             </div>
           </div>
 
-          <ApprovalFlow approvals={request.approvals} />
+          <RequestStatusTimeline request={request} />
+
+          <ApprovalFlow 
+            approvals={request.approvals} 
+            requestId={request.id}
+            onApprovalUpdate={() => {}} // Refresh data when approval is updated
+          />
 
           {showApproval && canApprove && (
             <div className="space-y-4 mt-4">
