@@ -2,13 +2,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
-import type { Approval, User, mandatoryDepartments } from "@db/schema";
+import type { Approval, User } from "@db/schema";
+import { Button } from "@/components/ui/button";
+import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
+import { useUser } from "@/hooks/use-user";
+import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface ApprovalFlowProps {
   approvals: (Approval & { approver: User })[];
+  requestId: number;
+  onApprovalUpdate?: () => void;
 }
 
-export default function ApprovalFlow({ approvals }: ApprovalFlowProps) {
+export default function ApprovalFlow({ approvals, requestId, onApprovalUpdate }: ApprovalFlowProps) {
+  const { user } = useUser();
+  const { createApproval } = usePurchaseRequests();
+  const { toast } = useToast();
+  const [comments, setComments] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const getStatusIcon = (status: string, isMandatory: boolean) => {
     switch (status) {
       case "approved":
@@ -33,15 +47,69 @@ export default function ApprovalFlow({ approvals }: ApprovalFlowProps) {
     }
   };
 
-  // Sort approvals to show mandatory approvers first
-  const sortedApprovals = [...approvals].sort((a, b) => {
+  const handleApproval = async (status: 'approved' | 'rejected') => {
+    if (!user) return;
+
+    try {
+      setIsSubmitting(true);
+      await createApproval({
+        requestId,
+        status,
+        comments: comments.trim() || undefined,
+      });
+
+      toast({
+        title: "Success",
+        description: `Request ${status} successfully`,
+      });
+
+      setComments("");
+      onApprovalUpdate?.();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get unique approvals by department (keep only the latest approval for each department)
+  const uniqueApprovals = approvals.reduce((acc, curr) => {
+    const existing = acc.find(a => a.department === curr.department);
+    if (!existing || new Date(curr.updatedAt) > new Date(existing.updatedAt)) {
+      // Remove existing if found
+      if (existing) {
+        acc = acc.filter(a => a.department !== curr.department);
+      }
+      // Add current
+      acc.push(curr);
+    }
+    return acc;
+  }, [] as (Approval & { approver: User })[]);
+
+  // Sort approvals: mandatory first, then by status (pending first)
+  const sortedApprovals = uniqueApprovals.sort((a, b) => {
     if (a.isMandatory && !b.isMandatory) return -1;
     if (!a.isMandatory && b.isMandatory) return 1;
-    return 0;
+
+    // Then sort by status: pending first, then approved, then rejected
+    const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+    return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
   });
 
+  // Find current user's department approval
+  const userDepartmentApproval = uniqueApprovals.find(
+    a => a.department === user?.department
+  );
+
+  // Check if user can approve (is approver but hasn't approved yet)
+  const canApprove = user && !userDepartmentApproval;
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <h4 className="font-medium">Approval Flow</h4>
       <div className="space-y-2">
         {sortedApprovals.map((approval) => (
@@ -82,6 +150,40 @@ export default function ApprovalFlow({ approvals }: ApprovalFlowProps) {
             </CardContent>
           </Card>
         ))}
+
+        {canApprove && (
+          <Card className="mt-4">
+            <CardContent className="p-4">
+              <h5 className="font-medium mb-2">Add Your Approval</h5>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Add comments (optional)"
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  className="w-full"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleApproval('approved')}
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    {isSubmitting ? 'Approving...' : 'Approve'}
+                  </Button>
+                  <Button
+                    onClick={() => handleApproval('rejected')}
+                    disabled={isSubmitting}
+                    variant="destructive"
+                    className="flex-1"
+                  >
+                    {isSubmitting ? 'Rejecting...' : 'Reject'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {approvals.length === 0 && (
           <p className="text-sm text-gray-500">No approvals yet</p>
         )}

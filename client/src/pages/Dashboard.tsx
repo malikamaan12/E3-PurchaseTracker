@@ -31,16 +31,23 @@ export default function Dashboard() {
   ) || [];
 
   // For special roles (CEO, Director, Finance), show all requests based on status
-  const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
+  const pendingRequests = requests?.filter(r => {
+    if (r.status !== 'pending') return false;
+
+    // Check if all approvals for this department are not approved
+    const departmentApproval = r.approvals.find(a => 
+      a.department === user?.department
+    );
+
+    // Show in pending if no approval exists or if it's pending
+    return !departmentApproval || departmentApproval.status === 'pending';
+  }) || [];
+
   const approvedRequests = requests?.filter(r => r.status === 'approved') || [];
   const rejectedRequests = requests?.filter(r => r.status === 'rejected') || [];
   const changesRequestedRequests = requests?.filter(r => r.status === 'changes_requested') || [];
 
-  // Updated pending approvals logic to show requests that:
-  // 1. Are in pending status
-  // 2. Need approval from the user's department
-  // 3. Haven't been approved/rejected by the user's department yet
-  // 4. Are not the user's own requests
+
   const pendingApprovals = requests?.filter(r => {
     if (r.status !== 'pending' || r.requesterId === user?.id) return false;
 
@@ -50,7 +57,7 @@ export default function Dashboard() {
     );
 
     // Show if either:
-    // 1. No approval record exists yet for this department (needs to be created)
+    // 1. No approval record exists yet for this department
     // 2. Approval exists but is still pending
     return !departmentApproval || departmentApproval.status === 'pending';
   }) || [];
@@ -154,7 +161,7 @@ export default function Dashboard() {
                             key={request.id}
                             request={request}
                             showActions={false}
-                            showApproval={false} // Never show approval buttons for own requests
+                            showApproval={false} 
                           />
                         ))}
                       </div>
