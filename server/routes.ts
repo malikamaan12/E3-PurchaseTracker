@@ -203,7 +203,7 @@ export function registerRoutes(app: Express): Server {
               approver: true
             }
           },
-          subPurpose: true,
+          subPurpose: true
         }
       });
 
@@ -230,7 +230,6 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Get the current request to verify ownership and status
       const [currentRequest] = await db
         .select()
         .from(purchaseRequests)
@@ -250,9 +249,13 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("Cannot modify request in current status");
       }
 
+      // Update the request with all fields including vendor information
       const request = await db
         .update(purchaseRequests)
-        .set(req.body)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
         .returning();
 
