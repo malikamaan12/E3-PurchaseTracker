@@ -195,7 +195,7 @@ export const accountRequests = pgTable("account_requests", {
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(),
+  contactNumber: text("contactNumber").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),

@@ -18,6 +18,8 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { analyzePurchaseRequestPriority } from "./utils/anthropic";
+import * as crypto from 'crypto'; // Import crypto library
+
 
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
   try {
@@ -914,8 +916,14 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
+      // Hash the password before storing
+      const hashedPassword = await crypto.hash(result.data.password);
+
       const [request] = await db.insert(accountRequests)
-        .values(result.data)
+        .values({
+          ...result.data,
+          password: hashedPassword
+        })
         .returning();
 
       // Notify admins about the new account request
@@ -932,7 +940,16 @@ export function registerRoutes(app: Express): Server {
         );
       }
 
-      res.json(request);
+      res.json({
+        message: "Account request submitted successfully. Your request is under review.",
+        request: {
+          id: request.id,
+          username: request.username,
+          email: request.email,
+          department: request.department,
+          status: request.status
+        }
+      });
     } catch (error: any) {
       console.error("Error creating account request:", error);
       res.status(500).json({
@@ -963,7 +980,7 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching account requests:", error);
       res.status(500).json({
         error: "Failed to fetch account requests",
-        message: error.message
+        message: errorerror.message
       });
     }
   });
@@ -1007,7 +1024,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update the request status
       await db.update(accountRequests)
-        .set({ 
+        .set({
           status: "approved",
           updatedAt: new Date()
         })
@@ -1035,7 +1052,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const [request] = await db
         .update(accountRequests)
-        .set({ 
+        .set({
           status: "rejected",
           updatedAt: new Date()
         })
