@@ -8,7 +8,6 @@ import { analyzeFormError } from "@/lib/debugUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -17,6 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import VendorSelect from "@/components/VendorSelect";
@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { NewPurchaseRequest, PurchaseRequest } from "@db/schema";
+import type { NewPurchaseRequest } from "@db/schema";
+import type { PurchaseRequest } from "@db/schema";
 import { useQuery } from "@tanstack/react-query";
 
 const currencies = [
@@ -106,7 +107,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendorId || !values.vendor) {
+      if (!values.vendorId) {
         toast({
           title: "Error",
           description: "Please select a vendor",
@@ -115,32 +116,35 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
-      // Create a simplified submission object with correct types
+      // Transform the data before submission
       const formData = {
-        ...values,
-        vendorId: values.vendorId, // Just use the ID
-        items: items.map(item => ({
+        title: values.title,
+        description: values.description,
+        purpose: values.purpose,
+        purposeType: values.purposeType,
+        priority: values.priority,
+        currency: values.currency,
+        status: values.status || "draft",
+        // Convert numeric fields
+        vendorId: Number(values.vendorId),
+        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : undefined,
+        // Convert items array
+        items: items.map((item) => ({
           name: item.name,
           quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
+          estimatedCost: Number(item.estimatedCost),
         })),
+        // Convert amounts to strings
         freightAmount: freightAmount.toString(),
-        totalEstimatedCost: calculateTotalCost().toString()
-      };
-
-      // Remove fields that should be handled by the backend
-      const { createdAt, updatedAt, ...dataToSubmit } = formData;
-
-      // Remove additional complex objects
-      const cleanedData = {
-        ...dataToSubmit,
-        vendor: values.vendor.toString(), // Ensure vendor is a string
+        totalEstimatedCost: calculateTotalCost().toString(),
+        // Ensure vendor is a string
+        vendor: values.vendor.toString(),
       };
 
       try {
         await updateRequest({
           id: parseInt(params.id),
-          data: cleanedData,
+          data: formData,
         });
         toast({
           title: "Success",
@@ -149,20 +153,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-        const analysis = await analyzeFormError(cleanedData, error);
-        if (analysis) {
-          toast({
-            title: "Validation Error Analysis",
-            description: analysis,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message || "Failed to update request",
-            variant: "destructive",
-          });
-        }
+        const analysis = await analyzeFormError(formData, error);
+        toast({
+          title: "Validation Error",
+          description: analysis || error.message || "Failed to update request",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
@@ -170,23 +166,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       console.log("Form validation errors:", errors);
 
       const analysis = await analyzeFormError(values, errors);
-      if (analysis) {
-        toast({
-          title: "Form Validation Analysis",
-          description: analysis,
-          variant: "destructive",
-        });
-      } else {
-        const errorMessages = Object.entries(errors)
-          .map(([field, error]) => `${field}: ${error?.message}`)
-          .join("\n");
-
-        toast({
-          title: "Validation Error",
-          description: errorMessages || "Please check all required fields",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Form Validation Error",
+        description: analysis || "Please check all required fields",
+        variant: "destructive",
+      });
     }
   };
 
@@ -205,7 +189,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === "quantity" || field === "estimatedCost" ? Number(value) : value,
+      [field]:
+        field === "quantity" || field === "estimatedCost" ? Number(value) : value,
     };
     setItems(newItems);
   };
