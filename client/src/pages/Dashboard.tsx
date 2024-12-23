@@ -269,6 +269,18 @@ export default function Dashboard() {
     );
   };
 
+  // Check if user has any pending approvals
+  const hasPendingApprovals = useMemo(() => {
+    return requests?.some(request => {
+      if (request.status !== "pending" || request.requesterId === user?.id) {
+        return false;
+      }
+      // Check if this request is waiting for the current user's department approval
+      const departmentApproval = request.approvals.find(a => a.department === user?.department);
+      return !departmentApproval || departmentApproval.status === "pending";
+    });
+  }, [requests, user]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -408,11 +420,11 @@ export default function Dashboard() {
                   Changes Requested ({changesRequestedRequests.length})
                 </TabsTrigger>
               </>
-            ) : (
+            ) : hasPendingApprovals ? (
               <TabsTrigger value="approvals">
                 Pending Approvals ({pendingApprovals.length})
               </TabsTrigger>
-            )}
+            ) : null}
           </TabsList>
 
           <TabsContent value="my-requests">
@@ -558,7 +570,7 @@ export default function Dashboard() {
             </>
           )}
 
-          {!isSpecialRole && (
+          {!isSpecialRole && hasPendingApprovals && (
             <TabsContent value="approvals">
               <Card>
                 <CardContent className="p-6">
