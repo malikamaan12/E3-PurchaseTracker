@@ -95,6 +95,48 @@ async function createNotification(userId: number, message: string, type: string,
   }
 }
 
+async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
+  const [request] = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.id, requestId))
+    .limit(1);
+
+  if (!request) return false;
+
+  // Get user's department
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) return false;
+
+  // Check if user is not the requester
+  if (request.requesterId === userId) return false;
+
+  // Check if the request is pending
+  if (request.status !== "pending") return false;
+
+  // Check if this department hasn't approved yet
+  const [existingApproval] = await db
+    .select()
+    .from(approvals)
+    .where(
+      and(
+        eq(approvals.requestId, requestId),
+        eq(approvals.department, user.department)
+      )
+    )
+    .limit(1);
+
+  // Can approve if no approval exists or if existing approval is pending
+  return !existingApproval || existingApproval.status === "pending";
+}
+
+const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
@@ -362,17 +404,23 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      const canApprove = await canUserApprove(req.user!.id, req.body.requestId);
+      if (!canApprove) {
+        return res.status(403).json({ error: "Not authorized to approve this request" });
+      }
+
       const [approval] = await db.insert(approvals)
         .values({
-          ...req.body,
+          requestId: req.body.requestId,
           approverId: req.user!.id,
           department: req.user!.department,
-          updatedAt: new Date()
+          status: req.body.status,
+          comments: req.body.comments,
+          isMandatory: mandatoryDepartments.includes(req.user!.department),
         })
         .returning();
 
-      if (req.body.status) {
-        // Get the request details
+      if (approval) {
         const [request] = await db
           .select()
           .from(purchaseRequests)
@@ -380,7 +428,6 @@ export function registerRoutes(app: Express): Server {
           .limit(1);
 
         if (request) {
-          // Create notification for the request owner
           await createNotification(
             request.requesterId,
             `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,

@@ -6,7 +6,7 @@ import type { Approval, User } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,39 +16,35 @@ interface ApprovalFlowProps {
   onApprovalUpdate?: () => void;
 }
 
-export default function ApprovalFlow({ approvals, requestId, onApprovalUpdate }: ApprovalFlowProps) {
+export default function ApprovalFlow({
+  approvals,
+  requestId,
+  onApprovalUpdate,
+}: ApprovalFlowProps) {
   const { user } = useUser();
   const { createApproval } = usePurchaseRequests();
   const { toast } = useToast();
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getStatusIcon = (status: string, isMandatory: boolean) => {
-    switch (status) {
-      case "approved":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "rejected":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      default:
-        return isMandatory ? 
-          <AlertTriangle className="h-5 w-5 text-orange-500" /> :
-          <Clock className="h-5 w-5 text-yellow-500" />;
-    }
-  };
+  // Check if user can approve this request
+  const canApprove = useMemo(() => {
+    if (!user) return false;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-500";
-      case "rejected":
-        return "bg-red-500";
-      default:
-        return "bg-yellow-500";
-    }
-  };
+    // User cannot approve their own request
+    const request = approvals.find(a => a.requestId === requestId);
+    if (request && request.requesterId === user.id) return false;
 
-  const handleApproval = async (status: 'approved' | 'rejected') => {
-    if (!user) return;
+    // Check if user's department has already approved
+    const departmentApproval = approvals.find(
+      (a) => a.department === user?.department
+    );
+
+    return !departmentApproval || departmentApproval.status === "pending";
+  }, [approvals, user, requestId]);
+
+  const handleApproval = async (status: "approved" | "rejected") => {
+    if (!user || !canApprove) return;
 
     try {
       setIsSubmitting(true);
@@ -76,6 +72,30 @@ export default function ApprovalFlow({ approvals, requestId, onApprovalUpdate }:
     }
   };
 
+  const getStatusIcon = (status: string, isMandatory: boolean) => {
+    switch (status) {
+      case "approved":
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case "rejected":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return isMandatory ? 
+          <AlertTriangle className="h-5 w-5 text-orange-500" /> :
+          <Clock className="h-5 w-5 text-yellow-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-500";
+      case "rejected":
+        return "bg-red-500";
+      default:
+        return "bg-yellow-500";
+    }
+  };
+
   // Get unique approvals by department (keep only the latest approval for each department)
   const uniqueApprovals = approvals.reduce((acc, curr) => {
     const existing = acc.find(a => a.department === curr.department);
@@ -100,13 +120,6 @@ export default function ApprovalFlow({ approvals, requestId, onApprovalUpdate }:
     return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
   });
 
-  // Find current user's department approval
-  const userDepartmentApproval = uniqueApprovals.find(
-    a => a.department === user?.department
-  );
-
-  // Check if user can approve (is approver but hasn't approved yet)
-  const canApprove = user && !userDepartmentApproval;
 
   return (
     <div className="space-y-4">
@@ -164,19 +177,19 @@ export default function ApprovalFlow({ approvals, requestId, onApprovalUpdate }:
                 />
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleApproval('approved')}
+                    onClick={() => handleApproval("approved")}
                     disabled={isSubmitting}
                     className="flex-1"
                   >
-                    {isSubmitting ? 'Approving...' : 'Approve'}
+                    {isSubmitting ? "Approving..." : "Approve"}
                   </Button>
                   <Button
-                    onClick={() => handleApproval('rejected')}
+                    onClick={() => handleApproval("rejected")}
                     disabled={isSubmitting}
                     variant="destructive"
                     className="flex-1"
                   >
-                    {isSubmitting ? 'Rejecting...' : 'Reject'}
+                    {isSubmitting ? "Rejecting..." : "Reject"}
                   </Button>
                 </div>
               </div>
