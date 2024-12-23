@@ -23,13 +23,23 @@ export default function Dashboard() {
     r.status !== 'draft'
   ) || [];
 
-  const pendingApprovals = requests?.filter(r => 
-    r.status !== 'draft' && 
-    r.approvals.some(a => 
-      a.department === user?.department && 
-      a.status === 'pending'
-    )
-  ) || [];
+  // Updated pending approvals logic to show requests that:
+  // 1. Are in pending status
+  // 2. Need approval from the user's department
+  // 3. Haven't been approved/rejected by the user's department yet
+  const pendingApprovals = requests?.filter(r => {
+    if (r.status !== 'pending') return false;
+
+    // Check if this department needs to approve
+    const departmentApproval = r.approvals.find(a => 
+      a.department === user?.department
+    );
+
+    // Show if either:
+    // 1. No approval record exists yet for this department (needs to be created)
+    // 2. Approval exists but is still pending
+    return !departmentApproval || departmentApproval.status === 'pending';
+  }) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -64,11 +74,9 @@ export default function Dashboard() {
             <TabsTrigger value="my-requests">
               My Requests ({mySubmittedRequests.length + myDrafts.length})
             </TabsTrigger>
-            {user?.role === "approver" && (
-              <TabsTrigger value="approvals">
-                Pending Approvals ({pendingApprovals.length})
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="approvals">
+              Pending Approvals ({pendingApprovals.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="my-requests">
@@ -121,35 +129,34 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {user?.role === "approver" && (
-            <TabsContent value="approvals">
-              <Card>
-                <CardContent className="p-6">
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-border" />
+          <TabsContent value="approvals">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-medium mb-4">Requests Requiring Your Approval</h3>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-border" />
+                  </div>
+                ) : pendingApprovals.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No pending approvals.
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[600px] pr-4">
+                    <div className="space-y-4">
+                      {pendingApprovals.map((request) => (
+                        <RequestCard
+                          key={request.id}
+                          request={request}
+                          showApproval
+                        />
+                      ))}
                     </div>
-                  ) : pendingApprovals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No pending approvals.
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[600px] pr-4">
-                      <div className="space-y-4">
-                        {pendingApprovals.map((request) => (
-                          <RequestCard
-                            key={request.id}
-                            request={request}
-                            showApproval
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
