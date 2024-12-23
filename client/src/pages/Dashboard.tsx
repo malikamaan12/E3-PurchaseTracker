@@ -5,62 +5,99 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import RequestCard from "@/components/RequestCard";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
-import { Plus, LogOut } from "lucide-react";
+import { Plus, LogOut, Search } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useState, useMemo } from "react";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
+
+  // Filter states
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Special roles that can see all requests
   const isSpecialRole = user?.department === 'CEO Office' || 
                        user?.department === 'Director' || 
                        user?.department === 'Finance';
 
+  // Get unique values for filters
+  const departments = useMemo(() => {
+    const deptSet = new Set(requests?.map(r => r.requester.department) || []);
+    return Array.from(deptSet);
+  }, [requests]);
+
+  const purposeTypes = useMemo(() => {
+    const typeSet = new Set(requests?.map(r => r.purposeType) || []);
+    return Array.from(typeSet);
+  }, [requests]);
+
+  const priorities = ["low", "medium", "high", "urgent"];
+
+  // Filter function
+  const filterRequests = (requestList: any[]) => {
+    return requestList.filter(r => {
+      const matchesDepartment = departmentFilter === "all" || r.requester.department === departmentFilter;
+      const matchesPurposeType = purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
+      const matchesPriority = priorityFilter === "all" || r.priority === priorityFilter;
+      const matchesSearch = !searchQuery || 
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesDepartment && matchesPurposeType && matchesPriority && matchesSearch;
+    });
+  };
+
   // Filter requests based on user role and status
-  const myDrafts = requests?.filter(r => 
-    r.requesterId === user?.id && 
-    r.status === 'draft'
-  ) || [];
+  const myDrafts = filterRequests(
+    requests?.filter(r => r.requesterId === user?.id && r.status === 'draft') || []
+  );
 
-  const mySubmittedRequests = requests?.filter(r => 
-    r.requesterId === user?.id && 
-    r.status !== 'draft'
-  ) || [];
+  const mySubmittedRequests = filterRequests(
+    requests?.filter(r => r.requesterId === user?.id && r.status !== 'draft') || []
+  );
 
-  // For special roles (CEO, Director, Finance), show all requests based on status
-  const pendingRequests = requests?.filter(r => {
-    if (r.status !== 'pending') return false;
+  const pendingRequests = filterRequests(
+    requests?.filter(r => {
+      if (r.status !== 'pending') return false;
+      const departmentApproval = r.approvals.find(a => a.department === user?.department);
+      return !departmentApproval || departmentApproval.status === 'pending';
+    }) || []
+  );
 
-    // Check if all approvals for this department are not approved
-    const departmentApproval = r.approvals.find(a => 
-      a.department === user?.department
-    );
+  const approvedRequests = filterRequests(
+    requests?.filter(r => r.status === 'approved') || []
+  );
 
-    // Show in pending if no approval exists or if it's pending
-    return !departmentApproval || departmentApproval.status === 'pending';
-  }) || [];
+  const rejectedRequests = filterRequests(
+    requests?.filter(r => r.status === 'rejected') || []
+  );
 
-  const approvedRequests = requests?.filter(r => r.status === 'approved') || [];
-  const rejectedRequests = requests?.filter(r => r.status === 'rejected') || [];
-  const changesRequestedRequests = requests?.filter(r => r.status === 'changes_requested') || [];
+  const changesRequestedRequests = filterRequests(
+    requests?.filter(r => r.status === 'changes_requested') || []
+  );
 
-
-  const pendingApprovals = requests?.filter(r => {
-    if (r.status !== 'pending' || r.requesterId === user?.id) return false;
-
-    // Find approval for user's department
-    const departmentApproval = r.approvals.find(a => 
-      a.department === user?.department
-    );
-
-    // Show if either:
-    // 1. No approval record exists yet for this department
-    // 2. Approval exists but is still pending
-    return !departmentApproval || departmentApproval.status === 'pending';
-  }) || [];
+  const pendingApprovals = filterRequests(
+    requests?.filter(r => {
+      if (r.status !== 'pending' || r.requesterId === user?.id) return false;
+      const departmentApproval = r.approvals.find(a => a.department === user?.department);
+      return !departmentApproval || departmentApproval.status === 'pending';
+    }) || []
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,6 +128,71 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filter Section */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="relative">
+                <Input
+                  placeholder="Search requests..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+                <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
+              </div>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map(dept => (
+                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={purposeTypeFilter} onValueChange={setPurposeTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Purposes</SelectItem>
+                  {purposeTypes.map(type => (
+                    <SelectItem key={type} value={type}>
+                      {type.replace('_', ' ').toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  {priorities.map(priority => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setDepartmentFilter("all");
+                  setPurposeTypeFilter("all");
+                  setPriorityFilter("all");
+                  setSearchQuery("");
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue={isSpecialRole ? "all-requests" : "my-requests"}>
           <TabsList className="mb-8">
             <TabsTrigger value="my-requests">
@@ -161,7 +263,7 @@ export default function Dashboard() {
                             key={request.id}
                             request={request}
                             showActions={false}
-                            showApproval={false} 
+                            showApproval={false}
                           />
                         ))}
                       </div>
