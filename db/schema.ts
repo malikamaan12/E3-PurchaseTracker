@@ -101,7 +101,7 @@ export const insertUserSchema = createInsertSchema(users, {
   email: z.string().email("Invalid email address"),
   contactNumber: z.string().min(1, "Contact number is required"),
   department: z.enum(["Management", "Business", "Operations", "Support", "CEO Office", "Finance", "Director"]),
-  role: z.enum(["user", "admin"]).optional(),
+  role: z.enum(["user", "admin", "approver"]).optional(),
 });
 export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
