@@ -55,7 +55,7 @@ export default function NewRequest() {
     defaultValues: {
       title: "",
       description: "",
-      items: [],
+      items: items,
       vendorId: undefined,
       purpose: "",
       purposeType: "event",
@@ -73,7 +73,7 @@ export default function NewRequest() {
       (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
       0
     );
-    return itemsTotal + freightAmount;
+    return itemsTotal + Number(freightAmount);
   };
 
   const onSubmit = async (values: NewPurchaseRequest) => {
@@ -101,14 +101,16 @@ export default function NewRequest() {
       const formattedData = {
         ...values,
         items: items.map(item => ({
-          ...item,
+          name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost)
         })),
         freightAmount: Number(freightAmount),
-        totalEstimatedCost
+        totalEstimatedCost: Number(totalEstimatedCost),
+        vendorId: Number(values.vendorId)
       };
 
+      console.log("Submitting request:", formattedData);
       await createRequest(formattedData);
 
       toast({
@@ -146,9 +148,30 @@ export default function NewRequest() {
     setItems(newItems);
   };
 
-  const handleSubmit = (status: "draft" | "pending") => {
-    form.setValue("status", status);
-    form.handleSubmit(onSubmit)();
+  const handleSubmit = async (status: "draft" | "pending") => {
+    try {
+      form.setValue("status", status);
+      const isValid = await form.trigger();
+
+      if (!isValid) {
+        console.log("Form validation errors:", form.formState.errors);
+        toast({
+          title: "Validation Error",
+          description: "Please check all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await form.handleSubmit(onSubmit)();
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit form",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
