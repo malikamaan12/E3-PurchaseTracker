@@ -94,14 +94,12 @@ export default function NewRequest() {
         return;
       }
 
-      if (items.some((item) => !item.name)) {
-        toast({
-          title: "Error",
-          description: "All items must have a name",
-          variant: "destructive",
-        });
-        return;
+      // Find selected vendor to get company name
+      const vendorResponse = await fetch(`/api/vendors/${values.vendorId}`);
+      if (!vendorResponse.ok) {
+        throw new Error("Failed to fetch vendor details");
       }
+      const vendorData = await vendorResponse.json();
 
       const formattedData = {
         ...values,
@@ -113,6 +111,7 @@ export default function NewRequest() {
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendorId: Number(values.vendorId),
+        vendor: vendorData.companyName, // Add vendor company name
         status: values.status || "draft"
       };
 
