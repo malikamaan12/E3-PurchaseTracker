@@ -43,6 +43,7 @@ export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
   const { preferences, updatePreferences } = useDashboardPreferences();
+  const [, setLocation] = useLocation();
 
   const [departmentFilter, setDepartmentFilter] = useState<string>(
     preferences.defaultDepartmentFilter
@@ -159,7 +160,6 @@ export default function Dashboard() {
       // Add your delete request logic here
       console.log("Deleting request:", requestId);
     };
-    const [, setLocation] = useLocation();
 
     return (
       <Table>
@@ -471,6 +471,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="pending">
                 <Card>
                   <CardContent className="p-6">
@@ -491,6 +492,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="approved">
                 <Card>
                   <CardContent className="p-6">
@@ -511,6 +513,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="rejected">
                 <Card>
                   <CardContent className="p-6">
@@ -531,6 +534,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="changes">
                 <Card>
                   <CardContent className="p-6">
