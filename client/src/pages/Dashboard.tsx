@@ -13,6 +13,12 @@ export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
 
+  // Special roles that can see all requests
+  const isSpecialRole = user?.department === 'CEO Office' || 
+                       user?.department === 'Director' || 
+                       user?.department === 'Finance';
+
+  // Filter requests based on user role and status
   const myDrafts = requests?.filter(r => 
     r.requesterId === user?.id && 
     r.status === 'draft'
@@ -22,6 +28,12 @@ export default function Dashboard() {
     r.requesterId === user?.id && 
     r.status !== 'draft'
   ) || [];
+
+  // For special roles (CEO, Director, Finance), show all requests based on status
+  const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
+  const approvedRequests = requests?.filter(r => r.status === 'approved') || [];
+  const rejectedRequests = requests?.filter(r => r.status === 'rejected') || [];
+  const changesRequestedRequests = requests?.filter(r => r.status === 'changes_requested') || [];
 
   // Updated pending approvals logic to show requests that:
   // 1. Are in pending status
@@ -69,14 +81,34 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="my-requests">
+        <Tabs defaultValue={isSpecialRole ? "all-requests" : "my-requests"}>
           <TabsList className="mb-8">
             <TabsTrigger value="my-requests">
               My Requests ({mySubmittedRequests.length + myDrafts.length})
             </TabsTrigger>
-            <TabsTrigger value="approvals">
-              Pending Approvals ({pendingApprovals.length})
-            </TabsTrigger>
+            {isSpecialRole ? (
+              <>
+                <TabsTrigger value="all-requests">
+                  All Requests ({requests?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="pending">
+                  Pending ({pendingRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="approved">
+                  Approved ({approvedRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="rejected">
+                  Rejected ({rejectedRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="changes">
+                  Changes Requested ({changesRequestedRequests.length})
+                </TabsTrigger>
+              </>
+            ) : (
+              <TabsTrigger value="approvals">
+                Pending Approvals ({pendingApprovals.length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="my-requests">
@@ -129,34 +161,185 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="approvals">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-medium mb-4">Requests Requiring Your Approval</h3>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-border" />
-                  </div>
-                ) : pendingApprovals.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No pending approvals.
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[600px] pr-4">
-                    <div className="space-y-4">
-                      {pendingApprovals.map((request) => (
-                        <RequestCard
-                          key={request.id}
-                          request={request}
-                          showApproval
-                        />
-                      ))}
+          {isSpecialRole && (
+            <>
+              <TabsContent value="all-requests">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">All Requests</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-border" />
+                      </div>
+                    ) : requests?.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No requests found.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[600px] pr-4">
+                        <div className="space-y-4">
+                          {requests?.map((request) => (
+                            <RequestCard
+                              key={request.id}
+                              request={request}
+                              showApproval={request.status === 'pending'}
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="pending">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">Pending Requests</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-border" />
+                      </div>
+                    ) : pendingRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No pending requests.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[600px] pr-4">
+                        <div className="space-y-4">
+                          {pendingRequests.map((request) => (
+                            <RequestCard
+                              key={request.id}
+                              request={request}
+                              showApproval
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="approved">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">Approved Requests</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-border" />
+                      </div>
+                    ) : approvedRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No approved requests.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[600px] pr-4">
+                        <div className="space-y-4">
+                          {approvedRequests.map((request) => (
+                            <RequestCard
+                              key={request.id}
+                              request={request}
+                              showApproval={false}
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="rejected">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">Rejected Requests</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-border" />
+                      </div>
+                    ) : rejectedRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No rejected requests.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[600px] pr-4">
+                        <div className="space-y-4">
+                          {rejectedRequests.map((request) => (
+                            <RequestCard
+                              key={request.id}
+                              request={request}
+                              showApproval={false}
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="changes">
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">Changes Requested</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-border" />
+                      </div>
+                    ) : changesRequestedRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No requests pending changes.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[600px] pr-4">
+                        <div className="space-y-4">
+                          {changesRequestedRequests.map((request) => (
+                            <RequestCard
+                              key={request.id}
+                              request={request}
+                              showApproval={false}
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
+          )}
+
+          {!isSpecialRole && (
+            <TabsContent value="approvals">
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Requests Requiring Your Approval</h3>
+                  {isLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-border" />
                     </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  ) : pendingApprovals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No pending approvals.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[600px] pr-4">
+                      <div className="space-y-4">
+                        {pendingApprovals.map((request) => (
+                          <RequestCard
+                            key={request.id}
+                            request={request}
+                            showApproval
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
