@@ -128,13 +128,31 @@ export default function AdminPanel() {
 
   const deleteSubPurpose = useMutation({
     mutationFn: async (id: number) => {
+      // First check if sub-purpose is in use
+      const checkResponse = await fetch(`/api/admin/sub-purposes/${id}/check-usage`, {
+        credentials: "include",
+      });
+
+      if (!checkResponse.ok) {
+        const error = await checkResponse.text();
+        throw new Error(error || "Failed to check sub-purpose usage");
+      }
+
+      const { isInUse } = await checkResponse.json();
+
+      if (isInUse) {
+        throw new Error(
+          "This sub-purpose is currently being used by one or more purchase requests. Please freeze it instead of deleting."
+        );
+      }
+
       const res = await fetch(`/api/admin/sub-purposes/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        throw new Error("Failed to delete sub-purpose");
       }
     },
     onSuccess: () => {

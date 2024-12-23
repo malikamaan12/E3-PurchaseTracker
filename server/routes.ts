@@ -592,6 +592,35 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add new endpoint to check sub-purpose usage
+  app.get("/api/admin/sub-purposes/:id/check-usage", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can check sub-purpose usage");
+    }
+
+    try {
+      // Check if there are any purchase requests using this sub-purpose
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.subPurposeId, parseInt(req.params.id)))
+        .limit(1);
+
+      res.json({ isInUse: !!request });
+    } catch (error: any) {
+      console.error("Error checking sub-purpose usage:", error);
+      res.status(500).json({
+        error: "Failed to check sub-purpose usage",
+        message: error.message
+      });
+    }
+  });
+
+
   // Add priority analysis endpoint
   app.post("/api/requests/:id/analyze-priority", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -743,6 +772,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+
   // Admin routes for managing sub-purposes
   app.post("/api/admin/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -820,6 +850,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update delete endpoint to handle foreign key constraint errors
   app.delete("/api/admin/sub-purposes/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -830,6 +861,19 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      // First check if sub-purpose is in use
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.subPurposeId, parseInt(req.params.id)))
+        .limit(1);
+
+      if (request) {
+        return res.status(400).send(
+          "This sub-purpose is currently being used by one or more purchase requests. Please freeze it instead of deleting."
+        );
+      }
+
       const [deletedPurpose] = await db
         .delete(subPurposes)
         .where(eq(subPurposes.id, parseInt(req.params.id)))
@@ -842,6 +886,14 @@ export function registerRoutes(app: Express): Server {
       res.json({ message: "Sub-purpose deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting sub-purpose:", error);
+
+      // Handle foreign key constraint violation explicitly
+      if (error.code === '23503') {
+        return res.status(400).send(
+          "Cannot delete this sub-purpose as it is referenced by existing purchase requests. Please freeze it instead."
+        );
+      }
+
       res.status(500).json({
         error: "Failed to delete sub-purpose",
         message: error.message
@@ -956,7 +1008,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update the request status
       await db.update(accountRequests)
-        .set({ 
+        .set({
           status: "approved",
           updatedAt: new Date()
         })
@@ -984,7 +1036,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const [request] = await db
         .update(accountRequests)
-        .set({ 
+        .set({
           status: "rejected",
           updatedAt: new Date()
         })
