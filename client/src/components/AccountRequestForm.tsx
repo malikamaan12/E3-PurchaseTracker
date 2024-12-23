@@ -134,6 +134,14 @@ export default function AccountRequestForm() {
             <SelectItem value="Finance">Finance</SelectItem>
             <SelectItem value="Director">Director</SelectItem>
             <SelectItem value="CEO Office">CEO Office</SelectItem>
+            <SelectItem value="Sales">Sales</SelectItem>
+            <SelectItem value="Marketing">Marketing</SelectItem>
+            <SelectItem value="Business Growth">Business Growth</SelectItem>
+            <SelectItem value="Branding">Branding</SelectItem>
+            <SelectItem value="Logistics">Logistics</SelectItem>
+            <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+            <SelectItem value="IT">IT</SelectItem>
+            <SelectItem value="HR">HR</SelectItem>
           </SelectContent>
         </Select>
         {form.formState.errors.department && (
