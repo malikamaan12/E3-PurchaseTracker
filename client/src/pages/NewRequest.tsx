@@ -49,7 +49,7 @@ export default function NewRequest() {
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
-  const [freightAmount, setFreightAmount] = useState<number>(0);
+  const [freightAmount, setFreightAmount] = useState(0);
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -69,24 +69,33 @@ export default function NewRequest() {
     },
   });
 
-  // Update form values when items or freight amount change
   useEffect(() => {
     const totalCost = calculateTotalCost();
     form.setValue('items', items);
     form.setValue('freightAmount', freightAmount);
     form.setValue('totalEstimatedCost', totalCost);
-  }, [items, freightAmount, form]);
+  }, [items, freightAmount]);
 
-  const calculateTotalCost = (): number => {
+  const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
+      (sum, item) => sum + (item.quantity * item.estimatedCost),
       0
     );
-    return Number((itemsTotal + Number(freightAmount)).toFixed(2));
+    return itemsTotal + freightAmount;
   };
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
+      // Validate vendor
+      if (!values.vendorId) {
+        toast({
+          title: "Error",
+          description: "Please select a vendor",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Validate items
       if (items.some((item) => !item.name)) {
         toast({
@@ -110,6 +119,8 @@ export default function NewRequest() {
         vendorId: Number(values.vendorId)
       };
 
+      console.log('Submitting form data:', formattedData);
+
       try {
         await createRequest(formattedData);
         toast({
@@ -119,27 +130,31 @@ export default function NewRequest() {
         setLocation("/");
       } catch (error: any) {
         console.error("Create request error:", error);
+        // Use Anthropic to analyze the error
         const analysis = await analyzeFormError(formattedData, error);
+        console.log('Form error analysis:', analysis);
 
         toast({
           title: "Error",
-          description: error.message || "Failed to create request. Please ensure all required fields are filled.",
+          description: error.message || "Failed to create request",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       console.error("Form submission error:", error);
       const analysis = await analyzeFormError(values, error);
+      console.log('Validation error analysis:', analysis);
 
-      // Get all validation errors
       const errors = form.formState.errors;
+      console.log('Form validation errors:', errors);
+
       const errorMessages = Object.entries(errors)
         .map(([field, error]) => `${field}: ${error?.message}`)
         .join('\n');
 
       toast({
         title: "Validation Error",
-        description: errorMessages || "Please check all required fields.",
+        description: errorMessages || "Please check all required fields",
         variant: "destructive",
       });
     }
@@ -156,31 +171,30 @@ export default function NewRequest() {
     }
   };
 
-  const updateItem = (index: number, field: string, value: string | number) => {
+  const updateItem = (index: number, field: string, value: string) => {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === 'name' ? value : Number(value) || 0
+      [field]: field === 'quantity' || field === 'estimatedCost' ? Number(value) : value,
     };
     setItems(newItems);
   };
 
   const handleSubmit = async (status: "draft" | "pending") => {
     try {
-      // Update form values
       form.setValue("status", status);
-
-      // Trigger validation
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
+        console.log('Form validation errors on submit:', errors);
+
         const errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
           .join('\n');
 
         toast({
           title: "Validation Error",
-          description: errorMessages,
+          description: errorMessages || "Please check all required fields",
           variant: "destructive",
         });
         return;
@@ -279,7 +293,7 @@ export default function NewRequest() {
                         </div>
                         <div className="w-32 text-right">
                           <p className="text-sm text-gray-600">
-                            Total: {(Number(item.quantity) * Number(item.estimatedCost)).toFixed(2)}
+                            Total: {(item.quantity * item.estimatedCost).toFixed(2)}
                           </p>
                         </div>
                         <Button
@@ -314,7 +328,7 @@ export default function NewRequest() {
                           step="0.01"
                           value={freightAmount}
                           onChange={(e) =>
-                            setFreightAmount(Number(e.target.value) || 0)
+                            setFreightAmount(Number(e.target.value))
                           }
                         />
                       </FormControl>
@@ -327,7 +341,7 @@ export default function NewRequest() {
                           {items
                             .reduce(
                               (sum, item) =>
-                                sum + Number(item.quantity) * Number(item.estimatedCost),
+                                sum + item.quantity * item.estimatedCost,
                               0
                             )
                             .toFixed(2)}
@@ -335,7 +349,7 @@ export default function NewRequest() {
                       </div>
                       <div className="flex justify-between mt-2">
                         <span>Freight Amount:</span>
-                        <span>{Number(freightAmount).toFixed(2)}</span>
+                        <span>{freightAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between mt-2 text-lg font-bold border-t pt-2">
                         <span>Total Estimated Cost:</span>

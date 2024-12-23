@@ -108,14 +108,14 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
-  totalEstimatedCost: z.coerce.number().positive("Total cost must be greater than 0"),
-  freightAmount: z.coerce.number().min(0, "Freight amount must be non-negative"),
+  totalEstimatedCost: z.number(),
+  freightAmount: z.number(),
   items: z.array(z.object({
     name: z.string().min(1, "Item name is required"),
-    quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
-    estimatedCost: z.coerce.number().min(0, "Cost must be non-negative")
+    quantity: z.number(),
+    estimatedCost: z.number()
   })).min(1, "At least one item is required"),
-  vendorId: z.coerce.number({
+  vendorId: z.number({
     required_error: "Vendor is required",
     invalid_type_error: "Vendor must be selected",
   }).positive("Please select a valid vendor"),
