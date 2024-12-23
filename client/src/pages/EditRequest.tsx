@@ -124,6 +124,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
+      // Transform data before submission, ensuring proper types
       const submissionData = {
         title: values.title,
         description: values.description,
@@ -132,6 +133,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
+        // Send only the vendor ID, not the entire vendor object
         vendorId: Number(values.vendorId),
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
@@ -141,7 +143,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.vendor.toString(),
       };
 
       try {
