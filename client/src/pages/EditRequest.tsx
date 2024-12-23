@@ -51,8 +51,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
 
+  // Fetch the request data
   const { data: request, isLoading } = useQuery<PurchaseRequest>({
     queryKey: [`/api/requests/${params.id}`],
+    enabled: !!params.id,
   });
 
   const form = useForm<NewPurchaseRequest>({
@@ -73,43 +75,47 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       status: "draft",
       totalEstimatedCost: "0",
       freightAmount: "0",
-      requestNumber: "",
-      requesterId: undefined,
     },
   });
 
+  // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
       console.log("Loading request data:", request);
 
-      // Reset form with all available data
+      // Ensure items array is properly formatted
+      const formattedItems = Array.isArray(request.items) ? request.items.map(item => ({
+        name: item.name || "",
+        quantity: Number(item.quantity) || 1,
+        estimatedCost: Number(item.estimatedCost) || 0
+      })) : [{ name: "", quantity: 1, estimatedCost: 0 }];
+
+      // Set the form values
       form.reset({
-        ...request,
-        totalEstimatedCost: request.totalEstimatedCost.toString(),
-        freightAmount: request.freightAmount.toString(),
-        items: request.items || [{ name: "", quantity: 1, estimatedCost: 0 }],
+        title: request.title || "",
+        description: request.description || "",
+        items: formattedItems,
+        companyName: request.companyName || "",
+        contactPerson: request.contactPerson || "",
+        contactNumber: request.contactNumber || "",
+        accountNumber: request.accountNumber || "",
+        purpose: request.purpose || "",
+        purposeType: request.purposeType || "event",
+        subPurposeId: request.subPurposeId,
+        priority: request.priority || "medium",
+        currency: request.currency || "QAR",
+        status: request.status || "draft",
+        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
+        freightAmount: request.freightAmount?.toString() || "0",
       });
 
-      // Set items state
-      if (Array.isArray(request.items) && request.items.length > 0) {
-        setItems(request.items.map(item => ({
-          name: item.name || "",
-          quantity: Number(item.quantity) || 1,
-          estimatedCost: Number(item.estimatedCost) || 0
-        })));
-      }
+      // Set the items state
+      setItems(formattedItems);
 
       // Set freight amount
       setFreightAmount(Number(request.freightAmount) || 0);
     }
   }, [request, form]);
-
-  useEffect(() => {
-    const totalCost = calculateTotalCost();
-    form.setValue("items", items);
-    form.setValue("freightAmount", freightAmount.toString());
-    form.setValue("totalEstimatedCost", totalCost.toString());
-  }, [items, freightAmount, form]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
