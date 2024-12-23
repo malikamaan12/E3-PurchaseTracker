@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/form";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
-import VendorSelect from "@/components/VendorSelect";
 import { insertPurchaseRequestSchema } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import {
@@ -56,8 +55,11 @@ export default function NewRequest() {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0 }],
-      vendorId: undefined,
       vendor: "",
+      companyName: "",
+      contactPerson: "",
+      contactNumber: "",
+      accountNumber: "",
       purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
@@ -74,7 +76,7 @@ export default function NewRequest() {
     form.setValue("items", items);
     form.setValue("freightAmount", freightAmount.toString());
     form.setValue("totalEstimatedCost", totalCost.toString());
-  }, [items, freightAmount]);
+  }, [items, freightAmount, form]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
@@ -86,15 +88,6 @@ export default function NewRequest() {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendorId || !values.vendor) {
-        toast({
-          title: "Error",
-          description: "Please select a vendor",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -104,8 +97,7 @@ export default function NewRequest() {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendorId: Number(values.vendorId),
-        status: values.status || "draft"
+        vendor: values.companyName // Set vendor field using company name
       };
 
       console.log('Submitting request with data:', formattedData);
@@ -192,60 +184,89 @@ export default function NewRequest() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-        <Button variant="ghost" className="mb-4" onClick={() => setLocation("/")}>
+    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <Button
+          variant="ghost"
+          className="mb-4 hover:bg-[#7156a2]/10 transition-colors"
+          onClick={() => setLocation("/")}
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Purchase Request</CardTitle>
+        <Card className="border-[#35bbba]/20 shadow-lg">
+          <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
+            <CardTitle className="text-[#191160] text-2xl font-semibold">
+              Create New Purchase Request
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <Form {...form}>
-              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Request Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#191160]">Request Title</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#191160]">Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Items</h3>
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addItem}
+                      className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </div>
+
                   <div className="space-y-4">
                     {items.map((item, index) => (
-                      <div key={index} className="flex gap-4 items-start">
+                      <div
+                        key={index}
+                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+                      >
                         <div className="flex-1">
                           <Input
                             placeholder="Item name"
                             value={item.name}
-                            onChange={(e) =>
-                              updateItem(index, "name", e.target.value)
-                            }
+                            onChange={(e) => updateItem(index, "name", e.target.value)}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
                           />
                         </div>
                         <div className="w-24">
@@ -254,9 +275,8 @@ export default function NewRequest() {
                             min="1"
                             placeholder="Qty"
                             value={item.quantity}
-                            onChange={(e) =>
-                              updateItem(index, "quantity", e.target.value)
-                            }
+                            onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
                           />
                         </div>
                         <div className="w-32">
@@ -266,13 +286,12 @@ export default function NewRequest() {
                             step="0.01"
                             placeholder="Cost"
                             value={item.estimatedCost}
-                            onChange={(e) =>
-                              updateItem(index, "estimatedCost", e.target.value)
-                            }
+                            onChange={(e) => updateItem(index, "estimatedCost", e.target.value)}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
                           />
                         </div>
                         <div className="w-32 text-right">
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-[#191160]">
                             Total: {(item.quantity * item.estimatedCost).toFixed(2)}
                           </p>
                         </div>
@@ -282,217 +301,269 @@ export default function NewRequest() {
                           size="icon"
                           onClick={() => removeItem(index)}
                           disabled={items.length === 1}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addItem}
-                    className="mt-4"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </Button>
 
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
                     <FormItem>
-                      <FormLabel>Freight Amount</FormLabel>
+                      <FormLabel className="text-[#191160]">Freight Amount</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={freightAmount}
-                          onChange={(e) =>
-                            setFreightAmount(Number(e.target.value))
-                          }
+                          onChange={(e) => setFreightAmount(Number(e.target.value))}
+                          className="border-[#7156a2]/20 focus:border-[#7156a2]"
                         />
                       </FormControl>
                     </FormItem>
 
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between font-medium">
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-[#191160]">
                         <span>Items Total:</span>
                         <span>
                           {items
                             .reduce(
-                              (sum, item) =>
-                                sum + item.quantity * item.estimatedCost,
+                              (sum, item) => sum + item.quantity * item.estimatedCost,
                               0
                             )
                             .toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex justify-between mt-2">
+                      <div className="flex justify-between text-[#191160]">
                         <span>Freight Amount:</span>
                         <span>{freightAmount.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between mt-2 text-lg font-bold border-t pt-2">
-                        <span>Total Estimated Cost:</span>
-                        <span>{calculateTotalCost().toFixed(2)}</span>
+                      <div className="flex justify-between pt-2 border-t border-[#7156a2]/20">
+                        <span className="text-lg font-semibold text-[#191160]">
+                          Total Estimated Cost:
+                        </span>
+                        <span className="text-lg font-bold text-[#7156a2]">
+                          {calculateTotalCost().toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="vendorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vendor</FormLabel>
-                      <FormControl>
-                        <VendorSelect
-                          value={field.value}
-                          onChange={(vendorId, vendorName) => {
-                            field.onChange(vendorId);
-                            if (vendorName) {
-                              form.setValue("vendor", vendorName);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter company name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="purposeType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purpose Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select purpose type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="event">Event</SelectItem>
-                          <SelectItem value="project">Project</SelectItem>
-                          <SelectItem value="mall">Mall</SelectItem>
-                          <SelectItem value="business_growth">
-                            Business Growth
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="contactPerson"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Person</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter contact person name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="subPurposeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub-purpose</FormLabel>
-                      <FormControl>
-                        <SubPurposeSelect
-                          purposeType={form.watch("purposeType")}
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="contactNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="tel"
+                              placeholder="Enter contact number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="purpose"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purpose Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Account Details</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter account number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Priority</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select priority" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {priorities.map(({ label, value }) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Details</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="purposeType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select purpose type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="event">Event</SelectItem>
+                              <SelectItem value="project">Project</SelectItem>
+                              <SelectItem value="mall">Mall</SelectItem>
+                              <SelectItem value="business_growth">Business Growth</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {currencies.map(({ label, value }) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="subPurposeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
+                          <FormControl>
+                            <SubPurposeSelect
+                              purposeType={form.watch("purposeType")}
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <DepartmentSelect
-                  label="Additional Approvers"
-                  onChange={() => {}}
-                  multiple
-                />
+                    <FormField
+                      control={form.control}
+                      name="purpose"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Purpose Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Priority</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {priorities.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Currency</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {currencies.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <DepartmentSelect
+                    label="Additional Approvers"
+                    onChange={() => {}}
+                    multiple
+                  />
+                </div>
 
                 <div className="flex justify-between pt-6">
                   <Button
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
+                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
                   >
                     Save as Draft
                   </Button>
-                  <Button type="button" onClick={() => handleSubmit("pending")}>
+                  <Button
+                    type="button"
+                    onClick={() => handleSubmit("pending")}
+                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                  >
                     Submit for Approval
                   </Button>
                 </div>
