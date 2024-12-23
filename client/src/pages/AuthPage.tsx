@@ -13,8 +13,8 @@ import { insertUserSchema, loginSchema } from "@db/schema";
 import type { NewUser, LoginCredentials } from "@db/schema";
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState("login");
-  const { login, register } = useUser();
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const { login, register: registerUser } = useUser();
   const { toast } = useToast();
 
   const loginForm = useForm<LoginCredentials>({
@@ -37,10 +37,13 @@ export default function AuthPage() {
     },
   });
 
-  const onTabChange = (value: string) => {
+  const onTabChange = (value: "login" | "register") => {
     setActiveTab(value);
-    loginForm.reset();
-    registerForm.reset();
+    if (value === "login") {
+      loginForm.reset();
+    } else {
+      registerForm.reset();
+    }
   };
 
   const onSubmit = async (data: LoginCredentials | NewUser) => {
@@ -55,7 +58,7 @@ export default function AuthPage() {
           });
         }
       } else {
-        const result = await register(data as NewUser);
+        const result = await registerUser(data as NewUser);
         if (!result.ok) {
           toast({
             title: "Registration Failed",
@@ -73,8 +76,6 @@ export default function AuthPage() {
       });
     }
   };
-
-  const currentForm = activeTab === "login" ? loginForm : registerForm;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
@@ -102,157 +103,172 @@ export default function AuthPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <Form {...currentForm}>
-                <form onSubmit={currentForm.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={currentForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Username</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <TabsContent value="login">
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Username</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={currentForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {activeTab === "register" && (
-                    <>
-                      <FormField
-                        control={registerForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#191160]">Email</FormLabel>
+                    <Button
+                      type="submit"
+                      className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
+                    >
+                      Login
+                    </Button>
+                  </form>
+                </Form>
+              </TabsContent>
+
+              <TabsContent value="register">
+                <Form {...registerForm}>
+                  <form onSubmit={registerForm.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={registerForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Username</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="contactNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="tel"
+                              {...field}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="department"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Department</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <Input
-                                type="email"
-                                {...field}
-                                className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                              />
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select department" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            <SelectContent>
+                              <SelectItem value="CEO Office">CEO Office</SelectItem>
+                              <SelectItem value="Director">Director</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Sales">Sales</SelectItem>
+                              <SelectItem value="Marketing">Marketing</SelectItem>
+                              <SelectItem value="Business Growth">Business Growth</SelectItem>
+                              <SelectItem value="Branding">Branding</SelectItem>
+                              <SelectItem value="Logistics">Logistics</SelectItem>
+                              <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+                              <SelectItem value="IT">IT</SelectItem>
+                              <SelectItem value="HR">HR</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={registerForm.control}
-                        name="contactNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#191160]">Contact Number</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="tel"
-                                {...field}
-                                className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={registerForm.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#191160]">Role</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="approver">Approver</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={registerForm.control}
-                        name="department"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#191160]">Department</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                  <SelectValue placeholder="Select department" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {/* Management */}
-                                <SelectItem value="Admin">Admin</SelectItem>
-                                <SelectItem value="CEO Office">CEO Office</SelectItem>
-                                <SelectItem value="Director">Director</SelectItem>
-                                <SelectItem value="Finance">Finance</SelectItem>
-                                {/* Business */}
-                                <SelectItem value="Sales">Sales</SelectItem>
-                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                <SelectItem value="Business Growth">Business Growth</SelectItem>
-                                {/* Operations */}
-                                <SelectItem value="Branding">Branding</SelectItem>
-                                <SelectItem value="Logistics">Logistics</SelectItem>
-                                <SelectItem value="Mall Activation">Mall Activation</SelectItem>
-                                {/* Support */}
-                                <SelectItem value="IT">IT</SelectItem>
-                                <SelectItem value="HR">HR</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
-                  >
-                    {activeTab === "login" ? "Login" : "Register"}
-                  </Button>
-                </form>
-              </Form>
+                    <Button
+                      type="submit"
+                      className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
+                    >
+                      Register
+                    </Button>
+                  </form>
+                </Form>
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
