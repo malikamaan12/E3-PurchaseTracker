@@ -240,21 +240,43 @@ export function registerRoutes(app: Express): Server {
       const userRole = req.user!.role;
       const userDepartment = req.user!.department;
       const isCEO = userDepartment === "CEO Office";
+      const isDirector = userDepartment === "Director";
+      const isFinance = userDepartment === "Finance";
       const isRequestOwner = currentRequest.requesterId === req.user!.id;
+      const isApprover = userRole === "approver" || ["CEO Office", "Director", "Finance"].includes(userDepartment);
 
-      // Allow CEOs, admins, request owners to modify requests
-      if (!isRequestOwner && !isCEO && userRole !== "admin") {
+      // Allow modifications if:
+      // 1. User is the request owner and request is in draft/changes_requested status
+      // 2. User is CEO/Director/Finance and request is pending
+      // 3. User is an approver for their department and request is pending
+      // 4. User is an admin
+      const canModify = 
+        (isRequestOwner && ["draft", "changes_requested"].includes(currentRequest.status)) ||
+        ((isCEO || isDirector || isFinance) && currentRequest.status === "pending") ||
+        (isApprover && currentRequest.status === "pending") ||
+        userRole === "admin";
+
+      if (!canModify) {
         return res.status(403).send("Not authorized to modify this request");
       }
 
-      if (!["draft", "pending"].includes(currentRequest.status) && !isCEO) {
-        return res.status(400).send("Cannot modify request in current status");
+      // Special handling for different roles/departments
+      let updateData = { ...req.body };
+
+      // Only Finance can lock/unlock requests
+      if (!isFinance && 'isLocked' in updateData) {
+        delete updateData.isLocked;
+      }
+
+      // Only approvers can change status to approved/rejected
+      if (!isApprover && updateData.status && ["approved", "rejected"].includes(updateData.status)) {
+        return res.status(403).send("Only approvers can approve or reject requests");
       }
 
       const request = await db
         .update(purchaseRequests)
         .set({
-          ...req.body,
+          ...updateData,
           updatedAt: new Date(),
         })
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
