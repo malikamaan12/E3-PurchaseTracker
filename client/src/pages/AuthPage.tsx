@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useUser } from "@/hooks/use-user";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertUserSchema } from "@db/schema";
-import type { NewUser } from "@db/schema";
-import { useToast } from "@/hooks/use-toast";
+import { insertUserSchema, loginSchema } from "@db/schema";
+import type { NewUser, LoginCredentials } from "@db/schema";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const { login, register } = useUser();
   const { toast } = useToast();
 
-  const form = useForm<NewUser>({
+  const loginForm = useForm<LoginCredentials>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
+  const registerForm = useForm<NewUser>({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
       username: "",
@@ -31,27 +39,23 @@ export default function AuthPage() {
 
   const onTabChange = (value: string) => {
     setActiveTab(value);
-    form.reset();
+    loginForm.reset();
+    registerForm.reset();
   };
 
-  const onSubmit = async (data: NewUser) => {
+  const onSubmit = async (data: LoginCredentials | NewUser) => {
     try {
       if (activeTab === "login") {
-        // For login, only send username and password
-        const result = await login({
-          username: data.username,
-          password: data.password,
-        } as NewUser);
-
+        const result = await login(data as LoginCredentials);
         if (!result.ok) {
           toast({
             title: "Login Failed",
-            description: result.message || "Please check your credentials and try again",
+            description: result.message || "Invalid username or password",
             variant: "destructive",
           });
         }
       } else {
-        const result = await register(data);
+        const result = await register(data as NewUser);
         if (!result.ok) {
           toast({
             title: "Registration Failed",
@@ -69,6 +73,8 @@ export default function AuthPage() {
       });
     }
   };
+
+  const currentForm = activeTab === "login" ? loginForm : registerForm;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
@@ -96,10 +102,10 @@ export default function AuthPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <Form {...currentForm}>
+                <form onSubmit={currentForm.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
-                    control={form.control}
+                    control={currentForm.control}
                     name="username"
                     render={({ field }) => (
                       <FormItem>
@@ -116,7 +122,7 @@ export default function AuthPage() {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={currentForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -136,7 +142,7 @@ export default function AuthPage() {
                   {activeTab === "register" && (
                     <>
                       <FormField
-                        control={form.control}
+                        control={registerForm.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
@@ -154,7 +160,7 @@ export default function AuthPage() {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={registerForm.control}
                         name="contactNumber"
                         render={({ field }) => (
                           <FormItem>
@@ -172,7 +178,7 @@ export default function AuthPage() {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={registerForm.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
@@ -198,7 +204,7 @@ export default function AuthPage() {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={registerForm.control}
                         name="department"
                         render={({ field }) => (
                           <FormItem>

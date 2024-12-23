@@ -13,6 +13,12 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
+// Login schema that only requires username and password
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
 export const insertUserSchema = createInsertSchema(users, {
   role: z.enum(["user", "approver", "admin"]).optional(),
   email: z.string().email("Invalid email format"),
@@ -23,6 +29,7 @@ export const insertUserSchema = createInsertSchema(users, {
 export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type LoginCredentials = z.infer<typeof loginSchema>;
 
 export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
