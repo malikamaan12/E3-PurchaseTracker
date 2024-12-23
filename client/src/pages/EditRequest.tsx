@@ -115,31 +115,32 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
-      // Create a new object with just the required fields
-      const formattedData = {
-        title: values.title,
-        description: values.description,
-        items: items.map((item) => ({
+      // Create a simplified submission object with correct types
+      const formData = {
+        ...values,
+        vendorId: values.vendorId, // Just use the ID
+        items: items.map(item => ({
           name: item.name,
           quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost),
+          estimatedCost: Number(item.estimatedCost)
         })),
-        vendorId: Number(values.vendorId),
-        vendor: values.vendor.toString(),
-        purpose: values.purpose,
-        purposeType: values.purposeType,
-        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : undefined,
-        priority: values.priority,
-        currency: values.currency,
-        status: values.status || "draft",
         freightAmount: freightAmount.toString(),
-        totalEstimatedCost: calculateTotalCost().toString(),
+        totalEstimatedCost: calculateTotalCost().toString()
+      };
+
+      // Remove fields that should be handled by the backend
+      const { createdAt, updatedAt, ...dataToSubmit } = formData;
+
+      // Remove additional complex objects
+      const cleanedData = {
+        ...dataToSubmit,
+        vendor: values.vendor.toString(), // Ensure vendor is a string
       };
 
       try {
         await updateRequest({
           id: parseInt(params.id),
-          data: formattedData,
+          data: cleanedData,
         });
         toast({
           title: "Success",
@@ -148,7 +149,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-        const analysis = await analyzeFormError(formattedData, error);
+        const analysis = await analyzeFormError(cleanedData, error);
         if (analysis) {
           toast({
             title: "Validation Error Analysis",
