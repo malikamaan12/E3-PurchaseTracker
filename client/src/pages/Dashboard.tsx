@@ -40,8 +40,9 @@ export default function Dashboard() {
   // 1. Are in pending status
   // 2. Need approval from the user's department
   // 3. Haven't been approved/rejected by the user's department yet
+  // 4. Are not the user's own requests
   const pendingApprovals = requests?.filter(r => {
-    if (r.status !== 'pending') return false;
+    if (r.status !== 'pending' || r.requesterId === user?.id) return false;
 
     // Find approval for user's department
     const departmentApproval = r.approvals.find(a => 
@@ -153,6 +154,7 @@ export default function Dashboard() {
                             key={request.id}
                             request={request}
                             showActions={false}
+                            showApproval={false} // Never show approval buttons for own requests
                           />
                         ))}
                       </div>
@@ -184,7 +186,7 @@ export default function Dashboard() {
                             <RequestCard
                               key={request.id}
                               request={request}
-                              showApproval={request.status === 'pending'}
+                              showApproval={request.status === 'pending' && request.requesterId !== user?.id}
                             />
                           ))}
                         </div>
@@ -213,7 +215,7 @@ export default function Dashboard() {
                             <RequestCard
                               key={request.id}
                               request={request}
-                              showApproval
+                              showApproval={request.requesterId !== user?.id}
                             />
                           ))}
                         </div>
