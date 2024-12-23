@@ -79,7 +79,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       form.reset({
         ...request,
         vendorId: request.vendorId,
-        vendor: request.vendor,
+        vendor: request.vendor || "",
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
       });
@@ -116,21 +116,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       const formattedData = {
         ...values,
-        items: items.map(item => ({
+        items: items.map((item) => ({
           name: item.name,
           quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
+          estimatedCost: Number(item.estimatedCost),
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendorId: Number(values.vendorId),
-        status: values.status || "draft"
+        vendor: values.vendor,
+        status: values.status || "draft",
+        createdAt: undefined,
+        updatedAt: undefined,
       };
 
       try {
         await updateRequest({
           id: parseInt(params.id),
-          data: formattedData
+          data: formattedData,
         });
         toast({
           title: "Success",
@@ -151,7 +154,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       const errorMessages = Object.entries(errors)
         .map(([field, error]) => `${field}: ${error?.message}`)
-        .join('\n');
+        .join("\n");
 
       toast({
         title: "Validation Error",
@@ -176,7 +179,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === 'quantity' || field === 'estimatedCost' ? Number(value) : value,
+      [field]: field === "quantity" || field === "estimatedCost" ? Number(value) : value,
     };
     setItems(newItems);
   };
@@ -190,7 +193,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
         const errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
-          .join('\n');
+          .join("\n");
 
         toast({
           title: "Validation Error",
