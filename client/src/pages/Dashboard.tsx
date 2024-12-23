@@ -26,6 +26,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import DashboardPreferences from "@/components/DashboardPreferences";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from "@/components/ui/alert-dialog";
+
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -133,6 +145,126 @@ export default function Dashboard() {
       console.error("Error exporting data:", error);
       // You can add toast notification here for error feedback
     }
+  };
+
+  const formatCurrency = (amount: number | string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'QAR'
+    }).format(Number(amount));
+  };
+
+  const renderRequestsTable = (requests: any[], showApproval: boolean = false) => {
+    const deleteRequest = async (requestId: string) => {
+      // Add your delete request logic here
+      console.log("Deleting request:", requestId);
+    };
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Request #</TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Priority</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead>Total Cost</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {requests.map((request) => (
+            <TableRow key={request.id}>
+              <TableCell className="font-medium">{request.requestNumber}</TableCell>
+              <TableCell>{request.title}</TableCell>
+              <TableCell>
+                <Badge
+                  className={
+                    request.status === "draft"
+                      ? "bg-gray-500/10 text-gray-600"
+                      : request.status === "pending"
+                      ? "bg-yellow-500/10 text-yellow-700"
+                      : request.status === "approved"
+                      ? "bg-green-500/10 text-green-700"
+                      : request.status === "rejected"
+                      ? "bg-red-500/10 text-red-700"
+                      : "bg-orange-500/10 text-orange-700"
+                  }
+                >
+                  {request.status.toUpperCase().replace("_", " ")}
+                </Badge>
+              </TableCell>
+              <TableCell className="capitalize">{request.priority}</TableCell>
+              <TableCell>{request.requester.department}</TableCell>
+              <TableCell>{format(new Date(request.createdAt), "MMM d, yyyy")}</TableCell>
+              <TableCell>
+                {formatCurrency(request.totalEstimatedCost || 0)}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.location.href = `/requests/${request.id}`}
+                  >
+                    View
+                  </Button>
+                  {request.status === "draft" && request.requesterId === user?.id && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.location.href = `/requests/${request.id}/edit`}
+                      >
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600"
+                          >
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Request</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this request? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700"
+                              onClick={() => deleteRequest(request.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                  {showApproval && request.status === "pending" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.location.href = `/requests/${request.id}#approval`}
+                    >
+                      Review
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
   };
 
   return (
@@ -287,17 +419,9 @@ export default function Dashboard() {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="text-lg font-medium mb-4">Draft Requests</h3>
-                    <ScrollArea className="h-[300px] pr-4">
-                      <div className="space-y-4">
-                        {myDrafts.map((request) => (
-                          <RequestCard
-                            key={request.id}
-                            request={request}
-                            showActions={true}
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
+                    <div className="overflow-x-auto">
+                      {renderRequestsTable(myDrafts, false)}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -314,18 +438,9 @@ export default function Dashboard() {
                       No submitted requests found.
                     </div>
                   ) : (
-                    <ScrollArea className="h-[300px] pr-4">
-                      <div className="space-y-4">
-                        {mySubmittedRequests.map((request) => (
-                          <RequestCard
-                            key={request.id}
-                            request={request}
-                            showActions={false}
-                            showApproval={false}
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
+                    <div className="overflow-x-auto">
+                      {renderRequestsTable(mySubmittedRequests, false)}
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -347,22 +462,13 @@ export default function Dashboard() {
                         No requests found.
                       </div>
                     ) : (
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
-                          {requests?.map((request) => (
-                            <RequestCard
-                              key={request.id}
-                              request={request}
-                              showApproval={request.status === "pending" && request.requesterId !== user?.id}
-                            />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <div className="overflow-x-auto">
+                        {renderRequestsTable(requests, true)}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
               <TabsContent value="pending">
                 <Card>
                   <CardContent className="p-6">
@@ -376,22 +482,13 @@ export default function Dashboard() {
                         No pending requests.
                       </div>
                     ) : (
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
-                          {pendingRequests.map((request) => (
-                            <RequestCard
-                              key={request.id}
-                              request={request}
-                              showApproval={request.requesterId !== user?.id}
-                            />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <div className="overflow-x-auto">
+                        {renderRequestsTable(pendingRequests, true)}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
               <TabsContent value="approved">
                 <Card>
                   <CardContent className="p-6">
@@ -405,22 +502,13 @@ export default function Dashboard() {
                         No approved requests.
                       </div>
                     ) : (
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
-                          {approvedRequests.map((request) => (
-                            <RequestCard
-                              key={request.id}
-                              request={request}
-                              showApproval={false}
-                            />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <div className="overflow-x-auto">
+                        {renderRequestsTable(approvedRequests, false)}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
               <TabsContent value="rejected">
                 <Card>
                   <CardContent className="p-6">
@@ -434,22 +522,13 @@ export default function Dashboard() {
                         No rejected requests.
                       </div>
                     ) : (
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
-                          {rejectedRequests.map((request) => (
-                            <RequestCard
-                              key={request.id}
-                              request={request}
-                              showApproval={false}
-                            />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <div className="overflow-x-auto">
+                        {renderRequestsTable(rejectedRequests, false)}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
               <TabsContent value="changes">
                 <Card>
                   <CardContent className="p-6">
@@ -463,17 +542,9 @@ export default function Dashboard() {
                         No requests pending changes.
                       </div>
                     ) : (
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
-                          {changesRequestedRequests.map((request) => (
-                            <RequestCard
-                              key={request.id}
-                              request={request}
-                              showApproval={false}
-                            />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                      <div className="overflow-x-auto">
+                        {renderRequestsTable(changesRequestedRequests, false)}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -495,17 +566,9 @@ export default function Dashboard() {
                       No pending approvals.
                     </div>
                   ) : (
-                    <ScrollArea className="h-[600px] pr-4">
-                      <div className="space-y-4">
-                        {pendingApprovals.map((request) => (
-                          <RequestCard
-                            key={request.id}
-                            request={request}
-                            showApproval
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
+                    <div className="overflow-x-auto">
+                      {renderRequestsTable(pendingApprovals, true)}
+                    </div>
                   )}
                 </CardContent>
               </Card>
