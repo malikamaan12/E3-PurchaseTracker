@@ -6,6 +6,8 @@ export function useNotifications() {
 
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
+    retry: 1,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   const markAsRead = useMutation({
@@ -26,6 +28,7 @@ export function useNotifications() {
     },
   });
 
+  // Calculate unread count
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return {

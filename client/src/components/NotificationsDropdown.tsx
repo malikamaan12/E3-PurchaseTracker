@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 
 export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
@@ -24,7 +24,7 @@ export function NotificationsDropdown() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="outline" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
@@ -71,7 +71,7 @@ export function NotificationsDropdown() {
                 >
                   <p className="text-sm mb-1">{notification.message}</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(new Date(notification.createdAt), "MMM d, yyyy h:mm a")}
+                    {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                   </p>
                 </button>
               ))}

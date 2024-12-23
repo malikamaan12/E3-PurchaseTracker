@@ -137,72 +137,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Vendor routes
-  app.get("/api/vendors", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const vendorList = await db.select().from(vendors);
-      res.json(vendorList);
-    } catch (error: any) {
-      console.error("Error fetching vendors:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.post("/api/vendors", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const vendor = await db.insert(vendors).values(req.body).returning();
-      res.json(vendor[0]);
-    } catch (error: any) {
-      console.error("Error creating vendor:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Sub-purposes routes
-  app.get("/api/sub-purposes", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const purposeType = req.query.purposeType as string;
-    try {
-      const purposes = await db.select()
-        .from(subPurposes)
-        .where(purposeType ? eq(subPurposes.purposeType, purposeType) : undefined);
-
-      res.json(purposes);
-    } catch (error: any) {
-      console.error("Error fetching sub-purposes:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.post("/api/sub-purposes", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const purpose = await db.insert(subPurposes)
-        .values(req.body)
-        .returning();
-
-      res.json(purpose[0]);
-    } catch (error: any) {
-      console.error("Error creating sub-purpose:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Purchase request routes
+  // Purchase request routes - adding notification creation
   app.post("/api/requests", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -210,9 +145,8 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const requestNumber = await generateRequestNumber(req.body.purposeType, req.body.subPurposeId);
-      console.log("Generated request number:", requestNumber);
 
-      const request = await db.insert(purchaseRequests)
+      const [request] = await db.insert(purchaseRequests)
         .values({
           ...req.body,
           requestNumber,
@@ -221,7 +155,25 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      res.json(request[0]);
+      // If request is submitted (not draft), notify relevant approvers
+      if (request.status === "pending") {
+        // Notify CEO Office, Director, and Finance departments
+        const approvers = await db
+          .select()
+          .from(users)
+          .where(sql`${users.department} IN ('CEO Office', 'Director', 'Finance')`);
+
+        for (const approver of approvers) {
+          await createNotification(
+            approver.id,
+            `New purchase request ${request.requestNumber} requires your approval`,
+            'new_request',
+            request.id
+          );
+        }
+      }
+
+      res.json(request);
     } catch (error: any) {
       console.error("Error creating request:", error);
       res.status(500).send(error.message);
@@ -318,29 +270,15 @@ export function registerRoutes(app: Express): Server {
       const isRequestOwner = currentRequest.requesterId === req.user!.id;
       const isApprover = userRole === "approver" || ["CEO Office", "Director", "Finance"].includes(userDepartment);
 
-      const canModify = 
-        (isRequestOwner && ["draft", "changes_requested"].includes(currentRequest.status)) ||
-        ((isCEO || isDirector || isFinance) && currentRequest.status === "pending") ||
-        (isApprover && currentRequest.status === "pending") ||
-        userRole === "admin";
-
-      if (!canModify) {
+      if (!isApprover && !isRequestOwner && userRole !== "admin") {
         return res.status(403).send("Not authorized to modify this request");
       }
 
       let updateData = { ...req.body };
 
-      if (!isFinance && 'isLocked' in updateData) {
-        delete updateData.isLocked;
-      }
-
-      if (!isApprover && updateData.status && ["approved", "rejected"].includes(updateData.status)) {
-        return res.status(403).send("Only approvers can approve or reject requests");
-      }
-
-      // Create notification if status is changing
+      // Create notifications based on status changes
       if (updateData.status && updateData.status !== currentRequest.status) {
-        // Notify the request owner about the status change
+        // Notify request owner about status change
         await createNotification(
           currentRequest.requesterId,
           `Your purchase request ${currentRequest.requestNumber} has been ${updateData.status}`,
@@ -348,7 +286,7 @@ export function registerRoutes(app: Express): Server {
           currentRequest.id
         );
 
-        // If status is changes_requested, also create a notification for the requester
+        // If status is changes_requested, notify requester
         if (updateData.status === 'changes_requested') {
           await createNotification(
             currentRequest.requesterId,
@@ -376,7 +314,7 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
-      const request = await db
+      const [request] = await db
         .update(purchaseRequests)
         .set({
           ...updateData,
@@ -385,7 +323,7 @@ export function registerRoutes(app: Express): Server {
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
         .returning();
 
-      res.json(request[0]);
+      res.json(request);
     } catch (error: any) {
       console.error("Error updating request:", error);
       res.status(500).send(error.message);
