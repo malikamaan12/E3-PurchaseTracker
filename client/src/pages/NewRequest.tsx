@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,7 +55,7 @@ export default function NewRequest() {
     defaultValues: {
       title: "",
       description: "",
-      items: items,
+      items: [{ name: "", quantity: 1, estimatedCost: 0 }],
       vendorId: undefined,
       purpose: "",
       purposeType: "event",
@@ -67,6 +67,11 @@ export default function NewRequest() {
       freightAmount: 0,
     },
   });
+
+  // Update form values when items change
+  useEffect(() => {
+    form.setValue('items', items);
+  }, [items, form]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
@@ -129,12 +134,16 @@ export default function NewRequest() {
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0 }]);
+    const newItems = [...items, { name: "", quantity: 1, estimatedCost: 0 }];
+    setItems(newItems);
+    form.setValue('items', newItems);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+      form.setValue('items', newItems);
     }
   };
 
@@ -145,11 +154,16 @@ export default function NewRequest() {
       [field]: field === 'name' ? value : Number(value) || 0
     };
     setItems(newItems);
+    form.setValue('items', newItems);
   };
 
   const handleSubmit = async (status: "draft" | "pending") => {
     try {
       form.setValue("status", status);
+
+      // Make sure items are set in the form
+      form.setValue('items', items);
+
       const isValid = await form.trigger();
 
       if (!isValid) {
