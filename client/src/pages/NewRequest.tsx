@@ -50,7 +50,7 @@ export default function NewRequest() {
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
 
-  const form = useForm<NewPurchaseRequest>({
+  const form = useForm<Omit<NewPurchaseRequest, "requestNumber" | "requesterId">>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
@@ -76,7 +76,7 @@ export default function NewRequest() {
     return itemsTotal + Number(freightAmount);
   };
 
-  const onSubmit = async (values: NewPurchaseRequest) => {
+  const onSubmit = async (values: Omit<NewPurchaseRequest, "requestNumber" | "requesterId">) => {
     try {
       // Validate items
       if (items.some((item) => !item.name)) {
@@ -110,7 +110,6 @@ export default function NewRequest() {
         vendorId: Number(values.vendorId)
       };
 
-      console.log("Submitting request:", formattedData);
       await createRequest(formattedData);
 
       toast({
@@ -154,10 +153,15 @@ export default function NewRequest() {
       const isValid = await form.trigger();
 
       if (!isValid) {
-        console.log("Form validation errors:", form.formState.errors);
+        const errors = form.formState.errors;
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => `${field}: ${error?.message}`)
+          .join(', ');
+
+        console.log("Form validation errors:", errors);
         toast({
           title: "Validation Error",
-          description: "Please check all required fields",
+          description: `Please check these fields: ${errorMessages}`,
           variant: "destructive",
         });
         return;

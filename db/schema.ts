@@ -111,11 +111,17 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   totalEstimatedCost: z.number(),
   freightAmount: z.number(),
   items: z.array(z.object({
-    name: z.string(),
-    quantity: z.number(),
-    estimatedCost: z.number()
+    name: z.string().min(1, "Item name is required"),
+    quantity: z.number().min(1, "Quantity must be at least 1"),
+    estimatedCost: z.number().min(0, "Cost must be non-negative")
   })),
-  vendorId: z.number()
+  vendorId: z.number(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  purpose: z.string().min(1, "Purpose is required"),
+  status: z.enum(["draft", "pending", "approved", "rejected"]).optional(),
+  requestNumber: z.string().optional(),
+  requesterId: z.number().optional(),
 });
 
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests, {
