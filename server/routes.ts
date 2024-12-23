@@ -125,6 +125,37 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add this endpoint after the GET /api/requests endpoint
+  app.get("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const request = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, parseInt(req.params.id)),
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).send("Request not found");
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
   // Notification routes
   app.get("/api/notifications", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -577,7 +608,7 @@ export function registerRoutes(app: Express): Server {
         'Contact Number': request.contactNumber,
         'Created At': format(new Date(request.createdAt), 'PPpp'),
         'Updated At': format(new Date(request.updatedAt), 'PPpp'),
-        'Approvals': request.approvals.map(a => 
+        'Approvals': request.approvals.map(a =>
           `${a.department}: ${a.status}`
         ).join('; '),
         'Items': request.items.map((item: any) =>

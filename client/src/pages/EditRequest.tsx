@@ -27,8 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { NewPurchaseRequest } from "@db/schema";
-import type { PurchaseRequest } from "@db/schema";
+import type { NewPurchaseRequest, PurchaseRequest } from "@db/schema";
 import { useQuery } from "@tanstack/react-query";
 
 const currencies = [
@@ -51,12 +50,13 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
 
-  // Fetch the request data
+  // Fetch the request data with proper type
   const { data: request, isLoading } = useQuery<PurchaseRequest>({
     queryKey: [`/api/requests/${params.id}`],
     enabled: !!params.id,
   });
 
+  // Form initialization with proper default values
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
@@ -85,9 +85,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       // Ensure items array is properly formatted
       const formattedItems = Array.isArray(request.items) ? request.items.map(item => ({
-        name: item.name || "",
-        quantity: Number(item.quantity) || 1,
-        estimatedCost: Number(item.estimatedCost) || 0
+        name: String(item.name || ""),
+        quantity: Number(item.quantity || 1),
+        estimatedCost: Number(item.estimatedCost || 0)
       })) : [{ name: "", quantity: 1, estimatedCost: 0 }];
 
       // Set the form values
@@ -101,19 +101,21 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         accountNumber: request.accountNumber || "",
         purpose: request.purpose || "",
         purposeType: request.purposeType || "event",
-        subPurposeId: request.subPurposeId,
+        subPurposeId: request.subPurposeId || undefined,
         priority: request.priority || "medium",
         currency: request.currency || "QAR",
         status: request.status || "draft",
-        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
-        freightAmount: request.freightAmount?.toString() || "0",
+        totalEstimatedCost: String(request.totalEstimatedCost || "0"),
+        freightAmount: String(request.freightAmount || "0"),
       });
 
       // Set the items state
       setItems(formattedItems);
 
       // Set freight amount
-      setFreightAmount(Number(request.freightAmount) || 0);
+      setFreightAmount(Number(request.freightAmount || 0));
+
+      console.log("Form reset with values:", form.getValues());
     }
   }, [request, form]);
 
