@@ -60,6 +60,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   totalEstimatedCost: decimal("total_estimated_cost", { precision: 10, scale: 2 }).notNull(),
   freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default('0'),
   status: text("status").notNull().default("draft"),
+  isLocked: boolean("is_locked").notNull().default(false),
+  mandatoryApproversCount: integer("mandatory_approvers_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -83,6 +85,7 @@ export const approvals = pgTable("approvals", {
   department: text("department").notNull(),
   status: text("status").notNull().default("pending"),
   comments: text("comments"),
+  isMandatory: boolean("is_mandatory").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -97,6 +100,8 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;
 
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
@@ -117,8 +122,8 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   description: z.string().min(1, "Description is required"),
   purpose: z.string().min(1, "Purpose is required"),
   status: z.enum(["draft", "pending", "approved", "rejected"]).optional(),
-  requestNumber: z.string().optional(),
-  requesterId: z.number().optional(),
+  isLocked: z.boolean().optional(),
+  mandatoryApproversCount: z.number().optional(),
 });
 
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
