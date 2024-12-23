@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
@@ -159,6 +159,8 @@ export default function Dashboard() {
       // Add your delete request logic here
       console.log("Deleting request:", requestId);
     };
+    const [, setLocation] = useLocation();
+
     return (
       <Table>
         <TableHeader>
@@ -206,7 +208,7 @@ export default function Dashboard() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => window.location.href = `/requests/${request.id}`}
+                    onClick={() => setLocation(`/requests/${request.id}`)}
                   >
                     View
                   </Button>
@@ -215,7 +217,7 @@ export default function Dashboard() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.location.href = `/requests/${request.id}/edit`}
+                        onClick={() => setLocation(`/requests/${request.id}/edit`)}
                       >
                         Edit
                       </Button>
@@ -253,7 +255,7 @@ export default function Dashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => window.location.href = `/requests/${request.id}#approval`}
+                      onClick={() => setLocation(`/requests/${request.id}`)}
                     >
                       Review
                     </Button>

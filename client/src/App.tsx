@@ -5,6 +5,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import NewRequest from "./pages/NewRequest";
 import EditRequest from "./pages/EditRequest";
+import ViewRequest from "./pages/ViewRequest";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -25,6 +26,7 @@ function App() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/new-request" component={NewRequest} />
+      <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
       <Route component={NotFound} />
     </Switch>
