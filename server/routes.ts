@@ -360,7 +360,8 @@ export function registerRoutes(app: Express): Server {
       const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(userDepartment);
       const isRequestOwner = currentRequest.requesterId === req.user!.id;
 
-      if (!isSpecialRole && !isRequestOwner && userRole !== "admin") {
+      // Allow admin to modify any request, others follow existing rules
+      if (userRole !== "admin" && !isSpecialRole && !isRequestOwner) {
         return res.status(403).send("Not authorized to modify this request");
       }
 
@@ -398,6 +399,43 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedRequest);
     } catch (error: any) {
       console.error("Error updating request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.delete("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Only admin can delete requests
+      if (req.user!.role !== "admin") {
+        return res.status(403).send("Only admin can delete requests");
+      }
+
+      const [deletedRequest] = await db
+        .delete(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!deletedRequest) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Delete associated approvals
+      await db
+        .delete(approvals)
+        .where(eq(approvals.requestId, deletedRequest.id));
+
+      // Delete associated notifications
+      await db
+        .delete(notifications)
+        .where(eq(notifications.requestId, deletedRequest.id));
+
+      res.json({ message: "Request deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting request:", error);
       res.status(500).send(error.message);
     }
   });

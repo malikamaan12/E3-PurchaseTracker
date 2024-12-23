@@ -19,7 +19,7 @@ export const loginSchema = z.object({
 });
 
 export const insertUserSchema = createInsertSchema(users, {
-  role: z.enum(["user", "approver", "admin"]),
+  role: z.enum(["user", "approver", "admin"]).default("user"),
   email: z.string().email("Invalid email format"),
   contactNumber: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),

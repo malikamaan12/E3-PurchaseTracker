@@ -47,12 +47,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [departmentFilter, setDepartmentFilter] = useState<string>(
     preferences.defaultDepartmentFilter
@@ -67,23 +71,29 @@ export default function Dashboard() {
 
   // Check if user is in special role (can see all requests)
   const isSpecialRole = useMemo(() => {
-    return user?.department === "CEO Office" ||
+    return user?.role === "admin" ||
+           user?.department === "CEO Office" ||
            user?.department === "Director" ||
            user?.department === "Finance";
-  }, [user?.department]);
+  }, [user?.department, user?.role]);
 
-  // Get pending approvals only for non-special role users
+  // Check if user is admin
+  const isAdmin = useMemo(() => {
+    return user?.role === "admin";
+  }, [user?.role]);
+
+  // Get pending approvals
   const pendingApprovals = useMemo(() => {
     if (!user || !requests) return [];
-
-    const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
 
     return requests.filter((request) => {
       // Only include pending requests
       if (request.status !== "pending") return false;
 
-      // Special roles can approve any request
-      if (isSpecialRole) return true;
+      // Admin and special roles can approve any request
+      if (isAdmin || ["CEO Office", "Director", "Finance"].includes(user.department)) {
+        return true;
+      }
 
       // Regular users can't approve their own requests
       if (request.requesterId === user.id) return false;
@@ -95,7 +105,7 @@ export default function Dashboard() {
 
       return !departmentApproval || departmentApproval.status === "pending";
     });
-  }, [requests, user]);
+  }, [requests, user, isAdmin]);
 
   // Only show approvals tab if user has pending approvals
   const showApprovalsTab = useMemo(() => {
@@ -189,12 +199,35 @@ export default function Dashboard() {
     }).format(Number(amount));
   };
 
-  const renderRequestsTable = (requests: any[], showApproval: boolean = false) => {
-    const deleteRequest = async (requestId: string) => {
-      // Add your delete request logic here
-      console.log("Deleting request:", requestId);
-    };
+  // Delete request function
+  const deleteRequest = async (requestId: string) => {
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
 
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Invalidate requests cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/requests'] });
+
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renderRequestsTable = (requests: any[], showApproval: boolean = false) => {
     return (
       <Table>
         <TableHeader>
@@ -246,7 +279,7 @@ export default function Dashboard() {
                   >
                     View
                   </Button>
-                  {request.status === "draft" && request.requesterId === user?.id && (
+                  {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                     <>
                       <Button
                         variant="ghost"
@@ -424,7 +457,7 @@ export default function Dashboard() {
             <TabsTrigger value="my-requests">
               My Requests ({mySubmittedRequests.length + myDrafts.length})
             </TabsTrigger>
-            {isSpecialRole ? (
+            {(isAdmin || isSpecialRole) && (
               <>
                 <TabsTrigger value="all-requests">
                   All Requests ({requests?.length || 0})
@@ -442,11 +475,12 @@ export default function Dashboard() {
                   Changes Requested ({changesRequestedRequests.length})
                 </TabsTrigger>
               </>
-            ) : showApprovalsTab ? (
+            )}
+            {!isAdmin && !isSpecialRole && showApprovalsTab && (
               <TabsTrigger value="approvals">
                 Pending Approvals ({pendingApprovals.length})
               </TabsTrigger>
-            ) : null}
+            )}
           </TabsList>
 
           <TabsContent value="my-requests">
@@ -483,7 +517,7 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {isSpecialRole && (
+          {isAdmin || isSpecialRole ? (
             <>
               <TabsContent value="all-requests">
                 <Card>
@@ -590,7 +624,7 @@ export default function Dashboard() {
                 </Card>
               </TabsContent>
             </>
-          )}
+          ) : null}
 
           {showApprovalsTab && (
             <TabsContent value="approvals">
