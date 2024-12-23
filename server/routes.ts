@@ -151,7 +151,9 @@ export function registerRoutes(app: Express): Server {
           ...req.body,
           requestNumber,
           requesterId: req.user!.id,
-          status: req.body.status || "draft"
+          status: req.body.status || "draft",
+          vendorId: req.body.vendorId ? Number(req.body.vendorId) : null,
+          ...(req.body.vendor ? { vendor: undefined } : {})
         })
         .returning();
 

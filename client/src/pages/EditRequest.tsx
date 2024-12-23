@@ -124,7 +124,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
-      // Transform data before submission, ensuring proper types
+      // Transform data before submission
       const submissionData = {
         title: values.title,
         description: values.description,
@@ -133,7 +133,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
-        // Send only the vendor ID, not the entire vendor object
+        // Only include vendorId as a number
         vendorId: Number(values.vendorId),
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
