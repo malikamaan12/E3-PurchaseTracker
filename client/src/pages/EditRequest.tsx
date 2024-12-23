@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useToast } from "@/hooks/use-toast";
-import { analyzeFormError } from "@/lib/debugUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,33 +79,21 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (request) {
       form.reset({
-        title: request.title,
-        description: request.description,
-        purpose: request.purpose,
-        purposeType: request.purposeType,
-        priority: request.priority,
-        currency: request.currency,
-        status: request.status,
-        companyName: request.companyName,
-        contactPerson: request.contactPerson,
-        contactNumber: request.contactNumber,
-        accountNumber: request.accountNumber,
-        subPurposeId: request.subPurposeId,
+        ...request,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
-        items: request.items,
       });
       setItems(request.items);
       setFreightAmount(Number(request.freightAmount));
     }
-  }, [request]);
+  }, [request, form]);
 
   useEffect(() => {
     const totalCost = calculateTotalCost();
     form.setValue("items", items);
     form.setValue("freightAmount", freightAmount.toString());
     form.setValue("totalEstimatedCost", totalCost.toString());
-  }, [items, freightAmount]);
+  }, [items, freightAmount, form]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
@@ -169,7 +156,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-        const analysis = await analyzeFormError(form.getValues(), errors);
+        const analysis = await analyzeFormError(form.getValues(), errors); //Assuming analyzeFormError exists
         toast({
           title: "Validation Error",
           description: analysis || "Please check all required fields and try again",
