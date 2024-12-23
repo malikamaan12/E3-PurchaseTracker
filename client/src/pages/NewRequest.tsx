@@ -71,14 +71,14 @@ export default function NewRequest() {
 
   useEffect(() => {
     const totalCost = calculateTotalCost();
-    form.setValue('items', items);
-    form.setValue('freightAmount', freightAmount);
-    form.setValue('totalEstimatedCost', totalCost);
+    form.setValue("items", items);
+    form.setValue("freightAmount", freightAmount);
+    form.setValue("totalEstimatedCost", totalCost);
   }, [items, freightAmount]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (item.quantity * item.estimatedCost),
+      (sum, item) => sum + item.quantity * item.estimatedCost,
       0
     );
     return itemsTotal + freightAmount;
@@ -86,7 +86,6 @@ export default function NewRequest() {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      // Validate vendor
       if (!values.vendorId) {
         toast({
           title: "Error",
@@ -96,7 +95,6 @@ export default function NewRequest() {
         return;
       }
 
-      // Validate items
       if (items.some((item) => !item.name)) {
         toast({
           title: "Error",
@@ -106,7 +104,6 @@ export default function NewRequest() {
         return;
       }
 
-      // Format the data with proper number conversions
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -130,7 +127,6 @@ export default function NewRequest() {
         setLocation("/");
       } catch (error: any) {
         console.error("Create request error:", error);
-        // Use Anthropic to analyze the error
         const analysis = await analyzeFormError(formattedData, error);
         console.log('Form error analysis:', analysis);
 
@@ -141,20 +137,12 @@ export default function NewRequest() {
         });
       }
     } catch (error: any) {
-      console.error("Form submission error:", error);
-      const analysis = await analyzeFormError(values, error);
-      console.log('Validation error analysis:', analysis);
-
-      const errors = form.formState.errors;
-      console.log('Form validation errors:', errors);
-
-      const errorMessages = Object.entries(errors)
-        .map(([field, error]) => `${field}: ${error?.message}`)
-        .join('\n');
+      console.error("Form validation error:", error);
+      console.log('Form state errors:', form.formState.errors);
 
       toast({
         title: "Validation Error",
-        description: errorMessages || "Please check all required fields",
+        description: "Please check all required fields",
         variant: "destructive",
       });
     }
