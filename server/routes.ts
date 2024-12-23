@@ -414,6 +414,17 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).send("Only admin can delete requests");
       }
 
+      // First, delete associated notifications
+      await db
+        .delete(notifications)
+        .where(eq(notifications.requestId, parseInt(req.params.id)));
+
+      // Then, delete associated approvals
+      await db
+        .delete(approvals)
+        .where(eq(approvals.requestId, parseInt(req.params.id)));
+
+      // Finally, delete the request itself
       const [deletedRequest] = await db
         .delete(purchaseRequests)
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
@@ -422,16 +433,6 @@ export function registerRoutes(app: Express): Server {
       if (!deletedRequest) {
         return res.status(404).send("Request not found");
       }
-
-      // Delete associated approvals
-      await db
-        .delete(approvals)
-        .where(eq(approvals.requestId, deletedRequest.id));
-
-      // Delete associated notifications
-      await db
-        .delete(notifications)
-        .where(eq(notifications.requestId, deletedRequest.id));
 
       res.json({ message: "Request deleted successfully" });
     } catch (error: any) {
