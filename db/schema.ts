@@ -179,3 +179,29 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+
+
+export const accountRequests = pgTable("account_requests", {
+  id: serial("id").primaryKey(),
+  username: text("username").unique().notNull(),
+  password: text("password").notNull(),
+  email: text("email").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  department: text("department").notNull(),
+  role: text("role").notNull().default("user"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
+  role: z.enum(["user", "approver", "admin"]).default("user"),
+  email: z.string().email("Invalid email format"),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  department: z.string().min(1, "Department is required"),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+});
+
+export const selectAccountRequestSchema = createSelectSchema(accountRequests);
+export type AccountRequest = typeof accountRequests.$inferSelect;
+export type NewAccountRequest = typeof accountRequests.$inferInsert;

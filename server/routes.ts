@@ -10,7 +10,10 @@ import {
   users,
   subPurposes,
   notifications,
-  insertSubPurposeSchema
+  accountRequests,
+  insertSubPurposeSchema,
+  insertAccountRequestSchema,
+  insertUserSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
@@ -736,6 +739,382 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       console.error("Error exporting requests:", error);
       res.status(500).send(error.message);
+    }
+  });
+
+
+  // Admin routes for managing sub-purposes
+  app.post("/api/admin/sub-purposes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can manage sub-purposes");
+    }
+
+    try {
+      const result = insertSubPurposeSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const [purpose] = await db.insert(subPurposes)
+        .values(result.data)
+        .returning();
+
+      res.json(purpose);
+    } catch (error: any) {
+      console.error("Error creating sub-purpose:", error);
+      res.status(500).json({
+        error: "Failed to create sub-purpose",
+        message: error.message
+      });
+    }
+  });
+
+  app.put("/api/admin/sub-purposes/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can manage sub-purposes");
+    }
+
+    try {
+      const result = insertSubPurposeSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const [updatedPurpose] = await db
+        .update(subPurposes)
+        .set(result.data)
+        .where(eq(subPurposes.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!updatedPurpose) {
+        return res.status(404).send("Sub-purpose not found");
+      }
+
+      res.json(updatedPurpose);
+    } catch (error: any) {
+      console.error("Error updating sub-purpose:", error);
+      res.status(500).json({
+        error: "Failed to update sub-purpose",
+        message: error.message
+      });
+    }
+  });
+
+  app.delete("/api/admin/sub-purposes/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can manage sub-purposes");
+    }
+
+    try {
+      const [deletedPurpose] = await db
+        .delete(subPurposes)
+        .where(eq(subPurposes.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!deletedPurpose) {
+        return res.status(404).send("Sub-purpose not found");
+      }
+
+      res.json({ message: "Sub-purpose deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting sub-purpose:", error);
+      res.status(500).json({
+        error: "Failed to delete sub-purpose",
+        message: error.message
+      });
+    }
+  });
+
+  // Account request management routes
+  app.post("/api/account-requests", async (req, res) => {
+    try {
+      const result = insertAccountRequestSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const [request] = await db.insert(accountRequests)
+        .values(result.data)
+        .returning();
+
+      // Notify admins about the new account request
+      const admins = await db
+        .select()
+        .from(users)
+        .where(eq(users.role, "admin"));
+
+      for (const admin of admins) {
+        await createNotification(
+          admin.id,
+          `New account request from ${request.username} (${request.department})`,
+          'account_request',
+        );
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error creating account request:", error);
+      res.status(500).json({
+        error: "Failed to create account request",
+        message: error.message
+      });
+    }
+  });
+
+  // Admin routes for managing account requests
+  app.get("/api/admin/account-requests", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can view account requests");
+    }
+
+    try {
+      const requests = await db
+        .select()
+        .from(accountRequests)
+        .orderBy(desc(accountRequests.createdAt));
+
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching account requests:", error);
+      res.status(500).json({
+        error: "Failed to fetch account requests",
+        message: error.message
+      });
+    }
+  });
+
+  app.post("/api/admin/account-requests/:id/approve", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can approve account requests");
+    }
+
+    try {
+      // Get the account request
+      const [request] = await db
+        .select()
+        .from(accountRequests)
+        .where(eq(accountRequests.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!request) {
+        return res.status(404).send("Account request not found");
+      }
+
+      if (request.status !== "pending") {
+        return res.status(400).send("Account request has already been processed");
+      }
+
+      // Create the user account
+      const [newUser] = await db.insert(users)
+        .values({
+          username: request.username,
+          password: request.password,
+          email: request.email,
+          contactNumber: request.contactNumber,
+          department: request.department,
+          role: request.role,
+        })
+        .returning();
+
+      // Update the request status
+      await db.update(accountRequests)
+        .set({ 
+          status: "approved",
+          updatedAt: new Date()
+        })
+        .where(eq(accountRequests.id, request.id));
+
+      res.json({ message: "Account request approved successfully", user: newUser });
+    } catch (error: any) {
+      console.error("Error approving account request:", error);
+      res.status(500).json({
+        error: "Failed to approve account request",
+        message: error.message
+      });
+    }
+  });
+
+  app.post("/api/admin/account-requests/:id/reject", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can reject account requests");
+    }
+
+    try {
+      const [request] = await db
+        .update(accountRequests)
+        .set({ 
+          status: "rejected",
+          updatedAt: new Date()
+        })
+        .where(eq(accountRequests.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!request) {
+        return res.status(404).send("Account request not found");
+      }
+
+      res.json({ message: "Account request rejected successfully" });
+    } catch (error: any) {
+      console.error("Error rejecting account request:", error);
+      res.status(500).json({
+        error: "Failed to reject account request",
+        message: error.message
+      });
+    }
+  });
+
+  // Admin routes for managing existing users
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can view all users");
+    }
+
+    try {
+      const allUsers = await db
+        .select()
+        .from(users)
+        .orderBy(desc(users.id));
+
+      res.json(allUsers);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({
+        error: "Failed to fetch users",
+        message: error.message
+      });
+    }
+  });
+
+  app.put("/api/admin/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can modify users");
+    }
+
+    try {
+      const result = insertUserSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const [updatedUser] = await db
+        .update(users)
+        .set(result.data)
+        .where(eq(users.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).send("User not found");
+      }
+
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      res.status(500).json({
+        error: "Failed to update user",
+        message: error.message
+      });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can delete users");
+    }
+
+    try {
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!existingUser) {
+        return res.status(404).send("User not found");
+      }
+
+      // Delete related records first
+      await db
+        .delete(notifications)
+        .where(eq(notifications.userId, parseInt(req.params.id)));
+
+      await db
+        .delete(approvals)
+        .where(eq(approvals.approverId, parseInt(req.params.id)));
+
+      // Delete the user
+      const [deletedUser] = await db
+        .delete(users)
+        .where(eq(users.id, parseInt(req.params.id)))
+        .returning();
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({
+        error: "Failed to delete user",
+        message: error.message
+      });
     }
   });
 

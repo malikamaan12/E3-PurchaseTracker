@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
@@ -14,10 +15,10 @@ import {
 } from "@/components/ui/select";
 import RequestCard from "@/components/RequestCard";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
-import { Plus, LogOut, Search, Download } from "lucide-react";
+import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { useState as useState2, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import DashboardPreferences from "@/components/DashboardPreferences";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -48,7 +50,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -58,16 +59,16 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [departmentFilter, setDepartmentFilter] = useState<string>(
+  const [departmentFilter, setDepartmentFilter] = useState2<string>(
     preferences.defaultDepartmentFilter
   );
-  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>(
+  const [purposeTypeFilter, setPurposeTypeFilter] = useState2<string>(
     preferences.defaultPurposeFilter
   );
-  const [priorityFilter, setPriorityFilter] = useState<string>(
+  const [priorityFilter, setPriorityFilter] = useState2<string>(
     preferences.defaultPriorityFilter
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState2("");
 
   // Check if user is in special role (can see all requests)
   const isSpecialRole = useMemo(() => {
@@ -352,6 +353,14 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {user?.role === "admin" && (
+                <Link href="/admin">
+                  <Button variant="outline">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Admin Panel
+                  </Button>
+                </Link>
+              )}
               <Link href="/new-request">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />

@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import NewRequest from "./pages/NewRequest";
 import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
+import AdminPanel from "./pages/AdminPanel";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -28,6 +29,9 @@ function App() {
       <Route path="/new-request" component={NewRequest} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
+      {user.role === "admin" && (
+        <Route path="/admin" component={AdminPanel} />
+      )}
       <Route component={NotFound} />
     </Switch>
   );
