@@ -117,8 +117,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     try {
       if (!values.vendorId) {
         toast({
-          title: "Error",
-          description: "Please select a vendor",
+          title: "Validation Error",
+          description: "Please select a vendor before submitting",
           variant: "destructive",
         });
         return;
@@ -153,14 +153,15 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         toast({
           title: "Success",
           description: "Request updated successfully",
+          className: "bg-green-50 border-green-200",
         });
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
         const analysis = await analyzeFormError(submissionData, error);
         toast({
-          title: "Error",
-          description: analysis || error.message || "Failed to update request",
+          title: "Submission Error",
+          description: analysis || "Failed to update request. Please try again.",
           variant: "destructive",
         });
       }
@@ -169,7 +170,33 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const analysis = await analyzeFormError(values, form.formState.errors);
       toast({
         title: "Validation Error",
-        description: analysis || "Please check all required fields",
+        description: analysis || "Please check all required fields and try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = async (status: "draft" | "pending") => {
+    try {
+      form.setValue("status", status);
+      const isValid = await form.trigger();
+      if (!isValid) {
+        const errors = form.formState.errors;
+        const analysis = await analyzeFormError(form.getValues(), errors);
+        toast({
+          title: "Validation Error",
+          description: analysis || "Please check all required fields and try again",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await form.handleSubmit(onSubmit)();
+    } catch (error: any) {
+      console.error("Submit error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit form. Please check your input and try again.",
         variant: "destructive",
       });
     }
@@ -195,31 +222,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     setItems(newItems);
   };
 
-  const handleSubmit = async (status: "draft" | "pending") => {
-    try {
-      form.setValue("status", status);
-      const isValid = await form.trigger();
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const analysis = await analyzeFormError(form.getValues(), errors);
-        toast({
-          title: "Validation Error",
-          description: analysis || "Please check all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await form.handleSubmit(onSubmit)();
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit form. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   if (isLoading) {
     return (

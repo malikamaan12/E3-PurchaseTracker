@@ -10,10 +10,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@db/schema";
 import type { NewUser } from "@db/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const { login, register } = useUser();
+  const { toast } = useToast();
 
   const form = useForm<NewUser>({
     resolver: zodResolver(insertUserSchema),
@@ -36,15 +38,35 @@ export default function AuthPage() {
     try {
       if (activeTab === "login") {
         // For login, only send username and password
-        await login({
+        const result = await login({
           username: data.username,
           password: data.password,
         } as NewUser);
+
+        if (!result.ok) {
+          toast({
+            title: "Login Failed",
+            description: result.message || "Please check your credentials and try again",
+            variant: "destructive",
+          });
+        }
       } else {
-        await register(data);
+        const result = await register(data);
+        if (!result.ok) {
+          toast({
+            title: "Registration Failed",
+            description: result.message || "Please check your input and try again",
+            variant: "destructive",
+          });
+        }
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Auth error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
 
@@ -60,13 +82,13 @@ export default function AuthPage() {
           <CardContent className="p-6">
             <Tabs value={activeTab} onValueChange={onTabChange}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger 
+                <TabsTrigger
                   value="login"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
                 >
                   Login
                 </TabsTrigger>
-                <TabsTrigger 
+                <TabsTrigger
                   value="register"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
                 >
@@ -83,7 +105,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel className="text-[#191160]">Username</FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             {...field}
                             className="border-[#7156a2]/20 focus:border-[#7156a2]"
                           />
@@ -100,8 +122,8 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel className="text-[#191160]">Password</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="password" 
+                          <Input
+                            type="password"
                             {...field}
                             className="border-[#7156a2]/20 focus:border-[#7156a2]"
                           />
@@ -120,8 +142,8 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel className="text-[#191160]">Email</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="email" 
+                              <Input
+                                type="email"
                                 {...field}
                                 className="border-[#7156a2]/20 focus:border-[#7156a2]"
                               />
@@ -138,8 +160,8 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel className="text-[#191160]">Contact Number</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="tel" 
+                              <Input
+                                type="tel"
                                 {...field}
                                 className="border-[#7156a2]/20 focus:border-[#7156a2]"
                               />
@@ -217,8 +239,8 @@ export default function AuthPage() {
                     </>
                   )}
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
                   >
                     {activeTab === "login" ? "Login" : "Register"}
