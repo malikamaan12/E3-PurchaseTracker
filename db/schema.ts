@@ -115,7 +115,7 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
   }),
 }));
 
-// Types
+// Types and schemas
 export type User = InferModel<typeof users>;
 export type SubPurpose = InferModel<typeof subPurposes>;
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
@@ -207,8 +207,7 @@ export const notificationRelations = relations(notifications, ({ one }) => ({
 
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
-export type Notification = typeof notifications.$inferSelect;
-export type NewNotification = typeof notifications.$inferInsert;
+export type Notification = InferModel<typeof notifications>;
 
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
@@ -232,5 +231,5 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
 });
 
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
-export type AccountRequest = typeof accountRequests.$inferSelect;
-export type NewAccountRequest = typeof accountRequests.$inferInsert;
+export type AccountRequest = InferModel<typeof accountRequests>;
+export type NewAccountRequest = InferModel<typeof accountRequests>;

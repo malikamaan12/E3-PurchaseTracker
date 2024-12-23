@@ -9,11 +9,43 @@ import {
   subPurposes,
   notifications,
   fileAttachments,
+  accountRequests,
+  insertSubPurposeSchema,
+  insertAccountRequestSchema,
+  insertUserSchema,
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { format } from 'date-fns';
+import bcrypt from 'bcrypt';
+import { Parser } from 'json2csv';
+import * as XLSX from 'xlsx';
+
+
+// Helper functions
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(password, salt);
+}
+
+async function createNotification(userId: number, message: string, type: string, requestId?: number) {
+  try {
+    const [notification] = await db.insert(notifications)
+      .values({
+        userId,
+        message,
+        type,
+        requestId,
+      })
+      .returning();
+    return notification;
+  } catch (error) {
+    console.error("Error creating notification:", error);
+    throw error;
+  }
+}
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -82,7 +114,7 @@ export function registerRoutes(app: Express): Server {
             }
           },
           subPurpose: true,
-          fileAttachments: true
+          attachments: true
         },
         orderBy: desc(purchaseRequests.createdAt)
       });
@@ -104,10 +136,15 @@ export function registerRoutes(app: Express): Server {
       const requestData = JSON.parse(req.body.data);
       const files = req.files as Express.Multer.File[];
 
+      // Generate request number
+      const dateStr = format(new Date(), "yyyyMMdd");
+      const requestNumber = `REQ/${dateStr}/${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+
       // Create the request first
       const [request] = await db.insert(purchaseRequests)
         .values({
           ...requestData,
+          requestNumber,
           requesterId: req.user!.id,
           status: requestData.status || "draft"
         })
@@ -137,7 +174,7 @@ export function registerRoutes(app: Express): Server {
             }
           },
           subPurpose: true,
-          fileAttachments: true
+          attachments: true
         }
       });
 
@@ -896,40 +933,42 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Get the account request
-      const [request] = await db
+      const [accountRequest] = await db
         .select()
         .from(accountRequests)
         .where(eq(accountRequests.id, parseInt(req.params.id)))
         .limit(1);
 
-      if (!request) {
+      if (!accountRequest) {
         return res.status(404).send("Account request not found");
       }
 
-      if (request.status !== "pending") {
-        return res.status(400).send("Account request has already been processed");
-      }
 
       // Create the user account
       const [newUser] = await db.insert(users)
         .values({
-          username: request.username,
-          password: request.password,
-          email: request.email,
-          contactNumber: request.contactNumber,
-          department: request.department,
-          role: request.role,
+          username: accountRequest.username,
+          password: accountRequest.password,
+          email: accountRequest.email,
+          contactNumber: accountRequest.contactNumber,
+          department: accountRequest.department,
+          role: accountRequest.role,
         })
         .returning();
 
-      // Update the request status
+      // Update request status
       await db.update(accountRequests)
-        .set({
-          status: "approved",
-          updatedAt: new Date()
-        })
-        .where(eq(accountRequests.id, request.id));
+        .set({ status: "approved" })
+        .where(eq(accountRequests.id, accountRequest.id));
+
+      // Notify the user
+      if (newUser) {
+        await createNotification(
+          newUser.id,
+          "Your account request has been approved. You can now log in.",
+          "account_approved"
+        );
+      }
 
       res.json({ message: "Account request approved successfully", user: newUser });
     } catch (error: any) {
@@ -982,8 +1021,8 @@ export function registerRoutes(app: Express): Server {
         if (newUser) {
           await createNotification(
             newUser.id,
-            'Your account request has been approved. You can now log in.',
-            'accountapproved'
+            "Your account request has been approved. You can now log in.",
+            "account_approved"
           );
         }
       } else if (request.status === 'rejected') {
