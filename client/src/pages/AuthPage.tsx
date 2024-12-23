@@ -27,10 +27,19 @@ export default function AuthPage() {
     },
   });
 
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    form.reset();
+  };
+
   const onSubmit = async (data: NewUser) => {
     try {
       if (activeTab === "login") {
-        await login(data);
+        // For login, only send username and password
+        await login({
+          username: data.username,
+          password: data.password,
+        } as NewUser);
       } else {
         await register(data);
       }
@@ -40,31 +49,44 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
       <div className="w-full max-w-md mx-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">
+        <Card className="border-[#35bbba]/20 shadow-lg">
+          <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
+            <CardTitle className="text-2xl font-bold text-center text-[#191160]">
               Purchase Management System
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
+          <CardContent className="p-6">
+            <Tabs value={activeTab} onValueChange={onTabChange}>
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger 
+                  value="login"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
+                >
+                  Login
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="register"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
+                >
+                  Register
+                </TabsTrigger>
               </TabsList>
 
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
                     name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel className="text-[#191160]">Username</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input 
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -76,9 +98,13 @@ export default function AuthPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel className="text-[#191160]">Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input 
+                            type="password" 
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -92,9 +118,13 @@ export default function AuthPage() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel className="text-[#191160]">Email</FormLabel>
                             <FormControl>
-                              <Input type="email" {...field} />
+                              <Input 
+                                type="email" 
+                                {...field}
+                                className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -106,9 +136,13 @@ export default function AuthPage() {
                         name="contactNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contact Number</FormLabel>
+                            <FormLabel className="text-[#191160]">Contact Number</FormLabel>
                             <FormControl>
-                              <Input type="tel" {...field} />
+                              <Input 
+                                type="tel" 
+                                {...field}
+                                className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -120,13 +154,13 @@ export default function AuthPage() {
                         name="role"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Role</FormLabel>
+                            <FormLabel className="text-[#191160]">Role</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                   <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
                               </FormControl>
@@ -146,13 +180,13 @@ export default function AuthPage() {
                         name="department"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Department</FormLabel>
+                            <FormLabel className="text-[#191160]">Department</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                   <SelectValue placeholder="Select department" />
                                 </SelectTrigger>
                               </FormControl>
@@ -183,7 +217,10 @@ export default function AuthPage() {
                     </>
                   )}
 
-                  <Button type="submit" className="w-full">
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
+                  >
                     {activeTab === "login" ? "Login" : "Register"}
                   </Button>
                 </form>
