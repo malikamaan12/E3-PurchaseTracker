@@ -36,12 +36,14 @@ interface RequestCardProps {
   request: PurchaseRequest;
   showActions?: boolean;
   showApproval?: boolean;
+  compact?: boolean;
 }
 
 export default function RequestCard({
   request,
   showActions,
   showApproval,
+  compact = false,
 }: RequestCardProps) {
   const { user } = useUser();
   const { updateRequest, createApproval, deleteRequest } = usePurchaseRequests();
@@ -51,43 +53,73 @@ export default function RequestCard({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-gray-500";
+        return "bg-gray-500/10 text-gray-600 border-gray-500/20";
       case "pending":
-        return "bg-yellow-500";
+        return "bg-yellow-500/10 text-yellow-700 border-yellow-500/20";
       case "approved":
-        return "bg-green-500";
+        return "bg-green-500/10 text-green-700 border-green-500/20";
       case "rejected":
-        return "bg-red-500";
+        return "bg-red-500/10 text-red-700 border-red-500/20";
       case "changes_requested":
-        return "bg-orange-500";
+        return "bg-orange-500/10 text-orange-700 border-orange-500/20";
       default:
-        return "bg-gray-500";
+        return "bg-gray-500/10 text-gray-600 border-gray-500/20";
     }
   };
 
-  // Function to automatically create mandatory approvals
-  const createMandatoryApprovals = async () => {
-    try {
-      for (const department of mandatoryDepartments) {
-        await createApproval({
-          requestId: request.id,
-          department,
-          approverId: user!.id,
-          isMandatory: true,
-          status: "pending"
-        });
-      }
-    } catch (error) {
-      console.error("Error creating mandatory approvals:", error);
-      throw error;
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "text-red-600";
+      case "high":
+        return "text-orange-600";
+      case "medium":
+        return "text-yellow-600";
+      case "low":
+        return "text-blue-600";
+      default:
+        return "text-gray-600";
     }
   };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return <AlertTriangle className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+      case "high":
+        return <Flag className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+      default:
+        return <Clock className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+    }
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: request.currency || 'QAR'
+    }).format(amount);
+  };
+
+  // Calculate totals
+  const freightAmount = Number(request.freightAmount) || 0;
+  const items = request.items?.map(item => ({
+    name: String(item.name || ""),
+    quantity: Number(item.quantity || 1),
+    estimatedCost: Number(item.estimatedCost || 0)
+  })) || [];
+
+  const itemsTotal = items.reduce(
+    (sum, item) => sum + item.quantity * item.estimatedCost,
+    0
+  );
+
+  const totalCost = itemsTotal + freightAmount;
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
-    if (!user) return;
+    if (!user?.department) return;
 
     try {
-      // Create the approval record
       await createApproval({
         requestId: request.id,
         approverId: user.id,
@@ -97,29 +129,20 @@ export default function RequestCard({
         isMandatory: mandatoryDepartments.includes(user.department)
       });
 
-      // Special handling for Finance department approval
       if (user.department === "Finance" && status === "approved") {
-        // When Finance approves, lock the request
         await updateRequest({
           id: request.id,
-          data: {
-            isLocked: true,
-            status: "approved"
-          },
+          data: { isLocked: true, status: "approved" }
         });
       } else if (status === "changes_requested") {
-        // If changes are requested, update the request status
         await updateRequest({
           id: request.id,
-          data: {
-            status: "changes_requested",
-            isLocked: false // Unlock for changes
-          },
+          data: { status: "changes_requested", isLocked: false }
         });
       } else if (status === "rejected") {
         await updateRequest({
           id: request.id,
-          data: { status: "rejected" },
+          data: { status: "rejected" }
         });
       }
     } catch (error) {
@@ -128,25 +151,7 @@ export default function RequestCard({
     }
   };
 
-  const handleSubmitForApproval = async () => {
-    try {
-      await updateRequest({
-        id: request.id,
-        data: { status: "pending" },
-      });
-      await createMandatoryApprovals();
-    } catch (error) {
-      console.error("Error submitting for approval:", error);
-      throw error;
-    }
-  };
-
   const handleEdit = () => {
-    // Allow edits only if:
-    // 1. Request is not locked (not approved by Finance)
-    // 2. Request is in draft state
-    // 3. Request is in changes_requested state
-    // 4. User is the requester
     const canEdit =
       !request.isLocked &&
       (request.status === "draft" || request.status === "changes_requested") &&
@@ -157,107 +162,211 @@ export default function RequestCard({
     }
   };
 
-  const handleDelete = async () => {
-    // Allow deletion only if:
-    // 1. Request is not locked
-    // 2. Request is in draft state
-    // 3. User is the requester
-    const canDelete =
-      !request.isLocked &&
-      request.status === "draft" &&
-      request.requesterId === user?.id;
-
-    if (canDelete) {
-      await deleteRequest(request.id);
-    }
-  };
-
-  // Check if the request can be modified
-  const canModify =
-    !request.isLocked &&
-    (request.status === "draft" || request.status === "changes_requested") &&
-    request.requesterId === user?.id;
-
-  // Check if the current user can approve
-  const canApprove =
-    !request.isLocked &&
-    request.status === "pending" &&
-    user?.department &&
-    !request.approvals.some(a =>
-      a.department === user.department &&
-      ["approved", "rejected"].includes(a.status)
+  if (compact) {
+    return (
+      <Card className="hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium truncate">{request.title}</h3>
+                <Badge className={getStatusColor(request.status)}>
+                  {request.status.toUpperCase().replace("_", " ")}
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-500">
+                {request.requestNumber} - {format(new Date(request.createdAt), "MMM d, yyyy")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {getPriorityIcon(request.priority)}
+                <span className={`text-sm ${getPriorityColor(request.priority)}`}>
+                  {request.priority.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-sm font-medium">{formatCurrency(totalCost)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
-
-  // Convert string values to numbers for calculations
-  const freightAmount = Number(request.freightAmount) || 0;
-  const items = request.items.map(item => ({
-    ...item,
-    quantity: Number(item.quantity),
-    estimatedCost: Number(item.estimatedCost)
-  }));
-
-  const itemsTotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.estimatedCost,
-    0
-  );
-
-  const totalCost = itemsTotal + freightAmount;
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "text-red-500";
-      case "high":
-        return "text-orange-500";
-      case "medium":
-        return "text-yellow-500";
-      case "low":
-        return "text-blue-500";
-      default:
-        return "text-gray-500";
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return <AlertTriangle className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
-      case "high":
-        return <Flag className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
-      default:
-        return <Clock className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
-    }
-  };
+  }
 
   return (
-    <Card>
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div>
+        <div className="space-y-1">
           <CardTitle className="text-xl">{request.title}</CardTitle>
-          <div className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500">
             Request #{request.requestNumber}
-          </div>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className={getStatusColor(request.status)}>
             {request.status.toUpperCase().replace("_", " ")}
           </Badge>
           {request.isLocked && (
-            <Badge variant="outline" className="border-orange-500 text-orange-500">
+            <Badge variant="outline" className="border-orange-500/20 text-orange-600 bg-orange-50">
               LOCKED
             </Badge>
           )}
           <Badge
             variant="outline"
-            className={`border-${getPriorityColor(request.priority)} ${getPriorityColor(request.priority)}`}
+            className={`border-${getPriorityColor(request.priority)}/20 ${getPriorityColor(request.priority)} bg-${getPriorityColor(request.priority).replace('text-', '')}/5`}
           >
             <div className="flex items-center gap-1">
               {getPriorityIcon(request.priority)}
               <span>{request.priority.toUpperCase()}</span>
             </div>
           </Badge>
-          {canModify && (
-            <div className="flex items-center gap-2 ml-4">
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div className="text-sm text-gray-500">
+          Created {format(new Date(request.createdAt), "PPp")}
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="font-medium text-gray-900">Description</h4>
+          <p className="text-sm text-gray-600">{request.description}</p>
+        </div>
+
+        <div className="space-y-4">
+          <h4 className="font-medium text-gray-900">Items</h4>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Unit Cost</TableHead>
+                <TableHead>Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item, index) => (
+                <TableRow key={index}>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(item.quantity * item.estimatedCost)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell colSpan={3} className="text-right font-medium">
+                  Items Total
+                </TableCell>
+                <TableCell className="font-medium">
+                  {formatCurrency(itemsTotal)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={3} className="text-right font-medium">
+                  Freight Amount
+                </TableCell>
+                <TableCell className="font-medium">
+                  {formatCurrency(freightAmount)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={3} className="text-right font-bold">
+                  Total Estimated Cost
+                </TableCell>
+                <TableCell className="font-bold">
+                  {formatCurrency(totalCost)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-gray-900">Purpose</h4>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="capitalize">
+                {request.purposeType.replace("_", " ")}
+              </Badge>
+              {request.subPurpose && (
+                <Badge variant="outline" className="capitalize">
+                  {request.subPurpose.name}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">{request.purpose}</p>
+        </div>
+
+        <RequestStatusTimeline request={request} />
+
+        <ApprovalFlow
+          approvals={request.approvals}
+          requestId={request.id}
+          onApprovalUpdate={() => {}} // Refresh data when approval is updated
+        />
+
+        {showApproval && (
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <Textarea
+              placeholder="Add comments..."
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              className="min-h-[100px]"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleApproval("changes_requested")}
+              >
+                Request Changes
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleApproval("rejected")}
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={() => handleApproval("approved")}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Approve
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {request.priorityReason && (
+          <div className="space-y-2 pt-4 border-t border-gray-100">
+            <h4 className="font-medium text-gray-900">Priority Analysis</h4>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+              <div className="flex items-center gap-2">
+                {getPriorityIcon(request.priority)}
+                <p className="text-sm">
+                  Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
+                </p>
+              </div>
+              <p className="text-sm text-gray-600">{request.priorityReason}</p>
+              {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium mb-1">Recommendations:</p>
+                  <ul className="list-disc list-inside text-sm text-gray-600">
+                    {request.priorityRecommendations.map((rec, index) => (
+                      <li key={index}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-between pt-4 border-t border-gray-100">
+          {showActions && request.status === "draft" && (
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
@@ -267,186 +376,35 @@ export default function RequestCard({
                 <Pencil className="h-4 w-4" />
               </Button>
 
-              {request.status === "draft" && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-destructive"
-                      title="Delete Request"
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-red-600 hover:text-red-700"
+                    title="Delete Request"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this purchase request? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteRequest(request.id)}
+                      className="bg-red-600 hover:bg-red-700"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this purchase request? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4">
-          <div className="text-sm text-gray-500">
-            Created {format(new Date(request.createdAt), "PPp")}
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-medium">Description</h4>
-            <p className="text-sm text-gray-600">{request.description}</p>
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-medium">Items</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>${item.estimatedCost.toFixed(2)}</TableCell>
-                    <TableCell>
-                      ${(item.quantity * item.estimatedCost).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-medium">
-                    Items Total
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    ${itemsTotal.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-medium">
-                    Freight Amount
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    ${freightAmount.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-bold">
-                    Total Estimated Cost
-                  </TableCell>
-                  <TableCell className="font-bold">
-                    ${totalCost.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-medium">Purpose</h4>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {request.purposeType.replace("_", " ").toUpperCase()}
-                </Badge>
-                {request.subPurpose && (
-                  <Badge variant="outline">
-                    {request.subPurpose.name}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-gray-600">{request.purpose}</p>
-            </div>
-          </div>
-
-          <RequestStatusTimeline request={request} />
-
-          <ApprovalFlow
-            approvals={request.approvals}
-            requestId={request.id}
-            onApprovalUpdate={() => {}} // Refresh data when approval is updated
-          />
-
-          {showApproval && canApprove && (
-            <div className="space-y-4 mt-4">
-              <Textarea
-                placeholder="Add comments..."
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-              />
-              <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleApproval("changes_requested")}
-                >
-                  Request Changes
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleApproval("rejected")}
-                >
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => handleApproval("approved")}
-                >
-                  Approve
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {request.priorityReason && (
-            <div className="space-y-2">
-              <h4 className="font-medium">Priority Analysis</h4>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <div className="flex items-center gap-2">
-                  {getPriorityIcon(request.priority)}
-                  <p className="text-sm">
-                    Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
-                  </p>
-                </div>
-                <p className="text-sm text-gray-600">{request.priorityReason}</p>
-                {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-medium mb-1">Recommendations:</p>
-                    <ul className="list-disc list-inside text-sm text-gray-600">
-                      {request.priorityRecommendations.map((rec, index) => (
-                        <li key={index}>{rec}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {showActions && request.status === "draft" && (
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={handleSubmitForApproval}
-              >
-                Submit for Approval
-              </Button>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>
