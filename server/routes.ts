@@ -2,41 +2,29 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import XLSX from 'xlsx';
-import { Parser } from 'json2csv';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import {
   purchaseRequests,
   approvals,
   users,
   subPurposes,
   notifications,
-  accountRequests,
   fileAttachments,
-  insertSubPurposeSchema,
-  insertAccountRequestSchema,
-  insertUserSchema,
-  insertFileAttachmentSchema
 } from "@db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { format } from "date-fns";
-import { analyzePurchaseRequestPriority } from "./utils/anthropic";
-import * as crypto from 'crypto';
+import { eq, and, desc } from "drizzle-orm";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(process.cwd(), 'uploads');
-    // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Generate unique filename
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -45,10 +33,9 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Allow only specific file types
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -58,7 +45,6 @@ const upload = multer({
       'image/jpeg',
       'image/png'
     ];
-
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -66,142 +52,6 @@ const upload = multer({
     }
   }
 });
-
-async function hashPassword(password: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      resolve(derivedKey.toString('hex') + '.' + salt);
-    });
-  });
-}
-
-async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
-  try {
-    const now = new Date();
-    const dateStr = format(now, "yyyyMMdd");
-    const timeStr = format(now, "HHmmssSSS");
-
-    let purposeCode = purposeType.substring(0, 3).toUpperCase();
-    if (subPurposeId) {
-      const [subPurpose] = await db.select()
-        .from(subPurposes)
-        .where(eq(subPurposes.id, subPurposeId))
-        .limit(1);
-      if (subPurpose) {
-        purposeCode = subPurpose.name.substring(0, 3).toUpperCase();
-      }
-    }
-
-    // Only select required fields for request number generation
-    const existingRequests = await db.select({
-      requestNumber: purchaseRequests.requestNumber,
-      createdAt: purchaseRequests.createdAt
-    })
-      .from(purchaseRequests)
-      .where(
-        sql`DATE(${purchaseRequests.createdAt}) = CURRENT_DATE`
-      )
-      .orderBy(desc(purchaseRequests.createdAt));
-
-    let sequenceNumber = 1;
-    if (existingRequests.length > 0) {
-      const lastRequest = existingRequests[0];
-      const lastSequence = lastRequest.requestNumber.split('/')[2];
-      if (lastSequence) {
-        const match = lastSequence.match(/^\d+/);
-        if (match) {
-          sequenceNumber = parseInt(match[0]) + 1;
-        }
-      }
-    }
-
-    const requestNumber = `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}`;
-
-    // Check for duplicate request numbers
-    const [existing] = await db.select({
-      requestNumber: purchaseRequests.requestNumber
-    })
-      .from(purchaseRequests)
-      .where(eq(purchaseRequests.requestNumber, requestNumber))
-      .limit(1);
-
-    if (existing) {
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      return `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}-${random}`;
-    }
-
-    return requestNumber;
-  } catch (error) {
-    console.error("Error generating request number:", error);
-    throw new Error("Failed to generate unique request number");
-  }
-}
-
-async function createNotification(userId: number, message: string, type: string, requestId?: number) {
-  try {
-    const [notification] = await db.insert(notifications)
-      .values({
-        userId,
-        message,
-        type,
-        requestId,
-      })
-      .returning();
-    return notification;
-  } catch (error) {
-    console.error("Error creating notification:", error);
-    throw error;
-  }
-}
-
-async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
-  const [request] = await db
-    .select()
-    .from(purchaseRequests)
-    .where(eq(purchaseRequests.id, requestId))
-    .limit(1);
-
-  if (!request) return false;
-
-  // Get user's department
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  if (!user) return false;
-
-  // Special roles (CEO Office, Director, Finance) can approve any request, including their own
-  const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
-
-  // For non-special roles, users cannot approve their own requests
-  if (!isSpecialRole && request.requesterId === userId) {
-    return false;
-  }
-
-  // Check if the request is pending
-  if (request.status !== "pending") return false;
-
-  // Check if this department hasn't approved yet
-  const [existingApproval] = await db
-    .select()
-    .from(approvals)
-    .where(
-      and(
-        eq(approvals.requestId, requestId),
-        eq(approvals.department, user.department)
-      )
-    )
-    .limit(1);
-
-  // Can approve if no approval exists or if existing approval is pending
-  return !existingApproval || existingApproval.status === "pending";
-}
-
-const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -213,72 +63,72 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Use a simpler query first without relations to debug
-      const requests = await db.select()
-        .from(purchaseRequests)
-        .where(
-          // Show all requests for admin, only user's requests for others
-          req.user!.role === 'admin'
-            ? undefined
-            : eq(purchaseRequests.requesterId, req.user!.id)
-        )
-        .orderBy(desc(purchaseRequests.createdAt));
+      // First get the user's details including role
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, req.user!.id))
+        .limit(1);
 
-      // Then fetch related data separately
-      const enrichedRequests = await Promise.all(requests.map(async (request) => {
-        const [requester] = await db.select()
-          .from(users)
-          .where(eq(users.id, request.requesterId))
-          .limit(1);
+      // Query requests based on user role
+      const requests = await db.query.purchaseRequests.findMany({
+        where: user.role === 'admin'
+          ? undefined
+          : eq(purchaseRequests.requesterId, user.id),
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true,
+          fileAttachments: true
+        },
+        orderBy: desc(purchaseRequests.createdAt)
+      });
 
-        const approvals = await db.select()
-          .from(approvals)
-          .where(eq(approvals.requestId, request.id));
-
-        const [subPurpose] = request.subPurposeId
-          ? await db.select()
-            .from(subPurposes)
-            .where(eq(subPurposes.id, request.subPurposeId))
-            .limit(1)
-          : [null];
-
-        const attachments = await db.select()
-          .from(fileAttachments)
-          .where(eq(fileAttachments.requestId, request.id));
-
-        return {
-          ...request,
-          requester,
-          approvals: await Promise.all(
-            approvals.map(async (approval) => {
-              const [approver] = await db.select()
-                .from(users)
-                .where(eq(users.id, approval.approverId))
-                .limit(1);
-              return { ...approval, approver };
-            })
-          ),
-          subPurpose,
-          attachments
-        };
-      }));
-
-      res.json(enrichedRequests);
+      res.json(requests);
     } catch (error: any) {
       console.error("Error fetching requests:", error);
       res.status(500).send(error.message);
     }
   });
 
-  // Add this endpoint after the GET /api/requests endpoint
-  app.get("/api/requests/:id", async (req, res) => {
+  // Handle file uploads and create request
+  app.post("/api/requests", upload.array('files'), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const request = await db.query.purchaseRequests.findFirst({
-        where: eq(purchaseRequests.id, parseInt(req.params.id)),
+      const requestData = JSON.parse(req.body.data);
+      const files = req.files as Express.Multer.File[];
+
+      // Create the request first
+      const [request] = await db.insert(purchaseRequests)
+        .values({
+          ...requestData,
+          requesterId: req.user!.id,
+          status: requestData.status || "draft"
+        })
+        .returning();
+
+      // Handle file attachments if any were uploaded
+      if (files && files.length > 0) {
+        const attachments = files.map(file => ({
+          requestId: request.id,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          fileSize: file.size,
+          fileUrl: file.path
+        }));
+
+        await db.insert(fileAttachments).values(attachments);
+      }
+
+      // Return the created request with its attachments
+      const createdRequest = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, request.id),
         with: {
           requester: true,
           approvals: {
@@ -291,13 +141,52 @@ export function registerRoutes(app: Express): Server {
         }
       });
 
+      res.json(createdRequest);
+    } catch (error: any) {
+      console.error("Error creating request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Add route to download attachments
+  app.get("/api/attachments/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [attachment] = await db.select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!attachment) {
+        return res.status(404).send("Attachment not found");
+      }
+
+      // Verify user has access to this attachment
+      const [request] = await db.select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, attachment.requestId))
+        .limit(1);
+
       if (!request) {
         return res.status(404).send("Request not found");
       }
 
-      res.json(request);
+      // Check if user has access to this request
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, req.user!.id))
+        .limit(1);
+
+      if (request.requesterId !== user.id && user.role !== 'admin') {
+        return res.status(403).send("Not authorized to access this file");
+      }
+
+      res.download(attachment.fileUrl);
     } catch (error: any) {
-      console.error("Error fetching request:", error);
+      console.error("Error downloading attachment:", error);
       res.status(500).send(error.message);
     }
   });
@@ -352,109 +241,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+
   // Purchase request routes - adding notification creation
-  app.post("/api/requests", upload.array('files'), async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const requestData = JSON.parse(req.body.data);
-      const files = req.files as Express.Multer.File[];
-
-      const requestNumber = await generateRequestNumber(requestData.purposeType, requestData.subPurposeId);
-
-      // Calculate total cost for priority analysis
-      const itemsTotal = requestData.items.reduce(
-        (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
-        0
-      );
-      const totalEstimatedCost = itemsTotal + Number(requestData.freightAmount);
-
-      // Perform priority analysis
-      const priorityAnalysis = await analyzePurchaseRequestPriority({
-        title: requestData.title,
-        description: requestData.description,
-        purpose: requestData.purpose,
-        purposeType: requestData.purposeType,
-        totalEstimatedCost,
-        items: requestData.items.map(item => ({
-          name: item.name,
-          quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
-        }))
-      });
-
-      // Create the purchase request
-      const [request] = await db.insert(purchaseRequests)
-        .values({
-          ...requestData,
-          requestNumber,
-          requesterId: req.user!.id,
-          status: requestData.status || "draft",
-          priority: priorityAnalysis.priority,
-          priorityScore: priorityAnalysis.score,
-          priorityReason: priorityAnalysis.reason,
-          priorityRecommendations: priorityAnalysis.recommendations
-        })
-        .returning();
-
-      // Store file attachments if any
-      if (files && files.length > 0) {
-        const fileRecords = files.map(file => ({
-          requestId: request.id,
-          fileName: file.originalname,
-          fileType: file.mimetype,
-          fileSize: file.size,
-          fileUrl: file.path,
-        }));
-
-        await db.insert(fileAttachments)
-          .values(fileRecords);
-      }
-
-      // If request is submitted (not draft), create approvals and notify relevant approvers
-      if (request.status === "pending") {
-        // Get users from mandatory departments (CEO Office, Director, Finance)
-        const mandatoryApprovers = await db
-          .select()
-          .from(users)
-          .where(sql`${users.department} IN ('CEO Office', 'Director', 'Finance')`);
-
-        // Create approval records and notifications for each mandatory approver
-        for (const approver of mandatoryApprovers) {
-          // Create approval record
-          await db.insert(approvals).values({
-            requestId: request.id,
-            approverId: approver.id,
-            department: approver.department,
-            status: "pending",
-            isMandatory: true,
-          });
-
-          // Create notification
-          await createNotification(
-            approver.id,
-            `New purchase request ${request.requestNumber} requires your approval`,
-            'new_request',
-            request.id
-          );
-        }
-
-        // Update the mandatory approvers count
-        await db.update(purchaseRequests)
-          .set({ mandatoryApproversCount: mandatoryApprovers.length })
-          .where(eq(purchaseRequests.id, request.id));
-      }
-
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error creating request:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Handle request updates with notifications
   app.put("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -1004,7 +792,8 @@ export function registerRoutes(app: Express): Server {
       if (error.code === '23503') {
         return res.status(400).send(
           "Cannot delete this sub-purpose as it is referenced by existing purchase requests. Please freeze it instead."
-        );      }
+        );
+      }
 
       res.status(500).json({
         error: "Failed to delete sub-purpose",
@@ -1194,7 +983,7 @@ export function registerRoutes(app: Express): Server {
           await createNotification(
             newUser.id,
             'Your account request has been approved. You can now log in.',
-            'account_approved'
+            'accountapproved'
           );
         }
       } else if (request.status === 'rejected') {

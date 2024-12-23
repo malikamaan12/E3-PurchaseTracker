@@ -1,8 +1,9 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { relations } from "drizzle-orm";
+import { relations, type InferModel } from "drizzle-orm";
 import { z } from "zod";
 
+// Define the tables first without relations
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -13,23 +14,6 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
-export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
-});
-
-export const insertUserSchema = createInsertSchema(users, {
-  role: z.enum(["user", "approver", "admin"]).default("user"),
-  email: z.string().email("Invalid email format"),
-  contactNumber: z.string().min(1, "Contact number is required"),
-  department: z.string().min(1, "Department is required"),
-});
-
-export const selectUserSchema = createSelectSchema(users);
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type LoginCredentials = z.infer<typeof loginSchema>;
-
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -39,17 +23,6 @@ export const subPurposes = pgTable("sub_purposes", {
   validTo: timestamp("valid_to"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-
-export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
-  isFrozen: z.boolean().optional(),
-  validFrom: z.string().datetime().optional(),
-  validTo: z.string().datetime().optional(),
-});
-
-export const selectSubPurposeSchema = createSelectSchema(subPurposes);
-export type SubPurpose = typeof subPurposes.$inferSelect;
-export type NewSubPurpose = typeof subPurposes.$inferInsert;
 
 export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
@@ -93,11 +66,22 @@ export const fileAttachments = pgTable("file_attachments", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
-export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => ({
-  request: one(purchaseRequests, {
-    fields: [fileAttachments.requestId],
-    references: [purchaseRequests.id],
-  }),
+export const approvals = pgTable("approvals", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
+  approverId: integer("approver_id").notNull().references(() => users.id),
+  department: text("department").notNull(),
+  status: text("status").notNull().default("pending"),
+  comments: text("comments"),
+  isMandatory: boolean("is_mandatory").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Then define all relations after the table definitions
+export const userRelations = relations(users, ({ many }) => ({
+  requestsCreated: many(purchaseRequests),
+  approvalsGiven: many(approvals),
 }));
 
 export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many }) => ({
@@ -113,18 +97,6 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
   attachments: many(fileAttachments),
 }));
 
-export const approvals = pgTable("approvals", {
-  id: serial("id").primaryKey(),
-  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
-  approverId: integer("approver_id").notNull().references(() => users.id),
-  department: text("department").notNull(),
-  status: text("status").notNull().default("pending"),
-  comments: text("comments"),
-  isMandatory: boolean("is_mandatory").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
 export const approvalRelations = relations(approvals, ({ one }) => ({
   request: one(purchaseRequests, {
     fields: [approvals.requestId],
@@ -136,7 +108,46 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
   }),
 }));
 
+export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => ({
+  request: one(purchaseRequests, {
+    fields: [fileAttachments.requestId],
+    references: [purchaseRequests.id],
+  }),
+}));
+
+// Types
+export type User = InferModel<typeof users>;
+export type SubPurpose = InferModel<typeof subPurposes>;
+export type PurchaseRequest = InferModel<typeof purchaseRequests>;
+export type Approval = InferModel<typeof approvals>;
+export type FileAttachment = InferModel<typeof fileAttachments>;
+
 export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;
+
+// Schemas
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const insertUserSchema = createInsertSchema(users, {
+  role: z.enum(["user", "approver", "admin"]).default("user"),
+  email: z.string().email("Invalid email format"),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  department: z.string().min(1, "Department is required"),
+});
+
+export const selectUserSchema = createSelectSchema(users);
+export type LoginCredentials = z.infer<typeof loginSchema>;
+
+export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  isFrozen: z.boolean().optional(),
+  validFrom: z.string().datetime().optional(),
+  validTo: z.string().datetime().optional(),
+});
+
+export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
@@ -167,20 +178,11 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
 });
 
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
-
-export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
-  approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
-  subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
-  requester: User;
-  attachments?: Array<FileAttachment>;
-};
-
-export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;
-
 export const insertApprovalSchema = createInsertSchema(approvals);
 export const selectApprovalSchema = createSelectSchema(approvals);
-export type Approval = typeof approvals.$inferSelect;
-export type NewApproval = typeof approvals.$inferInsert;
+
+export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
+export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -232,8 +234,3 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 export type AccountRequest = typeof accountRequests.$inferSelect;
 export type NewAccountRequest = typeof accountRequests.$inferInsert;
-
-export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
-export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
-export type FileAttachment = typeof fileAttachments.$inferSelect;
-export type NewFileAttachment = typeof fileAttachments.$inferInsert;
