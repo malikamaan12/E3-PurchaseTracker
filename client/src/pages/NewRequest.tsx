@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
+import { analyzeFormError } from "@/lib/debugUtils";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -50,7 +51,7 @@ export default function NewRequest() {
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
 
-  const form = useForm<Omit<NewPurchaseRequest, "requestNumber" | "requesterId">>({
+  const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
@@ -68,20 +69,23 @@ export default function NewRequest() {
     },
   });
 
-  // Update form values when items change
+  // Update form values when items or freight amount change
   useEffect(() => {
+    const totalCost = calculateTotalCost();
     form.setValue('items', items);
-  }, [items, form]);
+    form.setValue('freightAmount', freightAmount);
+    form.setValue('totalEstimatedCost', totalCost);
+  }, [items, freightAmount, form]);
 
-  const calculateTotalCost = () => {
+  const calculateTotalCost = (): number => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
       0
     );
-    return itemsTotal + Number(freightAmount);
+    return Number((itemsTotal + Number(freightAmount)).toFixed(2));
   };
 
-  const onSubmit = async (values: Omit<NewPurchaseRequest, "requestNumber" | "requesterId">) => {
+  const onSubmit = async (values: NewPurchaseRequest) => {
     try {
       // Validate items
       if (items.some((item) => !item.name)) {
@@ -93,16 +97,7 @@ export default function NewRequest() {
         return;
       }
 
-      if (!values.vendorId) {
-        toast({
-          title: "Error",
-          description: "Please select a vendor",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const totalEstimatedCost = calculateTotalCost();
+      // Format the data with proper number conversions
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -111,39 +106,53 @@ export default function NewRequest() {
           estimatedCost: Number(item.estimatedCost)
         })),
         freightAmount: Number(freightAmount),
-        totalEstimatedCost: Number(totalEstimatedCost),
+        totalEstimatedCost: calculateTotalCost(),
         vendorId: Number(values.vendorId)
       };
 
-      await createRequest(formattedData);
+      try {
+        await createRequest(formattedData);
+        toast({
+          title: "Success",
+          description: "Request created successfully",
+        });
+        setLocation("/");
+      } catch (error: any) {
+        console.error("Create request error:", error);
+        const analysis = await analyzeFormError(formattedData, error);
 
-      toast({
-        title: "Success",
-        description: "Request created successfully",
-      });
-
-      setLocation("/");
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create request. Please ensure all required fields are filled.",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       console.error("Form submission error:", error);
+      const analysis = await analyzeFormError(values, error);
+
+      // Get all validation errors
+      const errors = form.formState.errors;
+      const errorMessages = Object.entries(errors)
+        .map(([field, error]) => `${field}: ${error?.message}`)
+        .join('\n');
+
       toast({
-        title: "Error",
-        description: error.message || "Failed to create request",
+        title: "Validation Error",
+        description: errorMessages || "Please check all required fields.",
         variant: "destructive",
       });
     }
   };
 
   const addItem = () => {
-    const newItems = [...items, { name: "", quantity: 1, estimatedCost: 0 }];
-    setItems(newItems);
-    form.setValue('items', newItems);
+    setItems([...items, { name: "", quantity: 1, estimatedCost: 0 }]);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       const newItems = items.filter((_, i) => i !== index);
       setItems(newItems);
-      form.setValue('items', newItems);
     }
   };
 
@@ -154,28 +163,24 @@ export default function NewRequest() {
       [field]: field === 'name' ? value : Number(value) || 0
     };
     setItems(newItems);
-    form.setValue('items', newItems);
   };
 
   const handleSubmit = async (status: "draft" | "pending") => {
     try {
+      // Update form values
       form.setValue("status", status);
 
-      // Make sure items are set in the form
-      form.setValue('items', items);
-
+      // Trigger validation
       const isValid = await form.trigger();
-
       if (!isValid) {
         const errors = form.formState.errors;
         const errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
-          .join(', ');
+          .join('\n');
 
-        console.log("Form validation errors:", errors);
         toast({
           title: "Validation Error",
-          description: `Please check these fields: ${errorMessages}`,
+          description: errorMessages,
           variant: "destructive",
         });
         return;
@@ -186,7 +191,7 @@ export default function NewRequest() {
       console.error("Submit error:", error);
       toast({
         title: "Error",
-        description: "Failed to submit form",
+        description: "Failed to submit form. Please try again.",
         variant: "destructive",
       });
     }
