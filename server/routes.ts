@@ -2,18 +2,16 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { purchaseRequests, approvals, users, subPurposes, vendors } from "@db/schema";
-import { eq, and, desc, sql, not } from "drizzle-orm";
+import { purchaseRequests, approvals, users, subPurposes } from "@db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
   try {
-    // Get current timestamp in milliseconds for uniqueness
     const now = new Date();
     const dateStr = format(now, "yyyyMMdd");
     const timeStr = format(now, "HHmmssSSS");
 
-    // Get the sub-purpose code or use purpose type
     let purposeCode = purposeType.substring(0, 3).toUpperCase();
     if (subPurposeId) {
       const [subPurpose] = await db.select()
@@ -25,7 +23,6 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
       }
     }
 
-    // Get the current sequence number for today
     const existingRequests = await db.select()
       .from(purchaseRequests)
       .where(
@@ -33,7 +30,6 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
       )
       .orderBy(desc(purchaseRequests.createdAt));
 
-    // Generate sequence number based on existing requests
     let sequenceNumber = 1;
     if (existingRequests.length > 0) {
       const lastRequest = existingRequests[0];
@@ -46,17 +42,14 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
       }
     }
 
-    // Format: CODE/YYYYMMDD/SEQ-TIME
     const requestNumber = `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}`;
 
-    // Verify uniqueness
     const [existing] = await db.select()
       .from(purchaseRequests)
       .where(eq(purchaseRequests.requestNumber, requestNumber))
       .limit(1);
 
     if (existing) {
-      // In the unlikely case of a collision, append a random number
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       return `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}-${random}`;
     }
@@ -212,8 +205,12 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Check if user has access to this request
-      if (request.requesterId !== req.user!.id &&
-          !["admin", "approver"].includes(req.user!.role)) {
+      const userRole = req.user!.role;
+      const userDepartment = req.user!.department;
+      const isCEO = userDepartment === "CEO Office";
+      const isRequestOwner = request.requesterId === req.user!.id;
+
+      if (!isRequestOwner && !isCEO && !["admin", "approver"].includes(userRole)) {
         return res.status(403).send("Not authorized to view this request");
       }
 
@@ -240,16 +237,20 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Request not found");
       }
 
-      // Verify that the user owns this request and it's not approved
-      if (currentRequest.requesterId !== req.user!.id) {
+      const userRole = req.user!.role;
+      const userDepartment = req.user!.department;
+      const isCEO = userDepartment === "CEO Office";
+      const isRequestOwner = currentRequest.requesterId === req.user!.id;
+
+      // Allow CEOs, admins, request owners to modify requests
+      if (!isRequestOwner && !isCEO && userRole !== "admin") {
         return res.status(403).send("Not authorized to modify this request");
       }
 
-      if (!["draft", "pending"].includes(currentRequest.status)) {
+      if (!["draft", "pending"].includes(currentRequest.status) && !isCEO) {
         return res.status(400).send("Cannot modify request in current status");
       }
 
-      // Update the request with all fields including vendor information
       const request = await db
         .update(purchaseRequests)
         .set({

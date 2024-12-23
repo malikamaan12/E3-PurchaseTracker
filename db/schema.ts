@@ -13,14 +13,13 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
-// Login schema that only requires username and password
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
 export const insertUserSchema = createInsertSchema(users, {
-  role: z.enum(["user", "approver", "admin"]).optional(),
+  role: z.enum(["user", "approver", "admin"]),
   email: z.string().email("Invalid email format"),
   contactNumber: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
@@ -30,22 +29,6 @@ export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type LoginCredentials = z.infer<typeof loginSchema>;
-
-export const vendors = pgTable("vendors", {
-  id: serial("id").primaryKey(),
-  companyName: text("company_name").notNull(),
-  registrationNumber: text("registration_number").notNull(),
-  email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(),
-  accountNumber: text("account_number").notNull(),
-  ibanNumber: text("iban_number").notNull(),
-  contactPerson: text("contact_person").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const vendorRelations = relations(vendors, ({ many }) => ({
-  purchaseRequests: many(purchaseRequests)
-}));
 
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
@@ -90,7 +73,7 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
   subPurpose: one(subPurposes, {
     fields: [purchaseRequests.subPurposeId],
     references: [subPurposes.id],
-  })
+  }),
 }));
 
 export const approvals = pgTable("approvals", {
@@ -115,11 +98,6 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
   }),
 }));
 
-export const insertVendorSchema = createInsertSchema(vendors);
-export const selectVendorSchema = createSelectSchema(vendors);
-export type Vendor = typeof vendors.$inferSelect;
-export type NewVendor = typeof vendors.$inferInsert;
-
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
@@ -143,15 +121,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   requesterId: z.number().optional(),
 });
 
-export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests, {
-  totalEstimatedCost: z.coerce.number(),
-  freightAmount: z.coerce.number(),
-  items: z.array(z.object({
-    name: z.string(),
-    quantity: z.coerce.number(),
-    estimatedCost: z.coerce.number()
-  }))
-});
+export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 
 export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
   approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
