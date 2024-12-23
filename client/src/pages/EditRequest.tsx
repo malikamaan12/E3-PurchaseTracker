@@ -52,6 +52,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
+  const [selectedVendorName, setSelectedVendorName] = useState<string>("");
 
   const { data: request, isLoading } = useQuery<PurchaseRequest>({
     queryKey: [`/api/requests/${params.id}`],
@@ -95,6 +96,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       });
       setItems(request.items);
       setFreightAmount(Number(request.freightAmount));
+      setSelectedVendorName(request.vendor);
     }
   }, [request]);
 
@@ -115,10 +117,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendorId) {
+      if (!values.vendorId && !selectedVendorName) {
         toast({
           title: "Validation Error",
-          description: "Please select a vendor before submitting",
+          description: "Please enter vendor information",
           variant: "destructive",
         });
         return;
@@ -133,8 +135,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
-        // Only include vendorId as a number
-        vendorId: Number(values.vendorId),
+        vendorId: values.vendorId ? Number(values.vendorId) : null,
+        vendor: selectedVendorName || values.vendor,
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
           name: item.name,
@@ -416,13 +418,14 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       name="vendorId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Vendor</FormLabel>
+                          <FormLabel className="text-[#191160]">Vendor ID</FormLabel>
                           <FormControl>
                             <VendorSelect
                               value={field.value}
                               onChange={(vendorId, vendorName) => {
                                 field.onChange(vendorId);
                                 if (vendorName) {
+                                  setSelectedVendorName(vendorName);
                                   form.setValue("vendor", vendorName);
                                 }
                               }}
@@ -433,6 +436,27 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       )}
                     />
 
+                    <FormField
+                      control={form.control}
+                      name="vendor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Vendor Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={selectedVendorName || field.value}
+                              onChange={(e) => {
+                                field.onChange(e.target.value);
+                                setSelectedVendorName(e.target.value);
+                              }}
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="purposeType"
