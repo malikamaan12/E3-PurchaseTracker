@@ -34,8 +34,22 @@ export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   purposeType: text("purpose_type").notNull(),
+  isFrozen: boolean("is_frozen").notNull().default(false),
+  validFrom: timestamp("valid_from"),
+  validTo: timestamp("valid_to"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  isFrozen: z.boolean().optional(),
+  validFrom: z.string().datetime().optional(),
+  validTo: z.string().datetime().optional(),
+});
+
+export const selectSubPurposeSchema = createSelectSchema(subPurposes);
+export type SubPurpose = typeof subPurposes.$inferSelect;
+export type NewSubPurpose = typeof subPurposes.$inferInsert;
 
 export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
@@ -149,10 +163,6 @@ export const selectApprovalSchema = createSelectSchema(approvals);
 export type Approval = typeof approvals.$inferSelect;
 export type NewApproval = typeof approvals.$inferInsert;
 
-export const insertSubPurposeSchema = createInsertSchema(subPurposes);
-export const selectSubPurposeSchema = createSelectSchema(subPurposes);
-export type SubPurpose = typeof subPurposes.$inferSelect;
-export type NewSubPurpose = typeof subPurposes.$inferInsert;
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),

@@ -37,6 +37,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import {
   Select,
@@ -69,6 +70,9 @@ import type {
   User,
 } from "@db/schema";
 import { insertSubPurposeSchema, insertUserSchema } from "@db/schema";
+import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
+import { format } from "date-fns";
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -271,7 +275,9 @@ export default function AdminPanel() {
     defaultValues: {
       name: "",
       purposeType: "event",
-      code: "",
+      isFrozen: false,
+      validFrom: "",
+      validTo: "",
     },
   });
 
@@ -459,17 +465,60 @@ export default function AdminPanel() {
 
                         <FormField
                           control={purposeForm.control}
-                          name="code"
+                          name="isFrozen"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Code</FormLabel>
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                              <div className="space-y-0.5">
+                                <FormLabel>Freeze Status</FormLabel>
+                                <FormDescription>
+                                  When frozen, this sub-purpose will not be available for new requests
+                                </FormDescription>
+                              </div>
                               <FormControl>
-                                <Input {...field} />
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
                               </FormControl>
-                              <FormMessage />
                             </FormItem>
                           )}
                         />
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={purposeForm.control}
+                            name="validFrom"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Valid From</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="datetime-local"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={purposeForm.control}
+                            name="validTo"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Valid To</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="datetime-local"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
                         <DialogFooter>
                           <Button type="submit">Create Sub-purpose</Button>
@@ -489,7 +538,8 @@ export default function AdminPanel() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Code</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Valid Period</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -498,41 +548,92 @@ export default function AdminPanel() {
                       <TableRow key={purpose.id}>
                         <TableCell>{purpose.name}</TableCell>
                         <TableCell>{purpose.purposeType}</TableCell>
-                        <TableCell>{purpose.code}</TableCell>
                         <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Delete Sub-purpose
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this sub-purpose?
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={() =>
-                                    deleteSubPurpose.mutate(purpose.id)
+                          <Badge
+                            variant={purpose.isFrozen ? "destructive" : "default"}
+                          >
+                            {purpose.isFrozen ? "Frozen" : "Active"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {purpose.validFrom && purpose.validTo ? (
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(purpose.validFrom), "MMM d, yyyy")} -{" "}
+                              {format(new Date(purpose.validTo), "MMM d, yyyy")}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              No date restrictions
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Toggle freeze status
+                                const toggleFreeze = async () => {
+                                  try {
+                                    await fetch(`/api/admin/sub-purposes/${purpose.id}`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        isFrozen: !purpose.isFrozen,
+                                      }),
+                                      credentials: "include",
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ["/api/sub-purposes"] });
+                                    toast({
+                                      title: "Success",
+                                      description: `Sub-purpose ${purpose.isFrozen ? "unfrozen" : "frozen"} successfully`,
+                                    });
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Error",
+                                      description: error.message,
+                                      variant: "destructive",
+                                    });
                                   }
+                                };
+                                toggleFreeze();
+                              }}
+                            >
+                              {purpose.isFrozen ? "Unfreeze" : "Freeze"}
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-red-500 hover:text-red-700"
                                 >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Sub-purpose</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this sub-purpose?
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-red-600 hover:bg-red-700"
+                                    onClick={() =>
+                                      deleteSubPurpose.mutate(purpose.id)
+                                    }
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
