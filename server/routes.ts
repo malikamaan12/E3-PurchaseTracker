@@ -29,20 +29,20 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
     const existingRequests = await db.select()
       .from(purchaseRequests)
       .where(
-        and(
-          sql`DATE(${purchaseRequests.createdAt}) = DATE(${now})`
-        )
+        sql`DATE(${purchaseRequests.createdAt}) = CURRENT_DATE`
       )
       .orderBy(desc(purchaseRequests.createdAt));
 
     // Generate sequence number based on existing requests
     let sequenceNumber = 1;
     if (existingRequests.length > 0) {
-      // Try to extract sequence number from last request
       const lastRequest = existingRequests[0];
       const lastSequence = lastRequest.requestNumber.split('/')[2];
       if (lastSequence) {
-        sequenceNumber = parseInt(lastSequence) + 1;
+        const match = lastSequence.match(/^\d+/);
+        if (match) {
+          sequenceNumber = parseInt(match[0]) + 1;
+        }
       }
     }
 
@@ -152,8 +152,6 @@ export function registerRoutes(app: Express): Server {
           requestNumber,
           requesterId: req.user!.id,
           status: req.body.status || "draft",
-          vendorId: req.body.vendorId ? Number(req.body.vendorId) : null,
-          ...(req.body.vendor ? { vendor: undefined } : {})
         })
         .returning();
 
