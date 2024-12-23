@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import DepartmentSelect from "@/components/DepartmentSelect";
+import SubPurposeSelect from "@/components/SubPurposeSelect";
 import { insertPurchaseRequestSchema, type NewPurchaseRequest } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import {
@@ -39,6 +40,7 @@ export default function NewRequest() {
       vendor: "",
       purpose: "",
       purposeType: "event",
+      subPurposeId: undefined,
       totalEstimatedCost: 0,
       status: "draft",
     },
@@ -214,6 +216,24 @@ export default function NewRequest() {
                           <SelectItem value="business_growth">Business Growth</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="subPurposeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sub-purpose</FormLabel>
+                      <FormControl>
+                        <SubPurposeSelect
+                          purposeType={form.watch("purposeType")}
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

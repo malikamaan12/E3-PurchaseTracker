@@ -2,11 +2,38 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { purchaseRequests, approvals, users } from "@db/schema";
+import { purchaseRequests, approvals, users, subPurposes } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Sub-purposes routes
+  app.get("/api/sub-purposes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const purposeType = req.query.purposeType as string;
+    const purposes = await db.select()
+      .from(subPurposes)
+      .where(purposeType ? eq(subPurposes.purposeType, purposeType) : undefined)
+      .orderBy(desc(subPurposes.createdAt));
+
+    res.json(purposes);
+  });
+
+  app.post("/api/sub-purposes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const purpose = await db.insert(subPurposes)
+      .values(req.body)
+      .returning();
+
+    res.json(purpose[0]);
+  });
 
   // Purchase request routes
   app.post("/api/requests", async (req, res) => {
@@ -35,7 +62,8 @@ export function registerRoutes(app: Express): Server {
           with: {
             approver: true
           }
-        }
+        },
+        subPurpose: true
       },
       orderBy: desc(purchaseRequests.createdAt)
     });

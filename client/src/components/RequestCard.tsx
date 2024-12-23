@@ -136,6 +136,11 @@ export default function RequestCard({
                 <Badge variant="secondary">
                   {request.purposeType.replace('_', ' ').toUpperCase()}
                 </Badge>
+                {request.subPurpose && (
+                  <Badge variant="outline">
+                    {request.subPurpose.name}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-gray-600">{request.purpose}</p>
             </div>

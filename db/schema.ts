@@ -13,6 +13,13 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
+export const subPurposes = pgTable("sub_purposes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  purposeType: text("purpose_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
   requesterId: integer("requester_id").notNull().references(() => users.id),
@@ -26,6 +33,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   vendor: text("vendor").notNull(),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
+  subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -49,6 +57,10 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     references: [users.id],
   }),
   approvals: many(approvals),
+  subPurpose: one(subPurposes, {
+    fields: [purchaseRequests.subPurposeId],
+    references: [subPurposes.id],
+  }),
 }));
 
 export const approvalRelations = relations(approvals, ({ one }) => ({
@@ -71,10 +83,19 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   purposeType: z.enum(["event", "project", "mall", "business_growth"])
 });
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
-export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
+export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
+  approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
+  subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
+  requester: User;
+};
 export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;
 
 export const insertApprovalSchema = createInsertSchema(approvals);
 export const selectApprovalSchema = createSelectSchema(approvals);
 export type Approval = typeof approvals.$inferSelect;
 export type NewApproval = typeof approvals.$inferInsert;
+
+export const insertSubPurposeSchema = createInsertSchema(subPurposes);
+export const selectSubPurposeSchema = createSelectSchema(subPurposes);
+export type SubPurpose = typeof subPurposes.$inferSelect;
+export type NewSubPurpose = typeof subPurposes.$inferInsert;
