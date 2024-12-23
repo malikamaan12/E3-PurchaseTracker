@@ -7,34 +7,65 @@ import { eq, and, desc, sql, not } from "drizzle-orm";
 import { format } from "date-fns";
 
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
-  // Get today's date in YYYYMMDD format
-  const today = new Date();
-  const dateStr = format(today, "yyyyMMdd");
+  try {
+    // Get current timestamp in milliseconds for uniqueness
+    const now = new Date();
+    const dateStr = format(now, "yyyyMMdd");
+    const timeStr = format(now, "HHmmssSSS");
 
-  // Get the sub-purpose code (first 3 letters) or use purpose type if no sub-purpose
-  let purposeCode = purposeType.substring(0, 3).toUpperCase();
-  if (subPurposeId) {
-    const [subPurpose] = await db.select()
-      .from(subPurposes)
-      .where(eq(subPurposes.id, subPurposeId))
-      .limit(1);
-    if (subPurpose) {
-      purposeCode = subPurpose.name.substring(0, 3).toUpperCase();
+    // Get the sub-purpose code or use purpose type
+    let purposeCode = purposeType.substring(0, 3).toUpperCase();
+    if (subPurposeId) {
+      const [subPurpose] = await db.select()
+        .from(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId))
+        .limit(1);
+      if (subPurpose) {
+        purposeCode = subPurpose.name.substring(0, 3).toUpperCase();
+      }
     }
-  }
 
-  // Get the current sequence number for today using a date range
-  const existingRequests = await db.select()
-    .from(purchaseRequests)
-    .where(
-      and(
-        sql`DATE(${purchaseRequests.createdAt}) = DATE(${today})`
+    // Get the current sequence number for today
+    const existingRequests = await db.select()
+      .from(purchaseRequests)
+      .where(
+        and(
+          sql`DATE(${purchaseRequests.createdAt}) = DATE(${now})`
+        )
       )
-    );
+      .orderBy(desc(purchaseRequests.createdAt));
 
-  const sequenceNumber = (existingRequests.length + 1).toString().padStart(3, '0');
+    // Generate sequence number based on existing requests
+    let sequenceNumber = 1;
+    if (existingRequests.length > 0) {
+      // Try to extract sequence number from last request
+      const lastRequest = existingRequests[0];
+      const lastSequence = lastRequest.requestNumber.split('/')[2];
+      if (lastSequence) {
+        sequenceNumber = parseInt(lastSequence) + 1;
+      }
+    }
 
-  return `${purposeCode}/${dateStr}/${sequenceNumber}`;
+    // Format: CODE/YYYYMMDD/SEQ-TIME
+    const requestNumber = `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}`;
+
+    // Verify uniqueness
+    const [existing] = await db.select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.requestNumber, requestNumber))
+      .limit(1);
+
+    if (existing) {
+      // In the unlikely case of a collision, append a random number
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}-${random}`;
+    }
+
+    return requestNumber;
+  } catch (error) {
+    console.error("Error generating request number:", error);
+    throw new Error("Failed to generate unique request number");
+  }
 }
 
 export function registerRoutes(app: Express): Server {
