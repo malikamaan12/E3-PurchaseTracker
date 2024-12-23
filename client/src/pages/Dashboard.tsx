@@ -38,7 +38,6 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from "@/components/ui/alert-dialog";
 
-
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
@@ -57,8 +56,32 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const isSpecialRole = user?.department === "CEO Office" ||
-                        user?.department === "Director" ||
-                        user?.department === "Finance";
+                       user?.department === "Director" ||
+                       user?.department === "Finance";
+
+  // Filter requests that need current user's approval
+  const pendingApprovals = useMemo(() => {
+    if (!user || !requests) return [];
+
+    return requests.filter(request => {
+      // Skip if user is the requester
+      if (request.requesterId === user.id) return false;
+
+      // Only include pending requests
+      if (request.status !== "pending") return false;
+
+      // Check if this department hasn't approved yet
+      const departmentApproval = request.approvals?.find(
+        a => a.department === user.department
+      );
+
+      return !departmentApproval || departmentApproval.status === "pending";
+    });
+  }, [requests, user]);
+
+  const showApprovalsTab = useMemo(() => {
+    return !isSpecialRole && pendingApprovals.length > 0;
+  }, [isSpecialRole, pendingApprovals]);
 
   const departments = useMemo(() => {
     const deptSet = new Set(requests?.map((r) => r.requester.department) || []);
@@ -114,13 +137,6 @@ export default function Dashboard() {
     requests?.filter((r) => r.status === "changes_requested") || []
   );
 
-  const pendingApprovals = filterRequests(
-    requests?.filter((r) => {
-      if (r.status !== "pending" || r.requesterId === user?.id) return false;
-      const departmentApproval = r.approvals.find((a) => a.department === user?.department);
-      return !departmentApproval || departmentApproval.status === "pending";
-    }) || []
-  );
 
   const handleExport = async (format: "xlsx" | "csv") => {
     try {
@@ -269,17 +285,6 @@ export default function Dashboard() {
     );
   };
 
-  // Check if user has any pending approvals
-  const hasPendingApprovals = useMemo(() => {
-    return requests?.some(request => {
-      if (request.status !== "pending" || request.requesterId === user?.id) {
-        return false;
-      }
-      // Check if this request is waiting for the current user's department approval
-      const departmentApproval = request.approvals.find(a => a.department === user?.department);
-      return !departmentApproval || departmentApproval.status === "pending";
-    });
-  }, [requests, user]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -420,11 +425,11 @@ export default function Dashboard() {
                   Changes Requested ({changesRequestedRequests.length})
                 </TabsTrigger>
               </>
-            ) : hasPendingApprovals ? (
+            ) : showApprovalsTab && (
               <TabsTrigger value="approvals">
                 Pending Approvals ({pendingApprovals.length})
               </TabsTrigger>
-            ) : null}
+            )}
           </TabsList>
 
           <TabsContent value="my-requests">
@@ -570,7 +575,7 @@ export default function Dashboard() {
             </>
           )}
 
-          {!isSpecialRole && hasPendingApprovals && (
+          {showApprovalsTab && (
             <TabsContent value="approvals">
               <Card>
                 <CardContent className="p-6">
