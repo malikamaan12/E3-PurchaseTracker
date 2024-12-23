@@ -13,6 +13,18 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
+export const vendors = pgTable("vendors", {
+  id: serial("id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  registrationNumber: text("registration_number").notNull(),
+  email: text("email").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  accountNumber: text("account_number").notNull(),
+  ibanNumber: text("iban_number").notNull(),
+  contactPerson: text("contact_person").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -31,11 +43,12 @@ export const purchaseRequests = pgTable("purchase_requests", {
     quantity: number;
     estimatedCost: number;
   }>>().notNull(),
-  vendor: text("vendor").notNull(),
+  vendorId: integer("vendor_id").references(() => vendors.id),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
+  currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -57,6 +70,10 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
   requester: one(users, {
     fields: [purchaseRequests.requesterId],
     references: [users.id],
+  }),
+  vendor: one(vendors, {
+    fields: [purchaseRequests.vendorId],
+    references: [vendors.id],
   }),
   approvals: many(approvals),
   subPurpose: one(subPurposes, {
@@ -81,14 +98,21 @@ export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
+export const insertVendorSchema = createInsertSchema(vendors);
+export const selectVendorSchema = createSelectSchema(vendors);
+export type Vendor = typeof vendors.$inferSelect;
+export type NewVendor = typeof vendors.$inferInsert;
+
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
-  priority: z.enum(["low", "medium", "high", "urgent"])
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  currency: z.enum(["QAR", "USD", "CNY"])
 });
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
   approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
   subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
+  vendor: z.infer<typeof selectVendorSchema> | null;
   requester: User;
 };
 export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;

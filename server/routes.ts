@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { purchaseRequests, approvals, users, subPurposes } from "@db/schema";
+import { purchaseRequests, approvals, users, subPurposes, vendors } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format, startOfDay, endOfDay } from "date-fns";
 
@@ -39,6 +39,35 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Vendor routes
+  app.get("/api/vendors", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const vendorList = await db.select().from(vendors);
+      res.json(vendorList);
+    } catch (error: any) {
+      console.error("Error fetching vendors:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/vendors", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const vendor = await db.insert(vendors).values(req.body).returning();
+      res.json(vendor[0]);
+    } catch (error: any) {
+      console.error("Error creating vendor:", error);
+      res.status(500).send(error.message);
+    }
+  });
 
   // Sub-purposes routes
   app.get("/api/sub-purposes", async (req, res) => {

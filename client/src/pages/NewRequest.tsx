@@ -28,6 +28,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
+import VendorSelect from "@/components/VendorSelect";
+
+const currencies = [
+  { label: "QAR", value: "QAR" },
+  { label: "USD", value: "USD" },
+  { label: "CNY", value: "CNY" },
+] as const;
 
 const priorities = [
   { label: "Low", value: "low" },
@@ -48,15 +55,16 @@ export default function NewRequest() {
       title: "",
       description: "",
       items: [],
-      vendor: "",
+      vendorId: undefined,
       purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
+      currency: "QAR",
       status: "draft",
       totalEstimatedCost: 0,
       requestNumber: "",
-      requesterId: 0, // Added requesterId
+      requesterId: 0,
     },
   });
 
@@ -241,12 +249,15 @@ export default function NewRequest() {
 
                 <FormField
                   control={form.control}
-                  name="vendor"
+                  name="vendorId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Vendor</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <VendorSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -329,6 +340,33 @@ export default function NewRequest() {
                         </FormControl>
                         <SelectContent>
                           {priorities.map(({ label, value }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {currencies.map(({ label, value }) => (
                             <SelectItem key={value} value={value}>
                               {label}
                             </SelectItem>
