@@ -95,7 +95,14 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
   }),
 }));
 
-export const insertUserSchema = createInsertSchema(users);
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email address"),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  department: z.enum(["Management", "Business", "Operations", "Support", "CEO Office", "Finance", "Director"]),
+  role: z.enum(["user", "admin"]).optional(),
+});
 export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

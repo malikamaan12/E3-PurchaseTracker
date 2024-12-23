@@ -106,7 +106,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, department, role } = result.data;
+      const { username, password, email, contactNumber, department, role } = result.data;
 
       const [existingUser] = await db
         .select()
@@ -125,8 +125,10 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
+          email,
+          contactNumber,
           department,
-          role,
+          role: role || "user",
         })
         .returning();
 
@@ -136,23 +138,22 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { id: newUser.id, username: newUser.username, department: newUser.department, role: newUser.role },
+          user: { 
+            id: newUser.id, 
+            username: newUser.username,
+            department: newUser.department,
+            role: newUser.role
+          },
         });
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Registration error:", error);
       next(error);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    const result = insertUserSchema.safeParse(req.body);
-    if (!result.success) {
-      return res
-        .status(400)
-        .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
-    }
-
-    const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
+    passport.authenticate("local", (err: any, user: Express.User, info: IVerifyOptions) => {
       if (err) {
         return next(err);
       }
@@ -176,8 +177,7 @@ export function setupAuth(app: Express) {
           },
         });
       });
-    };
-    passport.authenticate("local", cb)(req, res, next);
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
