@@ -112,9 +112,11 @@ export default function NewRequest() {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendorId: Number(values.vendorId)
+        vendorId: Number(values.vendorId),
+        status: values.status || "draft"
       };
 
+      console.log('Submitting request with data:', formattedData);
 
       try {
         await createRequest(formattedData);
