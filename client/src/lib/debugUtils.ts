@@ -21,7 +21,8 @@ export async function analyzeFormError(formData: any, error: any) {
       model: 'claude-3-5-sonnet-20241022',
     });
 
-    return message.content;
+    // Extract the text content from the response
+    return message.content[0].text;
   } catch (error) {
     console.error("Error analyzing form data:", error);
     return null;
