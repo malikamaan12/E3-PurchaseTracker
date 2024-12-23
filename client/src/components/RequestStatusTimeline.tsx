@@ -1,11 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Circle, CheckCircle, XCircle, AlertTriangle, ArrowRight } from "lucide-react";
-import type { PurchaseRequest } from "@db/schema";
+import { Circle, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import type { PurchaseRequestWithRelations } from "@db/schema";
 
 interface RequestStatusTimelineProps {
-  request: PurchaseRequest;
+  request: PurchaseRequestWithRelations;
 }
 
 export default function RequestStatusTimeline({ request }: RequestStatusTimelineProps) {
@@ -53,7 +53,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
         <div className="relative">
           {/* Timeline line */}
           <div className="absolute left-[27px] top-4 h-[calc(100%-2rem)] w-px bg-gray-200" />
-          
+
           {/* Status points */}
           <div className="space-y-8">
             {statusFlow.map((status, index) => {
@@ -66,7 +66,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                   <div className="relative z-10 flex-shrink-0">
                     {getStatusIcon(status.status, isCurrent, isPast)}
                   </div>
-                  
+
                   {/* Status content */}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

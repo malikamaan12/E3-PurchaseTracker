@@ -122,7 +122,22 @@ export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 
+// Add relation types
+export type PurchaseRequestWithRelations = PurchaseRequest & {
+  requester?: User;
+  approvals?: Approval[];
+  subPurpose?: SubPurpose;
+  attachments?: FileAttachment[];
+};
+
+export type ApprovalWithRelations = Approval & {
+  request?: PurchaseRequest;
+  approver?: User;
+};
+
 export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;
+export type MandatoryDepartment = typeof mandatoryDepartments[number];
+
 
 // Schemas
 export const loginSchema = z.object({

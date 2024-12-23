@@ -25,15 +25,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, AlertTriangle, Clock, Flag } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon } from "lucide-react";
 import { useLocation } from "wouter";
-import ApprovalFlow from "./ApprovalFlow";
+import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
-import { mandatoryDepartments } from "@db/schema";
-import type { PurchaseRequest } from "@db/schema";
+import { mandatoryDepartments, type PurchaseRequestWithRelations, type MandatoryDepartment } from "@db/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface RequestCardProps {
-  request: PurchaseRequest;
+  request: PurchaseRequestWithRelations;
   showActions?: boolean;
   showApproval?: boolean;
   compact?: boolean;
@@ -49,6 +49,7 @@ export default function RequestCard({
   const { updateRequest, createApproval, deleteRequest } = usePurchaseRequests();
   const [comments, setComments] = useState("");
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,10 +124,10 @@ export default function RequestCard({
       await createApproval({
         requestId: request.id,
         approverId: user.id,
-        department: user.department,
+        department: user.department as MandatoryDepartment,
         status,
         comments,
-        isMandatory: mandatoryDepartments.includes(user.department)
+        isMandatory: mandatoryDepartments.includes(user.department as MandatoryDepartment)
       });
 
       if (user.department === "Finance" && status === "approved") {
@@ -159,6 +160,51 @@ export default function RequestCard({
 
     if (canEdit) {
       setLocation(`/requests/${request.id}/edit`);
+    }
+  };
+
+  // Add this helper function for formatting file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Add this function to handle file downloads
+  const handleDownload = async (attachmentId: number) => {
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      // Get the filename from the Content-Disposition header if available
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : 'download';
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -360,6 +406,41 @@ export default function RequestCard({
                   </ul>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {request.attachments && request.attachments.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-900">Attachments</h4>
+            <div className="grid gap-2">
+              {request.attachments.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileIcon className="h-5 w-5 text-[#7156a2]" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">
+                        {file.fileName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(file.fileSize)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownload(file.id)}
+                    className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
+                  >
+                    <FileDown className="h-4 w-4 mr-1" />
+                    Download
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         )}
