@@ -2,12 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { 
-  purchaseRequests, 
-  approvals, 
-  users, 
-  subPurposes, 
-  notifications 
+import {
+  purchaseRequests,
+  approvals,
+  users,
+  subPurposes,
+  notifications,
+  insertSubPurposeSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
@@ -180,236 +181,55 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/requests", async (req, res) => {
+  // Sub-purposes routes
+  app.get("/api/sub-purposes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const purposeType = req.query.purposeType as string;
+    try {
+      const purposes = await db.select()
+        .from(subPurposes)
+        .where(purposeType ? eq(subPurposes.purposeType, purposeType) : undefined);
+
+      res.json(purposes);
+    } catch (error: any) {
+      console.error("Error fetching sub-purposes:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.post("/api/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const requests = await db.query.purchaseRequests.findMany({
-        with: {
-          requester: true,
-          approvals: {
-            with: {
-              approver: true
-            }
-          },
-          subPurpose: true
-        },
-        orderBy: desc(purchaseRequests.createdAt)
+      // Parse and validate the request body
+      const result = insertSubPurposeSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      // Insert the validated data
+      const [purpose] = await db.insert(subPurposes)
+        .values(result.data)
+        .returning();
+
+      res.json(purpose);
+    } catch (error: any) {
+      console.error("Error creating sub-purpose:", error);
+      res.status(500).json({
+        error: "Failed to create sub-purpose",
+        message: error.message
       });
-
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching requests:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.get("/api/requests/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const request = await db.query.purchaseRequests.findFirst({
-        where: eq(purchaseRequests.id, parseInt(req.params.id)),
-        with: {
-          requester: true,
-          approvals: {
-            with: {
-              approver: true
-            }
-          },
-          subPurpose: true
-        }
-      });
-
-      if (!request) {
-        return res.status(404).send("Request not found");
-      }
-
-      // Check if user has access to this request
-      const userRole = req.user!.role;
-      const userDepartment = req.user!.department;
-      const isCEO = userDepartment === "CEO Office";
-      const isRequestOwner = request.requesterId === req.user!.id;
-
-      if (!isRequestOwner && !isCEO && !["admin", "approver"].includes(userRole)) {
-        return res.status(403).send("Not authorized to view this request");
-      }
-
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error fetching request:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.put("/api/requests/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const [currentRequest] = await db
-        .select()
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
-        .limit(1);
-
-      if (!currentRequest) {
-        return res.status(404).send("Request not found");
-      }
-
-      const userRole = req.user!.role;
-      const userDepartment = req.user!.department;
-      const isCEO = userDepartment === "CEO Office";
-      const isDirector = userDepartment === "Director";
-      const isFinance = userDepartment === "Finance";
-      const isRequestOwner = currentRequest.requesterId === req.user!.id;
-      const isApprover = userRole === "approver" || ["CEO Office", "Director", "Finance"].includes(userDepartment);
-
-      if (!isApprover && !isRequestOwner && userRole !== "admin") {
-        return res.status(403).send("Not authorized to modify this request");
-      }
-
-      let updateData = { ...req.body };
-
-      // Create notifications based on status changes
-      if (updateData.status && updateData.status !== currentRequest.status) {
-        // Notify request owner about status change
-        await createNotification(
-          currentRequest.requesterId,
-          `Your purchase request ${currentRequest.requestNumber} has been ${updateData.status}`,
-          'status_change',
-          currentRequest.id
-        );
-
-        // If status is changes_requested, notify requester
-        if (updateData.status === 'changes_requested') {
-          await createNotification(
-            currentRequest.requesterId,
-            `Changes have been requested for your purchase request ${currentRequest.requestNumber}. Please review and update the request.`,
-            'changes_requested',
-            currentRequest.id
-          );
-        }
-
-        // If status is approved, notify Finance department
-        if (updateData.status === 'approved') {
-          const financeUsers = await db
-            .select()
-            .from(users)
-            .where(eq(users.department, 'Finance'));
-
-          for (const user of financeUsers) {
-            await createNotification(
-              user.id,
-              `Purchase request ${currentRequest.requestNumber} has been approved and requires financial processing.`,
-              'finance_required',
-              currentRequest.id
-            );
-          }
-        }
-      }
-
-      const [request] = await db
-        .update(purchaseRequests)
-        .set({
-          ...updateData,
-          updatedAt: new Date(),
-        })
-        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
-        .returning();
-
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error updating request:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.delete("/api/requests/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      // Get the current request to verify ownership and status
-      const [request] = await db
-        .select()
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
-        .limit(1);
-
-      if (!request) {
-        return res.status(404).send("Request not found");
-      }
-
-      // Verify that the user owns this request and it's not approved
-      if (request.requesterId !== req.user!.id) {
-        return res.status(403).send("Not authorized to delete this request");
-      }
-
-      if (!["draft", "pending"].includes(request.status)) {
-        return res.status(400).send("Cannot delete request in current status");
-      }
-
-      // Delete associated approvals first
-      await db
-        .delete(approvals)
-        .where(eq(approvals.requestId, parseInt(req.params.id)));
-
-      // Then delete the request
-      const deleted = await db
-        .delete(purchaseRequests)
-        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
-        .returning();
-
-      res.json(deleted[0]);
-    } catch (error: any) {
-      console.error("Error deleting request:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Approval routes
-  app.post("/api/approvals", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const approval = await db.insert(approvals).values({
-        ...req.body,
-        approverId: req.user!.id,
-        department: req.user!.department
-      }).returning();
-
-      res.json(approval[0]);
-    } catch (error: any) {
-      console.error("Error creating approval:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.put("/api/approvals/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const approval = await db
-        .update(approvals)
-        .set(req.body)
-        .where(eq(approvals.id, parseInt(req.params.id)))
-        .returning();
-
-      res.json(approval[0]);
-    } catch (error: any) {
-      console.error("Error updating approval:", error);
-      res.status(500).send(error.message);
     }
   });
 
