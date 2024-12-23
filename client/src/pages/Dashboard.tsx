@@ -24,102 +24,105 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
+import DashboardPreferences from "@/components/DashboardPreferences";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
+  const { preferences, updatePreferences } = useDashboardPreferences();
 
-  // Filter states
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>(
+    preferences.defaultDepartmentFilter
+  );
+  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>(
+    preferences.defaultPurposeFilter
+  );
+  const [priorityFilter, setPriorityFilter] = useState<string>(
+    preferences.defaultPriorityFilter
+  );
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Special roles that can see all requests
-  const isSpecialRole = user?.department === 'CEO Office' ||
-                       user?.department === 'Director' ||
-                       user?.department === 'Finance';
+  const isSpecialRole = user?.department === "CEO Office" ||
+                        user?.department === "Director" ||
+                        user?.department === "Finance";
 
-  // Get unique values for filters
   const departments = useMemo(() => {
-    const deptSet = new Set(requests?.map(r => r.requester.department) || []);
+    const deptSet = new Set(requests?.map((r) => r.requester.department) || []);
     return Array.from(deptSet);
   }, [requests]);
 
   const purposeTypes = useMemo(() => {
-    const typeSet = new Set(requests?.map(r => r.purposeType) || []);
+    const typeSet = new Set(requests?.map((r) => r.purposeType) || []);
     return Array.from(typeSet);
   }, [requests]);
 
   const priorities = ["low", "medium", "high", "urgent"];
 
-  // Filter function
   const filterRequests = (requestList: any[]) => {
-    return requestList.filter(r => {
+    return requestList.filter((r) => {
       const matchesDepartment = departmentFilter === "all" || r.requester.department === departmentFilter;
       const matchesPurposeType = purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
       const matchesPriority = priorityFilter === "all" || r.priority === priorityFilter;
       const matchesSearch = !searchQuery ||
-        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
+                            r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchesDepartment && matchesPurposeType && matchesPriority && matchesSearch;
     });
   };
 
-  // Filter requests based on user role and status
   const myDrafts = filterRequests(
-    requests?.filter(r => r.requesterId === user?.id && r.status === 'draft') || []
+    requests?.filter((r) => r.requesterId === user?.id && r.status === "draft") || []
   );
 
   const mySubmittedRequests = filterRequests(
-    requests?.filter(r => r.requesterId === user?.id && r.status !== 'draft') || []
+    requests?.filter((r) => r.requesterId === user?.id && r.status !== "draft") || []
   );
 
   const pendingRequests = filterRequests(
-    requests?.filter(r => {
-      if (r.status !== 'pending') return false;
-      const departmentApproval = r.approvals.find(a => a.department === user?.department);
-      return !departmentApproval || departmentApproval.status === 'pending';
+    requests?.filter((r) => {
+      if (r.status !== "pending") return false;
+      const departmentApproval = r.approvals.find((a) => a.department === user?.department);
+      return !departmentApproval || departmentApproval.status === "pending";
     }) || []
   );
 
   const approvedRequests = filterRequests(
-    requests?.filter(r => r.status === 'approved') || []
+    requests?.filter((r) => r.status === "approved") || []
   );
 
   const rejectedRequests = filterRequests(
-    requests?.filter(r => r.status === 'rejected') || []
+    requests?.filter((r) => r.status === "rejected") || []
   );
 
   const changesRequestedRequests = filterRequests(
-    requests?.filter(r => r.status === 'changes_requested') || []
+    requests?.filter((r) => r.status === "changes_requested") || []
   );
 
   const pendingApprovals = filterRequests(
-    requests?.filter(r => {
-      if (r.status !== 'pending' || r.requesterId === user?.id) return false;
-      const departmentApproval = r.approvals.find(a => a.department === user?.department);
-      return !departmentApproval || departmentApproval.status === 'pending';
+    requests?.filter((r) => {
+      if (r.status !== "pending" || r.requesterId === user?.id) return false;
+      const departmentApproval = r.approvals.find((a) => a.department === user?.department);
+      return !departmentApproval || departmentApproval.status === "pending";
     }) || []
   );
 
-  const handleExport = async (format: 'xlsx' | 'csv') => {
+  const handleExport = async (format: "xlsx" | "csv") => {
     try {
       const response = await fetch(`/api/requests/export?format=${format}`, {
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      // Create a blob from the response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
+      const a = document.createElement("a");
+      const date = new Date().toISOString().split("T")[0];
       a.href = url;
       a.download = `procurement_report_${date}.${format}`;
       document.body.appendChild(a);
@@ -151,6 +154,10 @@ export default function Dashboard() {
                 </Button>
               </Link>
               <NotificationsDropdown />
+              <DashboardPreferences
+                preferences={preferences}
+                onUpdate={updatePreferences}
+              />
               <Button variant="outline" onClick={() => logout()}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
@@ -161,7 +168,6 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Section */}
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -180,8 +186,10 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map(dept => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -191,9 +199,9 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Purposes</SelectItem>
-                  {purposeTypes.map(type => (
+                  {purposeTypes.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type.replace('_', ' ').toUpperCase()}
+                      {type.replace("_", " ").toUpperCase()}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -204,7 +212,7 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priorities</SelectItem>
-                  {priorities.map(priority => (
+                  {priorities.map((priority) => (
                     <SelectItem key={priority} value={priority}>
                       {priority.toUpperCase()}
                     </SelectItem>
@@ -231,10 +239,10 @@ export default function Dashboard() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                  <DropdownMenuItem onClick={() => handleExport("xlsx")}>
                     Export as Excel
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  <DropdownMenuItem onClick={() => handleExport("csv")}>
                     Export as CSV
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -243,7 +251,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue={isSpecialRole ? "all-requests" : "my-requests"}>
+        <Tabs defaultValue={preferences.defaultView}>
           <TabsList className="mb-8">
             <TabsTrigger value="my-requests">
               My Requests ({mySubmittedRequests.length + myDrafts.length})
@@ -345,7 +353,7 @@ export default function Dashboard() {
                             <RequestCard
                               key={request.id}
                               request={request}
-                              showApproval={request.status === 'pending' && request.requesterId !== user?.id}
+                              showApproval={request.status === "pending" && request.requesterId !== user?.id}
                             />
                           ))}
                         </div>
