@@ -19,7 +19,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
-import VendorSelect from "@/components/VendorSelect";
 import { insertPurchaseRequestSchema } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import {
@@ -52,7 +51,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
-  const [selectedVendorName, setSelectedVendorName] = useState<string>("");
 
   const { data: request, isLoading } = useQuery<PurchaseRequest>({
     queryKey: [`/api/requests/${params.id}`],
@@ -64,7 +62,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0 }],
-      vendorId: undefined,
       vendor: "",
       purpose: "",
       purposeType: "event",
@@ -87,7 +84,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: request.priority,
         currency: request.currency,
         status: request.status,
-        vendorId: request.vendorId,
         vendor: request.vendor,
         subPurposeId: request.subPurposeId,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
@@ -96,7 +92,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       });
       setItems(request.items);
       setFreightAmount(Number(request.freightAmount));
-      setSelectedVendorName(request.vendor);
     }
   }, [request]);
 
@@ -117,10 +112,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendorId && !selectedVendorName) {
+      if (!values.vendor) {
         toast({
           title: "Validation Error",
-          description: "Please enter vendor information",
+          description: "Please enter vendor name",
           variant: "destructive",
         });
         return;
@@ -135,8 +130,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
-        vendorId: values.vendorId ? Number(values.vendorId) : null,
-        vendor: selectedVendorName || values.vendor,
+        vendor: values.vendor,
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
           name: item.name,
@@ -223,7 +217,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     };
     setItems(newItems);
   };
-
 
   if (isLoading) {
     return (
@@ -415,29 +408,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   <div className="grid grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="vendorId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Vendor ID</FormLabel>
-                          <FormControl>
-                            <VendorSelect
-                              value={field.value}
-                              onChange={(vendorId, vendorName) => {
-                                field.onChange(vendorId);
-                                if (vendorName) {
-                                  setSelectedVendorName(vendorName);
-                                  form.setValue("vendor", vendorName);
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
                       name="vendor"
                       render={({ field }) => (
                         <FormItem>
@@ -445,11 +415,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           <FormControl>
                             <Input
                               {...field}
-                              value={selectedVendorName || field.value}
-                              onChange={(e) => {
-                                field.onChange(e.target.value);
-                                setSelectedVendorName(e.target.value);
-                              }}
+                              placeholder="Enter vendor name"
                               className="border-[#7156a2]/20 focus:border-[#7156a2]"
                             />
                           </FormControl>
@@ -457,6 +423,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="purposeType"
@@ -480,6 +447,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="subPurposeId"
