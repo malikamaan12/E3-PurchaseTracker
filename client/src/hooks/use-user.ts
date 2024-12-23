@@ -3,8 +3,9 @@ import type { User, NewUser } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 
 type LoginResponse = {
+  status: "success" | "error";
   message: string;
-  user: User;
+  user?: User;
 };
 
 type RequestResult = {
@@ -30,34 +31,39 @@ async function handleRequest(
 
     if (!response.ok) {
       if (response.status >= 500) {
-        return { ok: false, message: response.statusText };
+        return { ok: false, message: "Server error. Please try again later." };
       }
 
       const errorData = await response.json();
-      return { ok: false, message: errorData.message || "An error occurred" };
+      return { ok: false, message: errorData.message || "An unexpected error occurred" };
     }
 
     const data = await response.json();
     return { ok: true, data };
   } catch (e: any) {
-    return { ok: false, message: e.toString() };
+    console.error("Request error:", e);
+    return { ok: false, message: e.message || "Network error. Please check your connection." };
   }
 }
 
 async function fetchUser(): Promise<User | null> {
-  const response = await fetch('/api/user', {
-    credentials: 'include'
-  });
+  try {
+    const response = await fetch('/api/user', {
+      credentials: 'include'
+    });
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      return null;
+    if (!response.ok) {
+      if (response.status === 401) {
+        return null;
+      }
+      throw new Error(await response.text());
     }
 
-    throw new Error(`${response.status}: ${await response.text()}`);
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return null;
   }
-
-  return response.json();
 }
 
 export function useUser() {
@@ -73,6 +79,7 @@ export function useUser() {
 
   const loginMutation = useMutation({
     mutationFn: async (userData: NewUser) => {
+      console.log("Attempting login for user:", userData.username);
       const result = await handleRequest('/api/login', 'POST', userData);
       if (!result.ok) {
         throw new Error(result.message);
@@ -83,13 +90,14 @@ export function useUser() {
       queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
-        description: data.message || "Logged in successfully",
+        description: data.message || "Welcome back!",
       });
     },
     onError: (error: Error) => {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: error.message,
+        description: error.message || "Failed to log in. Please try again.",
         variant: "destructive",
       });
     },
@@ -101,19 +109,19 @@ export function useUser() {
       if (!result.ok) {
         throw new Error(result.message);
       }
-      return result;
+      return result.data!;
     },
-    onSuccess: (result) => {
+    onSuccess: (data) => {
       queryClient.setQueryData(['user'], null);
       toast({
         title: "Success",
-        description: result.data?.message || "Logged out successfully",
+        description: data.message || "You have been logged out successfully.",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Logout Failed",
-        description: error.message,
+        description: error.message || "Failed to log out. Please try again.",
         variant: "destructive",
       });
     },
@@ -121,6 +129,7 @@ export function useUser() {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: NewUser) => {
+      console.log("Attempting registration for user:", userData.username);
       const result = await handleRequest('/api/register', 'POST', userData);
       if (!result.ok) {
         throw new Error(result.message);
@@ -131,13 +140,14 @@ export function useUser() {
       queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
-        description: data.message || "Registration successful",
+        description: data.message || "Registration successful! Welcome aboard.",
       });
     },
     onError: (error: Error) => {
+      console.error("Registration error:", error);
       toast({
         title: "Registration Failed",
-        description: error.message,
+        description: error.message || "Failed to register. Please try again.",
         variant: "destructive",
       });
     },

@@ -11,11 +11,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@db/schema";
 import type { NewUser } from "@db/schema";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const { login, register } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<NewUser>({
     resolver: zodResolver(insertUserSchema),
@@ -32,6 +34,8 @@ export default function AuthPage() {
   const onSubmit = async (data: NewUser) => {
     try {
       setIsLoading(true);
+      console.log("Submitting form with data:", { ...data, password: "[REDACTED]" });
+
       if (activeTab === "login") {
         // For login, we only need username and password
         await login({
@@ -41,8 +45,13 @@ export default function AuthPage() {
       } else {
         await register(data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Auth error:", error);
+      toast({
+        title: activeTab === "login" ? "Login Failed" : "Registration Failed",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
