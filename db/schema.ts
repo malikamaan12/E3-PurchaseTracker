@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
+import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -24,6 +25,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   }>>().notNull(),
   vendor: text("vendor").notNull(),
   purpose: text("purpose").notNull(),
+  purposeType: text("purpose_type").notNull(),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -65,7 +67,9 @@ export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
-export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests);
+export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
+  purposeType: z.enum(["event", "project", "mall", "business_growth"])
+});
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
 export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;

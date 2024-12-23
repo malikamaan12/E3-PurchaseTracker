@@ -131,7 +131,14 @@ export default function RequestCard({
 
           <div className="space-y-2">
             <h4 className="font-medium">Purpose</h4>
-            <p className="text-sm text-gray-600">{request.purpose}</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {request.purposeType.replace('_', ' ').toUpperCase()}
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-600">{request.purpose}</p>
+            </div>
           </div>
 
           <ApprovalFlow approvals={request.approvals} />

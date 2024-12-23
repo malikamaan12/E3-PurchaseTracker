@@ -18,6 +18,13 @@ import {
 import DepartmentSelect from "@/components/DepartmentSelect";
 import { insertPurchaseRequestSchema, type NewPurchaseRequest } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function NewRequest() {
   const [, setLocation] = useLocation();
@@ -31,6 +38,7 @@ export default function NewRequest() {
       description: "",
       vendor: "",
       purpose: "",
+      purposeType: "event",
       totalEstimatedCost: 0,
       status: "draft",
     },
@@ -186,10 +194,37 @@ export default function NewRequest() {
 
                 <FormField
                   control={form.control}
+                  name="purposeType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Purpose Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select purpose type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="event">Event</SelectItem>
+                          <SelectItem value="project">Project</SelectItem>
+                          <SelectItem value="mall">Mall</SelectItem>
+                          <SelectItem value="business_growth">Business Growth</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="purpose"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Purpose</FormLabel>
+                      <FormLabel>Purpose Description</FormLabel>
                       <FormControl>
                         <Textarea {...field} />
                       </FormControl>
