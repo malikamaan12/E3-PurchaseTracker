@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
-import { insertPurchaseRequestSchema, type NewPurchaseRequest } from "@db/schema";
+import { insertPurchaseRequestSchema } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import {
   Select,
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { NewPurchaseRequest as NewPurchaseRequestType } from "@db/schema";
+import type { NewPurchaseRequest } from "@db/schema";
 
 const priorities = [
   { label: "Low", value: "low" },
@@ -40,31 +40,38 @@ export default function NewRequest() {
   const { createRequest } = usePurchaseRequests();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
 
-  const form = useForm<NewPurchaseRequestType>({
+  const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
       description: "",
+      items: [],
       vendor: "",
       purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
-      totalEstimatedCost: 0,
+      priority: "medium",
       status: "draft",
-      priority: "medium", // Added default value for priority
+      totalEstimatedCost: 0,
+      requestNumber: "",
     },
   });
 
-  const onSubmit = async (data: NewPurchaseRequestType) => {
+  const onSubmit = async (values: NewPurchaseRequest) => {
     try {
+      const totalEstimatedCost = items.reduce(
+        (sum, item) => sum + item.estimatedCost * item.quantity,
+        0
+      );
+
       await createRequest({
-        ...data,
+        ...values,
         items,
-        totalEstimatedCost: items.reduce((sum, item) => sum + item.estimatedCost * item.quantity, 0),
+        totalEstimatedCost,
       });
       setLocation("/");
     } catch (error) {
-      console.error(error);
+      console.error("Form submission error:", error);
     }
   };
 
@@ -80,6 +87,11 @@ export default function NewRequest() {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
+  };
+
+  const handleSubmit = (status: "draft" | "pending") => {
+    form.setValue("status", status);
+    form.handleSubmit(onSubmit)();
   };
 
   return (
@@ -100,7 +112,7 @@ export default function NewRequest() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form className="space-y-6">
                 <FormField
                   control={form.control}
                   name="title"
@@ -149,7 +161,7 @@ export default function NewRequest() {
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateItem(index, "quantity", parseInt(e.target.value))
+                              updateItem(index, "quantity", parseInt(e.target.value) || 0)
                             }
                           />
                         </div>
@@ -162,7 +174,7 @@ export default function NewRequest() {
                               updateItem(
                                 index,
                                 "estimatedCost",
-                                parseFloat(e.target.value)
+                                parseFloat(e.target.value) || 0
                               )
                             }
                           />
@@ -290,7 +302,6 @@ export default function NewRequest() {
                   )}
                 />
 
-
                 <DepartmentSelect
                   label="Additional Approvers"
                   onChange={() => {}}
@@ -299,15 +310,15 @@ export default function NewRequest() {
 
                 <div className="flex justify-between pt-6">
                   <Button
-                    type="submit"
-                    onClick={() => form.setValue("status", "draft")}
+                    type="button"
+                    onClick={() => handleSubmit("draft")}
                     variant="outline"
                   >
                     Save as Draft
                   </Button>
                   <Button
-                    type="submit"
-                    onClick={() => form.setValue("status", "pending")}
+                    type="button"
+                    onClick={() => handleSubmit("pending")}
                   >
                     Submit for Approval
                   </Button>
