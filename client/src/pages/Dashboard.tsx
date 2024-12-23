@@ -56,7 +56,7 @@ export default function Dashboard() {
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const [departmentFilter, setDepartmentFilter] = useState<string>(
     preferences.defaultDepartmentFilter
@@ -188,7 +188,11 @@ export default function Dashboard() {
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error exporting data:", error);
-      // You can add toast notification here for error feedback
+      toast({
+        title: "Error",
+        description: "Failed to export data",
+        variant: "destructive",
+      });
     }
   };
 
@@ -309,7 +313,7 @@ export default function Dashboard() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-red-600 hover:bg-red-700"
-                              onClick={() => deleteRequest(request.id)}
+                              onClick={() => deleteRequest(request.id.toString())}
                             >
                               Delete
                             </AlertDialogAction>
@@ -517,7 +521,7 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          {isAdmin || isSpecialRole ? (
+          {(isAdmin || isSpecialRole) && (
             <>
               <TabsContent value="all-requests">
                 <Card>
@@ -533,7 +537,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
-                        {renderRequestsTable(requests, true)}
+                        {renderRequestsTable(filterRequests(requests || []), true)}
                       </div>
                     )}
                   </CardContent>
@@ -624,9 +628,9 @@ export default function Dashboard() {
                 </Card>
               </TabsContent>
             </>
-          ) : null}
+          )}
 
-          {showApprovalsTab && (
+          {showApprovalsTab && !isAdmin && !isSpecialRole && (
             <TabsContent value="approvals">
               <Card>
                 <CardContent className="p-6">
