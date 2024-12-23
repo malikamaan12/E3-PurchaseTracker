@@ -157,6 +157,42 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const request = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, parseInt(req.params.id)),
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true,
+          vendor: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Check if user has access to this request
+      if (request.requesterId !== req.user!.id) {
+        return res.status(403).send("Not authorized to view this request");
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
   app.put("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
