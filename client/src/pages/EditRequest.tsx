@@ -81,15 +81,15 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     if (request) {
       console.log("Loading request data:", request);
 
-      // Reset form with request data
+      // Reset form with request data, ensuring vendor details are included
       const formData = {
         title: request.title,
         description: request.description,
         items: request.items,
-        companyName: request.companyName,
-        contactPerson: request.contactPerson,
-        contactNumber: request.contactNumber,
-        accountNumber: request.accountNumber,
+        companyName: request.companyName || "",
+        contactPerson: request.contactPerson || "",
+        contactNumber: request.contactNumber || "",
+        accountNumber: request.accountNumber || "",
         purpose: request.purpose,
         purposeType: request.purposeType,
         subPurposeId: request.subPurposeId,
@@ -630,6 +630,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
 // Placeholder for analyzeFormError function.  This needs to be defined elsewhere in your project.
 const analyzeFormError = async (values: any, errors: any) => {
-    // Your implementation to analyze form errors here.
-    return "";
+  // Your implementation to analyze form errors here.
+  return "";
 }
