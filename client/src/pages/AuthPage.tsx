@@ -87,35 +87,6 @@ export default function AuthPage() {
                     <>
                       <FormField
                         control={form.control}
-                        name="department"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Department</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select department" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Branding">Branding</SelectItem>
-                                <SelectItem value="Logistics">Logistics</SelectItem>
-                                <SelectItem value="Mall Activation">Mall Activation</SelectItem>
-                                <SelectItem value="IT">IT</SelectItem>
-                                <SelectItem value="Finance">Finance</SelectItem>
-                                <SelectItem value="CEO Office">CEO Office</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
@@ -133,6 +104,37 @@ export default function AuthPage() {
                                 <SelectItem value="user">User</SelectItem>
                                 <SelectItem value="approver">Approver</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="department"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Department</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select department" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Admin">Admin</SelectItem>
+                                <SelectItem value="CEO Office">CEO Office</SelectItem>
+                                <SelectItem value="Director">Director</SelectItem>
+                                <SelectItem value="Finance">Finance</SelectItem>
+                                <SelectItem value="Branding">Branding</SelectItem>
+                                <SelectItem value="Logistics">Logistics</SelectItem>
+                                <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+                                <SelectItem value="IT">IT</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
