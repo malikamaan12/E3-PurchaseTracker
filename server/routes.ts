@@ -213,21 +213,57 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const requests = await db.query.purchaseRequests.findMany({
-        with: {
-          requester: true,
-          approvals: {
-            with: {
-              approver: true
-            }
-          },
-          subPurpose: true,
-          fileAttachments: true
-        },
-        orderBy: desc(purchaseRequests.createdAt)
-      });
+      // Use a simpler query first without relations to debug
+      const requests = await db.select()
+        .from(purchaseRequests)
+        .where(
+          // Show all requests for admin, only user's requests for others
+          req.user!.role === 'admin'
+            ? undefined
+            : eq(purchaseRequests.requesterId, req.user!.id)
+        )
+        .orderBy(desc(purchaseRequests.createdAt));
 
-      res.json(requests);
+      // Then fetch related data separately
+      const enrichedRequests = await Promise.all(requests.map(async (request) => {
+        const [requester] = await db.select()
+          .from(users)
+          .where(eq(users.id, request.requesterId))
+          .limit(1);
+
+        const approvals = await db.select()
+          .from(approvals)
+          .where(eq(approvals.requestId, request.id));
+
+        const [subPurpose] = request.subPurposeId
+          ? await db.select()
+            .from(subPurposes)
+            .where(eq(subPurposes.id, request.subPurposeId))
+            .limit(1)
+          : [null];
+
+        const attachments = await db.select()
+          .from(fileAttachments)
+          .where(eq(fileAttachments.requestId, request.id));
+
+        return {
+          ...request,
+          requester,
+          approvals: await Promise.all(
+            approvals.map(async (approval) => {
+              const [approver] = await db.select()
+                .from(users)
+                .where(eq(users.id, approval.approverId))
+                .limit(1);
+              return { ...approval, approver };
+            })
+          ),
+          subPurpose,
+          attachments
+        };
+      }));
+
+      res.json(enrichedRequests);
     } catch (error: any) {
       console.error("Error fetching requests:", error);
       res.status(500).send(error.message);
