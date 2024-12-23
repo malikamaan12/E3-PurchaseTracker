@@ -28,7 +28,6 @@ const crypto = {
   },
 };
 
-// Extend express user object with our schema
 declare global {
   namespace Express {
     interface User extends SelectUser {}
@@ -70,13 +69,17 @@ export function setupAuth(app: Express) {
 
         if (!user) {
           console.log("User not found:", username);
-          return done(null, false, { message: "Incorrect username." });
+          return done(null, false, { 
+            message: "Account not found. Please check your username or register if you don't have an account." 
+          });
         }
 
         const isMatch = await crypto.compare(password, user.password);
         if (!isMatch) {
           console.log("Password mismatch for user:", username);
-          return done(null, false, { message: "Incorrect password." });
+          return done(null, false, { 
+            message: "Incorrect password. Please try again or use the forgot password option." 
+          });
         }
 
         console.log("Login successful for user:", username);
@@ -108,26 +111,43 @@ export function setupAuth(app: Express) {
   app.post("/api/login", (req, res, next) => {
     console.log("Login request received:", req.body);
 
+    if (!req.body.username || !req.body.password) {
+      return res.status(400).json({
+        status: "error",
+        message: "Please provide both username and password"
+      });
+    }
+
     passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
       if (err) {
         console.error("Login authentication error:", err);
-        return next(err);
+        return res.status(500).json({
+          status: "error",
+          message: "An unexpected error occurred. Please try again later."
+        });
       }
 
       if (!user) {
         console.log("Login failed:", info.message);
-        return res.status(400).send(info.message ?? "Login failed");
+        return res.status(400).json({
+          status: "error",
+          message: info.message ?? "Login failed. Please check your credentials."
+        });
       }
 
       req.logIn(user, (err) => {
         if (err) {
           console.error("Login session error:", err);
-          return next(err);
+          return res.status(500).json({
+            status: "error",
+            message: "Failed to create login session. Please try again."
+          });
         }
 
         console.log("Login successful for user:", user.username);
         return res.json({
-          message: "Login successful",
+          status: "success",
+          message: "Login successful! Welcome back.",
           user: {
             id: user.id,
             username: user.username,
@@ -143,6 +163,14 @@ export function setupAuth(app: Express) {
     try {
       const { username, password, email, contactNumber, department, role } = req.body;
 
+      // Validate required fields
+      if (!username || !password || !email || !contactNumber || !department) {
+        return res.status(400).json({
+          status: "error",
+          message: "Please fill in all required fields"
+        });
+      }
+
       // Check if user already exists
       const [existingUser] = await db
         .select()
@@ -151,7 +179,10 @@ export function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
-        return res.status(400).send("Username already exists");
+        return res.status(400).json({
+          status: "error",
+          message: "Username already exists. Please choose a different username."
+        });
       }
 
       // Hash the password
@@ -173,10 +204,14 @@ export function setupAuth(app: Express) {
       // Log the user in after registration
       req.login(newUser, (err) => {
         if (err) {
-          return next(err);
+          return res.status(500).json({
+            status: "error",
+            message: "Registration successful but failed to log in automatically. Please try logging in."
+          });
         }
         return res.json({
-          message: "Registration successful",
+          status: "success",
+          message: "Registration successful! Welcome to the system.",
           user: {
             id: newUser.id,
             username: newUser.username,
@@ -187,16 +222,26 @@ export function setupAuth(app: Express) {
       });
     } catch (error: any) {
       console.error("Registration error:", error);
-      next(error);
+      return res.status(500).json({
+        status: "error",
+        message: "An unexpected error occurred during registration. Please try again."
+      });
     }
   });
 
   app.post("/api/logout", (req, res) => {
+    const username = req.user?.username;
     req.logout((err) => {
       if (err) {
-        return res.status(500).send("Logout failed");
+        return res.status(500).json({
+          status: "error",
+          message: "Failed to log out. Please try again."
+        });
       }
-      res.json({ message: "Logout successful" });
+      res.json({
+        status: "success",
+        message: `Goodbye${username ? `, ${username}` : ''}! You've been logged out successfully.`
+      });
     });
   });
 
@@ -210,6 +255,9 @@ export function setupAuth(app: Express) {
         role: user.role,
       });
     }
-    res.status(401).send("Not logged in");
+    res.status(401).json({
+      status: "error",
+      message: "Not logged in. Please sign in to continue."
+    });
   });
 }

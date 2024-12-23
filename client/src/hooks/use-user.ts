@@ -33,8 +33,8 @@ async function handleRequest(
         return { ok: false, message: response.statusText };
       }
 
-      const message = await response.text();
-      return { ok: false, message };
+      const errorData = await response.json();
+      return { ok: false, message: errorData.message || "An error occurred" };
     }
 
     const data = await response.json();
@@ -83,12 +83,12 @@ export function useUser() {
       queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
-        description: "Logged in successfully",
+        description: data.message || "Logged in successfully",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Login Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -96,17 +96,23 @@ export function useUser() {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => handleRequest('/api/logout', 'POST'),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const result = await handleRequest('/api/logout', 'POST');
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+      return result;
+    },
+    onSuccess: (result) => {
       queryClient.setQueryData(['user'], null);
       toast({
         title: "Success",
-        description: "Logged out successfully",
+        description: result.data?.message || "Logged out successfully",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Logout Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -125,12 +131,12 @@ export function useUser() {
       queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
-        description: "Registration successful",
+        description: data.message || "Registration successful",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Registration Failed",
         description: error.message,
         variant: "destructive",
       });
