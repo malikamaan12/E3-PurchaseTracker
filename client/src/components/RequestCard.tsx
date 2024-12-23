@@ -3,17 +3,6 @@ import { format } from "date-fns";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +14,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "./ApprovalFlow";
@@ -57,83 +49,134 @@ export default function RequestCard({
         return "bg-green-500";
       case "rejected":
         return "bg-red-500";
+      case "changes_requested":
+        return "bg-orange-500";
       default:
         return "bg-gray-500";
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-500";
-      case "high":
-        return "bg-orange-500";
-      case "medium":
-        return "bg-yellow-500";
-      default:
-        return "bg-blue-500";
-    }
-  };
-
   // Function to automatically create mandatory approvals
   const createMandatoryApprovals = async () => {
-    for (const department of mandatoryDepartments) {
-      await createApproval({
-        requestId: request.id,
-        department,
-        isMandatory: true,
-        status: "pending"
-      });
+    try {
+      for (const department of mandatoryDepartments) {
+        await createApproval({
+          requestId: request.id,
+          department,
+          isMandatory: true,
+          status: "pending"
+        });
+      }
+    } catch (error) {
+      console.error("Error creating mandatory approvals:", error);
+      throw error;
     }
   };
 
-  const handleApproval = async (status: "approved" | "rejected") => {
+  const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user) return;
 
-    await createApproval({
-      requestId: request.id,
-      approverId: user.id,
-      department: user.department,
-      status,
-      comments,
-      isMandatory: mandatoryDepartments.includes(user.department as any)
-    });
-
-    // Check if Finance has approved and the request should be locked
-    const financeApproval = request.approvals.find(
-      a => a.department === "Finance" && a.status === "approved"
-    );
-
-    if (financeApproval) {
-      await updateRequest({
-        id: request.id,
-        data: { 
-          isLocked: true,
-          status: status === "approved" ? "approved" : request.status 
-        },
+    try {
+      // Create the approval record
+      await createApproval({
+        requestId: request.id,
+        approverId: user.id,
+        department: user.department,
+        status,
+        comments,
+        isMandatory: mandatoryDepartments.includes(user.department as any)
       });
+
+      // Special handling for Finance department approval
+      if (user.department === "Finance" && status === "approved") {
+        // When Finance approves, lock the request
+        await updateRequest({
+          id: request.id,
+          data: { 
+            isLocked: true,
+            status: "approved"
+          },
+        });
+      } else if (status === "changes_requested") {
+        // If changes are requested, update the request status
+        await updateRequest({
+          id: request.id,
+          data: { 
+            status: "changes_requested",
+            isLocked: false // Unlock for changes
+          },
+        });
+      } else if (status === "rejected") {
+        await updateRequest({
+          id: request.id,
+          data: { status: "rejected" },
+        });
+      }
+    } catch (error) {
+      console.error("Error handling approval:", error);
+      throw error;
     }
   };
 
   const handleSubmitForApproval = async () => {
-    await updateRequest({
-      id: request.id,
-      data: { status: "pending" },
-    });
-    await createMandatoryApprovals();
+    try {
+      await updateRequest({
+        id: request.id,
+        data: { status: "pending" },
+      });
+      await createMandatoryApprovals();
+    } catch (error) {
+      console.error("Error submitting for approval:", error);
+      throw error;
+    }
   };
 
   const handleEdit = () => {
-    if (!request.isLocked) {
+    // Allow edits only if:
+    // 1. Request is not locked (not approved by Finance)
+    // 2. Request is in draft state
+    // 3. Request is in changes_requested state
+    // 4. User is the requester
+    const canEdit = 
+      !request.isLocked && 
+      (request.status === "draft" || request.status === "changes_requested") &&
+      request.requesterId === user?.id;
+
+    if (canEdit) {
       setLocation(`/requests/${request.id}/edit`);
     }
   };
 
   const handleDelete = async () => {
-    if (!request.isLocked) {
+    // Allow deletion only if:
+    // 1. Request is not locked
+    // 2. Request is in draft state
+    // 3. User is the requester
+    const canDelete = 
+      !request.isLocked && 
+      request.status === "draft" && 
+      request.requesterId === user?.id;
+
+    if (canDelete) {
       await deleteRequest(request.id);
     }
   };
+
+  // Check if the request can be modified
+  const canModify = 
+    !request.isLocked && 
+    (request.status === "draft" || request.status === "changes_requested") && 
+    request.requesterId === user?.id;
+
+  // Check if the current user can approve
+  const canApprove = 
+    !request.isLocked &&
+    request.status === "pending" &&
+    user?.department && 
+    !request.approvals.some(a => 
+      a.department === user.department && 
+      ["approved", "rejected"].includes(a.status)
+    );
 
   // Convert string values to numbers for calculations
   const freightAmount = Number(request.freightAmount) || 0;
@@ -150,11 +193,6 @@ export default function RequestCard({
 
   const totalCost = itemsTotal + freightAmount;
 
-  // Check if the request can be edited/deleted
-  const canModify = !request.isLocked && 
-                   ["draft", "pending"].includes(request.status) && 
-                   request.requesterId === user?.id;
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -165,11 +203,8 @@ export default function RequestCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className={getPriorityColor(request.priority)}>
-            {request.priority.toUpperCase()}
-          </Badge>
           <Badge className={getStatusColor(request.status)}>
-            {request.status.toUpperCase()}
+            {request.status.toUpperCase().replace("_", " ")}
           </Badge>
           {request.isLocked && (
             <Badge variant="outline" className="border-orange-500 text-orange-500">
@@ -187,32 +222,34 @@ export default function RequestCard({
                 <Pencil className="h-4 w-4" />
               </Button>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-destructive"
-                    title="Delete Request"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this purchase request? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {request.status === "draft" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive"
+                      title="Delete Request"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this purchase request? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           )}
         </div>
@@ -302,7 +339,7 @@ export default function RequestCard({
 
           <ApprovalFlow approvals={request.approvals} />
 
-          {showApproval && !request.isLocked && (
+          {showApproval && canApprove && (
             <div className="space-y-4 mt-4">
               <Textarea
                 placeholder="Add comments..."
@@ -311,19 +348,27 @@ export default function RequestCard({
               />
               <div className="flex justify-end space-x-2">
                 <Button
+                  variant="outline"
+                  onClick={() => handleApproval("changes_requested")}
+                >
+                  Request Changes
+                </Button>
+                <Button
                   variant="destructive"
                   onClick={() => handleApproval("rejected")}
                 >
                   Reject
                 </Button>
-                <Button onClick={() => handleApproval("approved")}>
+                <Button 
+                  onClick={() => handleApproval("approved")}
+                >
                   Approve
                 </Button>
               </div>
             </div>
           )}
 
-          {showActions && !request.isLocked && request.status === "draft" && (
+          {showActions && request.status === "draft" && (
             <div className="flex justify-end space-x-2 mt-4">
               <Button
                 variant="outline"
