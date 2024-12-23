@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,14 +10,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@db/schema";
 import type { NewUser } from "@db/schema";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const { login, register } = useUser();
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const form = useForm<NewUser>({
     resolver: zodResolver(insertUserSchema),
@@ -31,45 +27,16 @@ export default function AuthPage() {
     },
   });
 
-  // Reset form when switching tabs
-  useEffect(() => {
-    form.reset();
-  }, [activeTab]);
-
   const onSubmit = async (data: NewUser) => {
     try {
-      setIsLoading(true);
-      console.log("Form submitted:", activeTab, { ...data, password: "[REDACTED]" });
-
       if (activeTab === "login") {
-        // For login, we only need username and password
-        const loginData = {
-          username: data.username,
-          password: data.password,
-        };
-        console.log("Attempting login with:", { ...loginData, password: "[REDACTED]" });
-        await login(loginData);
+        await login(data);
       } else {
-        console.log("Attempting registration with:", { ...data, password: "[REDACTED]" });
         await register(data);
       }
-    } catch (error: any) {
-      console.error("Auth error:", error);
-      toast({
-        title: activeTab === "login" ? "Login Failed" : "Registration Failed",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
     }
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    form.reset();
-    // Clear any previous errors
-    form.clearErrors();
   };
 
   return (
@@ -82,189 +49,145 @@ export default function AuthPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="login">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input {...field} autoComplete="username" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              {...field} 
-                              autoComplete="current-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Login
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input {...field} autoComplete="username" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              {...field} 
-                              autoComplete="new-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" {...field} autoComplete="email" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Number</FormLabel>
-                          <FormControl>
-                            <Input type="tel" {...field} autoComplete="tel" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="department"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Department</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
+                  {activeTab === "register" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select department" />
-                              </SelectTrigger>
+                              <Input type="email" {...field} />
                             </FormControl>
-                            <SelectContent>
-                              {/* Management */}
-                              <SelectItem value="Management">Management</SelectItem>
-                              <SelectItem value="CEO Office">CEO Office</SelectItem>
-                              <SelectItem value="Director">Director</SelectItem>
-                              <SelectItem value="Finance">Finance</SelectItem>
-                              {/* Business */}
-                              <SelectItem value="Business">Business</SelectItem>
-                              {/* Operations */}
-                              <SelectItem value="Operations">Operations</SelectItem>
-                              {/* Support */}
-                              <SelectItem value="Support">Support</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
+                      <FormField
+                        control={form.control}
+                        name="contactNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Number</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
+                              <Input type="tel" {...field} />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="approver">Approver</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Register
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="approver">Approver</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="department"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Department</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select department" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {/* Management */}
+                                <SelectItem value="Admin">Admin</SelectItem>
+                                <SelectItem value="CEO Office">CEO Office</SelectItem>
+                                <SelectItem value="Director">Director</SelectItem>
+                                <SelectItem value="Finance">Finance</SelectItem>
+                                {/* Business */}
+                                <SelectItem value="Sales">Sales</SelectItem>
+                                <SelectItem value="Marketing">Marketing</SelectItem>
+                                <SelectItem value="Business Growth">Business Growth</SelectItem>
+                                {/* Operations */}
+                                <SelectItem value="Branding">Branding</SelectItem>
+                                <SelectItem value="Logistics">Logistics</SelectItem>
+                                <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+                                {/* Support */}
+                                <SelectItem value="IT">IT</SelectItem>
+                                <SelectItem value="HR">HR</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+
+                  <Button type="submit" className="w-full">
+                    {activeTab === "login" ? "Login" : "Register"}
+                  </Button>
+                </form>
+              </Form>
             </Tabs>
           </CardContent>
         </Card>
