@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import type { SubPurpose } from "@db/schema";
 interface SubPurposeSelectProps {
   purposeType: string;
   value?: number;
-  onChange: (value: number) => void;
+  onChange: (value: number | undefined) => void;
 }
 
 export default function SubPurposeSelect({
@@ -44,8 +44,22 @@ export default function SubPurposeSelect({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Reset value when purpose type changes
+  useEffect(() => {
+    onChange(undefined);
+  }, [purposeType, onChange]);
+
   const { data: subPurposes = [], isLoading } = useQuery<SubPurpose[]>({
-    queryKey: ["/api/sub-purposes", purposeType],
+    queryKey: ["/api/sub-purposes", { purposeType }],
+    queryFn: async () => {
+      const response = await fetch(`/api/sub-purposes?purposeType=${purposeType}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch sub-purposes");
+      }
+      return response.json();
+    },
     enabled: !!purposeType,
   });
 

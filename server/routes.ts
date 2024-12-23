@@ -17,8 +17,7 @@ export function registerRoutes(app: Express): Server {
     const purposeType = req.query.purposeType as string;
     const purposes = await db.select()
       .from(subPurposes)
-      .where(purposeType ? eq(subPurposes.purposeType, purposeType) : undefined)
-      .orderBy(desc(subPurposes.createdAt));
+      .where(purposeType ? eq(subPurposes.purposeType, purposeType) : undefined);
 
     res.json(purposes);
   });
@@ -43,7 +42,7 @@ export function registerRoutes(app: Express): Server {
 
     const request = await db.insert(purchaseRequests).values({
       ...req.body,
-      requesterId: req.user.id,
+      requesterId: req.user!.id,
       status: req.body.status || "draft"
     }).returning();
 
@@ -93,8 +92,8 @@ export function registerRoutes(app: Express): Server {
 
     const approval = await db.insert(approvals).values({
       ...req.body,
-      approverId: req.user.id,
-      department: req.user.department
+      approverId: req.user!.id,
+      department: req.user!.department
     }).returning();
 
     res.json(approval[0]);
