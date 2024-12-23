@@ -4,6 +4,9 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import XLSX from 'xlsx';
 import { Parser } from 'json2csv';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import {
   purchaseRequests,
   approvals,
@@ -11,15 +14,58 @@ import {
   subPurposes,
   notifications,
   accountRequests,
+  fileAttachments,
   insertSubPurposeSchema,
   insertAccountRequestSchema,
-  insertUserSchema
+  insertUserSchema,
+  insertFileAttachmentSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { analyzePurchaseRequestPriority } from "./utils/anthropic";
-import * as crypto from 'crypto'; // Import crypto library
+import * as crypto from 'crypto';
 
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only specific file types
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png'
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, Word, Excel, and image files are allowed.'));
+    }
+  }
+});
 
 async function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -175,7 +221,8 @@ export function registerRoutes(app: Express): Server {
               approver: true
             }
           },
-          subPurpose: true
+          subPurpose: true,
+          fileAttachments: true
         },
         orderBy: desc(purchaseRequests.createdAt)
       });
@@ -203,7 +250,8 @@ export function registerRoutes(app: Express): Server {
               approver: true
             }
           },
-          subPurpose: true
+          subPurpose: true,
+          fileAttachments: true
         }
       });
 
@@ -269,47 +317,65 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Purchase request routes - adding notification creation
-  app.post("/api/requests", async (req, res) => {
+  app.post("/api/requests", upload.array('files'), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const requestNumber = await generateRequestNumber(req.body.purposeType, req.body.subPurposeId);
+      const requestData = JSON.parse(req.body.data);
+      const files = req.files as Express.Multer.File[];
+
+      const requestNumber = await generateRequestNumber(requestData.purposeType, requestData.subPurposeId);
 
       // Calculate total cost for priority analysis
-      const itemsTotal = req.body.items.reduce(
+      const itemsTotal = requestData.items.reduce(
         (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
         0
       );
-      const totalEstimatedCost = itemsTotal + Number(req.body.freightAmount);
+      const totalEstimatedCost = itemsTotal + Number(requestData.freightAmount);
 
       // Perform priority analysis
       const priorityAnalysis = await analyzePurchaseRequestPriority({
-        title: req.body.title,
-        description: req.body.description,
-        purpose: req.body.purpose,
-        purposeType: req.body.purposeType,
+        title: requestData.title,
+        description: requestData.description,
+        purpose: requestData.purpose,
+        purposeType: requestData.purposeType,
         totalEstimatedCost,
-        items: req.body.items.map(item => ({
+        items: requestData.items.map(item => ({
           name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost)
         }))
       });
 
+      // Create the purchase request
       const [request] = await db.insert(purchaseRequests)
         .values({
-          ...req.body,
+          ...requestData,
           requestNumber,
           requesterId: req.user!.id,
-          status: req.body.status || "draft",
+          status: requestData.status || "draft",
           priority: priorityAnalysis.priority,
           priorityScore: priorityAnalysis.score,
           priorityReason: priorityAnalysis.reason,
           priorityRecommendations: priorityAnalysis.recommendations
         })
         .returning();
+
+      // Store file attachments if any
+      if (files && files.length > 0) {
+        const fileRecords = files.map(file => ({
+          requestId: request.id,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          fileSize: file.size,
+          fileUrl: file.path,
+        }));
+
+        await db.insert(fileAttachments)
+          .values(fileRecords);
+      }
 
       // If request is submitted (not draft), create approvals and notify relevant approvers
       if (request.status === "pending") {
@@ -902,8 +968,7 @@ export function registerRoutes(app: Express): Server {
       if (error.code === '23503') {
         return res.status(400).send(
           "Cannot delete this sub-purpose as it is referenced by existing purchase requests. Please freeze it instead."
-        );
-      }
+        );      }
 
       res.status(500).json({
         error: "Failed to delete sub-purpose",
@@ -977,7 +1042,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     if (req.user!.role !== "admin") {
-      returnres.status(403).send("Only admin can view account requests");
+      return res.status(403).send("Only admin can view account requests");
     }
 
     try {
@@ -1046,6 +1111,70 @@ export function registerRoutes(app: Express): Server {
       console.error("Error approving account request:", error);
       res.status(500).json({
         error: "Failed to approve account request",
+        message: error.message
+      });
+    }
+  });
+
+  app.put("/api/account-requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can manage account requests");
+    }
+
+    try {
+      const [request] = await db
+        .update(accountRequests)
+        .set({
+          ...req.body,
+          updatedAt: new Date()
+        })
+        .where(eq(accountRequests.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!request) {
+        return res.status(404).send("Account request not found");
+      }
+
+      // Notify the user about their account request status
+      if (request.status === 'approved') {
+        // Create the user account
+        const hashedPassword = await hashPassword(request.password);
+        const [newUser] = await db.insert(users)
+          .values({
+            username: request.username,
+            password: hashedPassword,
+            email: request.email,
+            contactNumber: request.contactNumber,
+            department: request.department,
+            role: request.role || 'user'
+          })
+          .returning();
+
+        if (newUser) {
+          await createNotification(
+            newUser.id,
+            'Your account request has been approved. You can now log in.',
+            'account_approved'
+          );
+        }
+      } else if (request.status === 'rejected') {
+        // Create a notification in the notifications table for future reference
+        await createNotification(
+          0, // System notification
+          `Account request for ${request.username} was rejected`,
+          'account_rejected'
+        );
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error updating account request:", error);
+      res.status(500).json({
+        error: "Failed to update account request",
         message: error.message
       });
     }

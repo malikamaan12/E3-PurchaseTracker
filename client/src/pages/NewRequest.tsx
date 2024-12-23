@@ -19,7 +19,7 @@ import {
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import { insertPurchaseRequestSchema } from "@db/schema";
-import { ArrowLeft, Plus, Trash } from "lucide-react";
+import { ArrowLeft, Plus, Trash, Upload } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -48,6 +48,7 @@ export default function NewRequest() {
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
+  const [files, setFiles] = useState<File[]>([]);
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -87,6 +88,8 @@ export default function NewRequest() {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
+      const formData = new FormData();
+
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -96,13 +99,27 @@ export default function NewRequest() {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName // Set vendor field using company name
+        vendor: values.companyName
       };
+
+      formData.append('data', JSON.stringify(formattedData));
+
+      files.forEach(file => {
+        formData.append('files', file);
+      });
 
       console.log('Submitting request with data:', formattedData);
 
       try {
-        await createRequest(formattedData);
+        const response = await fetch('/api/requests', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
         toast({
           title: "Success",
           description: "Request created successfully",
@@ -182,6 +199,17 @@ export default function NewRequest() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -203,7 +231,6 @@ export default function NewRequest() {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-                {/* Purpose and Priority Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Purpose & Priority</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -276,7 +303,6 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                {/* Basic Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
@@ -314,7 +340,6 @@ export default function NewRequest() {
                   />
                 </div>
 
-                {/* Items Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
@@ -450,7 +475,6 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                {/* Vendor Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -534,6 +558,64 @@ export default function NewRequest() {
                   onChange={() => {}}
                   multiple
                 />
+
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center w-full">
+                      <label
+                        htmlFor="file-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#7156a2]/20 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="h-8 w-8 text-[#7156a2] mb-2" />
+                          <p className="mb-2 text-sm text-[#191160]">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            PDF, Word, Excel, Images (up to 10MB each)
+                          </p>
+                        </div>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          className="hidden"
+                          multiple
+                          onChange={handleFileChange}
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                        />
+                      </label>
+                    </div>
+
+                    {files.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {files.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7156a2]/10"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-[#191160]">{file.name}</span>
+                              <span className="text-xs text-gray-500">
+                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeFile(index)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex justify-between pt-6">
                   <Button

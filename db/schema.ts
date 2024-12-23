@@ -83,6 +83,23 @@ export const purchaseRequests = pgTable("purchase_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const fileAttachments = pgTable("file_attachments", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileUrl: text("file_url").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => ({
+  request: one(purchaseRequests, {
+    fields: [fileAttachments.requestId],
+    references: [purchaseRequests.id],
+  }),
+}));
+
 export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many }) => ({
   requester: one(users, {
     fields: [purchaseRequests.requesterId],
@@ -93,6 +110,7 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     fields: [purchaseRequests.subPurposeId],
     references: [subPurposes.id],
   }),
+  attachments: many(fileAttachments),
 }));
 
 export const approvals = pgTable("approvals", {
@@ -154,6 +172,7 @@ export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
   approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
   subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
   requester: User;
+  attachments?: Array<FileAttachment>;
 };
 
 export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;
@@ -162,7 +181,6 @@ export const insertApprovalSchema = createInsertSchema(approvals);
 export const selectApprovalSchema = createSelectSchema(approvals);
 export type Approval = typeof approvals.$inferSelect;
 export type NewApproval = typeof approvals.$inferInsert;
-
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -214,3 +232,8 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 export type AccountRequest = typeof accountRequests.$inferSelect;
 export type NewAccountRequest = typeof accountRequests.$inferInsert;
+
+export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
+export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
+export type FileAttachment = typeof fileAttachments.$inferSelect;
+export type NewFileAttachment = typeof fileAttachments.$inferInsert;
