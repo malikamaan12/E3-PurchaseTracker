@@ -78,12 +78,21 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (request) {
+      // Extract only the necessary fields and ensure correct types
       form.reset({
-        ...request,
+        title: request.title,
+        description: request.description,
+        purpose: request.purpose,
+        purposeType: request.purposeType,
+        priority: request.priority,
+        currency: request.currency,
+        status: request.status,
         vendorId: request.vendorId,
-        vendor: request.vendor || "",
+        vendor: request.vendor,
+        subPurposeId: request.subPurposeId,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
+        items: request.items,
       });
       setItems(request.items);
       setFreightAmount(Number(request.freightAmount));
@@ -116,8 +125,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
-      // Transform the data before submission
-      const formData = {
+      // Transform data before submission
+      const submissionData = {
         title: values.title,
         description: values.description,
         purpose: values.purpose,
@@ -125,26 +134,26 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
-        // Convert numeric fields
+        // Ensure numeric fields are numbers
         vendorId: Number(values.vendorId),
-        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : undefined,
-        // Convert items array
-        items: items.map((item) => ({
+        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
+        // Format items array
+        items: items.map(item => ({
           name: item.name,
           quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost),
+          estimatedCost: Number(item.estimatedCost)
         })),
         // Convert amounts to strings
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         // Ensure vendor is a string
-        vendor: values.vendor.toString(),
+        vendor: values.vendor.toString()
       };
 
       try {
         await updateRequest({
           id: parseInt(params.id),
-          data: formData,
+          data: submissionData,
         });
         toast({
           title: "Success",
@@ -153,21 +162,18 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-        const analysis = await analyzeFormError(formData, error);
+        const analysis = await analyzeFormError(submissionData, error);
         toast({
-          title: "Validation Error",
+          title: "Error",
           description: analysis || error.message || "Failed to update request",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
-      const errors = form.formState.errors;
-      console.log("Form validation errors:", errors);
-
-      const analysis = await analyzeFormError(values, errors);
+      const analysis = await analyzeFormError(values, form.formState.errors);
       toast({
-        title: "Form Validation Error",
+        title: "Validation Error",
         description: analysis || "Please check all required fields",
         variant: "destructive",
       });
@@ -189,8 +195,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]:
-        field === "quantity" || field === "estimatedCost" ? Number(value) : value,
+      [field]: field === "quantity" || field === "estimatedCost" ? Number(value) : value,
     };
     setItems(newItems);
   };
@@ -201,25 +206,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-
         const analysis = await analyzeFormError(form.getValues(), errors);
-        if (analysis) {
-          toast({
-            title: "Form Validation Analysis",
-            description: analysis,
-            variant: "destructive",
-          });
-        } else {
-          const errorMessages = Object.entries(errors)
-            .map(([field, error]) => `${field}: ${error?.message}`)
-            .join("\n");
-
-          toast({
-            title: "Validation Error",
-            description: errorMessages || "Please check all required fields",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Validation Error",
+          description: analysis || "Please check all required fields",
+          variant: "destructive",
+        });
         return;
       }
 
