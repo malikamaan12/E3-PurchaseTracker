@@ -204,7 +204,6 @@ export function registerRoutes(app: Express): Server {
             }
           },
           subPurpose: true,
-          vendor: true
         }
       });
 

@@ -43,6 +43,10 @@ export const vendors = pgTable("vendors", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const vendorRelations = relations(vendors, ({ many }) => ({
+  purchaseRequests: many(purchaseRequests)
+}));
+
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -61,11 +65,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
     quantity: number;
     estimatedCost: number;
   }>>().notNull(),
-  vendor: text("vendor").notNull(),
-  companyName: text("company_name").notNull(),
-  contactPerson: text("contact_person").notNull(),
-  contactNumber: text("contact_number").notNull(),
-  accountNumber: text("account_number").notNull(),
+  vendorId: integer("vendor_id").references(() => vendors.id),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
@@ -88,6 +88,10 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     fields: [purchaseRequests.subPurposeId],
     references: [subPurposes.id],
   }),
+  vendor: one(vendors, {
+    fields: [purchaseRequests.vendorId],
+    references: [vendors.id]
+  })
 }));
 
 export const approvals = pgTable("approvals", {
@@ -128,10 +132,6 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     quantity: z.number().int().positive("Quantity must be a positive number"),
     estimatedCost: z.number().min(0, "Cost must be non-negative")
   })).min(1, "At least one item is required"),
-  companyName: z.string().min(1, "Company name is required"),
-  contactPerson: z.string().min(1, "Contact person is required"),
-  contactNumber: z.string().min(1, "Contact number is required"),
-  accountNumber: z.string().min(1, "Account number is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   purpose: z.string().min(1, "Purpose is required"),

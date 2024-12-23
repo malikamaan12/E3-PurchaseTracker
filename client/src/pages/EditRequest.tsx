@@ -76,36 +76,43 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     },
   });
 
+  // Effect to load request data when available
   useEffect(() => {
     if (request) {
-      console.log("Loading request data:", request); 
-      form.reset({
-        title: request.title || "",
-        description: request.description || "",
-        items: request.items || [],
-        companyName: request.companyName || "",
-        contactPerson: request.contactPerson || "",
-        contactNumber: request.contactNumber || "",
-        accountNumber: request.accountNumber || "",
-        purpose: request.purpose || "",
-        purposeType: request.purposeType || "event",
-        subPurposeId: request.subPurposeId,
-        priority: request.priority || "medium",
-        currency: request.currency || "QAR",
-        status: request.status || "draft",
-        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
-        freightAmount: request.freightAmount?.toString() || "0",
-      });
+      console.log("Loading request data:", request);
 
-      if (request.items && Array.isArray(request.items)) {
+      // Reset form with request data
+      const formData = {
+        title: request.title,
+        description: request.description,
+        items: request.items,
+        companyName: request.companyName,
+        contactPerson: request.contactPerson,
+        contactNumber: request.contactNumber,
+        accountNumber: request.accountNumber,
+        purpose: request.purpose,
+        purposeType: request.purposeType,
+        subPurposeId: request.subPurposeId,
+        priority: request.priority,
+        currency: request.currency,
+        status: request.status,
+        totalEstimatedCost: request.totalEstimatedCost.toString(),
+        freightAmount: request.freightAmount.toString(),
+      };
+
+      form.reset(formData);
+
+      // Set items state
+      if (Array.isArray(request.items)) {
         setItems(request.items.map(item => ({
-          name: item.name || "",
-          quantity: Number(item.quantity) || 1,
-          estimatedCost: Number(item.estimatedCost) || 0
+          name: item.name,
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost)
         })));
       }
 
-      setFreightAmount(Number(request.freightAmount) || 0);
+      // Set freight amount
+      setFreightAmount(Number(request.freightAmount));
     }
   }, [request, form]);
 
@@ -135,7 +142,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName, 
+        vendor: values.companyName,
       };
 
       try {
@@ -177,7 +184,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-        const analysis = await analyzeFormError(form.getValues(), errors); 
+        const analysis = await analyzeFormError(form.getValues(), errors);
         toast({
           title: "Validation Error",
           description: analysis || "Please check all required fields and try again",
