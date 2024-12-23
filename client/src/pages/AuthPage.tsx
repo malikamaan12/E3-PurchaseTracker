@@ -20,6 +20,8 @@ export default function AuthPage() {
     defaultValues: {
       username: "",
       password: "",
+      email: "",
+      contactNumber: "",
       department: "",
       role: "user",
     },
@@ -87,6 +89,34 @@ export default function AuthPage() {
                     <>
                       <FormField
                         control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="contactNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Number</FormLabel>
+                            <FormControl>
+                              <Input type="tel" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
@@ -132,6 +162,10 @@ export default function AuthPage() {
                                 <SelectItem value="CEO Office">CEO Office</SelectItem>
                                 <SelectItem value="Director">Director</SelectItem>
                                 <SelectItem value="Finance">Finance</SelectItem>
+                                {/* Business */}
+                                <SelectItem value="Sales">Sales</SelectItem>
+                                <SelectItem value="Marketing">Marketing</SelectItem>
+                                <SelectItem value="Business Growth">Business Growth</SelectItem>
                                 {/* Operations */}
                                 <SelectItem value="Branding">Branding</SelectItem>
                                 <SelectItem value="Logistics">Logistics</SelectItem>
