@@ -1,0 +1,91 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { setupAuth } from "./auth";
+import { db } from "@db";
+import { purchaseRequests, approvals, users } from "@db/schema";
+import { eq, and, desc } from "drizzle-orm";
+
+export function registerRoutes(app: Express): Server {
+  setupAuth(app);
+
+  // Purchase request routes
+  app.post("/api/requests", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const request = await db.insert(purchaseRequests).values({
+      ...req.body,
+      requesterId: req.user.id,
+      status: req.body.status || "draft"
+    }).returning();
+
+    res.json(request[0]);
+  });
+
+  app.get("/api/requests", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const requests = await db.query.purchaseRequests.findMany({
+      with: {
+        requester: true,
+        approvals: {
+          with: {
+            approver: true
+          }
+        }
+      },
+      orderBy: desc(purchaseRequests.createdAt)
+    });
+
+    res.json(requests);
+  });
+
+  app.put("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const request = await db
+      .update(purchaseRequests)
+      .set(req.body)
+      .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+      .returning();
+
+    res.json(request[0]);
+  });
+
+  // Approval routes
+  app.post("/api/approvals", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const approval = await db.insert(approvals).values({
+      ...req.body,
+      approverId: req.user.id,
+      department: req.user.department
+    }).returning();
+
+    res.json(approval[0]);
+  });
+
+  app.put("/api/approvals/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const approval = await db
+      .update(approvals)
+      .set(req.body)
+      .where(eq(approvals.id, parseInt(req.params.id)))
+      .returning();
+
+    res.json(approval[0]);
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
