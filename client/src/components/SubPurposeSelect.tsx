@@ -63,6 +63,23 @@ export default function SubPurposeSelect({
     enabled: !!purposeType,
   });
 
+  // Filter active sub-purposes based on time constraints and frozen status
+  const activeSubPurposes = subPurposes.filter(sp => {
+    if (sp.isFrozen) return false;
+
+    const now = new Date();
+
+    if (sp.validFrom && new Date(sp.validFrom) > now) {
+      return false;
+    }
+
+    if (sp.validTo && new Date(sp.validTo) < now) {
+      return false;
+    }
+
+    return true;
+  });
+
   const createSubPurpose = useMutation({
     mutationFn: async (name: string) => {
       const res = await fetch("/api/sub-purposes", {
@@ -99,6 +116,18 @@ export default function SubPurposeSelect({
 
   const selectedSubPurpose = subPurposes.find(sp => sp.id === value);
 
+  // Show warning if selected sub-purpose is no longer available
+  useEffect(() => {
+    if (selectedSubPurpose && !activeSubPurposes.some(sp => sp.id === selectedSubPurpose.id)) {
+      toast({
+        title: "Warning",
+        description: "The selected sub-purpose is no longer available. Please select another one.",
+        variant: "destructive",
+      });
+      onChange(undefined);
+    }
+  }, [selectedSubPurpose, activeSubPurposes]);
+
   const handleCreate = () => {
     if (!newSubPurpose.trim()) return;
     createSubPurpose.mutate(newSubPurpose);
@@ -122,7 +151,7 @@ export default function SubPurposeSelect({
             <CommandInput placeholder="Search sub-purpose..." />
             <CommandEmpty>No sub-purpose found.</CommandEmpty>
             <CommandGroup>
-              {subPurposes.map((subPurpose) => (
+              {activeSubPurposes.map((subPurpose) => (
                 <CommandItem
                   key={subPurpose.id}
                   onSelect={() => {
