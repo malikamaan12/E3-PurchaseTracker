@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useToast } from "@/hooks/use-toast";
+import { analyzeFormError } from "@/lib/debugUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -126,9 +127,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         vendorId: Number(values.vendorId),
         vendor: values.vendor,
         status: values.status || "draft",
-        createdAt: undefined,
-        updatedAt: undefined,
       };
+
+      // Remove date fields that cause validation issues
+      delete formattedData.createdAt;
+      delete formattedData.updatedAt;
 
       try {
         await updateRequest({
@@ -142,25 +145,46 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update request",
-          variant: "destructive",
-        });
+
+        // Use Anthropic to analyze the error
+        const analysis = await analyzeFormError(formattedData, error);
+        if (analysis) {
+          toast({
+            title: "Validation Error Analysis",
+            description: analysis,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to update request",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
       const errors = form.formState.errors;
 
-      const errorMessages = Object.entries(errors)
-        .map(([field, error]) => `${field}: ${error?.message}`)
-        .join("\n");
+      // Use Anthropic to analyze form validation errors
+      const analysis = await analyzeFormError(values, errors);
+      if (analysis) {
+        toast({
+          title: "Form Validation Analysis",
+          description: analysis,
+          variant: "destructive",
+        });
+      } else {
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => `${field}: ${error?.message}`)
+          .join("\n");
 
-      toast({
-        title: "Validation Error",
-        description: errorMessages || "Please check all required fields",
-        variant: "destructive",
-      });
+        toast({
+          title: "Validation Error",
+          description: errorMessages || "Please check all required fields",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -191,15 +215,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       if (!isValid) {
         const errors = form.formState.errors;
 
-        const errorMessages = Object.entries(errors)
-          .map(([field, error]) => `${field}: ${error?.message}`)
-          .join("\n");
+        const analysis = await analyzeFormError(form.getValues(), errors);
+        if (analysis) {
+          toast({
+            title: "Form Validation Analysis",
+            description: analysis,
+            variant: "destructive",
+          });
+        } else {
+          const errorMessages = Object.entries(errors)
+            .map(([field, error]) => `${field}: ${error?.message}`)
+            .join("\n");
 
-        toast({
-          title: "Validation Error",
-          description: errorMessages || "Please check all required fields",
-          variant: "destructive",
-        });
+          toast({
+            title: "Validation Error",
+            description: errorMessages || "Please check all required fields",
+            variant: "destructive",
+          });
+        }
         return;
       }
 
