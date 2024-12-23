@@ -190,7 +190,6 @@ export const selectNotificationSchema = createSelectSchema(notifications);
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
 
-
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),

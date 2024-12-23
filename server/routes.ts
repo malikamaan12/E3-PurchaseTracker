@@ -772,7 +772,6 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-
   // Admin routes for managing sub-purposes
   app.post("/api/admin/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -1008,7 +1007,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update the request status
       await db.update(accountRequests)
-        .set({
+        .set({ 
           status: "approved",
           updatedAt: new Date()
         })
@@ -1036,7 +1035,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const [request] = await db
         .update(accountRequests)
-        .set({
+        .set({ 
           status: "rejected",
           updatedAt: new Date()
         })
