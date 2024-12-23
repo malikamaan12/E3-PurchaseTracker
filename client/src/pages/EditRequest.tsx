@@ -62,7 +62,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0 }],
-      vendor: "",
+      companyName: "",
+      contactPerson: "",
+      contactNumber: "",
+      accountNumber: "",
       purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
@@ -84,7 +87,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: request.priority,
         currency: request.currency,
         status: request.status,
-        vendor: request.vendor,
+        companyName: "", // Added for new fields
+        contactPerson: "", // Added for new fields
+        contactNumber: "", // Added for new fields
+        accountNumber: "", // Added for new fields
         subPurposeId: request.subPurposeId,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
@@ -112,15 +118,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendor) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter vendor name",
-          variant: "destructive",
-        });
-        return;
-      }
-
       // Transform data before submission
       const submissionData = {
         title: values.title,
@@ -130,7 +127,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: values.priority,
         currency: values.currency,
         status: values.status || "draft",
-        vendor: values.vendor,
+        companyName: values.companyName,
+        contactPerson: values.contactPerson,
+        contactNumber: values.contactNumber,
+        accountNumber: values.accountNumber,
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
           name: item.name,
@@ -408,24 +408,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   <div className="grid grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="vendor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Vendor Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter vendor name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
                       name="purposeType"
                       render={({ field }) => (
                         <FormItem>
@@ -447,7 +429,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="subPurposeId"
@@ -529,6 +510,83 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
+                    <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                      <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="companyName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[#191160]">Company Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Enter company name"
+                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="contactPerson"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[#191160]">Contact Person</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Enter contact person name"
+                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="contactNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[#191160]">Contact Number</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="tel"
+                                  placeholder="Enter contact number"
+                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="accountNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[#191160]">Account Details</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Enter account number"
+                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <DepartmentSelect
                     label="Additional Approvers"
