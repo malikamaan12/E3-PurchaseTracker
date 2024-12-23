@@ -2,8 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { User, NewUser } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 
+type LoginResponse = {
+  message: string;
+  user: User;
+};
+
 type RequestResult = {
   ok: true;
+  data?: LoginResponse;
 } | {
   ok: false;
   message: string;
@@ -31,7 +37,8 @@ async function handleRequest(
       return { ok: false, message };
     }
 
-    return { ok: true };
+    const data = await response.json();
+    return { ok: true, data };
   } catch (e: any) {
     return { ok: false, message: e.toString() };
   }
@@ -65,15 +72,21 @@ export function useUser() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (userData: NewUser) => handleRequest('/api/login', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+    mutationFn: async (userData: NewUser) => {
+      const result = await handleRequest('/api/login', 'POST', userData);
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+      return result.data!;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
         description: "Logged in successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
@@ -85,13 +98,13 @@ export function useUser() {
   const logoutMutation = useMutation({
     mutationFn: () => handleRequest('/api/logout', 'POST'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.setQueryData(['user'], null);
       toast({
         title: "Success",
         description: "Logged out successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
@@ -101,15 +114,21 @@ export function useUser() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: NewUser) => handleRequest('/api/register', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+    mutationFn: async (userData: NewUser) => {
+      const result = await handleRequest('/api/register', 'POST', userData);
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+      return result.data!;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
         description: "Registration successful",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
