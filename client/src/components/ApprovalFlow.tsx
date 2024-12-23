@@ -44,7 +44,7 @@ export default function ApprovalFlow({
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if user's department has already approved
+    // Check if this department hasn't approved yet
     const departmentApproval = approvals.find(
       (a) => a.department === user?.department
     );
