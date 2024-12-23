@@ -51,37 +51,55 @@ async function createNotification(userId: number, message: string, type: string,
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(process.cwd(), 'uploads');
+    // Create uploads directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    // Generate unique filename with original extension
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const ext = path.extname(file.originalname);
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9]/g, '_');
+    cb(null, `${sanitizedName}-${uniqueSuffix}${ext}`);
   }
 });
 
+const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Define allowed file types
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/jpeg',
+    'image/png'
+  ];
+
+  // Check file type
+  if (!allowedTypes.includes(file.mimetype)) {
+    cb(new Error('Invalid file type. Only PDF, Word, Excel, and image files are allowed.'));
+    return;
+  }
+
+  // Check file size (10MB limit)
+  const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+  if (file.size > maxSize) {
+    cb(new Error('File too large. Maximum size is 10MB.'));
+    return;
+  }
+
+  cb(null, true);
+};
+
 const upload = multer({
   storage,
+  fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg',
-      'image/png'
-    ];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, Word, Excel, and image files are allowed.'));
-    }
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files per request
   }
 });
 
@@ -127,7 +145,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Handle file uploads and create request
-  app.post("/api/requests", upload.array('files'), async (req, res) => {
+  app.post("/api/requests", upload.array('files', 5), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -160,7 +178,19 @@ export function registerRoutes(app: Express): Server {
           fileUrl: file.path
         }));
 
-        await db.insert(fileAttachments).values(attachments);
+        try {
+          await db.insert(fileAttachments).values(attachments);
+        } catch (error) {
+          // If file attachment fails, delete the uploaded files
+          files.forEach(file => {
+            try {
+              fs.unlinkSync(file.path);
+            } catch (e) {
+              console.error(`Failed to delete file ${file.path}:`, e);
+            }
+          });
+          throw error;
+        }
       }
 
       // Return the created request with its attachments
@@ -180,12 +210,24 @@ export function registerRoutes(app: Express): Server {
 
       res.json(createdRequest);
     } catch (error: any) {
+      // Clean up any uploaded files if request creation fails
+      if (req.files) {
+        const files = req.files as Express.Multer.File[];
+        files.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.error(`Failed to delete file ${file.path}:`, e);
+          }
+        });
+      }
+
       console.error("Error creating request:", error);
       res.status(500).send(error.message);
     }
   });
 
-  // Add route to download attachments
+  // Add download endpoint with proper security checks
   app.get("/api/attachments/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -201,14 +243,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Attachment not found");
       }
 
-      // Verify user has access to this attachment
+      // Get the associated request to check permissions
       const [request] = await db.select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, attachment.requestId))
         .limit(1);
 
       if (!request) {
-        return res.status(404).send("Request not found");
+        return res.status(404).send("Associated request not found");
       }
 
       // Check if user has access to this request
@@ -217,11 +259,28 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, req.user!.id))
         .limit(1);
 
-      if (request.requesterId !== user.id && user.role !== 'admin') {
+      // Allow access if user is the requester, an admin, or from mandatory departments
+      const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
+      const hasAccess = request.requesterId === user.id ||
+                        user.role === 'admin' ||
+                        mandatoryDepartments.includes(user.department);
+
+      if (!hasAccess) {
         return res.status(403).send("Not authorized to access this file");
       }
 
-      res.download(attachment.fileUrl);
+      // Verify file exists
+      if (!fs.existsSync(attachment.fileUrl)) {
+        return res.status(404).send("File not found on server");
+      }
+
+      // Set Content-Type and Content-Disposition headers
+      res.setHeader('Content-Type', attachment.fileType);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
+
+      // Stream the file instead of loading it entirely into memory
+      const fileStream = fs.createReadStream(attachment.fileUrl);
+      fileStream.pipe(res);
     } catch (error: any) {
       console.error("Error downloading attachment:", error);
       res.status(500).send(error.message);
