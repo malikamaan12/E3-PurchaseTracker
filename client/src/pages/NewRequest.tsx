@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
+import VendorSelect from "@/components/VendorSelect";
 import { insertPurchaseRequestSchema } from "@db/schema";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import {
@@ -28,7 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
-import VendorSelect from "@/components/VendorSelect";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -48,7 +48,7 @@ export default function NewRequest() {
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
-  const [freightAmount, setFreightAmount] = useState(0);
+  const [freightAmount, setFreightAmount] = useState<number>(0);
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -64,15 +64,13 @@ export default function NewRequest() {
       currency: "QAR",
       status: "draft",
       totalEstimatedCost: 0,
-      requestNumber: "",
-      requesterId: 0,
       freightAmount: 0,
     },
   });
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + item.estimatedCost * item.quantity,
+      (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
       0
     );
     return itemsTotal + freightAmount;
@@ -90,18 +88,28 @@ export default function NewRequest() {
         return;
       }
 
+      if (!values.vendorId) {
+        toast({
+          title: "Error",
+          description: "Please select a vendor",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const totalEstimatedCost = calculateTotalCost();
-
-      console.log("Form values:", values);
-      console.log("Items:", items);
-      console.log("Freight Amount:", freightAmount);
-
-      await createRequest({
+      const formattedData = {
         ...values,
-        items,
-        freightAmount,
-        totalEstimatedCost,
-      });
+        items: items.map(item => ({
+          ...item,
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost)
+        })),
+        freightAmount: Number(freightAmount),
+        totalEstimatedCost
+      };
+
+      await createRequest(formattedData);
 
       toast({
         title: "Success",
@@ -131,14 +139,14 @@ export default function NewRequest() {
 
   const updateItem = (index: number, field: string, value: string | number) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
+    newItems[index] = {
+      ...newItems[index],
+      [field]: field === 'name' ? value : Number(value) || 0
+    };
     setItems(newItems);
   };
 
   const handleSubmit = (status: "draft" | "pending") => {
-    console.log("Form state:", form.formState);
-    console.log("Form errors:", form.formState.errors);
-
     form.setValue("status", status);
     form.handleSubmit(onSubmit)();
   };
@@ -207,7 +215,7 @@ export default function NewRequest() {
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateItem(index, "quantity", parseInt(e.target.value) || 1)
+                              updateItem(index, "quantity", e.target.value)
                             }
                           />
                         </div>
@@ -219,17 +227,13 @@ export default function NewRequest() {
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) =>
-                              updateItem(
-                                index,
-                                "estimatedCost",
-                                parseFloat(e.target.value) || 0
-                              )
+                              updateItem(index, "estimatedCost", e.target.value)
                             }
                           />
                         </div>
                         <div className="w-32 text-right">
                           <p className="text-sm text-gray-600">
-                            Total: {(item.quantity * item.estimatedCost).toFixed(2)}
+                            Total: {(Number(item.quantity) * Number(item.estimatedCost)).toFixed(2)}
                           </p>
                         </div>
                         <Button
@@ -264,7 +268,7 @@ export default function NewRequest() {
                           step="0.01"
                           value={freightAmount}
                           onChange={(e) =>
-                            setFreightAmount(parseFloat(e.target.value) || 0)
+                            setFreightAmount(Number(e.target.value) || 0)
                           }
                         />
                       </FormControl>
@@ -274,15 +278,18 @@ export default function NewRequest() {
                       <div className="flex justify-between font-medium">
                         <span>Items Total:</span>
                         <span>
-                          {items.reduce(
-                            (sum, item) => sum + item.quantity * item.estimatedCost,
-                            0
-                          ).toFixed(2)}
+                          {items
+                            .reduce(
+                              (sum, item) =>
+                                sum + Number(item.quantity) * Number(item.estimatedCost),
+                              0
+                            )
+                            .toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between mt-2">
                         <span>Freight Amount:</span>
-                        <span>{freightAmount.toFixed(2)}</span>
+                        <span>{Number(freightAmount).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between mt-2 text-lg font-bold border-t pt-2">
                         <span>Total Estimated Cost:</span>
@@ -397,6 +404,7 @@ export default function NewRequest() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="currency"

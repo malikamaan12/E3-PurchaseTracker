@@ -43,14 +43,14 @@ export const purchaseRequests = pgTable("purchase_requests", {
     quantity: number;
     estimatedCost: number;
   }>>().notNull(),
-  vendorId: integer("vendor_id").references(() => vendors.id),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
   currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: decimal("total_estimated_cost", { precision: 10, scale: 2 }).notNull(),
-  freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default(0),
+  freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default('0'),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -114,8 +114,10 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     name: z.string(),
     quantity: z.number(),
     estimatedCost: z.number()
-  }))
+  })),
+  vendorId: z.number()
 });
+
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests, {
   totalEstimatedCost: z.number(),
   freightAmount: z.number(),
@@ -125,12 +127,14 @@ export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests, 
     estimatedCost: z.number()
   }))
 });
+
 export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
   approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
   subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
   vendor: z.infer<typeof selectVendorSchema> | null;
   requester: User;
 };
+
 export type NewPurchaseRequest = typeof purchaseRequests.$inferInsert;
 
 export const insertApprovalSchema = createInsertSchema(approvals);
