@@ -87,10 +87,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: request.priority,
         currency: request.currency,
         status: request.status,
-        companyName: "", // Added for new fields
-        contactPerson: "", // Added for new fields
-        contactNumber: "", // Added for new fields
-        accountNumber: "", // Added for new fields
+        companyName: "", 
+        contactPerson: "", 
+        contactNumber: "", 
+        accountNumber: "", 
         subPurposeId: request.subPurposeId,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
@@ -118,7 +118,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      // Transform data before submission
       const submissionData = {
         title: values.title,
         description: values.description,
@@ -131,6 +130,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         contactPerson: values.contactPerson,
         contactNumber: values.contactNumber,
         accountNumber: values.accountNumber,
+        vendor: values.companyName,
         subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
         items: items.map((item) => ({
           name: item.name,

@@ -61,7 +61,6 @@ export const purchaseRequests = pgTable("purchase_requests", {
     quantity: number;
     estimatedCost: number;
   }>>().notNull(),
-  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   vendor: text("vendor").notNull(),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
@@ -92,8 +91,9 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     references: [users.id],
   }),
   vendor: one(vendors, {
-    fields: [purchaseRequests.vendorId],
-    references: [vendors.id],
+    fields: [purchaseRequests.vendor], // Note: This is referencing the text field 'vendor' now.
+    references: [vendors.companyName], //  Assuming companyName is the unique identifier in vendors. Adjust as needed.
+
   }),
   approvals: many(approvals),
   subPurpose: one(subPurposes, {
@@ -133,7 +133,6 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   contactPerson: z.string().min(1, "Contact person is required"),
   contactNumber: z.string().min(1, "Contact number is required"),
   accountNumber: z.string().min(1, "Account number is required"),
-  vendor: z.string().min(1, "Vendor name is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   purpose: z.string().min(1, "Purpose is required"),
