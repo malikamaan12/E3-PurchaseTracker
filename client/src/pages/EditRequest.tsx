@@ -382,6 +382,84 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                 </div>
 
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter company name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactPerson"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Person</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter contact person name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="tel"
+                              placeholder="Enter contact number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Account Details</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter account number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Details</h3>
                   <div className="grid grid-cols-2 gap-6">
                     <FormField
@@ -488,83 +566,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
-                    <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
-                      <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
-                      <div className="grid grid-cols-2 gap-6">
-                        <FormField
-                          control={form.control}
-                          name="companyName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[#191160]">Company Name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Enter company name"
-                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="contactPerson"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[#191160]">Contact Person</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Enter contact person name"
-                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="contactNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[#191160]">Contact Number</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="tel"
-                                  placeholder="Enter contact number"
-                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="accountNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[#191160]">Account Details</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Enter account number"
-                                  className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
                   </div>
                   <DepartmentSelect
                     label="Additional Approvers"
