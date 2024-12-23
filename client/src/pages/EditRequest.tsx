@@ -73,6 +73,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       status: "draft",
       totalEstimatedCost: "0",
       freightAmount: "0",
+      requestNumber: "",
+      requesterId: undefined,
     },
   });
 
@@ -95,6 +97,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         status: request.status,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
+        requestNumber: request.requestNumber,
+        requesterId: request.requesterId,
       });
 
       if (Array.isArray(request.items)) {

@@ -124,6 +124,8 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   status: z.enum(["draft", "pending", "approved", "rejected"]).optional(),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().optional(),
+  requestNumber: z.string().optional(),
+  requesterId: z.number().optional(),
 });
 
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
