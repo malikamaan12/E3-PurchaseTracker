@@ -28,6 +28,7 @@ import {
 import { Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "./ApprovalFlow";
+import { mandatoryDepartments } from "@db/schema";
 import type { PurchaseRequest } from "@db/schema";
 
 interface RequestCardProps {
@@ -74,6 +75,18 @@ export default function RequestCard({
     }
   };
 
+  // Function to automatically create mandatory approvals
+  const createMandatoryApprovals = async () => {
+    for (const department of mandatoryDepartments) {
+      await createApproval({
+        requestId: request.id,
+        department,
+        isMandatory: true,
+        status: "pending"
+      });
+    }
+  };
+
   const handleApproval = async (status: "approved" | "rejected") => {
     if (!user) return;
 
@@ -83,27 +96,43 @@ export default function RequestCard({
       department: user.department,
       status,
       comments,
+      isMandatory: mandatoryDepartments.includes(user.department as any)
     });
 
-    // Update request status if all required departments have approved
-    const allApproved =
-      request.approvals.every((a) => a.status === "approved") &&
-      ["CEO Office", "Finance", "Director"].includes(user.department);
+    // Check if Finance has approved and the request should be locked
+    const financeApproval = request.approvals.find(
+      a => a.department === "Finance" && a.status === "approved"
+    );
 
-    if (allApproved) {
+    if (financeApproval) {
       await updateRequest({
         id: request.id,
-        data: { status: "approved" },
+        data: { 
+          isLocked: true,
+          status: status === "approved" ? "approved" : request.status 
+        },
       });
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    await updateRequest({
+      id: request.id,
+      data: { status: "pending" },
+    });
+    await createMandatoryApprovals();
+  };
+
   const handleEdit = () => {
-    setLocation(`/requests/${request.id}/edit`);
+    if (!request.isLocked) {
+      setLocation(`/requests/${request.id}/edit`);
+    }
   };
 
   const handleDelete = async () => {
-    await deleteRequest(request.id);
+    if (!request.isLocked) {
+      await deleteRequest(request.id);
+    }
   };
 
   // Convert string values to numbers for calculations
@@ -121,8 +150,9 @@ export default function RequestCard({
 
   const totalCost = itemsTotal + freightAmount;
 
-  // Check if the request can be edited/deleted (only if it's in draft or pending state)
-  const canModify = ["draft", "pending"].includes(request.status) && 
+  // Check if the request can be edited/deleted
+  const canModify = !request.isLocked && 
+                   ["draft", "pending"].includes(request.status) && 
                    request.requesterId === user?.id;
 
   return (
@@ -141,6 +171,11 @@ export default function RequestCard({
           <Badge className={getStatusColor(request.status)}>
             {request.status.toUpperCase()}
           </Badge>
+          {request.isLocked && (
+            <Badge variant="outline" className="border-orange-500 text-orange-500">
+              LOCKED
+            </Badge>
+          )}
           {canModify && (
             <div className="flex items-center gap-2 ml-4">
               <Button
@@ -267,8 +302,8 @@ export default function RequestCard({
 
           <ApprovalFlow approvals={request.approvals} />
 
-          {showApproval && (
-            <div className="space-y-4">
+          {showApproval && !request.isLocked && (
+            <div className="space-y-4 mt-4">
               <Textarea
                 placeholder="Add comments..."
                 value={comments}
@@ -288,16 +323,11 @@ export default function RequestCard({
             </div>
           )}
 
-          {showActions && (
-            <div className="flex justify-end space-x-2">
+          {showActions && !request.isLocked && request.status === "draft" && (
+            <div className="flex justify-end space-x-2 mt-4">
               <Button
                 variant="outline"
-                onClick={() =>
-                  updateRequest({
-                    id: request.id,
-                    data: { status: "pending" },
-                  })
-                }
+                onClick={handleSubmitForApproval}
               >
                 Submit for Approval
               </Button>
