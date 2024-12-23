@@ -82,6 +82,20 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         ...request,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
+        // Explicitly map vendor information fields
+        companyName: request.companyName,
+        contactPerson: request.contactPerson,
+        contactNumber: request.contactNumber,
+        accountNumber: request.accountNumber,
+        // Keep purposeType and other fields
+        purposeType: request.purposeType,
+        subPurposeId: request.subPurposeId,
+        priority: request.priority,
+        currency: request.currency,
+        purpose: request.purpose,
+        title: request.title,
+        description: request.description,
+        status: request.status,
       });
       setItems(request.items);
       setFreightAmount(Number(request.freightAmount));
