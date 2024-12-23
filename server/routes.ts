@@ -12,6 +12,7 @@ import {
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
+import { analyzePurchaseRequestPriority } from "./utils/anthropic";
 
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
   try {
@@ -174,12 +175,37 @@ export function registerRoutes(app: Express): Server {
     try {
       const requestNumber = await generateRequestNumber(req.body.purposeType, req.body.subPurposeId);
 
+      // Calculate total cost for priority analysis
+      const itemsTotal = req.body.items.reduce(
+        (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
+        0
+      );
+      const totalEstimatedCost = itemsTotal + Number(req.body.freightAmount);
+
+      // Perform priority analysis
+      const priorityAnalysis = await analyzePurchaseRequestPriority({
+        title: req.body.title,
+        description: req.body.description,
+        purpose: req.body.purpose,
+        purposeType: req.body.purposeType,
+        totalEstimatedCost,
+        items: req.body.items.map(item => ({
+          name: item.name,
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost)
+        }))
+      });
+
       const [request] = await db.insert(purchaseRequests)
         .values({
           ...req.body,
           requestNumber,
           requesterId: req.user!.id,
           status: req.body.status || "draft",
+          priority: priorityAnalysis.priority,
+          priorityScore: priorityAnalysis.score,
+          priorityReason: priorityAnalysis.reason,
+          priorityRecommendations: priorityAnalysis.recommendations
         })
         .returning();
 
@@ -429,6 +455,73 @@ export function registerRoutes(app: Express): Server {
         error: "Failed to create sub-purpose",
         message: error.message
       });
+    }
+  });
+
+  // Add priority analysis endpoint
+  app.post("/api/requests/:id/analyze-priority", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const requestId = parseInt(req.params.id);
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Calculate total estimated cost
+      const itemsTotal = request.items.reduce(
+        (sum, item: any) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
+        0
+      );
+      const totalEstimatedCost = itemsTotal + Number(request.freightAmount);
+
+      // Analyze priority using Anthropic
+      const priorityAnalysis = await analyzePurchaseRequestPriority({
+        title: request.title,
+        description: request.description,
+        purpose: request.purpose,
+        purposeType: request.purposeType,
+        totalEstimatedCost,
+        items: request.items.map((item: any) => ({
+          name: item.name,
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost)
+        }))
+      });
+
+      // Update request with priority analysis
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          priority: priorityAnalysis.priority,
+          priorityScore: priorityAnalysis.score,
+          priorityReason: priorityAnalysis.reason,
+          priorityRecommendations: priorityAnalysis.recommendations,
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      // Create notification for request owner
+      await createNotification(
+        request.requesterId,
+        `Your purchase request ${request.requestNumber} has been analyzed. Priority: ${priorityAnalysis.priority.toUpperCase()}`,
+        'priority_analysis',
+        request.id
+      );
+
+      res.json(updatedRequest);
+    } catch (error: any) {
+      console.error("Error analyzing request priority:", error);
+      res.status(500).send(error.message);
     }
   });
 

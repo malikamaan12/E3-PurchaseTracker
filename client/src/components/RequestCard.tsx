@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Clock, Flag } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "./ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
@@ -102,7 +102,7 @@ export default function RequestCard({
         // When Finance approves, lock the request
         await updateRequest({
           id: request.id,
-          data: { 
+          data: {
             isLocked: true,
             status: "approved"
           },
@@ -111,7 +111,7 @@ export default function RequestCard({
         // If changes are requested, update the request status
         await updateRequest({
           id: request.id,
-          data: { 
+          data: {
             status: "changes_requested",
             isLocked: false // Unlock for changes
           },
@@ -147,8 +147,8 @@ export default function RequestCard({
     // 2. Request is in draft state
     // 3. Request is in changes_requested state
     // 4. User is the requester
-    const canEdit = 
-      !request.isLocked && 
+    const canEdit =
+      !request.isLocked &&
       (request.status === "draft" || request.status === "changes_requested") &&
       request.requesterId === user?.id;
 
@@ -162,9 +162,9 @@ export default function RequestCard({
     // 1. Request is not locked
     // 2. Request is in draft state
     // 3. User is the requester
-    const canDelete = 
-      !request.isLocked && 
-      request.status === "draft" && 
+    const canDelete =
+      !request.isLocked &&
+      request.status === "draft" &&
       request.requesterId === user?.id;
 
     if (canDelete) {
@@ -173,18 +173,18 @@ export default function RequestCard({
   };
 
   // Check if the request can be modified
-  const canModify = 
-    !request.isLocked && 
-    (request.status === "draft" || request.status === "changes_requested") && 
+  const canModify =
+    !request.isLocked &&
+    (request.status === "draft" || request.status === "changes_requested") &&
     request.requesterId === user?.id;
 
   // Check if the current user can approve
-  const canApprove = 
+  const canApprove =
     !request.isLocked &&
     request.status === "pending" &&
-    user?.department && 
-    !request.approvals.some(a => 
-      a.department === user.department && 
+    user?.department &&
+    !request.approvals.some(a =>
+      a.department === user.department &&
       ["approved", "rejected"].includes(a.status)
     );
 
@@ -202,6 +202,32 @@ export default function RequestCard({
   );
 
   const totalCost = itemsTotal + freightAmount;
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "text-red-500";
+      case "high":
+        return "text-orange-500";
+      case "medium":
+        return "text-yellow-500";
+      case "low":
+        return "text-blue-500";
+      default:
+        return "text-gray-500";
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return <AlertTriangle className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
+      case "high":
+        return <Flag className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
+      default:
+        return <Clock className={`h-5 w-5 ${getPriorityColor(priority)}`} />;
+    }
+  };
 
   return (
     <Card>
@@ -221,6 +247,15 @@ export default function RequestCard({
               LOCKED
             </Badge>
           )}
+          <Badge
+            variant="outline"
+            className={`border-${getPriorityColor(request.priority)} ${getPriorityColor(request.priority)}`}
+          >
+            <div className="flex items-center gap-1">
+              {getPriorityIcon(request.priority)}
+              <span>{request.priority.toUpperCase()}</span>
+            </div>
+          </Badge>
           {canModify && (
             <div className="flex items-center gap-2 ml-4">
               <Button
@@ -344,8 +379,8 @@ export default function RequestCard({
 
           <RequestStatusTimeline request={request} />
 
-          <ApprovalFlow 
-            approvals={request.approvals} 
+          <ApprovalFlow
+            approvals={request.approvals}
             requestId={request.id}
             onApprovalUpdate={() => {}} // Refresh data when approval is updated
           />
@@ -370,11 +405,36 @@ export default function RequestCard({
                 >
                   Reject
                 </Button>
-                <Button 
+                <Button
                   onClick={() => handleApproval("approved")}
                 >
                   Approve
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {request.priorityReason && (
+            <div className="space-y-2">
+              <h4 className="font-medium">Priority Analysis</h4>
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  {getPriorityIcon(request.priority)}
+                  <p className="text-sm">
+                    Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">{request.priorityReason}</p>
+                {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium mb-1">Recommendations:</p>
+                    <ul className="list-disc list-inside text-sm text-gray-600">
+                      {request.priorityRecommendations.map((rec, index) => (
+                        <li key={index}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}
