@@ -21,6 +21,16 @@ import { analyzePurchaseRequestPriority } from "./utils/anthropic";
 import * as crypto from 'crypto'; // Import crypto library
 
 
+async function hashPassword(password: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(16).toString('hex');
+    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+      if (err) reject(err);
+      resolve(derivedKey.toString('hex') + '.' + salt);
+    });
+  });
+}
+
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
   try {
     const now = new Date();
@@ -917,12 +927,13 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash the password before storing
-      const hashedPassword = await crypto.hash(result.data.password);
+      const hashedPassword = await hashPassword(result.data.password);
 
       const [request] = await db.insert(accountRequests)
         .values({
           ...result.data,
-          password: hashedPassword
+          password: hashedPassword,
+          status: "pending"
         })
         .returning();
 
@@ -936,7 +947,7 @@ export function registerRoutes(app: Express): Server {
         await createNotification(
           admin.id,
           `New account request from ${request.username} (${request.department})`,
-          'account_request',
+          'account_request'
         );
       }
 
@@ -966,7 +977,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     if (req.user!.role !== "admin") {
-      return res.status(403).send("Only admin can view account requests");
+      returnres.status(403).send("Only admin can view account requests");
     }
 
     try {
@@ -980,7 +991,7 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching account requests:", error);
       res.status(500).json({
         error: "Failed to fetch account requests",
-        message: errorerror.message
+        message: error.message
       });
     }
   });
