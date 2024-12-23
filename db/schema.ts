@@ -13,6 +13,17 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
+export const insertUserSchema = createInsertSchema(users, {
+  role: z.enum(["user", "approver", "admin"]).optional(),
+  email: z.string().email("Invalid email format"),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  department: z.string().min(1, "Department is required"),
+});
+
+export const selectUserSchema = createSelectSchema(users);
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
@@ -94,11 +105,6 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
     references: [users.id],
   }),
 }));
-
-export const insertUserSchema = createInsertSchema(users);
-export const selectUserSchema = createSelectSchema(users);
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
 
 export const insertVendorSchema = createInsertSchema(vendors);
 export const selectVendorSchema = createSelectSchema(vendors);

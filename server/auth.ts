@@ -106,7 +106,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, department, role } = result.data;
+      const { username, password, email, contactNumber, department, role } = result.data;
 
       const [existingUser] = await db
         .select()
@@ -125,8 +125,10 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
+          email,
+          contactNumber,
           department,
-          role,
+          role: role || "user",
         })
         .returning();
 
@@ -136,7 +138,14 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { id: newUser.id, username: newUser.username, department: newUser.department, role: newUser.role },
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            contactNumber: newUser.contactNumber,
+            department: newUser.department,
+            role: newUser.role,
+          },
         });
       });
     } catch (error) {
@@ -168,11 +177,13 @@ export function setupAuth(app: Express) {
 
         return res.json({
           message: "Login successful",
-          user: { 
-            id: user.id, 
+          user: {
+            id: user.id,
             username: user.username,
+            email: user.email,
+            contactNumber: user.contactNumber,
             department: user.department,
-            role: user.role
+            role: user.role,
           },
         });
       });
@@ -192,7 +203,15 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (req.isAuthenticated()) {
-      return res.json(req.user);
+      const user = req.user;
+      return res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        contactNumber: user.contactNumber,
+        department: user.department,
+        role: user.role,
+      });
     }
 
     res.status(401).send("Not logged in");
