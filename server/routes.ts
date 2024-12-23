@@ -88,6 +88,33 @@ async function createNotification(userId: number, message: string, type: string,
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Fetch all requests with relations
+  app.get("/api/requests", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const requests = await db.query.purchaseRequests.findMany({
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true
+        },
+        orderBy: desc(purchaseRequests.createdAt)
+      });
+
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching requests:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
   // Notification routes
   app.get("/api/notifications", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -156,15 +183,26 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      // If request is submitted (not draft), notify relevant approvers
+      // If request is submitted (not draft), create approvals and notify relevant approvers
       if (request.status === "pending") {
-        // Notify CEO Office, Director, and Finance departments
-        const approvers = await db
+        // Get users from mandatory departments (CEO Office, Director, Finance)
+        const mandatoryApprovers = await db
           .select()
           .from(users)
           .where(sql`${users.department} IN ('CEO Office', 'Director', 'Finance')`);
 
-        for (const approver of approvers) {
+        // Create approval records and notifications for each mandatory approver
+        for (const approver of mandatoryApprovers) {
+          // Create approval record
+          await db.insert(approvals).values({
+            requestId: request.id,
+            approverId: approver.id,
+            department: approver.department,
+            status: "pending",
+            isMandatory: true,
+          });
+
+          // Create notification
           await createNotification(
             approver.id,
             `New purchase request ${request.requestNumber} requires your approval`,
@@ -172,11 +210,81 @@ export function registerRoutes(app: Express): Server {
             request.id
           );
         }
+
+        // Update the mandatory approvers count
+        await db.update(purchaseRequests)
+          .set({ mandatoryApproversCount: mandatoryApprovers.length })
+          .where(eq(purchaseRequests.id, request.id));
       }
 
       res.json(request);
     } catch (error: any) {
       console.error("Error creating request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Handle request updates with notifications
+  app.put("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [currentRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!currentRequest) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Check authorization
+      const userRole = req.user!.role;
+      const userDepartment = req.user!.department;
+      const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(userDepartment);
+      const isRequestOwner = currentRequest.requesterId === req.user!.id;
+
+      if (!isSpecialRole && !isRequestOwner && userRole !== "admin") {
+        return res.status(403).send("Not authorized to modify this request");
+      }
+
+      // Update request
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .returning();
+
+      // Handle notifications based on status changes
+      if (req.body.status && req.body.status !== currentRequest.status) {
+        // Notify request owner
+        await createNotification(
+          currentRequest.requesterId,
+          `Your purchase request ${currentRequest.requestNumber} has been ${req.body.status}`,
+          'status_change',
+          currentRequest.id
+        );
+
+        // Additional notifications based on status
+        if (req.body.status === 'changes_requested') {
+          await createNotification(
+            currentRequest.requesterId,
+            `Changes have been requested for your purchase request ${currentRequest.requestNumber}. Please review and update.`,
+            'changes_requested',
+            currentRequest.id
+          );
+        }
+      }
+
+      res.json(updatedRequest);
+    } catch (error: any) {
+      console.error("Error updating request:", error);
       res.status(500).send(error.message);
     }
   });

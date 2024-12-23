@@ -43,7 +43,7 @@ export default function Dashboard() {
   const pendingApprovals = requests?.filter(r => {
     if (r.status !== 'pending') return false;
 
-    // Check if this department needs to approve
+    // Find approval for user's department
     const departmentApproval = r.approvals.find(a => 
       a.department === user?.department
     );
