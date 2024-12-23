@@ -48,6 +48,7 @@ export default function NewRequest() {
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
+  const [freightAmount, setFreightAmount] = useState(0);
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -65,13 +66,22 @@ export default function NewRequest() {
       totalEstimatedCost: 0,
       requestNumber: "",
       requesterId: 0,
+      freightAmount: 0,
     },
   });
+
+  const calculateTotalCost = () => {
+    const itemsTotal = items.reduce(
+      (sum, item) => sum + item.estimatedCost * item.quantity,
+      0
+    );
+    return itemsTotal + freightAmount;
+  };
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
       // Validate items
-      if (items.some(item => !item.name)) {
+      if (items.some((item) => !item.name)) {
         toast({
           title: "Error",
           description: "All items must have a name",
@@ -80,18 +90,16 @@ export default function NewRequest() {
         return;
       }
 
-      const totalEstimatedCost = items.reduce(
-        (sum, item) => sum + item.estimatedCost * item.quantity,
-        0
-      );
+      const totalEstimatedCost = calculateTotalCost();
 
-      // Log form values for debugging
       console.log("Form values:", values);
       console.log("Items:", items);
+      console.log("Freight Amount:", freightAmount);
 
       await createRequest({
         ...values,
         items,
+        freightAmount,
         totalEstimatedCost,
       });
 
@@ -128,7 +136,6 @@ export default function NewRequest() {
   };
 
   const handleSubmit = (status: "draft" | "pending") => {
-    // Log form state before submission
     console.log("Form state:", form.formState);
     console.log("Form errors:", form.formState.errors);
 
@@ -139,11 +146,7 @@ export default function NewRequest() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-3xl mx-auto px-4">
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => setLocation("/")}
-        >
+        <Button variant="ghost" className="mb-4" onClick={() => setLocation("/")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
@@ -224,6 +227,11 @@ export default function NewRequest() {
                             }
                           />
                         </div>
+                        <div className="w-32 text-right">
+                          <p className="text-sm text-gray-600">
+                            Total: {(item.quantity * item.estimatedCost).toFixed(2)}
+                          </p>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
@@ -245,6 +253,43 @@ export default function NewRequest() {
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
                   </Button>
+
+                  <div className="mt-4 space-y-4">
+                    <FormItem>
+                      <FormLabel>Freight Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={freightAmount}
+                          onChange={(e) =>
+                            setFreightAmount(parseFloat(e.target.value) || 0)
+                          }
+                        />
+                      </FormControl>
+                    </FormItem>
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex justify-between font-medium">
+                        <span>Items Total:</span>
+                        <span>
+                          {items.reduce(
+                            (sum, item) => sum + item.quantity * item.estimatedCost,
+                            0
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <span>Freight Amount:</span>
+                        <span>{freightAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between mt-2 text-lg font-bold border-t pt-2">
+                        <span>Total Estimated Cost:</span>
+                        <span>{calculateTotalCost().toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <FormField
@@ -283,7 +328,9 @@ export default function NewRequest() {
                           <SelectItem value="event">Event</SelectItem>
                           <SelectItem value="project">Project</SelectItem>
                           <SelectItem value="mall">Mall</SelectItem>
-                          <SelectItem value="business_growth">Business Growth</SelectItem>
+                          <SelectItem value="business_growth">
+                            Business Growth
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -392,10 +439,7 @@ export default function NewRequest() {
                   >
                     Save as Draft
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={() => handleSubmit("pending")}
-                  >
+                  <Button type="button" onClick={() => handleSubmit("pending")}>
                     Submit for Approval
                   </Button>
                 </div>

@@ -131,16 +131,32 @@ export default function RequestCard({
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell>${item.estimatedCost}</TableCell>
                     <TableCell>
-                      ${item.quantity * item.estimatedCost}
+                      ${(item.quantity * item.estimatedCost).toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
                   <TableCell colSpan={3} className="text-right font-medium">
-                    Total
+                    Items Total
                   </TableCell>
                   <TableCell className="font-medium">
-                    ${request.totalEstimatedCost}
+                    ${request.items.reduce((sum, item) => sum + item.quantity * item.estimatedCost, 0).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-medium">
+                    Freight Amount
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    ${(request.freightAmount || 0).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-bold">
+                    Total Estimated Cost
+                  </TableCell>
+                  <TableCell className="font-bold">
+                    ${request.totalEstimatedCost.toFixed(2)}
                   </TableCell>
                 </TableRow>
               </TableBody>
