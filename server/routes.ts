@@ -213,7 +213,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Check if user has access to this request
-      if (request.requesterId !== req.user!.id) {
+      if (request.requesterId !== req.user!.id &&
+          !["admin", "approver"].includes(req.user!.role)) {
         return res.status(403).send("Not authorized to view this request");
       }
 

@@ -78,27 +78,34 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (request) {
+      console.log("Loading request data:", request); 
       form.reset({
-        ...request,
-        totalEstimatedCost: request.totalEstimatedCost.toString(),
-        freightAmount: request.freightAmount.toString(),
-        // Explicitly map vendor information fields
-        companyName: request.companyName,
-        contactPerson: request.contactPerson,
-        contactNumber: request.contactNumber,
-        accountNumber: request.accountNumber,
-        // Keep purposeType and other fields
-        purposeType: request.purposeType,
+        title: request.title || "",
+        description: request.description || "",
+        items: request.items || [],
+        companyName: request.companyName || "",
+        contactPerson: request.contactPerson || "",
+        contactNumber: request.contactNumber || "",
+        accountNumber: request.accountNumber || "",
+        purpose: request.purpose || "",
+        purposeType: request.purposeType || "event",
         subPurposeId: request.subPurposeId,
-        priority: request.priority,
-        currency: request.currency,
-        purpose: request.purpose,
-        title: request.title,
-        description: request.description,
-        status: request.status,
+        priority: request.priority || "medium",
+        currency: request.currency || "QAR",
+        status: request.status || "draft",
+        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
+        freightAmount: request.freightAmount?.toString() || "0",
       });
-      setItems(request.items);
-      setFreightAmount(Number(request.freightAmount));
+
+      if (request.items && Array.isArray(request.items)) {
+        setItems(request.items.map(item => ({
+          name: item.name || "",
+          quantity: Number(item.quantity) || 1,
+          estimatedCost: Number(item.estimatedCost) || 0
+        })));
+      }
+
+      setFreightAmount(Number(request.freightAmount) || 0);
     }
   }, [request, form]);
 
@@ -128,7 +135,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName, // Set vendor field using company name
+        vendor: values.companyName, 
       };
 
       try {
@@ -170,7 +177,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-        const analysis = await analyzeFormError(form.getValues(), errors); //Assuming analyzeFormError exists
+        const analysis = await analyzeFormError(form.getValues(), errors); 
         toast({
           title: "Validation Error",
           description: analysis || "Please check all required fields and try again",
@@ -612,4 +619,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
+}
+
+// Placeholder for analyzeFormError function.  This needs to be defined elsewhere in your project.
+const analyzeFormError = async (values: any, errors: any) => {
+    // Your implementation to analyze form errors here.
+    return "";
 }
