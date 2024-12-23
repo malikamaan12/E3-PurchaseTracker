@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { User, NewUser } from "@db/schema";
+import type { User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+
+type LoginCredentials = {
+  username: string;
+  password: string;
+};
 
 type LoginResponse = {
   status: "success" | "error";
@@ -10,7 +15,7 @@ type LoginResponse = {
 
 type RequestResult = {
   ok: true;
-  data?: LoginResponse;
+  data: LoginResponse;
 } | {
   ok: false;
   message: string;
@@ -19,47 +24,57 @@ type RequestResult = {
 async function handleRequest(
   url: string,
   method: string,
-  body?: NewUser
+  body?: any
 ): Promise<RequestResult> {
   try {
+    console.log(`Making ${method} request to ${url}`);
     const response = await fetch(url, {
       method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
       credentials: "include",
     });
 
-    if (!response.ok) {
-      if (response.status >= 500) {
-        return { ok: false, message: "Server error. Please try again later." };
-      }
+    const data = await response.json();
+    console.log(`Response from ${url}:`, data);
 
-      const errorData = await response.json();
-      return { ok: false, message: errorData.message || "An unexpected error occurred" };
+    if (!response.ok) {
+      return {
+        ok: false,
+        message: data.message || `${response.status}: ${response.statusText}`,
+      };
     }
 
-    const data = await response.json();
     return { ok: true, data };
-  } catch (e: any) {
-    console.error("Request error:", e);
-    return { ok: false, message: e.message || "Network error. Please check your connection." };
+  } catch (error: any) {
+    console.error(`Error in ${method} ${url}:`, error);
+    return {
+      ok: false,
+      message: error.message || "Network error. Please try again.",
+    };
   }
 }
 
 async function fetchUser(): Promise<User | null> {
   try {
+    console.log("Fetching current user");
     const response = await fetch('/api/user', {
       credentials: 'include'
     });
 
     if (!response.ok) {
       if (response.status === 401) {
+        console.log("No authenticated user found");
         return null;
       }
       throw new Error(await response.text());
     }
 
-    return response.json();
+    const user = await response.json();
+    console.log("Current user:", user);
+    return user;
   } catch (error) {
     console.error("Error fetching user:", error);
     return null;
@@ -78,15 +93,16 @@ export function useUser() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (userData: NewUser) => {
-      console.log("Attempting login for user:", userData.username);
-      const result = await handleRequest('/api/login', 'POST', userData);
+    mutationFn: async (credentials: LoginCredentials) => {
+      console.log("Login attempt for:", credentials.username);
+      const result = await handleRequest('/api/login', 'POST', credentials);
       if (!result.ok) {
         throw new Error(result.message);
       }
-      return result.data!;
+      return result.data;
     },
     onSuccess: (data) => {
+      console.log("Login successful:", data);
       queryClient.setQueryData(['user'], data.user);
       toast({
         title: "Success",
@@ -97,7 +113,7 @@ export function useUser() {
       console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "Failed to log in. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -109,45 +125,19 @@ export function useUser() {
       if (!result.ok) {
         throw new Error(result.message);
       }
-      return result.data!;
+      return result.data;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], null);
       toast({
         title: "Success",
-        description: data.message || "You have been logged out successfully.",
+        description: data.message || "Logged out successfully",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Logout Failed",
-        description: error.message || "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (userData: NewUser) => {
-      console.log("Attempting registration for user:", userData.username);
-      const result = await handleRequest('/api/register', 'POST', userData);
-      if (!result.ok) {
-        throw new Error(result.message);
-      }
-      return result.data!;
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data.user);
-      toast({
-        title: "Success",
-        description: data.message || "Registration successful! Welcome aboard.",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Registration error:", error);
-      toast({
-        title: "Registration Failed",
-        description: error.message || "Failed to register. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -159,6 +149,5 @@ export function useUser() {
     error,
     login: loginMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
   };
 }

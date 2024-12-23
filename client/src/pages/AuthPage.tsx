@@ -34,15 +34,18 @@ export default function AuthPage() {
   const onSubmit = async (data: NewUser) => {
     try {
       setIsLoading(true);
-      console.log("Submitting form with data:", { ...data, password: "[REDACTED]" });
+      console.log("Form submitted:", activeTab, { ...data, password: "[REDACTED]" });
 
       if (activeTab === "login") {
         // For login, we only need username and password
-        await login({
+        const loginData = {
           username: data.username,
           password: data.password,
-        } as NewUser);
+        };
+        console.log("Attempting login with:", { ...loginData, password: "[REDACTED]" });
+        await login(loginData);
       } else {
+        console.log("Attempting registration with:", { ...data, password: "[REDACTED]" });
         await register(data);
       }
     } catch (error: any) {
@@ -82,7 +85,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} autoComplete="username" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -96,7 +99,11 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input 
+                            type="password" 
+                            {...field} 
+                            autoComplete={activeTab === "login" ? "current-password" : "new-password"}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -112,7 +119,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input type="email" {...field} />
+                              <Input type="email" {...field} autoComplete="email" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -126,34 +133,8 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Contact Number</FormLabel>
                             <FormControl>
-                              <Input type="tel" {...field} />
+                              <Input type="tel" {...field} autoComplete="tel" />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Role</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="approver">Approver</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -186,6 +167,32 @@ export default function AuthPage() {
                                 <SelectItem value="Operations">Operations</SelectItem>
                                 {/* Support */}
                                 <SelectItem value="Support">Support</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="approver">Approver</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
