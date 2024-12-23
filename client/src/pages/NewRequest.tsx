@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,7 @@ const priorities = [
 export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
+  const { toast } = useToast();
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
 
   const form = useForm<NewPurchaseRequest>({
@@ -54,24 +56,50 @@ export default function NewRequest() {
       status: "draft",
       totalEstimatedCost: 0,
       requestNumber: "",
+      requesterId: 0, // Added requesterId
     },
   });
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
+      // Validate items
+      if (items.some(item => !item.name)) {
+        toast({
+          title: "Error",
+          description: "All items must have a name",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const totalEstimatedCost = items.reduce(
         (sum, item) => sum + item.estimatedCost * item.quantity,
         0
       );
+
+      // Log form values for debugging
+      console.log("Form values:", values);
+      console.log("Items:", items);
 
       await createRequest({
         ...values,
         items,
         totalEstimatedCost,
       });
+
+      toast({
+        title: "Success",
+        description: "Request created successfully",
+      });
+
       setLocation("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Form submission error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create request",
+        variant: "destructive",
+      });
     }
   };
 
@@ -80,7 +108,9 @@ export default function NewRequest() {
   };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
   };
 
   const updateItem = (index: number, field: string, value: string | number) => {
@@ -90,6 +120,10 @@ export default function NewRequest() {
   };
 
   const handleSubmit = (status: "draft" | "pending") => {
+    // Log form state before submission
+    console.log("Form state:", form.formState);
+    console.log("Form errors:", form.formState.errors);
+
     form.setValue("status", status);
     form.handleSubmit(onSubmit)();
   };
@@ -112,7 +146,7 @@ export default function NewRequest() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 <FormField
                   control={form.control}
                   name="title"
@@ -158,16 +192,19 @@ export default function NewRequest() {
                         <div className="w-24">
                           <Input
                             type="number"
+                            min="1"
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateItem(index, "quantity", parseInt(e.target.value) || 0)
+                              updateItem(index, "quantity", parseInt(e.target.value) || 1)
                             }
                           />
                         </div>
                         <div className="w-32">
                           <Input
                             type="number"
+                            min="0"
+                            step="0.01"
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) =>
@@ -184,6 +221,7 @@ export default function NewRequest() {
                           variant="ghost"
                           size="icon"
                           onClick={() => removeItem(index)}
+                          disabled={items.length === 1}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>

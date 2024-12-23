@@ -12,6 +12,7 @@ export function usePurchaseRequests() {
 
   const createRequest = useMutation({
     mutationFn: async (data: NewPurchaseRequest) => {
+      console.log("Creating request with data:", data);
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -20,7 +21,8 @@ export function usePurchaseRequests() {
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to create request");
       }
 
       return res.json();
@@ -32,7 +34,8 @@ export function usePurchaseRequests() {
         description: "Purchase request created successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
+      console.error("Create request error:", error);
       toast({
         title: "Error",
         description: error.message,
