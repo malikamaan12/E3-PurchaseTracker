@@ -14,6 +14,19 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Pencil, Trash2 } from "lucide-react";
+import { useLocation } from "wouter";
 import ApprovalFlow from "./ApprovalFlow";
 import type { PurchaseRequest } from "@db/schema";
 
@@ -29,8 +42,9 @@ export default function RequestCard({
   showApproval,
 }: RequestCardProps) {
   const { user } = useUser();
-  const { updateRequest, createApproval } = usePurchaseRequests();
+  const { updateRequest, createApproval, deleteRequest } = usePurchaseRequests();
   const [comments, setComments] = useState("");
+  const [, setLocation] = useLocation();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -84,6 +98,14 @@ export default function RequestCard({
     }
   };
 
+  const handleEdit = () => {
+    setLocation(`/requests/${request.id}/edit`);
+  };
+
+  const handleDelete = async () => {
+    await deleteRequest(request.id);
+  };
+
   // Convert string values to numbers for calculations
   const freightAmount = Number(request.freightAmount) || 0;
   const items = request.items.map(item => ({
@@ -98,6 +120,10 @@ export default function RequestCard({
   );
 
   const totalCost = itemsTotal + freightAmount;
+
+  // Check if the request can be edited/deleted (only if it's in draft or pending state)
+  const canModify = ["draft", "pending"].includes(request.status) && 
+                   request.requesterId === user?.id;
 
   return (
     <Card>
@@ -115,6 +141,45 @@ export default function RequestCard({
           <Badge className={getStatusColor(request.status)}>
             {request.status.toUpperCase()}
           </Badge>
+          {canModify && (
+            <div className="flex items-center gap-2 ml-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleEdit}
+                title="Edit Request"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive"
+                    title="Delete Request"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this purchase request? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>

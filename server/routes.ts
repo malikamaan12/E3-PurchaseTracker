@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { purchaseRequests, approvals, users, subPurposes, vendors } from "@db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { eq, and, desc, sql, not } from "drizzle-orm";
+import { format } from "date-fns";
 
 async function generateRequestNumber(purposeType: string, subPurposeId: number | undefined): Promise<string> {
   // Get today's date in YYYYMMDD format
@@ -163,6 +163,26 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      // Get the current request to verify ownership and status
+      const [currentRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!currentRequest) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Verify that the user owns this request and it's not approved
+      if (currentRequest.requesterId !== req.user!.id) {
+        return res.status(403).send("Not authorized to modify this request");
+      }
+
+      if (!["draft", "pending"].includes(currentRequest.status)) {
+        return res.status(400).send("Cannot modify request in current status");
+      }
+
       const request = await db
         .update(purchaseRequests)
         .set(req.body)
@@ -172,6 +192,51 @@ export function registerRoutes(app: Express): Server {
       res.json(request[0]);
     } catch (error: any) {
       console.error("Error updating request:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Add DELETE endpoint for purchase requests
+  app.delete("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Get the current request to verify ownership and status
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!request) {
+        return res.status(404).send("Request not found");
+      }
+
+      // Verify that the user owns this request and it's not approved
+      if (request.requesterId !== req.user!.id) {
+        return res.status(403).send("Not authorized to delete this request");
+      }
+
+      if (!["draft", "pending"].includes(request.status)) {
+        return res.status(400).send("Cannot delete request in current status");
+      }
+
+      // Delete associated approvals first
+      await db
+        .delete(approvals)
+        .where(eq(approvals.requestId, parseInt(req.params.id)));
+
+      // Then delete the request
+      const deleted = await db
+        .delete(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .returning();
+
+      res.json(deleted[0]);
+    } catch (error: any) {
+      console.error("Error deleting request:", error);
       res.status(500).send(error.message);
     }
   });

@@ -81,6 +81,35 @@ export function usePurchaseRequests() {
     },
   });
 
+  const deleteRequest = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/requests/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const createApproval = useMutation({
     mutationFn: async (data: NewApproval) => {
       const res = await fetch("/api/approvals", {
@@ -154,6 +183,7 @@ export function usePurchaseRequests() {
     isLoading,
     createRequest: createRequest.mutateAsync,
     updateRequest: updateRequest.mutateAsync,
+    deleteRequest: deleteRequest.mutateAsync,
     createApproval: createApproval.mutateAsync,
     updateApproval: updateApproval.mutateAsync,
   };
