@@ -147,3 +147,29 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes);
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export type SubPurpose = typeof subPurposes.$inferSelect;
 export type NewSubPurpose = typeof subPurposes.$inferInsert;
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id),
+  message: text("message").notNull(),
+  type: text("type").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notificationRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  request: one(purchaseRequests, {
+    fields: [notifications.requestId],
+    references: [purchaseRequests.id],
+  }),
+}));
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

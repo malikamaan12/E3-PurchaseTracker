@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import RequestCard from "@/components/RequestCard";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { Plus, LogOut } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
@@ -64,13 +65,14 @@ export default function Dashboard() {
                 Welcome, {user?.username} ({user?.department})
               </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <Link href="/new-request">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   New Request
                 </Button>
               </Link>
+              <NotificationsDropdown />
               <Button variant="outline" onClick={() => logout()}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout

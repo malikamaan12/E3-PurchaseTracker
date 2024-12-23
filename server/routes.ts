@@ -2,7 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { purchaseRequests, approvals, users, subPurposes } from "@db/schema";
+import { 
+  purchaseRequests, 
+  approvals, 
+  users, 
+  subPurposes, 
+  notifications 
+} from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
@@ -61,8 +67,75 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
   }
 }
 
+async function createNotification(userId: number, message: string, type: string, requestId?: number) {
+  try {
+    const [notification] = await db.insert(notifications)
+      .values({
+        userId,
+        message,
+        type,
+        requestId,
+      })
+      .returning();
+    return notification;
+  } catch (error) {
+    console.error("Error creating notification:", error);
+    throw error;
+  }
+}
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Notification routes
+  app.get("/api/notifications", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const userNotifications = await db.query.notifications.findMany({
+        where: eq(notifications.userId, req.user!.id),
+        orderBy: desc(notifications.createdAt),
+        with: {
+          request: true
+        }
+      });
+
+      res.json(userNotifications);
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  app.put("/api/notifications/:id/read", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [notification] = await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(
+          and(
+            eq(notifications.id, parseInt(req.params.id)),
+            eq(notifications.userId, req.user!.id)
+          )
+        )
+        .returning();
+
+      if (!notification) {
+        return res.status(404).send("Notification not found");
+      }
+
+      res.json(notification);
+    } catch (error: any) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).send(error.message);
+    }
+  });
 
   // Vendor routes
   app.get("/api/vendors", async (req, res) => {
@@ -245,11 +318,6 @@ export function registerRoutes(app: Express): Server {
       const isRequestOwner = currentRequest.requesterId === req.user!.id;
       const isApprover = userRole === "approver" || ["CEO Office", "Director", "Finance"].includes(userDepartment);
 
-      // Allow modifications if:
-      // 1. User is the request owner and request is in draft/changes_requested status
-      // 2. User is CEO/Director/Finance and request is pending
-      // 3. User is an approver for their department and request is pending
-      // 4. User is an admin
       const canModify = 
         (isRequestOwner && ["draft", "changes_requested"].includes(currentRequest.status)) ||
         ((isCEO || isDirector || isFinance) && currentRequest.status === "pending") ||
@@ -260,17 +328,52 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).send("Not authorized to modify this request");
       }
 
-      // Special handling for different roles/departments
       let updateData = { ...req.body };
 
-      // Only Finance can lock/unlock requests
       if (!isFinance && 'isLocked' in updateData) {
         delete updateData.isLocked;
       }
 
-      // Only approvers can change status to approved/rejected
       if (!isApprover && updateData.status && ["approved", "rejected"].includes(updateData.status)) {
         return res.status(403).send("Only approvers can approve or reject requests");
+      }
+
+      // Create notification if status is changing
+      if (updateData.status && updateData.status !== currentRequest.status) {
+        // Notify the request owner about the status change
+        await createNotification(
+          currentRequest.requesterId,
+          `Your purchase request ${currentRequest.requestNumber} has been ${updateData.status}`,
+          'status_change',
+          currentRequest.id
+        );
+
+        // If status is changes_requested, also create a notification for the requester
+        if (updateData.status === 'changes_requested') {
+          await createNotification(
+            currentRequest.requesterId,
+            `Changes have been requested for your purchase request ${currentRequest.requestNumber}. Please review and update the request.`,
+            'changes_requested',
+            currentRequest.id
+          );
+        }
+
+        // If status is approved, notify Finance department
+        if (updateData.status === 'approved') {
+          const financeUsers = await db
+            .select()
+            .from(users)
+            .where(eq(users.department, 'Finance'));
+
+          for (const user of financeUsers) {
+            await createNotification(
+              user.id,
+              `Purchase request ${currentRequest.requestNumber} has been approved and requires financial processing.`,
+              'finance_required',
+              currentRequest.id
+            );
+          }
+        }
       }
 
       const request = await db
@@ -289,7 +392,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add DELETE endpoint for purchase requests
   app.delete("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
