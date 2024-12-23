@@ -40,7 +40,7 @@ import { insertVendorSchema } from "@db/schema";
 
 interface VendorSelectProps {
   value?: number;
-  onChange: (value: number | undefined) => void;
+  onChange: (value: number | undefined, vendorName?: string) => void;
 }
 
 export default function VendorSelect({ value, onChange }: VendorSelectProps) {
@@ -83,7 +83,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
-      onChange(data.id);
+      onChange(data.id, data.companyName);
       setDialogOpen(false);
       form.reset();
       toast({
@@ -104,6 +104,11 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
   const onSubmit = (data: NewVendor) => {
     createVendor.mutate(data);
+  };
+
+  const handleSelectVendor = (vendorId: number, vendorName: string) => {
+    onChange(vendorId, vendorName);
+    setOpen(false);
   };
 
   return (
@@ -131,10 +136,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
               {vendors.map((vendor) => (
                 <CommandItem
                   key={vendor.id}
-                  onSelect={() => {
-                    onChange(vendor.id);
-                    setOpen(false);
-                  }}
+                  onSelect={() => handleSelectVendor(vendor.id, vendor.companyName)}
                 >
                   <Check
                     className={cn(

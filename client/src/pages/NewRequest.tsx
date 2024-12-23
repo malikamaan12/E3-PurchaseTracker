@@ -57,6 +57,7 @@ export default function NewRequest() {
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0 }],
       vendorId: undefined,
+      vendor: "",
       purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
@@ -85,7 +86,7 @@ export default function NewRequest() {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
-      if (!values.vendorId) {
+      if (!values.vendorId || !values.vendor) {
         toast({
           title: "Error",
           description: "Please select a vendor",
@@ -93,13 +94,6 @@ export default function NewRequest() {
         });
         return;
       }
-
-      // Find selected vendor to get company name
-      const vendorResponse = await fetch(`/api/vendors/${values.vendorId}`);
-      if (!vendorResponse.ok) {
-        throw new Error("Failed to fetch vendor details");
-      }
-      const vendorData = await vendorResponse.json();
 
       const formattedData = {
         ...values,
@@ -111,7 +105,6 @@ export default function NewRequest() {
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendorId: Number(values.vendorId),
-        vendor: vendorData.companyName, // Add vendor company name
         status: values.status || "draft"
       };
 
@@ -355,7 +348,12 @@ export default function NewRequest() {
                       <FormControl>
                         <VendorSelect
                           value={field.value}
-                          onChange={field.onChange}
+                          onChange={(vendorId, vendorName) => {
+                            field.onChange(vendorId);
+                            if (vendorName) {
+                              form.setValue("vendor", vendorName);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
