@@ -13,7 +13,16 @@ export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
 
-  const myRequests = requests?.filter(r => r.requesterId === user?.id) || [];
+  const myDrafts = requests?.filter(r => 
+    r.requesterId === user?.id && 
+    r.status === 'draft'
+  ) || [];
+
+  const mySubmittedRequests = requests?.filter(r => 
+    r.requesterId === user?.id && 
+    r.status !== 'draft'
+  ) || [];
+
   const pendingApprovals = requests?.filter(r => 
     r.status !== 'draft' && 
     r.approvals.some(a => 
@@ -21,7 +30,7 @@ export default function Dashboard() {
       a.status === 'pending'
     )
   ) || [];
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -53,7 +62,7 @@ export default function Dashboard() {
         <Tabs defaultValue="my-requests">
           <TabsList className="mb-8">
             <TabsTrigger value="my-requests">
-              My Requests ({myRequests.length})
+              My Requests ({mySubmittedRequests.length + myDrafts.length})
             </TabsTrigger>
             {user?.role === "approver" && (
               <TabsTrigger value="approvals">
@@ -63,31 +72,53 @@ export default function Dashboard() {
           </TabsList>
 
           <TabsContent value="my-requests">
-            <Card>
-              <CardContent className="p-6">
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-border" />
-                  </div>
-                ) : myRequests.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No requests found. Create a new request to get started.
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[600px] pr-4">
-                    <div className="space-y-4">
-                      {myRequests.map((request) => (
-                        <RequestCard
-                          key={request.id}
-                          request={request}
-                          showActions={request.status === 'draft'}
-                        />
-                      ))}
+            <div className="space-y-6">
+              {myDrafts.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-medium mb-4">Draft Requests</h3>
+                    <ScrollArea className="h-[300px] pr-4">
+                      <div className="space-y-4">
+                        {myDrafts.map((request) => (
+                          <RequestCard
+                            key={request.id}
+                            request={request}
+                            showActions={true}
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Submitted Requests</h3>
+                  {isLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-border" />
                     </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
+                  ) : mySubmittedRequests.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No submitted requests found.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[300px] pr-4">
+                      <div className="space-y-4">
+                        {mySubmittedRequests.map((request) => (
+                          <RequestCard
+                            key={request.id}
+                            request={request}
+                            showActions={false}
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {user?.role === "approver" && (
