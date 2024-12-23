@@ -115,26 +115,26 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
+      // Create a new object with just the required fields
       const formattedData = {
-        ...values,
+        title: values.title,
+        description: values.description,
         items: items.map((item) => ({
           name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost),
         })),
+        vendorId: Number(values.vendorId),
+        vendor: values.vendor.toString(),
+        purpose: values.purpose,
+        purposeType: values.purposeType,
+        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : undefined,
+        priority: values.priority,
+        currency: values.currency,
+        status: values.status || "draft",
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendorId: Number(values.vendorId),
-        vendor: values.vendor,
-        status: values.status || "draft",
       };
-
-      // Remove unnecessary fields that cause validation issues
-      delete (formattedData as any).createdAt;
-      delete (formattedData as any).updatedAt;
-      delete (formattedData as any).approvals;
-      delete (formattedData as any).requester;
-      delete (formattedData as any).subPurpose;
 
       try {
         await updateRequest({
