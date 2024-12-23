@@ -74,14 +74,19 @@ export default function Dashboard() {
 
   // Get pending approvals only for non-special role users
   const pendingApprovals = useMemo(() => {
-    if (!user || !requests || isSpecialRole) return [];
+    if (!user || !requests) return [];
+
+    const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
 
     return requests.filter((request) => {
-      // Skip if user is the requester
-      if (request.requesterId === user.id) return false;
-
       // Only include pending requests
       if (request.status !== "pending") return false;
+
+      // Special roles can approve any request
+      if (isSpecialRole) return true;
+
+      // Regular users can't approve their own requests
+      if (request.requesterId === user.id) return false;
 
       // Check if this department hasn't approved yet
       const departmentApproval = request.approvals?.find(
@@ -90,12 +95,12 @@ export default function Dashboard() {
 
       return !departmentApproval || departmentApproval.status === "pending";
     });
-  }, [requests, user, isSpecialRole]);
+  }, [requests, user]);
 
   // Only show approvals tab if user has pending approvals
   const showApprovalsTab = useMemo(() => {
-    return !isSpecialRole && pendingApprovals.length > 0;
-  }, [isSpecialRole, pendingApprovals.length]);
+    return pendingApprovals.length > 0;
+  }, [pendingApprovals.length]);
 
   const departments = useMemo(() => {
     const deptSet = new Set(requests?.map((r) => r.requester.department) || []);

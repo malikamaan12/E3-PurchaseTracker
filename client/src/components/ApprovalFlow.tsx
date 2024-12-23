@@ -13,12 +13,16 @@ import { useToast } from "@/hooks/use-toast";
 interface ApprovalFlowProps {
   approvals: (Approval & { approver: User })[];
   requestId: number;
+  requesterId: number;
+  status: string;
   onApprovalUpdate?: () => void;
 }
 
 export default function ApprovalFlow({
   approvals,
   requestId,
+  requesterId,
+  status,
   onApprovalUpdate,
 }: ApprovalFlowProps) {
   const { user } = useUser();
@@ -31,9 +35,14 @@ export default function ApprovalFlow({
   const canApprove = useMemo(() => {
     if (!user) return false;
 
-    // User cannot approve their own request
-    const request = approvals.find(a => a.requestId === requestId);
-    if (request && request.requesterId === user.id) return false;
+    // Check if request is pending
+    if (status !== "pending") return false;
+
+    // Special roles can approve any request, including their own
+    const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
+
+    // For non-special roles, users cannot approve their own requests
+    if (!isSpecialRole && requesterId === user.id) return false;
 
     // Check if user's department has already approved
     const departmentApproval = approvals.find(
@@ -41,7 +50,7 @@ export default function ApprovalFlow({
     );
 
     return !departmentApproval || departmentApproval.status === "pending";
-  }, [approvals, user, requestId]);
+  }, [approvals, user, requesterId, status]);
 
   const handleApproval = async (status: "approved" | "rejected") => {
     if (!user || !canApprove) return;
@@ -115,11 +124,9 @@ export default function ApprovalFlow({
     if (a.isMandatory && !b.isMandatory) return -1;
     if (!a.isMandatory && b.isMandatory) return 1;
 
-    // Then sort by status: pending first, then approved, then rejected
     const statusOrder = { pending: 0, approved: 1, rejected: 2 };
     return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
   });
-
 
   return (
     <div className="space-y-4">

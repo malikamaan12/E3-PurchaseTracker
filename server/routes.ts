@@ -113,8 +113,13 @@ async function canUserApprove(userId: number, requestId: number): Promise<boolea
 
   if (!user) return false;
 
-  // Check if user is not the requester
-  if (request.requesterId === userId) return false;
+  // Special roles (CEO Office, Director, Finance) can approve any request, including their own
+  const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
+
+  // For non-special roles, users cannot approve their own requests
+  if (!isSpecialRole && request.requesterId === userId) {
+    return false;
+  }
 
   // Check if the request is pending
   if (request.status !== "pending") return false;
