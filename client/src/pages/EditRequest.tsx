@@ -76,13 +76,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     },
   });
 
-  // Effect to load request data when available
   useEffect(() => {
     if (request) {
       console.log("Loading request data:", request);
-
-      // Reset form with request data
-      const formData = {
+      form.reset({
         title: request.title,
         description: request.description,
         items: request.items,
@@ -98,11 +95,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         status: request.status,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
-      };
+      });
 
-      form.reset(formData);
-
-      // Set items state
       if (Array.isArray(request.items)) {
         setItems(request.items.map(item => ({
           name: item.name,
@@ -111,7 +105,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })));
       }
 
-      // Set freight amount
       setFreightAmount(Number(request.freightAmount));
     }
   }, [request, form]);
@@ -142,8 +135,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName,
       };
+
+      console.log("Submitting request with data:", submissionData);
 
       try {
         await updateRequest({
@@ -166,13 +160,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     } catch (error: any) {
       console.error("Form validation error:", error);
       const errors = form.formState.errors;
-      const errorMessages = Object.entries(errors)
-        .map(([field, error]) => `${field}: ${error?.message}`)
-        .join('\n');
-
       toast({
         title: "Validation Error",
-        description: errorMessages || "Please check all required fields",
+        description: "Please check all required fields",
         variant: "destructive",
       });
     }
