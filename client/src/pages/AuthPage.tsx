@@ -127,14 +127,19 @@ export default function AuthPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
+                                {/* Management */}
                                 <SelectItem value="Admin">Admin</SelectItem>
                                 <SelectItem value="CEO Office">CEO Office</SelectItem>
                                 <SelectItem value="Director">Director</SelectItem>
                                 <SelectItem value="Finance">Finance</SelectItem>
+                                {/* Operations */}
                                 <SelectItem value="Branding">Branding</SelectItem>
                                 <SelectItem value="Logistics">Logistics</SelectItem>
                                 <SelectItem value="Mall Activation">Mall Activation</SelectItem>
+                                {/* Support */}
                                 <SelectItem value="IT">IT</SelectItem>
+                                <SelectItem value="HR">HR</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
