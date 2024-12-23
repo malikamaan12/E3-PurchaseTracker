@@ -84,6 +84,21 @@ export default function RequestCard({
     }
   };
 
+  // Convert string values to numbers for calculations
+  const freightAmount = Number(request.freightAmount) || 0;
+  const items = request.items.map(item => ({
+    ...item,
+    quantity: Number(item.quantity),
+    estimatedCost: Number(item.estimatedCost)
+  }));
+
+  const itemsTotal = items.reduce(
+    (sum, item) => sum + item.quantity * item.estimatedCost,
+    0
+  );
+
+  const totalCost = itemsTotal + freightAmount;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -125,11 +140,11 @@ export default function RequestCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {request.items.map((item, index) => (
+                {items.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell>{item.name}</TableCell>
                     <TableCell>{item.quantity}</TableCell>
-                    <TableCell>${item.estimatedCost}</TableCell>
+                    <TableCell>${item.estimatedCost.toFixed(2)}</TableCell>
                     <TableCell>
                       ${(item.quantity * item.estimatedCost).toFixed(2)}
                     </TableCell>
@@ -140,7 +155,7 @@ export default function RequestCard({
                     Items Total
                   </TableCell>
                   <TableCell className="font-medium">
-                    ${request.items.reduce((sum, item) => sum + item.quantity * item.estimatedCost, 0).toFixed(2)}
+                    ${itemsTotal.toFixed(2)}
                   </TableCell>
                 </TableRow>
                 <TableRow>
@@ -148,7 +163,7 @@ export default function RequestCard({
                     Freight Amount
                   </TableCell>
                   <TableCell className="font-medium">
-                    ${(request.freightAmount || 0).toFixed(2)}
+                    ${freightAmount.toFixed(2)}
                   </TableCell>
                 </TableRow>
                 <TableRow>
@@ -156,7 +171,7 @@ export default function RequestCard({
                     Total Estimated Cost
                   </TableCell>
                   <TableCell className="font-bold">
-                    ${request.totalEstimatedCost.toFixed(2)}
+                    ${totalCost.toFixed(2)}
                   </TableCell>
                 </TableRow>
               </TableBody>

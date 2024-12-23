@@ -50,7 +50,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priority: text("priority").notNull().default("medium"),
   currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: decimal("total_estimated_cost", { precision: 10, scale: 2 }).notNull(),
-  freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default(0),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -107,9 +107,24 @@ export type NewVendor = typeof vendors.$inferInsert;
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
-  currency: z.enum(["QAR", "USD", "CNY"])
+  currency: z.enum(["QAR", "USD", "CNY"]),
+  totalEstimatedCost: z.number(),
+  freightAmount: z.number(),
+  items: z.array(z.object({
+    name: z.string(),
+    quantity: z.number(),
+    estimatedCost: z.number()
+  }))
 });
-export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
+export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests, {
+  totalEstimatedCost: z.number(),
+  freightAmount: z.number(),
+  items: z.array(z.object({
+    name: z.string(),
+    quantity: z.number(),
+    estimatedCost: z.number()
+  }))
+});
 export type PurchaseRequest = z.infer<typeof selectPurchaseRequestSchema> & {
   approvals: Array<z.infer<typeof selectApprovalSchema> & { approver: User }>;
   subPurpose: z.infer<typeof selectSubPurposeSchema> | null;
