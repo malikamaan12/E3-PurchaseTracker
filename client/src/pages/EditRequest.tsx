@@ -87,10 +87,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         priority: request.priority,
         currency: request.currency,
         status: request.status,
-        companyName: "", 
-        contactPerson: "", 
-        contactNumber: "", 
-        accountNumber: "", 
+        companyName: request.companyName,
+        contactPerson: request.contactPerson,
+        contactNumber: request.contactNumber,
+        accountNumber: request.accountNumber,
         subPurposeId: request.subPurposeId,
         totalEstimatedCost: request.totalEstimatedCost.toString(),
         freightAmount: request.freightAmount.toString(),
@@ -119,19 +119,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
       const submissionData = {
-        title: values.title,
-        description: values.description,
-        purpose: values.purpose,
-        purposeType: values.purposeType,
-        priority: values.priority,
-        currency: values.currency,
-        status: values.status || "draft",
-        companyName: values.companyName,
-        contactPerson: values.contactPerson,
-        contactNumber: values.contactNumber,
-        accountNumber: values.accountNumber,
-        vendor: values.companyName,
-        subPurposeId: values.subPurposeId ? Number(values.subPurposeId) : null,
+        ...values,
         items: items.map((item) => ({
           name: item.name,
           quantity: Number(item.quantity),
@@ -139,6 +127,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
+        vendor: values.companyName, // Set vendor field using company name
       };
 
       try {
@@ -149,24 +138,26 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         toast({
           title: "Success",
           description: "Request updated successfully",
-          className: "bg-green-50 border-green-200",
         });
         setLocation("/");
       } catch (error: any) {
         console.error("Update request error:", error);
-        const analysis = await analyzeFormError(submissionData, error);
         toast({
-          title: "Submission Error",
-          description: analysis || "Failed to update request. Please try again.",
+          title: "Error",
+          description: error.message || "Failed to update request",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
-      const analysis = await analyzeFormError(values, form.formState.errors);
+      const errors = form.formState.errors;
+      const errorMessages = Object.entries(errors)
+        .map(([field, error]) => `${field}: ${error?.message}`)
+        .join('\n');
+
       toast({
         title: "Validation Error",
-        description: analysis || "Please check all required fields and try again",
+        description: errorMessages || "Please check all required fields",
         variant: "destructive",
       });
     }

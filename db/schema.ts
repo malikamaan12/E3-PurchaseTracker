@@ -62,6 +62,10 @@ export const purchaseRequests = pgTable("purchase_requests", {
     estimatedCost: number;
   }>>().notNull(),
   vendor: text("vendor").notNull(),
+  companyName: text("company_name").notNull(),
+  contactPerson: text("contact_person").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  accountNumber: text("account_number").notNull(),
   purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
@@ -74,6 +78,18 @@ export const purchaseRequests = pgTable("purchase_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many }) => ({
+  requester: one(users, {
+    fields: [purchaseRequests.requesterId],
+    references: [users.id],
+  }),
+  approvals: many(approvals),
+  subPurpose: one(subPurposes, {
+    fields: [purchaseRequests.subPurposeId],
+    references: [subPurposes.id],
+  }),
+}));
+
 export const approvals = pgTable("approvals", {
   id: serial("id").primaryKey(),
   requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
@@ -84,23 +100,6 @@ export const approvals = pgTable("approvals", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
-export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many }) => ({
-  requester: one(users, {
-    fields: [purchaseRequests.requesterId],
-    references: [users.id],
-  }),
-  vendor: one(vendors, {
-    fields: [purchaseRequests.vendor], // Note: This is referencing the text field 'vendor' now.
-    references: [vendors.companyName], //  Assuming companyName is the unique identifier in vendors. Adjust as needed.
-
-  }),
-  approvals: many(approvals),
-  subPurpose: one(subPurposes, {
-    fields: [purchaseRequests.subPurposeId],
-    references: [subPurposes.id],
-  }),
-}));
 
 export const approvalRelations = relations(approvals, ({ one }) => ({
   request: one(purchaseRequests, {
