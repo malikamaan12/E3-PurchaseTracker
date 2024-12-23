@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
-import { analyzeFormError } from "@/lib/debugUtils";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -64,16 +63,16 @@ export default function NewRequest() {
       priority: "medium",
       currency: "QAR",
       status: "draft",
-      totalEstimatedCost: 0,
-      freightAmount: 0,
+      totalEstimatedCost: "0",
+      freightAmount: "0",
     },
   });
 
   useEffect(() => {
     const totalCost = calculateTotalCost();
     form.setValue("items", items);
-    form.setValue("freightAmount", freightAmount);
-    form.setValue("totalEstimatedCost", totalCost);
+    form.setValue("freightAmount", freightAmount.toString());
+    form.setValue("totalEstimatedCost", totalCost.toString());
   }, [items, freightAmount]);
 
   const calculateTotalCost = () => {
@@ -111,12 +110,11 @@ export default function NewRequest() {
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost)
         })),
-        freightAmount: Number(freightAmount),
-        totalEstimatedCost: calculateTotalCost(),
+        freightAmount: freightAmount.toString(),
+        totalEstimatedCost: calculateTotalCost().toString(),
         vendorId: Number(values.vendorId)
       };
 
-      console.log('Submitting form data:', formattedData);
 
       try {
         await createRequest(formattedData);
@@ -127,9 +125,6 @@ export default function NewRequest() {
         setLocation("/");
       } catch (error: any) {
         console.error("Create request error:", error);
-        const analysis = await analyzeFormError(formattedData, error);
-        console.log('Form error analysis:', analysis);
-
         toast({
           title: "Error",
           description: error.message || "Failed to create request",
@@ -138,11 +133,15 @@ export default function NewRequest() {
       }
     } catch (error: any) {
       console.error("Form validation error:", error);
-      console.log('Form state errors:', form.formState.errors);
+      const errors = form.formState.errors;
+
+      const errorMessages = Object.entries(errors)
+        .map(([field, error]) => `${field}: ${error?.message}`)
+        .join('\n');
 
       toast({
         title: "Validation Error",
-        description: "Please check all required fields",
+        description: errorMessages || "Please check all required fields",
         variant: "destructive",
       });
     }
@@ -174,7 +173,6 @@ export default function NewRequest() {
       const isValid = await form.trigger();
       if (!isValid) {
         const errors = form.formState.errors;
-        console.log('Form validation errors on submit:', errors);
 
         const errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
