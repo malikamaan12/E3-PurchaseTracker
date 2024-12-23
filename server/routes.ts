@@ -31,7 +31,11 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
       }
     }
 
-    const existingRequests = await db.select()
+    // Only select required fields for request number generation
+    const existingRequests = await db.select({
+      requestNumber: purchaseRequests.requestNumber,
+      createdAt: purchaseRequests.createdAt
+    })
       .from(purchaseRequests)
       .where(
         sql`DATE(${purchaseRequests.createdAt}) = CURRENT_DATE`
@@ -52,7 +56,10 @@ async function generateRequestNumber(purposeType: string, subPurposeId: number |
 
     const requestNumber = `${purposeCode}/${dateStr}/${sequenceNumber.toString().padStart(3, '0')}-${timeStr}`;
 
-    const [existing] = await db.select()
+    // Check for duplicate request numbers
+    const [existing] = await db.select({
+      requestNumber: purchaseRequests.requestNumber
+    })
       .from(purchaseRequests)
       .where(eq(purchaseRequests.requestNumber, requestNumber))
       .limit(1);
