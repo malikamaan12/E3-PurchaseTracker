@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import BrandingPreview from "./BrandingPreview";
 
 interface CompanyBrandingFormProps {
   onSuccess?: () => void;
@@ -21,6 +22,14 @@ interface CompanyBrandingFormProps {
 export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormProps) {
   const { toast } = useToast();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    companyName: "",
+    headerStyle: "modern" as "modern" | "classic" | "minimal",
+    primaryColor: "#71569E",
+    secondaryColor: "#F0F0FA",
+    accentColor: "#191160",
+    footerText: "",
+  });
 
   const { data: branding, isLoading } = useQuery({
     queryKey: ["/api/branding"],
@@ -59,33 +68,6 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-
-    // Add validation for required fields
-    const companyName = formData.get('companyName');
-    if (!companyName) {
-      toast({
-        title: "Error",
-        description: "Company name is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate hex color codes
-    const validateHexColor = (color: string) => /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
-    const primaryColor = formData.get('primaryColor') as string;
-    const secondaryColor = formData.get('secondaryColor') as string;
-    const accentColor = formData.get('accentColor') as string;
-
-    if (!validateHexColor(primaryColor) || !validateHexColor(secondaryColor) || !validateHexColor(accentColor)) {
-      toast({
-        title: "Error",
-        description: "Invalid color format. Please use hex color codes (e.g., #FF0000)",
-        variant: "destructive",
-      });
-      return;
-    }
-
     updateBranding.mutate(formData);
   };
 
@@ -117,10 +99,19 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
+        const result = reader.result as string;
+        const base64Data = result.split(',')[1];
+        setLogoPreview(base64Data);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   if (isLoading) {
@@ -132,136 +123,156 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Company Branding</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label>Company Name *</Label>
-            <Input
-              name="companyName"
-              defaultValue={branding?.companyName}
-              placeholder="Enter company name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Company Logo (Max 5MB)</Label>
-            <div className="flex items-center gap-4">
-              {(logoPreview || branding?.logo) && (
-                <img
-                  src={logoPreview || `data:${branding?.logoMimeType};base64,${branding?.logo}`}
-                  alt="Company Logo"
-                  className="h-16 w-16 object-contain"
-                />
-              )}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Company Branding</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label>Company Name *</Label>
               <Input
-                type="file"
-                name="logo"
-                accept="image/jpeg,image/png,image/svg+xml"
-                onChange={handleLogoChange}
-                className="max-w-xs"
+                name="companyName"
+                defaultValue={branding?.companyName}
+                placeholder="Enter company name"
+                required
+                onChange={(e) => handleInputChange('companyName', e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Header Style</Label>
-              <Select
-                name="headerStyle"
-                defaultValue={branding?.headerStyle || "modern"}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="modern">Modern</SelectItem>
-                  <SelectItem value="classic">Classic</SelectItem>
-                  <SelectItem value="minimal">Minimal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             <div className="space-y-2">
-              <Label>Primary Color *</Label>
-              <div className="flex gap-2">
+              <Label>Company Logo (Max 5MB)</Label>
+              <div className="flex items-center gap-4">
+                {(logoPreview || branding?.logo) && (
+                  <img
+                    src={`data:${branding?.logoMimeType};base64,${logoPreview || branding?.logo}`}
+                    alt="Company Logo"
+                    className="h-16 w-16 object-contain"
+                  />
+                )}
                 <Input
-                  type="color"
-                  name="primaryColor"
-                  defaultValue={branding?.primaryColor || "#71569E"}
-                  className="w-16"
-                />
-                <Input
-                  type="text"
-                  value={branding?.primaryColor || "#71569E"}
-                  readOnly
-                  className="flex-1"
+                  type="file"
+                  name="logo"
+                  accept="image/jpeg,image/png,image/svg+xml"
+                  onChange={handleLogoChange}
+                  className="max-w-xs"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Secondary Color *</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  name="secondaryColor"
-                  defaultValue={branding?.secondaryColor || "#F0F0FA"}
-                  className="w-16"
-                />
-                <Input
-                  type="text"
-                  value={branding?.secondaryColor || "#F0F0FA"}
-                  readOnly
-                  className="flex-1"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Header Style</Label>
+                <Select
+                  name="headerStyle"
+                  defaultValue={branding?.headerStyle || "modern"}
+                  onValueChange={(value) => handleInputChange('headerStyle', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="modern">Modern</SelectItem>
+                    <SelectItem value="classic">Classic</SelectItem>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Primary Color *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    name="primaryColor"
+                    defaultValue={branding?.primaryColor || "#71569E"}
+                    className="w-16"
+                    onChange={(e) => handleInputChange('primaryColor', e.target.value)}
+                  />
+                  <Input
+                    type="text"
+                    value={formData.primaryColor}
+                    onChange={(e) => handleInputChange('primaryColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Secondary Color *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    name="secondaryColor"
+                    defaultValue={branding?.secondaryColor || "#F0F0FA"}
+                    className="w-16"
+                    onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
+                  />
+                  <Input
+                    type="text"
+                    value={formData.secondaryColor}
+                    onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Accent Color *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    name="accentColor"
+                    defaultValue={branding?.accentColor || "#191160"}
+                    className="w-16"
+                    onChange={(e) => handleInputChange('accentColor', e.target.value)}
+                  />
+                  <Input
+                    type="text"
+                    value={formData.accentColor}
+                    onChange={(e) => handleInputChange('accentColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Accent Color *</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  name="accentColor"
-                  defaultValue={branding?.accentColor || "#191160"}
-                  className="w-16"
-                />
-                <Input
-                  type="text"
-                  value={branding?.accentColor || "#191160"}
-                  readOnly
-                  className="flex-1"
-                />
-              </div>
+              <Label>Footer Text</Label>
+              <Input
+                name="footerText"
+                defaultValue={branding?.footerText}
+                placeholder="Enter custom footer text"
+                onChange={(e) => handleInputChange('footerText', e.target.value)}
+              />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>Footer Text</Label>
-            <Input
-              name="footerText"
-              defaultValue={branding?.footerText}
-              placeholder="Enter custom footer text"
-            />
-          </div>
+            <Button
+              type="submit"
+              disabled={updateBranding.isPending}
+              className="w-full"
+            >
+              {updateBranding.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Branding Settings
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-          <Button
-            type="submit"
-            disabled={updateBranding.isPending}
-            className="w-full"
-          >
-            {updateBranding.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Save Branding Settings
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      {/* Preview Panel */}
+      <BrandingPreview
+        logo={logoPreview || branding?.logo || null}
+        logoMimeType={branding?.logoMimeType}
+        headerStyle={formData.headerStyle}
+        companyName={formData.companyName || branding?.companyName || "Company Name"}
+        primaryColor={formData.primaryColor}
+        secondaryColor={formData.secondaryColor}
+        accentColor={formData.accentColor}
+        footerText={formData.footerText || branding?.footerText}
+      />
+    </div>
   );
 }
