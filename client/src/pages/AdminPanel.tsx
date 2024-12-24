@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import CompanyBrandingForm from "@/components/CompanyBrandingForm";
 import {
   Card,
   CardContent,
@@ -314,10 +315,11 @@ export default function AdminPanel() {
   return (
     <div className="container mx-auto py-8">
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="purposes">Purpose Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
         </TabsList>
 
         {/* User Management Tab */}
@@ -737,6 +739,21 @@ export default function AdminPanel() {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Add new Branding tab */}
+        <TabsContent value="branding">
+          <Card>
+            <CardHeader>
+              <CardTitle>Company Branding</CardTitle>
+              <CardDescription>
+                Customize company branding, logo, and PDF templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CompanyBrandingForm />
             </CardContent>
           </Card>
         </TabsContent>

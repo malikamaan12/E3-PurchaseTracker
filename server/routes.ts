@@ -13,6 +13,8 @@ import {
   insertSubPurposeSchema,
   insertAccountRequestSchema,
   insertUserSchema,
+  companyBranding,
+  insertCompanyBrandingSchema,
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import multer from 'multer';
@@ -974,7 +976,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(requests);
     } catch (error: any) {
-      console.error("Error fetching account requests:", error);
+      console.error("Errorfetching account requests:", error);
       res.status(500).json({
         error: "Failed to fetch account requests",
         message: error.message
@@ -1246,6 +1248,103 @@ export function registerRoutes(app: Express): Server {
         error: "Failed to delete user",
         message: error.message
       });
+    }
+  });
+
+  // Add branding routes after the existing routes
+  app.get("/api/branding", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [branding] = await db
+        .select()
+        .from(companyBranding)
+        .limit(1);
+
+      res.json(branding || {});
+    } catch (error: any) {
+      console.error("Error fetching branding:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Configure multer for logo upload
+  const logoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(process.cwd(), 'uploads', 'logos');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+      cb(null, `logo-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
+  });
+
+  const logoUpload = multer({
+    storage: logoStorage,
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        cb(new Error('Invalid file type. Only JPEG, PNG and SVG files are allowed.'));
+        return;
+      }
+      cb(null, true);
+    }
+  });
+
+  app.post("/api/branding", logoUpload.single('logo'), async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can update branding");
+    }
+
+    try {
+      const brandingData = {
+        ...req.body,
+        logo: req.file ? await fs.promises.readFile(req.file.path) : undefined,
+        logoMimeType: req.file?.mimetype
+      };
+
+      // Validate the input
+      const result = insertCompanyBrandingSchema.safeParse(brandingData);
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues
+        });
+      }
+
+      // Delete existing branding if any
+      await db.delete(companyBranding);
+
+      // Insert new branding
+      const [newBranding] = await db
+        .insert(companyBranding)
+        .values(result.data)
+        .returning();
+
+      // Clean up the uploaded file
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Error deleting uploaded file:", err);
+        });
+      }
+
+      res.json(newBranding);
+    } catch (error: any) {
+      console.error("Error updating branding:", error);
+      res.status(500).send(error.message);
     }
   });
 

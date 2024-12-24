@@ -78,6 +78,61 @@ export const approvals = pgTable("approvals", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id),
+  message: text("message").notNull(),
+  type: text("type").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const accountRequests = pgTable("account_requests", {
+  id: serial("id").primaryKey(),
+  username: text("username").unique().notNull(),
+  password: text("password").notNull(),
+  email: text("email").notNull(),
+  contactNumber: text("contactNumber").notNull(),
+  department: text("department").notNull(),
+  role: text("role").notNull().default("user"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Add new company branding table after the existing tables
+export const companyBranding = pgTable("company_branding", {
+  id: serial("id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  headerStyle: text("header_style").notNull().default("modern"),
+  primaryColor: text("primary_color").notNull().default("#71569E"),
+  secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
+  accentColor: text("accent_color").notNull().default("#191160"),
+  logo: text("logo"), // Changed to text to store base64 encoded image
+  logoMimeType: text("logo_mime_type"),
+  footerText: text("footer_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Add type definitions for branding
+export type CompanyBranding = typeof companyBranding.$inferSelect;
+export type NewCompanyBranding = typeof companyBranding.$inferInsert;
+
+// Add validation schema
+export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
+  headerStyle: z.enum(["modern", "classic", "minimal"]),
+  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  logo: z.string().optional(),
+  logoMimeType: z.string().optional(),
+  footerText: z.string().optional(),
+});
+
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+
 // Then define all relations after the table definitions
 export const userRelations = relations(users, ({ many }) => ({
   requestsCreated: many(purchaseRequests),
@@ -115,12 +170,24 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
   }),
 }));
 
+export const notificationRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  request: one(purchaseRequests, {
+    fields: [notifications.requestId],
+    references: [purchaseRequests.id],
+  }),
+}));
+
 // Types and schemas
 export type User = InferModel<typeof users>;
 export type SubPurpose = InferModel<typeof subPurposes>;
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
+export type Notification = InferModel<typeof notifications>;
 
 // Add relation types
 export type PurchaseRequestWithRelations = PurchaseRequest & {
@@ -137,7 +204,6 @@ export type ApprovalWithRelations = Approval & {
 
 export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
-
 
 // Schemas
 export const loginSchema = z.object({
@@ -198,44 +264,6 @@ export const selectApprovalSchema = createSelectSchema(approvals);
 
 export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
 export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
-
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  requestId: integer("request_id").references(() => purchaseRequests.id),
-  message: text("message").notNull(),
-  type: text("type").notNull(),
-  isRead: boolean("is_read").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const notificationRelations = relations(notifications, ({ one }) => ({
-  user: one(users, {
-    fields: [notifications.userId],
-    references: [users.id],
-  }),
-  request: one(purchaseRequests, {
-    fields: [notifications.requestId],
-    references: [purchaseRequests.id],
-  }),
-}));
-
-export const insertNotificationSchema = createInsertSchema(notifications);
-export const selectNotificationSchema = createSelectSchema(notifications);
-export type Notification = InferModel<typeof notifications>;
-
-export const accountRequests = pgTable("account_requests", {
-  id: serial("id").primaryKey(),
-  username: text("username").unique().notNull(),
-  password: text("password").notNull(),
-  email: text("email").notNull(),
-  contactNumber: text("contactNumber").notNull(),
-  department: text("department").notNull(),
-  role: text("role").notNull().default("user"),
-  status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   role: z.enum(["user", "approver", "admin"]).default("user"),
