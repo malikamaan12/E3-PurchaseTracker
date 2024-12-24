@@ -7,17 +7,42 @@ import {
   defaultBranding,
   applyHeaderStyle,
   applyFooterStyle,
-  createTileBackground
+  createTileBackground,
+  hexToRgb
 } from './pdfTemplates';
 
-export function generateRequestPDF(
+// Fetch company branding before generating PDF
+async function fetchBranding() {
+  try {
+    const response = await fetch('/api/branding');
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching branding:', error);
+    return null;
+  }
+}
+
+export async function generateRequestPDF(
   request: PurchaseRequestWithRelations,
   templateConfig: Partial<TemplateConfig> = {}
 ) {
+  // Fetch company branding
+  const branding = await fetchBranding();
+
   const config: TemplateConfig = {
-    branding: defaultBranding,
+    branding: branding ? {
+      name: branding.companyName,
+      logo: branding.logo,
+      logoMimeType: branding.logoMimeType,
+      primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
+      secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
+      accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
+      headerStyle: branding.headerStyle || 'modern',
+      footerText: branding.footerText || defaultBranding.footerText
+    } : defaultBranding,
     layout: 'bento',
-    showLogo: false,
+    showLogo: !!branding?.logo,
     ...templateConfig
   };
 
@@ -27,7 +52,7 @@ export function generateRequestPDF(
   const margin = 10;
   const maxWidth = pageWidth - (margin * 2);
 
-  // Apply header
+  // Apply header with company branding
   const headerHeight = applyHeaderStyle(doc, config, pageWidth);
 
   // Helper function for creating tiles
@@ -160,7 +185,7 @@ export function generateRequestPDF(
     addTile('Attached Files', attachmentsList, yPos, 25);
   }
 
-  // Apply footer
+  // Apply footer with branding
   applyFooterStyle(doc, config, pageWidth, pageHeight);
 
   return doc;
