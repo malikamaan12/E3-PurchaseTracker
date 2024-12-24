@@ -213,18 +213,8 @@ export default function RequestCard({
 
   async function handleDownloadPDF() {
     try {
-      // Example custom branding (this could be loaded from settings/database)
-      const customBranding = {
-        ...defaultBranding,
-        name: 'Your Company Name', // This should come from settings
-        headerStyle: 'modern' as const,
-        footerText: 'Confidential - For Internal Use Only',
-      };
-
       const templateConfig: TemplateConfig = {
-        branding: customBranding,
         layout: 'bento',
-        showLogo: false, // Set to true when logo is available
         headerHeight: 30,
         footerHeight: 20,
       };

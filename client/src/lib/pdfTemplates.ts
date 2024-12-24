@@ -30,16 +30,27 @@ export const defaultBranding: CompanyBranding = {
 };
 
 // Helper function to convert hex color to RGB array
-export function hexToRgb(hex: string): [number, number, number] | null {
-  const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-  hex = hex.replace(shorthandRegex, (_m, r, g, b) => r + r + g + g + b + b);
+export function hexToRgb(hex: string): [number, number, number] {
+  try {
+    // Remove # if present
+    hex = hex.replace(/^#/, '');
 
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [
-    parseInt(result[1], 16),
-    parseInt(result[2], 16),
-    parseInt(result[3], 16)
-  ] : null;
+    // Handle shorthand hex (e.g. #FFF)
+    if (hex.length === 3) {
+      hex = hex.split('').map(c => c + c).join('');
+    }
+
+    // Parse the hex values
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+
+    return [r, g, b];
+  } catch (error) {
+    console.error('Error converting hex to RGB:', error, 'hex:', hex);
+    return [0, 0, 0]; // Return black as fallback
+  }
 }
 
 // Template-specific styling functions

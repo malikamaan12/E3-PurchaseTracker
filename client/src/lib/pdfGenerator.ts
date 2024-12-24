@@ -19,7 +19,9 @@ async function fetchBranding() {
       console.warn('Failed to fetch branding, using default branding');
       return null;
     }
-    return await response.json();
+    const branding = await response.json();
+    console.log('Fetched branding:', branding); // Debug log
+    return branding;
   } catch (error) {
     console.error('Error fetching branding:', error);
     return null;
@@ -33,22 +35,22 @@ export async function generateRequestPDF(
   try {
     // Fetch company branding
     const branding = await fetchBranding();
-    console.log('Fetched branding:', branding); // Debug log
 
     const config: TemplateConfig = {
       branding: branding ? {
         name: branding.companyName || defaultBranding.name,
         logo: branding.logo,
-        logoMimeType: branding.logoMimeType,
-        primaryColor: branding.primaryColor ? hexToRgb(branding.primaryColor) || defaultBranding.primaryColor : defaultBranding.primaryColor,
-        secondaryColor: branding.secondaryColor ? hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor : defaultBranding.secondaryColor,
-        accentColor: branding.accentColor ? hexToRgb(branding.accentColor) || defaultBranding.accentColor : defaultBranding.accentColor,
+        logoMimeType: branding.logoMimeType || 'image/png',
+        primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
+        secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
+        accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
         headerStyle: branding.headerStyle || 'modern',
-        footerText: branding.footerText || defaultBranding.footerText
+        footerText: 'Confidential - For Internal Use Only'
       } : defaultBranding,
       layout: 'bento',
       showLogo: !!branding?.logo,
-      ...templateConfig
+      headerHeight: templateConfig.headerHeight || 30,
+      footerHeight: templateConfig.footerHeight || 20,
     };
 
     console.log('Using PDF config:', config); // Debug log
