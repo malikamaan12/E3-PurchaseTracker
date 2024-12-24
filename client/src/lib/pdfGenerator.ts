@@ -4,7 +4,7 @@ import type { PurchaseRequestWithRelations } from '@db/schema';
 
 export function generateRequestPDF(request: PurchaseRequestWithRelations) {
   const doc = new jsPDF();
-  
+
   // Set document properties
   doc.setProperties({
     title: `Purchase Request - ${request.requestNumber}`,
@@ -16,7 +16,7 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
   doc.setFontSize(20);
   doc.setTextColor(113, 86, 162); // #7156a2
   doc.text('PROCUREMENT REQUEST', 105, 20, { align: 'center' });
-  
+
   // Request basic info
   doc.setFontSize(12);
   doc.setTextColor(25, 17, 96); // #191160
@@ -30,7 +30,7 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
   doc.text('Request Details', 15, 70);
   doc.setFontSize(12);
   doc.text(`Title: ${request.title}`, 15, 80);
-  
+
   // Description with word wrap
   const description = doc.splitTextToSize(`Description: ${request.description}`, 180);
   doc.text(description, 15, 90);
@@ -107,19 +107,68 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
     const approvalData = request.approvals.map(approval => [
       approval.department,
       approval.status.toUpperCase(),
+      approval.isMandatory ? 'Yes' : 'No',
       approval.comments || '-',
       new Date(approval.createdAt).toLocaleDateString()
     ]);
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Department', 'Status', 'Comments', 'Date']],
+      head: [['Department', 'Status', 'Mandatory', 'Comments', 'Date']],
       body: approvalData,
       theme: 'striped',
       headStyles: {
         fillColor: [113, 86, 162],
         textColor: [255, 255, 255],
       },
+      styles: {
+        cellWidth: 'wrap',
+        fontSize: 10
+      },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 60 },
+        4: { cellWidth: 35 }
+      }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // Attachments section if available
+  if (request.attachments && request.attachments.length > 0) {
+    doc.setFontSize(14);
+    doc.text('Attachments', 15, yPos);
+    yPos += 10;
+
+    const attachmentData = request.attachments.map(file => [
+      file.fileName,
+      file.fileType,
+      formatFileSize(file.fileSize),
+      new Date(file.uploadedAt).toLocaleDateString()
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['File Name', 'Type', 'Size', 'Upload Date']],
+      body: attachmentData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [113, 86, 162],
+        textColor: [255, 255, 255],
+      },
+      styles: {
+        cellWidth: 'wrap',
+        fontSize: 10
+      },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 40 }
+      }
     });
   }
 
@@ -157,4 +206,12 @@ function calculateItemsTotal(request: PurchaseRequestWithRelations): number {
 
 function calculateTotalCost(request: PurchaseRequestWithRelations): number {
   return calculateItemsTotal(request) + Number(request.freightAmount);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
