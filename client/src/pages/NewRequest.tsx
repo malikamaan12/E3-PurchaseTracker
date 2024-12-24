@@ -90,25 +90,36 @@ export default function NewRequest() {
     try {
       const formData = new FormData();
 
+      // Ensure items are properly formatted
       const formattedData = {
         ...values,
         items: items.map(item => ({
-          name: item.name,
-          quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
+          name: item.name || '',
+          quantity: Number(item.quantity) || 0,
+          estimatedCost: Number(item.estimatedCost) || 0
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendor: values.companyName
       };
 
+      // Validate required fields
+      if (!formattedData.items || formattedData.items.length === 0) {
+        throw new Error("At least one item is required");
+      }
+
+      if (formattedData.items.some(item => !item.name || item.name.trim() === '')) {
+        throw new Error("All items must have a name");
+      }
+
+      // Log the data being sent for debugging
+      console.log('Submitting request with data:', formattedData);
+
       formData.append('data', JSON.stringify(formattedData));
 
       files.forEach(file => {
         formData.append('files', file);
       });
-
-      console.log('Submitting request with data:', formattedData);
 
       try {
         const response = await fetch('/api/requests', {
@@ -117,7 +128,8 @@ export default function NewRequest() {
         });
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          const errorText = await response.text();
+          throw new Error(errorText);
         }
 
         toast({
@@ -143,7 +155,7 @@ export default function NewRequest() {
 
       toast({
         title: "Validation Error",
-        description: errorMessages || "Please check all required fields",
+        description: errorMessages || error.message || "Please check all required fields",
         variant: "destructive",
       });
     }

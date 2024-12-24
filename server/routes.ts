@@ -153,20 +153,41 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      // Parse and validate request data
       const requestData = JSON.parse(req.body.data);
+
+      // Validate items array
+      if (!Array.isArray(requestData.items) || requestData.items.length === 0) {
+        return res.status(400).send("At least one item is required");
+      }
+
+      // Validate each item
+      for (const item of requestData.items) {
+        if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
+          return res.status(400).send("Each item must have a valid name");
+        }
+        if (typeof item.quantity !== 'number' || item.quantity <= 0) {
+          return res.status(400).send("Each item must have a valid quantity");
+        }
+        if (typeof item.estimatedCost !== 'number' || item.estimatedCost < 0) {
+          return res.status(400).send("Each item must have a valid cost");
+        }
+      }
+
       const files = req.files as Express.Multer.File[];
 
       // Generate request number
       const dateStr = format(new Date(), "yyyyMMdd");
       const requestNumber = `REQ/${dateStr}/${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
-      // Create the request first
+      // Create the request with validated data
       const [request] = await db.insert(purchaseRequests)
         .values({
           ...requestData,
           requestNumber,
           requesterId: req.user!.id,
-          status: requestData.status || "draft"
+          status: requestData.status || "draft",
+          items: requestData.items // Ensure items are included
         })
         .returning();
 
@@ -620,7 +641,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-
   // Add priority analysis endpoint
   app.post("/api/requests/:id/analyze-priority", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -937,7 +957,7 @@ export function registerRoutes(app: Express): Server {
           `New account request from ${request.username} (${request.department})`,
           'account_request'
         );
-      }
+            }
 
       res.json({
         message: "Account request submitted successfully. Your request is under review.",
