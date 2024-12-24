@@ -25,13 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon, Eye } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon, Eye, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
 import { mandatoryDepartments, type PurchaseRequestWithRelations, type MandatoryDepartment } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
+import { generateRequestPDF } from "@/lib/pdfGenerator";
 
 interface RequestCardProps {
   request: PurchaseRequestWithRelations;
@@ -209,6 +210,19 @@ export default function RequestCard({
     return fileType.startsWith('image/');
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      const doc = generateRequestPDF(request);
+      doc.save(`${request.requestNumber}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (compact) {
     return (
@@ -511,6 +525,14 @@ export default function RequestCard({
               </AlertDialog>
             </div>
           )}
+          <Button
+            variant="outline"
+            onClick={handleDownloadPDF}
+            className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Download as PDF
+          </Button>
         </div>
       </CardContent>
     </Card>
