@@ -9,5 +9,100 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  /* Interactive Elements */
+  .interactive-hover {
+    @apply transition-all duration-200 ease-in-out hover:brightness-110 active:scale-95;
+  }
+
+  .interactive-bounce {
+    @apply transition-transform hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  /* Form Elements */
+  .form-focus-ring {
+    @apply focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 transition-shadow duration-200;
+  }
+
+  /* Card Animations */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Loading States */
+  .loading-pulse {
+    @apply animate-pulse bg-muted/50;
+  }
+
+  .loading-spin {
+    @apply animate-spin text-muted;
+  }
+}
+
+@layer utilities {
+  /* Responsive Typography */
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .heading-responsive {
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold;
+  }
+
+  /* Touch Targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Smooth Scrolling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Animation Utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile Optimizations */
+@media (hover: hover) and (pointer: fine) {
+  .hover-only {
+    @apply transition-opacity opacity-0 group-hover:opacity-100;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

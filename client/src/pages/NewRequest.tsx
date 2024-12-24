@@ -49,6 +49,7 @@ export default function NewRequest() {
   const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<NewPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -182,6 +183,7 @@ export default function NewRequest() {
   };
 
   const handleSubmit = async (status: "draft" | "pending") => {
+    setIsSubmitting(true);
     try {
       form.setValue("status", status);
       const isValid = await form.trigger();
@@ -197,6 +199,7 @@ export default function NewRequest() {
           description: errorMessages || "Please check all required fields",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -208,6 +211,8 @@ export default function NewRequest() {
         description: "Failed to submit form. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -224,35 +229,35 @@ export default function NewRequest() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
-          className="mb-4 hover:bg-[#7156a2]/10 transition-colors"
+          className="mb-4 hover:bg-[#7156a2]/10 transition-colors interactive-bounce"
           onClick={() => setLocation("/")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
 
-        <Card className="border-[#35bbba]/20 shadow-lg">
+        <Card className="border-[#35bbba]/20 shadow-lg card-hover">
           <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
-            <CardTitle className="text-[#191160] text-2xl font-semibold">
+            <CardTitle className="text-[#191160] heading-responsive">
               Create New Purchase Request
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <Form {...form}>
-              <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+              <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Purpose & Priority</h3>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="purposeType"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
                             <FormControl>
                               <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                 <SelectValue placeholder="Select purpose type" />
@@ -294,7 +299,7 @@ export default function NewRequest() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Priority</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
                             <FormControl>
                               <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                 <SelectValue placeholder="Select priority" />
@@ -315,7 +320,7 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
                     control={form.control}
@@ -326,7 +331,7 @@ export default function NewRequest() {
                         <FormControl>
                           <Input
                             {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
                         <FormMessage />
@@ -343,7 +348,7 @@ export default function NewRequest() {
                         <FormControl>
                           <Textarea
                             {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
                         <FormMessage />
@@ -352,16 +357,16 @@ export default function NewRequest() {
                   />
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
-                  <div className="flex justify-between items-center mb-4">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
                       <FormField
                         control={form.control}
                         name="currency"
                         render={({ field }) => (
                           <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
                               <FormControl>
                                 <SelectTrigger className="w-[120px] border-[#7156a2]/20 focus:border-[#7156a2]">
                                   <SelectValue placeholder="Currency" />
@@ -382,7 +387,7 @@ export default function NewRequest() {
                         type="button"
                         variant="outline"
                         onClick={addItem}
-                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Item
@@ -394,27 +399,27 @@ export default function NewRequest() {
                     {items.map((item, index) => (
                       <div
                         key={index}
-                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+                        className="flex flex-col sm:flex-row gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors animate-fade-in"
                       >
                         <div className="flex-1">
                           <Input
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </div>
-                        <div className="w-24">
+                        <div className="w-full sm:w-24">
                           <Input
                             type="number"
                             min="1"
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </div>
-                        <div className="w-32">
+                        <div className="w-full sm:w-32">
                           <Input
                             type="number"
                             min="0"
@@ -422,10 +427,10 @@ export default function NewRequest() {
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) => updateItem(index, "estimatedCost", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </div>
-                        <div className="w-32 text-right">
+                        <div className="w-full sm:w-32 text-right">
                           <p className="text-sm text-[#191160]">
                             {form.watch("currency")} {(item.quantity * item.estimatedCost).toFixed(2)}
                           </p>
@@ -436,7 +441,7 @@ export default function NewRequest() {
                           size="icon"
                           onClick={() => removeItem(index)}
                           disabled={items.length === 1}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -454,7 +459,7 @@ export default function NewRequest() {
                           step="0.01"
                           value={freightAmount}
                           onChange={(e) => setFreightAmount(Number(e.target.value))}
-                          className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                         />
                       </FormControl>
                     </FormItem>
@@ -487,9 +492,9 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="companyName"
@@ -500,7 +505,7 @@ export default function NewRequest() {
                             <Input
                               {...field}
                               placeholder="Enter company name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -518,7 +523,7 @@ export default function NewRequest() {
                             <Input
                               {...field}
                               placeholder="Enter contact person name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -537,7 +542,7 @@ export default function NewRequest() {
                               {...field}
                               type="tel"
                               placeholder="Enter contact number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -555,7 +560,7 @@ export default function NewRequest() {
                             <Input
                               {...field}
                               placeholder="Enter account number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -571,7 +576,7 @@ export default function NewRequest() {
                   multiple
                 />
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
 
                   <div className="space-y-4">
@@ -618,7 +623,7 @@ export default function NewRequest() {
                               variant="ghost"
                               size="icon"
                               onClick={() => removeFile(index)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
                             >
                               <Trash className="h-4 w-4" />
                             </Button>
@@ -629,21 +634,37 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="flex justify-between pt-6">
+                <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6">
                   <Button
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
-                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                    disabled={isSubmitting}
+                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce"
                   >
-                    Save as Draft
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="loading-spin mr-2" />
+                        Saving...
+                      </div>
+                    ) : (
+                      "Save as Draft"
+                    )}
                   </Button>
                   <Button
                     type="button"
                     onClick={() => handleSubmit("pending")}
-                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                    disabled={isSubmitting}
+                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce"
                   >
-                    Submit for Approval
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="loading-spin mr-2" />
+                        Submitting...
+                      </div>
+                    ) : (
+                      "Submit for Approval"
+                    )}
                   </Button>
                 </div>
               </form>
