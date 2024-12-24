@@ -211,7 +211,7 @@ export default function RequestCard({
     return fileType.startsWith('image/');
   };
 
-  const handleDownloadPDF = () => {
+  async function handleDownloadPDF() {
     try {
       // Example custom branding (this could be loaded from settings/database)
       const customBranding = {
@@ -229,17 +229,17 @@ export default function RequestCard({
         footerHeight: 20,
       };
 
-      const doc = generateRequestPDF(request, templateConfig);
+      const doc = await generateRequestPDF(request, templateConfig);
       doc.save(`${request.requestNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF",
+        description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
         variant: "destructive",
       });
     }
-  };
+  }
 
   if (compact) {
     return (
