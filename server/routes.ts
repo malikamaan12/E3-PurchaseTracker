@@ -1251,26 +1251,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add branding routes after the existing routes
-  app.get("/api/branding", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const [branding] = await db
-        .select()
-        .from(companyBranding)
-        .limit(1);
-
-      res.json(branding || {});
-    } catch (error: any) {
-      console.error("Error fetching branding:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Configure multer for logo upload
+  // Add multer configuration for logo upload
   const logoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
       const uploadDir = path.join(process.cwd(), 'uploads', 'logos');
@@ -1300,6 +1281,28 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add branding routes
+  app.get("/api/branding", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [branding] = await db
+        .select()
+        .from(companyBranding)
+        .limit(1);
+
+      res.json(branding || null);
+    } catch (error: any) {
+      console.error("Error fetching branding:", error);
+      res.status(500).json({
+        error: "Failed to fetch branding",
+        message: error.message
+      });
+    }
+  });
+
   app.post("/api/branding", logoUpload.single('logo'), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -1323,34 +1326,30 @@ export function registerRoutes(app: Express): Server {
         await fs.promises.unlink(req.file.path);
       }
 
-      const brandingData = {
-        ...req.body,
-        logo: logoData,
-        logoMimeType: logoMimeType
-      };
-
-      // Validate the input
-      const result = insertCompanyBrandingSchema.safeParse(brandingData);
-      if (!result.success) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: result.error.issues
-        });
-      }
-
-      // Delete existing branding if any
+      // First delete any existing branding
       await db.delete(companyBranding);
 
-      // Insert new branding
-      const [newBranding] = await db
-        .insert(companyBranding)
-        .values(result.data)
+      // Create new branding
+      const [branding] = await db.insert(companyBranding)
+        .values({
+          companyName: req.body.companyName,
+          headerStyle: req.body.headerStyle || "modern",
+          primaryColor: req.body.primaryColor || "#71569E",
+          secondaryColor: req.body.secondaryColor || "#F0F0FA",
+          accentColor: req.body.accentColor || "#191160",
+          logo: logoData,
+          logoMimeType: logoMimeType,
+          footerText: req.body.footerText
+        })
         .returning();
 
-      res.json(newBranding);
+      res.json(branding);
     } catch (error: any) {
       console.error("Error updating branding:", error);
-      res.status(500).send(error.message);
+      res.status(500).json({
+        error: "Failed to update branding",
+        message: error.message
+      });
     }
   });
 
