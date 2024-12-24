@@ -1310,10 +1310,23 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      let logoData;
+      let logoMimeType;
+
+      if (req.file) {
+        // Read file and convert to base64
+        const fileData = await fs.promises.readFile(req.file.path);
+        logoData = fileData.toString('base64');
+        logoMimeType = req.file.mimetype;
+
+        // Clean up uploaded file
+        await fs.promises.unlink(req.file.path);
+      }
+
       const brandingData = {
         ...req.body,
-        logo: req.file ? await fs.promises.readFile(req.file.path) : undefined,
-        logoMimeType: req.file?.mimetype
+        logo: logoData,
+        logoMimeType: logoMimeType
       };
 
       // Validate the input
@@ -1333,13 +1346,6 @@ export function registerRoutes(app: Express): Server {
         .insert(companyBranding)
         .values(result.data)
         .returning();
-
-      // Clean up the uploaded file
-      if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) console.error("Error deleting uploaded file:", err);
-        });
-      }
 
       res.json(newBranding);
     } catch (error: any) {
