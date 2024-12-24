@@ -25,12 +25,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon, Eye } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
 import { mandatoryDepartments, type PurchaseRequestWithRelations, type MandatoryDepartment } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 
 interface RequestCardProps {
   request: PurchaseRequestWithRelations;
@@ -50,6 +51,7 @@ export default function RequestCard({
   const [comments, setComments] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [showPreview, setShowPreview] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,7 +96,6 @@ export default function RequestCard({
     }
   };
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -102,7 +103,6 @@ export default function RequestCard({
     }).format(amount);
   };
 
-  // Calculate totals
   const freightAmount = Number(request.freightAmount) || 0;
   const items = request.items?.map(item => ({
     name: String(item.name || ""),
@@ -163,7 +163,6 @@ export default function RequestCard({
     }
   };
 
-  // Add this helper function for formatting file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -172,7 +171,6 @@ export default function RequestCard({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Add this function to handle file downloads
   const handleDownload = async (attachmentId: number) => {
     try {
       const response = await fetch(`/api/attachments/${attachmentId}`, {
@@ -183,7 +181,6 @@ export default function RequestCard({
         throw new Error('Failed to download file');
       }
 
-      // Get the filename from the Content-Disposition header if available
       const contentDisposition = response.headers.get('Content-Disposition');
       const filename = contentDisposition
         ? contentDisposition.split('filename=')[1].replace(/"/g, '')
@@ -207,6 +204,11 @@ export default function RequestCard({
       });
     }
   };
+
+  const isPreviewable = (fileType: string) => {
+    return fileType.startsWith('image/');
+  };
+
 
   if (compact) {
     return (
@@ -430,18 +432,39 @@ export default function RequestCard({
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDownload(file.id)}
-                    className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
-                  >
-                    <FileDown className="h-4 w-4 mr-1" />
-                    Download
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {isPreviewable(file.fileType) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPreview(true)}
+                        className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDownload(file.id)}
+                      className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
+                    >
+                      <FileDown className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* File Preview Carousel */}
+            {showPreview && request.attachments && (
+              <FilePreviewCarousel
+                files={request.attachments.filter(file => isPreviewable(file.fileType))}
+                onClose={() => setShowPreview(false)}
+              />
+            )}
           </div>
         )}
 
