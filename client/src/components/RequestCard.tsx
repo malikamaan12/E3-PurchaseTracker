@@ -33,6 +33,7 @@ import { mandatoryDepartments, type PurchaseRequestWithRelations, type Mandatory
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
+import { defaultBranding, type TemplateConfig } from '@/lib/pdfTemplates';
 
 interface RequestCardProps {
   request: PurchaseRequestWithRelations;
@@ -212,7 +213,23 @@ export default function RequestCard({
 
   const handleDownloadPDF = () => {
     try {
-      const doc = generateRequestPDF(request);
+      // Example custom branding (this could be loaded from settings/database)
+      const customBranding = {
+        ...defaultBranding,
+        name: 'Your Company Name', // This should come from settings
+        headerStyle: 'modern' as const,
+        footerText: 'Confidential - For Internal Use Only',
+      };
+
+      const templateConfig: TemplateConfig = {
+        branding: customBranding,
+        layout: 'bento',
+        showLogo: false, // Set to true when logo is available
+        headerHeight: 30,
+        footerHeight: 20,
+      };
+
+      const doc = generateRequestPDF(request, templateConfig);
       doc.save(`${request.requestNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);

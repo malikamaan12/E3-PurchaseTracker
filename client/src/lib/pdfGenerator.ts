@@ -2,50 +2,52 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { PurchaseRequestWithRelations } from '@db/schema';
 import { format } from 'date-fns';
+import {
+  type TemplateConfig,
+  defaultBranding,
+  applyHeaderStyle,
+  applyFooterStyle,
+  createTileBackground
+} from './pdfTemplates';
 
-export function generateRequestPDF(request: PurchaseRequestWithRelations) {
+export function generateRequestPDF(
+  request: PurchaseRequestWithRelations,
+  templateConfig: Partial<TemplateConfig> = {}
+) {
+  const config: TemplateConfig = {
+    branding: defaultBranding,
+    layout: 'bento',
+    showLogo: false,
+    ...templateConfig
+  };
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   const margin = 10;
   const maxWidth = pageWidth - (margin * 2);
 
-  // Helper functions
-  const addTile = (title: string, content: string[], y: number, height: number, backgroundColor = [245, 245, 250]) => {
-    // Add tile background
-    doc.setFillColor(...backgroundColor);
-    doc.roundedRect(margin, y, maxWidth, height, 2, 2, 'F');
+  // Apply header
+  const headerHeight = applyHeaderStyle(doc, config, pageWidth);
+
+  // Helper function for creating tiles
+  const addTile = (title: string, content: string[], y: number, height: number) => {
+    createTileBackground(doc, config, margin, y, maxWidth, height);
 
     // Add title
     doc.setFontSize(10);
-    doc.setTextColor(113, 86, 162);
+    doc.setTextColor(...config.branding.primaryColor);
     doc.text(title, margin + 5, y + 7);
 
     // Add content
-    doc.setTextColor(25, 17, 96);
+    doc.setTextColor(...config.branding.accentColor);
     doc.setFontSize(8);
     content.forEach((text, index) => {
       doc.text(text, margin + 5, y + 15 + (index * 5));
     });
   };
 
-  // Document setup
-  doc.setProperties({
-    title: `Purchase Request - ${request.requestNumber}`,
-    subject: 'Purchase Request Details',
-    creator: 'Procurement Management System',
-  });
-
-  // Header
-  doc.setFillColor(113, 86, 162);
-  doc.rect(0, 0, pageWidth, 25, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.text('PROCUREMENT REQUEST', pageWidth / 2, 15, { align: 'center' });
-  doc.setFontSize(10);
-  doc.text(request.requestNumber, pageWidth / 2, 22, { align: 'center' });
-
-  let yPos = 30;
+  let yPos = headerHeight + 5;
 
   // Request Info Tile
   const requestInfo = [
@@ -76,10 +78,9 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
 
   // Items Table Tile
   yPos += 30;
-  doc.setFillColor(245, 245, 250);
-  doc.roundedRect(margin, yPos, maxWidth, 65, 2, 2, 'F');
+  createTileBackground(doc, config, margin, yPos, maxWidth, 65);
   doc.setFontSize(10);
-  doc.setTextColor(113, 86, 162);
+  doc.setTextColor(...config.branding.primaryColor);
   doc.text('Items', margin + 5, yPos + 7);
 
   const items = request.items.map(item => [
@@ -101,14 +102,14 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
     ],
     theme: 'plain',
     headStyles: {
-      fillColor: [113, 86, 162],
+      fillColor: config.branding.primaryColor,
       textColor: [255, 255, 255],
       fontSize: 8,
     },
     bodyStyles: { fontSize: 8 },
     footStyles: {
-      fillColor: [240, 240, 250],
-      textColor: [25, 17, 96],
+      fillColor: config.branding.secondaryColor,
+      textColor: config.branding.accentColor,
       fontStyle: 'bold',
       fontSize: 8,
     },
@@ -117,10 +118,9 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
   // Approvals Tile
   yPos += 70;
   if (request.approvals && request.approvals.length > 0) {
-    doc.setFillColor(245, 245, 250);
-    doc.roundedRect(margin, yPos, maxWidth, 40, 2, 2, 'F');
+    createTileBackground(doc, config, margin, yPos, maxWidth, 40);
     doc.setFontSize(10);
-    doc.setTextColor(113, 86, 162);
+    doc.setTextColor(...config.branding.primaryColor);
     doc.text('Approval Status', margin + 5, yPos + 7);
 
     const approvalData = request.approvals.map(approval => [
@@ -137,7 +137,7 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
       body: approvalData,
       theme: 'plain',
       headStyles: {
-        fillColor: [113, 86, 162],
+        fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
         fontSize: 8,
       },
@@ -160,15 +160,8 @@ export function generateRequestPDF(request: PurchaseRequestWithRelations) {
     addTile('Attached Files', attachmentsList, yPos, 25);
   }
 
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(128, 128, 128);
-  doc.text(
-    `Generated on ${format(new Date(), 'PPp')}`,
-    pageWidth / 2,
-    pageHeight - 10,
-    { align: 'center' }
-  );
+  // Apply footer
+  applyFooterStyle(doc, config, pageWidth, pageHeight);
 
   return doc;
 }
