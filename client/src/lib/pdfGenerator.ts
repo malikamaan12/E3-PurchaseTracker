@@ -49,39 +49,46 @@ export async function generateRequestPDF(
       } : defaultBranding,
       layout: 'bento',
       showLogo: !!branding?.logo,
-      headerHeight: templateConfig.headerHeight || 30,
-      footerHeight: templateConfig.footerHeight || 20,
+      headerHeight: templateConfig.headerHeight || 35, // Increased header height
+      footerHeight: templateConfig.footerHeight || 25, // Increased footer height
     };
 
-    console.log('Using PDF config:', config); // Debug log
+    console.log('Using PDF config:', config);
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 10;
+    const margin = 15; // Increased margin
     const maxWidth = pageWidth - (margin * 2);
 
     // Apply header with company branding
     const headerHeight = applyHeaderStyle(doc, config, pageWidth);
 
-    // Helper function for creating tiles
+    // Helper function for creating tiles with enhanced styling
     const addTile = (title: string, content: string[], y: number, height: number) => {
       createTileBackground(doc, config, margin, y, maxWidth, height);
 
-      // Add title
-      doc.setFontSize(10);
+      // Add title with enhanced styling
+      doc.setFontSize(12); // Increased font size
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(...config.branding.primaryColor);
-      doc.text(title, margin + 5, y + 7);
+      doc.text(title.toUpperCase(), margin + 8, y + 10); // Increased padding
 
-      // Add content
+      // Add subtle divider
+      doc.setDrawColor(...config.branding.primaryColor);
+      doc.setLineWidth(0.2);
+      doc.line(margin + 8, y + 13, margin + maxWidth - 16, y + 13);
+
+      // Add content with improved formatting
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(...config.branding.accentColor);
-      doc.setFontSize(8);
+      doc.setFontSize(10);
       content.forEach((text, index) => {
-        doc.text(text, margin + 5, y + 15 + (index * 5));
+        doc.text(text, margin + 8, y + 22 + (index * 6)); // Increased line spacing
       });
     };
 
-    let yPos = headerHeight + 5;
+    let yPos = headerHeight + 10; // Increased spacing after header
 
     // Request Info Tile
     const requestInfo = [
@@ -89,33 +96,36 @@ export async function generateRequestPDF(
       `Priority: ${request.priority.toUpperCase()}`,
       `Created: ${format(new Date(request.createdAt), 'PPp')}`,
     ];
-    addTile('Request Information', requestInfo, yPos, 25);
+    addTile('Request Information', requestInfo, yPos, 35);
 
     // Requester Info Tile
-    yPos += 30;
+    yPos += 40; // Increased spacing between tiles
     const requesterInfo = [
       `Name: ${request.requester?.username || 'N/A'}`,
       `Department: ${request.requester?.department || 'N/A'}`,
       `Contact: ${request.requester?.contactNumber || 'N/A'}`,
       `Email: ${request.requester?.email || 'N/A'}`,
     ];
-    addTile('Requester Details', requesterInfo, yPos, 30);
+    addTile('Requester Details', requesterInfo, yPos, 40);
 
     // Purpose Tile
-    yPos += 35;
+    yPos += 45;
     const purposeInfo = [
       `Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
       request.subPurpose ? `Sub Purpose: ${request.subPurpose.name}` : '',
       `Details: ${request.purpose || 'N/A'}`,
     ].filter(Boolean);
-    addTile('Purpose Information', purposeInfo, yPos, 25);
+    addTile('Purpose Information', purposeInfo, yPos, 35);
 
     // Items Table Tile
-    yPos += 30;
-    createTileBackground(doc, config, margin, yPos, maxWidth, 65);
-    doc.setFontSize(10);
+    yPos += 40;
+    createTileBackground(doc, config, margin, yPos, maxWidth, 75); // Increased height
+
+    // Add title for items section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...config.branding.primaryColor);
-    doc.text('Items', margin + 5, yPos + 7);
+    doc.text('ITEMS & COSTS', margin + 8, yPos + 10);
 
     const items = request.items.map(item => [
       item.name,
@@ -124,9 +134,10 @@ export async function generateRequestPDF(
       formatCurrency(item.quantity * item.estimatedCost, request.currency)
     ]);
 
+    // Enhanced table styling
     autoTable(doc, {
-      startY: yPos + 10,
-      margin: { left: margin + 5, right: margin + 5 },
+      startY: yPos + 15,
+      margin: { left: margin + 8, right: margin + 8 },
       head: [['Item', 'Qty', 'Unit Cost', 'Total']],
       body: items,
       foot: [
@@ -134,28 +145,38 @@ export async function generateRequestPDF(
         ['', '', 'Freight:', formatCurrency(Number(request.freightAmount), request.currency)],
         ['', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
-      theme: 'plain',
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
       headStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 8,
+        fontSize: 10,
+        fontStyle: 'bold',
       },
-      bodyStyles: { fontSize: 8 },
       footStyles: {
-        fillColor: config.branding.secondaryColor,
+        fillColor: [...config.branding.secondaryColor.map(c => c * 0.95)], // Slightly darker
         textColor: config.branding.accentColor,
         fontStyle: 'bold',
-        fontSize: 8,
+        fontSize: 9,
+      },
+      alternateRowStyles: {
+        fillColor: [...config.branding.secondaryColor.map(c => c * 0.98)], // Very light shade
       },
     });
 
     // Approvals Tile
-    yPos += 70;
+    yPos += 80;
     if (request.approvals && request.approvals.length > 0) {
-      createTileBackground(doc, config, margin, yPos, maxWidth, 40);
-      doc.setFontSize(10);
+      createTileBackground(doc, config, margin, yPos, maxWidth, 50);
+
+      // Add title for approvals section
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(...config.branding.primaryColor);
-      doc.text('Approval Status', margin + 5, yPos + 7);
+      doc.text('APPROVAL STATUS', margin + 8, yPos + 10);
 
       const approvalData = request.approvals.map(approval => [
         approval.department,
@@ -164,34 +185,42 @@ export async function generateRequestPDF(
         approval.comments || '-',
       ]);
 
+      // Enhanced approvals table
       autoTable(doc, {
-        startY: yPos + 10,
-        margin: { left: margin + 5, right: margin + 5 },
+        startY: yPos + 15,
+        margin: { left: margin + 8, right: margin + 8 },
         head: [['Department', 'Status', 'Mandatory', 'Comments']],
         body: approvalData,
-        theme: 'plain',
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
         headStyles: {
           fillColor: config.branding.primaryColor,
           textColor: [255, 255, 255],
-          fontSize: 8,
+          fontSize: 10,
+          fontStyle: 'bold',
         },
-        styles: { fontSize: 8 },
+        alternateRowStyles: {
+          fillColor: [...config.branding.secondaryColor.map(c => c * 0.98)],
+        },
         columnStyles: {
-          0: { cellWidth: 30 },
+          0: { cellWidth: 35 },
           1: { cellWidth: 30 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 100 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 'auto' },
         },
       });
     }
 
     // Attachments Tile
-    yPos += 45;
+    yPos += 55;
     if (request.attachments && request.attachments.length > 0) {
       const attachmentsList = request.attachments.map(
         file => `• ${file.fileName} (${formatFileSize(file.fileSize)})`
       );
-      addTile('Attached Files', attachmentsList, yPos, 25);
+      addTile('Attached Files', attachmentsList, yPos, 35);
     }
 
     // Apply footer with branding

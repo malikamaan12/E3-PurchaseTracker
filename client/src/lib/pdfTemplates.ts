@@ -55,14 +55,14 @@ export function hexToRgb(hex: string): [number, number, number] {
 
 // Template-specific styling functions
 export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: number) {
-  const { branding, headerHeight = 25 } = config;
+  const { branding, headerHeight = 35 } = config;
   const { primaryColor, name, headerStyle, logo, logoMimeType } = branding;
 
-  // Apply header background
-  doc.setFillColor(...primaryColor);
-
+  // Create gradient effect for modern style
   if (headerStyle === 'modern') {
-    // Modern style with gradient effect
+    // Draw background with gradient
+    const gradient = doc.setGState(doc.GState.fill);
+    doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
     // Add logo if available
@@ -71,86 +71,131 @@ export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: nu
         doc.addImage(
           `data:${logoMimeType};base64,${logo}`,
           logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          10,
+          12,
           5,
-          15,
-          15
+          20,
+          20
         );
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(16);
-        doc.text(name, 30, 15);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(name, 40, 17);
+
+        // Add decorative line
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.5);
+        doc.line(40, 20, pageWidth - 20, 20);
       } catch (error) {
         console.error('Error adding logo to PDF:', error);
-        // Fallback to centered text if logo fails
+        // Fallback to centered text with decorative elements
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(16);
-        doc.text(name, pageWidth / 2, 15, { align: 'center' });
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text(name, pageWidth / 2, 17, { align: 'center' });
+
+        // Add decorative lines
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.5);
+        doc.line(20, 20, pageWidth - 20, 20);
       }
     } else {
+      // No logo - centered text with decorative elements
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
-      doc.text(name, pageWidth / 2, 15, { align: 'center' });
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(name, pageWidth / 2, 17, { align: 'center' });
+
+      // Add decorative lines
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      doc.line(20, 20, pageWidth - 20, 20);
     }
   } else if (headerStyle === 'classic') {
-    // Classic style with border
+    // Classic style with sophisticated border
     doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(1);
     doc.line(0, headerHeight, pageWidth, headerHeight);
+
+    // Add subtle top border
+    doc.setLineWidth(0.5);
+    doc.line(0, 2, pageWidth, 2);
 
     if (config.showLogo && logo) {
       try {
         doc.addImage(
           `data:${logoMimeType};base64,${logo}`,
           logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          10,
+          12,
           5,
-          15,
-          15
+          20,
+          20
         );
       } catch (error) {
         console.error('Error adding logo to PDF:', error);
       }
     }
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(14);
-    doc.text(name, pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(name, pageWidth / 2, 17, { align: 'center' });
   } else {
-    // Minimal style
+    // Minimal style with subtle elements
     if (config.showLogo && logo) {
       try {
         doc.addImage(
           `data:${logoMimeType};base64,${logo}`,
           logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          10,
+          12,
           5,
-          15,
-          15
+          20,
+          20
         );
       } catch (error) {
         console.error('Error adding logo to PDF:', error);
       }
     }
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(14);
-    doc.text(name, pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(name, pageWidth / 2, 17, { align: 'center' });
+
+    // Add subtle bottom border
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.2);
+    doc.line(20, headerHeight - 2, pageWidth - 20, headerHeight - 2);
   }
 
   return headerHeight;
 }
 
 export function applyFooterStyle(doc: any, config: TemplateConfig, pageWidth: number, pageHeight: number) {
-  const { branding, footerHeight = 15 } = config;
-  const { footerText, primaryColor } = branding;
+  const { branding, footerHeight = 25 } = config;
+  const { footerText, primaryColor, accentColor } = branding;
 
   const footerY = pageHeight - footerHeight;
 
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(8);
+  // Add subtle top border
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(0.2);
+  doc.line(20, footerY + 5, pageWidth - 20, footerY + 5);
+
+  // Add footer text
+  doc.setTextColor(...accentColor);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
   doc.text(
     footerText || 'Generated by Procurement Management System',
     pageWidth / 2,
-    footerY + 10,
+    footerY + 15,
     { align: 'center' }
+  );
+
+  // Add page number
+  doc.text(
+    `Page ${doc.internal.getNumberOfPages()}`,
+    pageWidth - 20,
+    footerY + 15,
+    { align: 'right' }
   );
 
   return footerHeight;
@@ -161,11 +206,16 @@ export function createTileBackground(doc: any, config: TemplateConfig, x: number
   const { branding } = config;
 
   // Create subtle gradient effect
-  doc.setFillColor(...branding.secondaryColor);
-  doc.roundedRect(x, y, width, height, 2, 2, 'F');
+  doc.setFillColor(...branding.secondaryColor.map(c => Math.min(255, c + 10)));
+  doc.roundedRect(x, y, width, height, 3, 3, 'F');
 
   // Add subtle border
   doc.setDrawColor(...branding.primaryColor);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(x, y, width, height, 3, 3, 'S');
+
+  // Add subtle shadow effect
+  doc.setDrawColor(...branding.primaryColor.map(c => Math.max(0, c - 40)));
   doc.setLineWidth(0.1);
-  doc.roundedRect(x, y, width, height, 2, 2, 'S');
+  doc.roundedRect(x + 0.5, y + 0.5, width, height, 3, 3, 'S');
 }
