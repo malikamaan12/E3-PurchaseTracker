@@ -58,10 +58,9 @@ export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: nu
   const { branding, headerHeight = 35 } = config;
   const { primaryColor, name, headerStyle, logo, logoMimeType } = branding;
 
-  // Create gradient effect for modern style
+  // Modern style with solid background
   if (headerStyle === 'modern') {
-    // Draw background with gradient
-    const gradient = doc.setGState(doc.GState.fill);
+    // Draw background
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
@@ -205,8 +204,8 @@ export function applyFooterStyle(doc: any, config: TemplateConfig, pageWidth: nu
 export function createTileBackground(doc: any, config: TemplateConfig, x: number, y: number, width: number, height: number) {
   const { branding } = config;
 
-  // Create subtle gradient effect
-  doc.setFillColor(...branding.secondaryColor.map(c => Math.min(255, c + 10)));
+  // Set background color
+  doc.setFillColor(...branding.secondaryColor);
   doc.roundedRect(x, y, width, height, 3, 3, 'F');
 
   // Add subtle border
