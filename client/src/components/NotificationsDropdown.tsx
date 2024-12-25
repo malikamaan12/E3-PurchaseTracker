@@ -23,8 +23,11 @@ export function NotificationsDropdown() {
     }
 
     if (link) {
+      // Ensure the link starts with a forward slash for internal navigation
+      const formattedLink = link.startsWith('/') ? link : `/${link}`;
+      console.log('Navigating to:', formattedLink); // Debug log
       setOpen(false);
-      setLocation(link);
+      setLocation(formattedLink);
     }
   };
 
