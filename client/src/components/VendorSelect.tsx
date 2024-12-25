@@ -171,20 +171,38 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
     try {
       setIsSubmitting(true);
-      // Final validation of all fields
-      const isValid = await form.trigger();
+      
+      // Validate all fields from all slides
+      const allFields = [
+        'companyName', 'registrationNumber', 'category',
+        'email', 'contactNumber', 'contactPerson', 'address',
+        'bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'
+      ];
+
+      const isValid = await form.trigger(allFields);
+      
       if (!isValid) {
+        const errors = form.formState.errors;
+        const errorFields = Object.keys(errors).join(', ');
+        
         toast({
           title: "Validation Error",
-          description: "Please check all required fields",
+          description: `Please check these fields: ${errorFields}`,
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
       await createVendor.mutateAsync(data);
     } catch (error) {
       console.error("Error creating vendor:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create vendor. Please try again.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
     }
   };
 
