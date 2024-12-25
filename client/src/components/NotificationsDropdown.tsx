@@ -19,6 +19,8 @@ export function NotificationsDropdown() {
 
   const handleNotificationClick = async (notificationId: number, link?: string | null) => {
     try {
+      console.log('Notification clicked:', { notificationId, link }); // Debug log
+
       // Mark as read if needed
       if (!notifications.find(n => n.id === notificationId)?.isRead) {
         await markAsRead(notificationId);
@@ -94,8 +96,8 @@ export function NotificationsDropdown() {
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
-                  <Button
-                    variant="ghost"
+                  <Button 
+                    variant="ghost" 
                     onClick={() => handleNotificationClick(notification.id, notification.link)}
                     className="w-full text-left h-auto p-0 hover:bg-transparent"
                   >

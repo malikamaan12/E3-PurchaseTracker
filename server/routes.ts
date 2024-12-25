@@ -34,7 +34,10 @@ async function hashPassword(password: string): Promise<string> {
 
 async function createNotification(userId: number, title: string, message: string, type: string, requestId?: number) {
   try {
-    const notificationLink = requestId ? `/requests/${requestId}` : null;
+    // Ensure link is properly formatted for frontend routing
+    const notificationLink = requestId ? `requests/${requestId}` : null;
+    console.log('Creating notification with link:', notificationLink); // Debug log
+
     const [notification] = await db.insert(notifications)
       .values({
         userId,
