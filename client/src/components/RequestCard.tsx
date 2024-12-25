@@ -234,7 +234,34 @@ export default function RequestCard({
     }
   }
 
+  const handleDraftSubmit = async () => {
+    try {
+      await updateRequest({
+        id: request.id,
+        data: { ...request, status: "pending" }
+      });
+
+      toast({
+        title: "Success",
+        description: "Request submitted for approval",
+      });
+    } catch (error) {
+      console.error("Error submitting draft:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit request",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (compact) {
+    const canSubmitDraft = request.status === "draft" &&
+      request.requesterId === user?.id &&
+      request.title &&
+      request.description &&
+      request.items?.length > 0;
+
     return (
       <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-4">
@@ -250,7 +277,7 @@ export default function RequestCard({
                 {request.requestNumber} - {format(new Date(request.createdAt), "MMM d, yyyy")}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
                 {getPriorityIcon(request.priority)}
                 <span className={`text-sm ${getPriorityColor(request.priority)}`}>
@@ -258,6 +285,15 @@ export default function RequestCard({
                 </span>
               </div>
               <p className="text-sm font-medium">{formatCurrency(totalCost)}</p>
+              {canSubmitDraft && (
+                <Button
+                  size="sm"
+                  onClick={handleDraftSubmit}
+                  className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                >
+                  Submit
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

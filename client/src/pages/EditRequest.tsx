@@ -33,7 +33,6 @@ import { useQuery } from "@tanstack/react-query";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 
-
 const currencies = [
   { label: "QAR", value: "QAR" },
   { label: "USD", value: "USD" },
@@ -51,6 +50,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const { updateRequest } = usePurchaseRequests();
   const { toast } = useToast();
+
+  // Initialize state with empty values
   const [items, setItems] = useState([{ 
     name: "", 
     quantity: 1, 
@@ -65,7 +66,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     enabled: !!params.id,
   });
 
-  // Form initialization
+  // Form initialization with default values
   const form = useForm<InsertPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
@@ -90,6 +91,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
+      console.log("Loading request data:", request);
+
       // Parse and format items array
       const formattedItems = request.items?.map(item => ({
         name: String(item.name || ""),
@@ -101,6 +104,18 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       // Reset form with request data
       form.reset({
         ...request,
+        title: request.title || "",
+        description: request.description || "",
+        companyName: request.companyName || "",
+        contactPerson: request.contactPerson || "",
+        contactNumber: request.contactNumber || "",
+        accountNumber: request.accountNumber || "",
+        purpose: request.purpose || "",
+        purposeType: request.purposeType || "event",
+        subPurposeId: request.subPurposeId,
+        priority: request.priority || "medium",
+        currency: request.currency || "QAR",
+        status: request.status || "draft",
         items: formattedItems,
         totalEstimatedCost: String(request.totalEstimatedCost || "0"),
         freightAmount: String(request.freightAmount || "0"),
@@ -327,6 +342,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="subPurposeId"
@@ -593,10 +609,4 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
-}
-
-// Placeholder for analyzeFormError function.  This needs to be defined elsewhere in your project.
-const analyzeFormError = async (values: any, errors: any) => {
-    // Your implementation to analyze form errors here.
-    return "";
 }
