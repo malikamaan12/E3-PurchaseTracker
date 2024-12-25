@@ -110,7 +110,8 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to create vendor");
       }
 
       return res.json() as Promise<Vendor>;
@@ -138,7 +139,48 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     }
   });
 
-  const selectedVendor = vendors.find((v) => v.id === value);
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (currentSlide !== 2) {
+      toast({
+        title: "Error",
+        description: "Please complete all steps before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Validate all fields before submission
+      const isValid = await form.trigger();
+
+      if (!isValid) {
+        const errors = form.formState.errors;
+        const errorFields = Object.keys(errors).join(', ');
+        toast({
+          title: "Validation Error",
+          description: `Please check these fields: ${errorFields}`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const formData = form.getValues();
+      await createVendor.mutateAsync(formData);
+    } catch (error: any) {
+      console.error("Error creating vendor:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create vendor",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    }
+  };
 
   const validateCurrentSlide = async () => {
     const fieldsToValidate = {
@@ -159,53 +201,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     return true;
   };
 
-  const onSubmit = async (data: any) => {
-    if (currentSlide !== 2) {
-      toast({
-        title: "Error",
-        description: "Please complete all steps before submitting",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // Validate all fields from all slides
-      const allFields = [
-        'companyName', 'registrationNumber', 'category',
-        'email', 'contactNumber', 'contactPerson', 'address',
-        'bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'
-      ] as const;
-
-      const isValid = await form.trigger(allFields);
-
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const errorFields = Object.keys(errors).join(', ');
-
-        toast({
-          title: "Validation Error",
-          description: `Please check these fields: ${errorFields}`,
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      await createVendor.mutateAsync(data);
-    } catch (error) {
-      console.error("Error creating vendor:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create vendor. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const selectedVendor = vendors.find((v) => v.id === value);
 
   const handleSelectVendor = (vendorId: number, vendorName: string) => {
     onChange(vendorId, vendorName);
@@ -502,22 +498,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                // Only allow form submission on the last step
-                if (currentSlide === 2) {
-                  form.handleSubmit(onSubmit)(e);
-                } else {
-                  toast({
-                    title: "Error",
-                    description: "Please complete all steps before submitting",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="space-y-4"
-            >
+            <form onSubmit={onSubmit} className="space-y-4">
               <div className="relative">
                 <div className="overflow-hidden">
                   <div

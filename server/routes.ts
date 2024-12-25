@@ -1583,7 +1583,11 @@ export function registerRoutes(app: Express): Server {
       }
 
       const [vendor] = await db.insert(vendors)
-        .values(result.data)
+        .values({
+          ...result.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning();
 
       res.json(vendor);
@@ -1591,6 +1595,110 @@ export function registerRoutes(app: Express): Server {
       console.error("Error creating vendor:", error);
       res.status(500).json({
         error: "Failed to create vendor",
+        message: error.message
+      });
+    }
+  });
+
+  app.put("/api/vendors/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    // Check if user is admin
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can modify vendors");
+    }
+
+    try {
+      const vendorId = parseInt(req.params.id);
+      const result = insertVendorSchema.partial().safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        });
+      }
+
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          ...result.data,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      if (!updatedVendor) {
+        return res.status(404).send("Vendor not found");
+      }
+
+      res.json(updatedVendor);
+    } catch (error: any) {
+      console.error("Error updating vendor:", error);
+      res.status(500).json({
+        error: "Failed to update vendor",
+        message: error.message
+      });
+    }
+  });
+
+  app.delete("/api/vendors/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    // Check if user is admin
+    if (req.user!.role !== "admin") {
+      return res.status(403).send("Only admin can delete vendors");
+    }
+
+    try {
+      const vendorId = parseInt(req.params.id);
+
+      // Check if vendor exists
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, vendorId))
+        .limit(1);
+
+      if (!vendor) {
+        return res.status(404).send("Vendor not found");
+      }
+
+      // Check if vendor is used in any purchase requests
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.companyName, vendor.companyName))
+        .limit(1);
+
+      if (request) {
+        return res.status(400).json({
+          error: "Cannot delete vendor",
+          message: "This vendor is associated with existing purchase requests"
+        });
+      }
+
+      // Delete the vendor
+      const [deletedVendor] = await db
+        .delete(vendors)
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      res.json({
+        message: "Vendor deleted successfully",
+        vendor: deletedVendor
+      });
+    } catch (error: any) {
+      console.error("Error deleting vendor:", error);
+      res.status(500).json({
+        error: "Failed to delete vendor",
         message: error.message
       });
     }
