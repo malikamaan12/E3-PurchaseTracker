@@ -165,11 +165,27 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           description: `Please check these fields: ${errorFields}`,
           variant: "destructive",
         });
-        setIsSubmitting(false);
         return;
       }
 
       const formData = form.getValues();
+
+      // Additional validation for required fields
+      const requiredFields = [
+        'companyName', 'registrationNumber', 'contactNumber',
+        'contactPerson', 'bankName', 'accountNumber', 'ibanNumber'
+      ];
+
+      const missingFields = requiredFields.filter(field => !formData[field]);
+      if (missingFields.length > 0) {
+        toast({
+          title: "Missing Required Fields",
+          description: `Please fill in: ${missingFields.join(', ')}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       await createVendor.mutateAsync(formData);
     } catch (error: any) {
       console.error("Error creating vendor:", error);
@@ -178,6 +194,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         description: error.message || "Failed to create vendor",
         variant: "destructive",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };

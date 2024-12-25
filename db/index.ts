@@ -1,4 +1,5 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from '@neondatabase/serverless';
 import ws from "ws";
 import * as schema from "@db/schema";
 
@@ -8,8 +9,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const db = drizzle({
-  connection: process.env.DATABASE_URL,
-  schema,
-  ws: ws,
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  maxConns: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  ssl: true
 });
+
+export const db = drizzle(pool, { schema });
