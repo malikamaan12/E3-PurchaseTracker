@@ -44,21 +44,26 @@ export default function ViewRequest() {
       user?.department === "Finance");
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center mb-6">
-          <Button variant="ghost" onClick={() => setLocation("/")}>
+          <Button 
+            variant="ghost" 
+            onClick={() => setLocation("/")}
+            className="hover:bg-[#7156a2]/10 transition-colors"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
         </div>
 
-        <Card>
+        <Card className="border-[#35bbba]/20 shadow-lg">
           <CardContent className="p-6">
             <RequestCard
               request={request}
               showActions={request.requesterId === user?.id}
               showApproval={showApproval}
+              showItemDescriptions={true}
             />
           </CardContent>
         </Card>

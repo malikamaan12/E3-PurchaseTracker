@@ -34,6 +34,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
     name: string;
     quantity: number;
     estimatedCost: number;
+    description?: string; // Added description field as optional
   }>>().notNull(),
   companyName: text("company_name").notNull(),
   contactPerson: text("contact_person").notNull(),
@@ -240,7 +241,8 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   items: z.array(z.object({
     name: z.string().min(1, "Item name is required"),
     quantity: z.number().int().positive("Quantity must be a positive number"),
-    estimatedCost: z.number().min(0, "Cost must be non-negative")
+    estimatedCost: z.number().min(0, "Cost must be non-negative"),
+    description: z.string().optional() // Added optional description field
   })).min(1, "At least one item is required"),
   companyName: z.string().min(1, "Company name is required"),
   contactPerson: z.string().min(1, "Contact person is required"),

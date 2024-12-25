@@ -47,7 +47,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const { updateRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
+  const [items, setItems] = useState([{ 
+    name: "", 
+    quantity: 1, 
+    estimatedCost: 0,
+    description: "" 
+  }]);
   const [freightAmount, setFreightAmount] = useState(0);
 
   // Fetch the request data with proper type
@@ -62,7 +67,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     defaultValues: {
       title: "",
       description: "",
-      items: [{ name: "", quantity: 1, estimatedCost: 0 }],
+      items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
       companyName: "",
       contactPerson: "",
       contactNumber: "",
@@ -81,14 +86,13 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
-      console.log("Loading request data:", request);
-
       // Ensure items array is properly formatted
       const formattedItems = Array.isArray(request.items) ? request.items.map(item => ({
         name: String(item.name || ""),
         quantity: Number(item.quantity || 1),
-        estimatedCost: Number(item.estimatedCost || 0)
-      })) : [{ name: "", quantity: 1, estimatedCost: 0 }];
+        estimatedCost: Number(item.estimatedCost || 0),
+        description: String(item.description || "") //Added description
+      })) : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }]; //Added description
 
       // Set the form values
       form.reset({
@@ -114,8 +118,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       // Set freight amount
       setFreightAmount(Number(request.freightAmount || 0));
-
-      console.log("Form reset with values:", form.getValues());
     }
   }, [request, form]);
 
@@ -135,12 +137,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost),
+          description: item.description //Added description
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
       };
-
-      console.log("Submitting request with data:", submissionData);
 
       try {
         await updateRequest({
@@ -197,7 +198,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0 }]);
+    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -211,7 +212,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === "name" ? value : Number(value),
+      [field]: field === "name" || field === "description" ? value : Number(value),
     };
     setItems(newItems);
   };
@@ -408,12 +409,18 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         key={index}
                         className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-2">
                           <Input
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
                             className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
+                          <Textarea
+                            placeholder="Item description (optional)"
+                            value={item.description || ''}
+                            onChange={(e) => updateItem(index, "description", e.target.value)}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20 resize-none"
                           />
                         </div>
                         <div className="w-24">

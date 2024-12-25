@@ -40,6 +40,7 @@ interface RequestCardProps {
   showActions?: boolean;
   showApproval?: boolean;
   compact?: boolean;
+  showItemDescriptions?: boolean;
 }
 
 export default function RequestCard({
@@ -47,6 +48,7 @@ export default function RequestCard({
   showActions,
   showApproval,
   compact = false,
+  showItemDescriptions = false,
 }: RequestCardProps) {
   const { user } = useUser();
   const { updateRequest, createApproval, deleteRequest } = usePurchaseRequests();
@@ -109,7 +111,8 @@ export default function RequestCard({
   const items = request.items?.map(item => ({
     name: String(item.name || ""),
     quantity: Number(item.quantity || 1),
-    estimatedCost: Number(item.estimatedCost || 0)
+    estimatedCost: Number(item.estimatedCost || 0),
+    description: item.description
   })) || [];
 
   const itemsTotal = items.reduce(
@@ -308,6 +311,7 @@ export default function RequestCard({
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
+                {showItemDescriptions && <TableHead>Description</TableHead>}
                 <TableHead>Quantity</TableHead>
                 <TableHead>Unit Cost</TableHead>
                 <TableHead>Total</TableHead>
@@ -317,6 +321,17 @@ export default function RequestCard({
               {items.map((item, index) => (
                 <TableRow key={index}>
                   <TableCell>{item.name}</TableCell>
+                  {showItemDescriptions && (
+                    <TableCell className="max-w-md">
+                      {item.description ? (
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                          {item.description}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">No description provided</p>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
                   <TableCell>
@@ -325,7 +340,7 @@ export default function RequestCard({
                 </TableRow>
               ))}
               <TableRow>
-                <TableCell colSpan={3} className="text-right font-medium">
+                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
                   Items Total
                 </TableCell>
                 <TableCell className="font-medium">
@@ -333,7 +348,7 @@ export default function RequestCard({
                 </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell colSpan={3} className="text-right font-medium">
+                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
                   Freight Amount
                 </TableCell>
                 <TableCell className="font-medium">
@@ -341,7 +356,7 @@ export default function RequestCard({
                 </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell colSpan={3} className="text-right font-bold">
+                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
                   Total Estimated Cost
                 </TableCell>
                 <TableCell className="font-bold">
