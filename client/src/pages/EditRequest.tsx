@@ -26,10 +26,8 @@ import {
 } from "@/components/ui/select";
 import { 
   insertPurchaseRequestSchema, 
-  type PurchaseRequest,
-  type InsertPurchaseRequest 
+  type PurchaseRequest
 } from "@db/schema";
-import { useQuery } from "@tanstack/react-query";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 
@@ -48,8 +46,11 @@ const priorities = [
 
 export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
-  const { updateRequest } = usePurchaseRequests();
+  const { updateRequest, getRequest } = usePurchaseRequests();
   const { toast } = useToast();
+
+  // Use getRequest hook to fetch request data
+  const { data: request, isLoading } = getRequest(parseInt(params.id));
 
   // Initialize state with empty values
   const [items, setItems] = useState([{ 
@@ -60,14 +61,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   }]);
   const [freightAmount, setFreightAmount] = useState(0);
 
-  // Fetch the request data
-  const { data: request, isLoading } = useQuery<PurchaseRequest>({
-    queryKey: [`/api/requests/${params.id}`],
-    enabled: !!params.id,
-  });
-
   // Form initialization with default values
-  const form = useForm<InsertPurchaseRequest>({
+  const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
@@ -77,7 +72,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       contactPerson: "",
       contactNumber: "",
       accountNumber: "",
-      purpose: "",
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
@@ -91,8 +85,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
-      console.log("Loading request data:", request);
-
       // Parse and format items array
       const formattedItems = request.items?.map(item => ({
         name: String(item.name || ""),
@@ -104,21 +96,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       // Reset form with request data
       form.reset({
         ...request,
-        title: request.title || "",
-        description: request.description || "",
-        companyName: request.companyName || "",
-        contactPerson: request.contactPerson || "",
-        contactNumber: request.contactNumber || "",
-        accountNumber: request.accountNumber || "",
-        purpose: request.purpose || "",
-        purposeType: request.purposeType || "event",
-        subPurposeId: request.subPurposeId,
-        priority: request.priority || "medium",
-        currency: request.currency || "QAR",
-        status: request.status || "draft",
         items: formattedItems,
-        totalEstimatedCost: String(request.totalEstimatedCost || "0"),
-        freightAmount: String(request.freightAmount || "0"),
       });
 
       // Update local state
@@ -135,11 +113,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     return itemsTotal + freightAmount;
   };
 
-  const onSubmit = async (values: InsertPurchaseRequest) => {
+  const onSubmit = async (values: PurchaseRequest) => {
     try {
       const submissionData = {
         ...values,
-        items: items.map((item) => ({
+        items: items.map(item => ({
           name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost),
@@ -184,8 +162,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       }
 
       // Set status and submit
-      form.setValue("status", status);
-      await form.handleSubmit(onSubmit)();
+      const currentValues = form.getValues();
+      await onSubmit({
+        ...currentValues,
+        status
+      });
     } catch (error: any) {
       console.error("Submit error:", error);
       toast({
@@ -194,25 +175,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         variant: "destructive",
       });
     }
-  };
-
-  const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateItem = (index: number, field: string, value: string | number) => {
-    const newItems = [...items];
-    newItems[index] = {
-      ...newItems[index],
-      [field]: field === "name" || field === "description" ? value : Number(value),
-    };
-    setItems(newItems);
   };
 
   if (isLoading) {
@@ -610,3 +572,22 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+const addItem = () => {
+  setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
+};
+
+const removeItem = (index: number) => {
+  if (items.length > 1) {
+    setItems(items.filter((_, i) => i !== index));
+  }
+};
+
+const updateItem = (index: number, field: string, value: string | number) => {
+  const newItems = [...items];
+  newItems[index] = {
+    ...newItems[index],
+    [field]: field === "name" || field === "description" ? value : Number(value),
+  };
+  setItems(newItems);
+};

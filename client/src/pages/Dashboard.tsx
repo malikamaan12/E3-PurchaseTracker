@@ -50,6 +50,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
+import { updateRequest } from "@/services/requests";
+
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -232,6 +234,30 @@ export default function Dashboard() {
     }
   };
 
+  const handleDraftSubmit = async (requestId: number) => {
+    try {
+      await updateRequest({
+        id: requestId,
+        data: { status: "pending" }
+      });
+
+      toast({
+        title: "Success",
+        description: "Draft request submitted successfully",
+      });
+
+      // Refresh requests after submission
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+    } catch (error: any) {
+      console.error("Submit error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderRequestsTable = (requests: any[], showApproval: boolean = false) => {
     return (
       <Table>
@@ -248,105 +274,115 @@ export default function Dashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map((request) => (
-            <TableRow key={request.id}>
-              <TableCell className="font-medium">{request.requestNumber}</TableCell>
-              <TableCell>{request.title}</TableCell>
-              <TableCell>
-                <Badge
-                  className={
-                    request.status === "draft"
-                      ? "bg-gray-500/10 text-gray-600"
-                      : request.status === "pending"
-                      ? "bg-yellow-500/10 text-yellow-700"
-                      : request.status === "approved"
-                      ? "bg-green-500/10 text-green-700"
-                      : request.status === "rejected"
-                      ? "bg-red-500/10 text-red-700"
-                      : "bg-orange-500/10 text-orange-700"
-                  }
-                >
-                  {request.status.toUpperCase().replace("_", " ")}
-                </Badge>
-              </TableCell>
-              <TableCell className="capitalize">{request.priority}</TableCell>
-              <TableCell>{request.requester.department}</TableCell>
-              <TableCell>{format(new Date(request.createdAt), "MMM d, yyyy")}</TableCell>
-              <TableCell>
-                {formatCurrency(request.totalEstimatedCost || 0)}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setLocation(`/requests/${request.id}`)}
+          {requests.map((request) => {
+            const canSubmitDraft = request.status === "draft" &&
+                                    request.requesterId === user?.id &&
+                                    request.title &&
+                                    request.description &&
+                                    request.items?.length > 0;
+
+            return (
+              <TableRow key={request.id}>
+                <TableCell className="font-medium">{request.requestNumber}</TableCell>
+                <TableCell>{request.title}</TableCell>
+                <TableCell>
+                  <Badge
+                    className={
+                      request.status === "draft"
+                        ? "bg-gray-500/10 text-gray-600"
+                        : request.status === "pending"
+                        ? "bg-yellow-500/10 text-yellow-700"
+                        : request.status === "approved"
+                        ? "bg-green-500/10 text-green-700"
+                        : request.status === "rejected"
+                        ? "bg-red-500/10 text-red-700"
+                        : "bg-orange-500/10 text-orange-700"
+                    }
                   >
-                    View
-                  </Button>
-                  {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                      >
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600"
-                          >
-                            Delete
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Request</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this request? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-600 hover:bg-red-700"
-                              onClick={() => deleteRequest(request.id.toString())}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
-                  {showApproval && request.status === "pending" && (
+                    {request.status.toUpperCase().replace("_", " ")}
+                  </Badge>
+                </TableCell>
+                <TableCell className="capitalize">{request.priority}</TableCell>
+                <TableCell>{request.requester.department}</TableCell>
+                <TableCell>{format(new Date(request.createdAt), "MMM d, yyyy")}</TableCell>
+                <TableCell>
+                  {formatCurrency(request.totalEstimatedCost || 0)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setLocation(`/requests/${request.id}`)}
                     >
-                      Review
+                      View
                     </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                    {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                        >
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600"
+                            >
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Request</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this request? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={() => deleteRequest(request.id.toString())}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        {canSubmitDraft && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                            onClick={() => handleDraftSubmit(request.id)}
+                          >
+                            Submit
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {showApproval && request.status === "pending" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation(`/requests/${request.id}`)}
+                      >
+                        Review
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     );
-  };
-
-  // Update the handleNotificationClick function
-  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
-    if (notification.link) {
-      // Navigate to the notification link
-      setLocation(notification.link);
-    }
   };
 
   // Add new filter for draft requests ready to submit
@@ -359,6 +395,14 @@ export default function Dashboard() {
       r.items?.length > 0
     ) || []
   );
+
+  // Update the handleNotificationClick function
+  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
+    if (notification.link) {
+      // Navigate to the notification link
+      setLocation(notification.link);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
