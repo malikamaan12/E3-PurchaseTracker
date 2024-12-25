@@ -15,8 +15,6 @@ import {
   insertUserSchema,
   companyBranding,
   insertCompanyBrandingSchema,
-  vendors,
-  insertVendorSchema,
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import multer from 'multer';
@@ -568,8 +566,8 @@ export function registerRoutes(app: Express): Server {
 
       if (!isAdmin && !(isSameDepartment && isDraft)) {
         return res.status(403).send(
-          isDraft
-            ? "Only users from the same department can delete draft requests"
+          isDraft 
+            ? "Only users from the same department can delete draft requests" 
             : "Only draft requests can be deleted by department users"
         );
       }
@@ -624,7 +622,7 @@ export function registerRoutes(app: Express): Server {
         );
       }
 
-      res.json({
+      res.json({ 
         message: "Request deleted successfully",
         request: deletedRequest
       });
@@ -971,9 +969,10 @@ export function registerRoutes(app: Express): Server {
     }
 
     if (req.user!.role !== "admin") {
-      return res.status(403).send("Only admin can manage sub-purposes");    }
+      return res.status(403).send("Only admin can manage sub-purposes");
+    }
 
-    try{
+    try {
       const result = insertSubPurposeSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({
@@ -1547,233 +1546,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add vendor routes after existing routes
-  // Vendor routes
-  app.get("/api/vendors", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const vendorsList = await db.query.vendors.findMany({
-        orderBy: desc(vendors.createdAt)
-      });
-      res.json(vendorsList);
-    } catch (error: any) {
-      console.error("Error fetching vendors:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.post("/api/vendors", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const result = insertVendorSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: result.error.issues.map(issue => ({
-            field: issue.path.join('.'),
-            message: issue.message
-          }))
-        });
-      }
-
-      const [vendor] = await db.insert(vendors)
-        .values({
-          ...result.data,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
-
-      res.json(vendor);
-    } catch (error: any) {
-      console.error("Error creating vendor:", error);
-      res.status(500).json({
-        error: "Failed to create vendor",
-        message: error.message
-      });
-    }
-  });
-
-  app.put("/api/vendors/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    // Check if user is admin
-    if (req.user!.role !== "admin") {
-      return res.status(403).send("Only admin can modify vendors");
-    }
-
-    try {
-      const vendorId = parseInt(req.params.id);
-      const result = insertVendorSchema.partial().safeParse(req.body);
-
-      if (!result.success) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: result.error.issues.map(issue => ({
-            field: issue.path.join('.'),
-            message: issue.message
-          }))
-        });
-      }
-
-      const [updatedVendor] = await db
-        .update(vendors)
-        .set({
-          ...result.data,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, vendorId))
-        .returning();
-
-      if (!updatedVendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      res.json(updatedVendor);
-    } catch (error: any) {
-      console.error("Error updating vendor:", error);
-      res.status(500).json({
-        error: "Failed to update vendor",
-        message: error.message
-      });
-    }
-  });
-
-  app.delete("/api/vendors/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    // Check if user is admin
-    if (req.user!.role !== "admin") {
-      return res.status(403).send("Only admin can delete vendors");
-    }
-
-    try {
-      const vendorId = parseInt(req.params.id);
-
-      // Check if vendor exists
-      const [vendor] = await db
-        .select()
-        .from(vendors)
-        .where(eq(vendors.id, vendorId))
-        .limit(1);
-
-      if (!vendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      // Check if vendor is used in any purchase requests
-      const [request] = await db
-        .select()
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.companyName, vendor.companyName))
-        .limit(1);
-
-      if (request) {
-        return res.status(400).json({
-          error: "Cannot delete vendor",
-          message: "This vendor is associated with existing purchase requests"
-        });
-      }
-
-      // Delete the vendor
-      const [deletedVendor] = await db
-        .delete(vendors)
-        .where(eq(vendors.id, vendorId))
-        .returning();
-
-      res.json({
-        message: "Vendor deleted successfully",
-        vendor: deletedVendor
-      });
-    } catch (error: any) {
-      console.error("Error deleting vendor:", error);
-      res.status(500).json({
-        error: "Failed to delete vendor",
-        message: error.message
-      });
-    }
-  });
-
-  app.patch("/api/vendors/:id/rating", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const { rating } = req.body;
-
-      if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-        return res.status(400).send("Rating must be a number between 1 and 5");
-      }
-
-      const [vendor] = await db
-        .update(vendors)
-        .set({ 
-          rating,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, parseInt(req.params.id)))
-        .returning();
-
-      if (!vendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      res.json(vendor);
-    } catch (error: any) {
-      console.error("Error updating vendor rating:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.patch("/api/vendors/:id/status", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const { status, blockReason } = req.body;
-
-      if (!['active', 'blocked'].includes(status)) {
-        return res.status(400).send("Status must be either 'active' or 'blocked'");
-      }
-
-      if (status === 'blocked' && !blockReason) {
-        return res.status(400).send("Block reason is required when blocking a vendor");
-      }
-
-      const [vendor] = await db
-        .update(vendors)
-        .set({ 
-          status,
-          blockReason: status === 'blocked' ? blockReason : null,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, parseInt(req.params.id)))
-        .returning();
-
-      if (!vendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      res.json(vendor);
-    } catch (error: any) {
-      console.error("Error updating vendor status:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  // Return httpServer at the end
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -28,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
-// Remove VendorSelect import since we don't need it anymore
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -47,11 +46,11 @@ export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{
-    name: "",
-    quantity: 1,
+  const [items, setItems] = useState([{ 
+    name: "", 
+    quantity: 1, 
     estimatedCost: 0,
-    description: ""
+    description: "" 
   }]);
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
@@ -63,6 +62,11 @@ export default function NewRequest() {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
+      vendor: "",
+      companyName: "",
+      contactPerson: "",
+      contactNumber: "",
+      accountNumber: "",
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
@@ -103,6 +107,7 @@ export default function NewRequest() {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
+        vendor: values.companyName
       };
 
 
@@ -136,7 +141,7 @@ export default function NewRequest() {
         toast({
           title: "Success",
           description: "Request created successfully",
-          className: "animate-success",
+          className: "animate-success", 
         });
         setLocation("/");
       } catch (error: any) {
@@ -145,7 +150,7 @@ export default function NewRequest() {
           title: "Error",
           description: error.message || "Failed to create request",
           variant: "destructive",
-          className: "animate-error",
+          className: "animate-error", 
         });
       }
     } catch (error: any) {
@@ -230,7 +235,6 @@ export default function NewRequest() {
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
@@ -503,9 +507,87 @@ export default function NewRequest() {
                   </div>
                 </div>
 
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Company Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter company name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactPerson"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Person</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter contact person name"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="tel"
+                              placeholder="Enter contact number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Account Details</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter account number"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
                 <DepartmentSelect
                   label="Additional Approvers"
-                  onChange={() => { }}
+                  onChange={() => {}}
                   multiple
                 />
 

@@ -119,28 +119,22 @@ export const companyBranding = pgTable("company_branding", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Add vendor table here
-export const vendors = pgTable("vendors", {
-  id: serial("id").primaryKey(),
-  companyName: text("company_name").notNull(),
-  registrationNumber: text("registration_number").notNull(),
-  contactPerson: text("contact_person").notNull(),
-  contactNumber: text("contact_number").notNull(),
-  email: text("email"),
-  bankName: text("bank_name").notNull(),
-  accountNumber: text("account_number").notNull(),
-  ibanNumber: text("iban_number").notNull(),
-  address: text("address").notNull(), // Added address column as required
-  category: text("category").notNull(),
-  paymentCurrency: text("payment_currency").notNull(),
-  rating: integer("rating"),
-  ratingComments: text("rating_comments"),
-  status: text("status").notNull().default("active"),
-  blockReason: text("block_reason"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+// Add type definitions for branding
+export type CompanyBranding = typeof companyBranding.$inferSelect;
+export type NewCompanyBranding = typeof companyBranding.$inferInsert;
+
+// Add validation schema
+export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
+  headerStyle: z.enum(["modern", "classic", "minimal"]),
+  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
+  logo: z.string().optional(),
+  logoMimeType: z.string().optional(),
+  footerText: z.string().optional(),
 });
 
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 
 // Then define all relations after the table definitions
 export const userRelations = relations(users, ({ many }) => ({
@@ -159,10 +153,6 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     references: [subPurposes.id],
   }),
   attachments: many(fileAttachments),
-  vendor: one(vendors, {
-    fields: [purchaseRequests.companyName],
-    references: [vendors.companyName],
-  }),
 }));
 
 export const approvalRelations = relations(approvals, ({ one }) => ({
@@ -194,10 +184,6 @@ export const notificationRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
-export const vendorRelations = relations(vendors, ({ many }) => ({
-  purchaseRequests: many(purchaseRequests),
-}));
-
 // Types and schemas
 export type User = InferModel<typeof users>;
 export type SubPurpose = InferModel<typeof subPurposes>;
@@ -212,7 +198,6 @@ export type PurchaseRequestWithRelations = PurchaseRequest & {
   approvals?: Approval[];
   subPurpose?: SubPurpose;
   attachments?: FileAttachment[];
-  vendor?: Vendor;
 };
 
 export type ApprovalWithRelations = Approval & {
@@ -301,31 +286,3 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
-
-export const insertVendorSchema = createInsertSchema(vendors, {
-  category: z.enum(["materials_supplier", "service_provider", "logistic_partner", "equipment_rental", "others"]),
-  paymentCurrency: z.enum(["USD", "QAR", "EUR", "CNY"]),
-  rating: z.number().min(1).max(5).optional(),
-  status: z.enum(["active", "blocked"]).default("active"),
-  email: z.string().email("Invalid email format").optional(),
-  blockReason: z.string().optional(),
-});
-
-export const selectVendorSchema = createSelectSchema(vendors);
-export type Vendor = typeof vendors.$inferSelect;
-export type NewVendor = typeof vendors.$inferInsert;
-
-export type CompanyBranding = typeof companyBranding.$inferSelect;
-export type NewCompanyBranding = typeof companyBranding.$inferInsert;
-
-export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
-  headerStyle: z.enum(["modern", "classic", "minimal"]),
-  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  logo: z.string().optional(),
-  logoMimeType: z.string().optional(),
-  footerText: z.string().optional(),
-});
-
-export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
