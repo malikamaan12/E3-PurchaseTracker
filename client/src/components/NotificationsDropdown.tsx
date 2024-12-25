@@ -17,7 +17,7 @@ export function NotificationsDropdown() {
   const [, setLocation] = useLocation();
   const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
 
-  const handleNotificationClick = async (notificationId: number, link?: string) => {
+  const handleNotificationClick = async (notificationId: number, link?: string | null) => {
     if (!notifications.find(n => n.id === notificationId)?.isRead) {
       await markAsRead(notificationId);
     }
@@ -76,17 +76,20 @@ export function NotificationsDropdown() {
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id, notification.link)}
-                  className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group ${
+                  className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group relative ${
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <p className="text-sm mb-1 flex-1">{notification.message}</p>
+                    <div>
+                      <p className="font-medium mb-1">{notification.title}</p>
+                      <p className="text-sm text-muted-foreground">{notification.message}</p>
+                    </div>
                     {notification.link && (
                       <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-2">
                     {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                   </p>
                   {!notification.isRead && (

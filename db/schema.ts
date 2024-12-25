@@ -83,11 +83,12 @@ export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   requestId: integer("request_id").references(() => purchaseRequests.id),
+  title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull(),
   isRead: boolean("is_read").notNull().default(false),
+  link: text("link"),
   createdAt: timestamp("created_at").defaultNow(),
-  link: text("link"),  // Added link field
 });
 
 export const accountRequests = pgTable("account_requests", {
@@ -279,3 +280,9 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 export type AccountRequest = InferModel<typeof accountRequests>;
 export type NewAccountRequest = InferModel<typeof accountRequests>;
+
+// Add notification schemas
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
