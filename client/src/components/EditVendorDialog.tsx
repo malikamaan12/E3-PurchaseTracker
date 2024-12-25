@@ -1,37 +1,14 @@
 import { useState } from "react";
-import { Check, Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import type { Vendor } from "@db/schema";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -40,14 +17,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertVendorSchema } from "@db/schema";
-
-interface VendorSelectProps {
-  value?: number;
-  onChange: (value: number | undefined, vendorName?: string) => void;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { type Vendor, insertVendorSchema } from "@db/schema";
 
 const VENDOR_CATEGORIES = [
   { value: "materials_supplier", label: "Materials Supplier" },
@@ -69,9 +49,17 @@ const STATUSES = [
   { value: "blocked", label: "Blocked" },
 ] as const;
 
-export default function VendorSelect({ value, onChange }: VendorSelectProps) {
-  const [open, setOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+interface EditVendorDialogProps {
+  vendor: Vendor | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function EditVendorDialog({
+  vendor,
+  open,
+  onOpenChange,
+}: EditVendorDialogProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -80,30 +68,26 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   const form = useForm({
     resolver: zodResolver(insertVendorSchema),
     defaultValues: {
-      companyName: "",
-      registrationNumber: "",
-      email: "",
-      contactNumber: "",
-      accountNumber: "",
-      ibanNumber: "",
-      contactPerson: "",
-      bankName: "",
-      category: "materials_supplier",
-      paymentCurrency: "QAR",
-      status: "active",
-      address: ""
+      companyName: vendor?.companyName ?? "",
+      registrationNumber: vendor?.registrationNumber ?? "",
+      email: vendor?.email ?? "",
+      contactNumber: vendor?.contactNumber ?? "",
+      accountNumber: vendor?.accountNumber ?? "",
+      ibanNumber: vendor?.ibanNumber ?? "",
+      contactPerson: vendor?.contactPerson ?? "",
+      bankName: vendor?.bankName ?? "",
+      category: vendor?.category ?? "materials_supplier",
+      paymentCurrency: vendor?.paymentCurrency ?? "QAR",
+      status: vendor?.status ?? "active",
+      address: vendor?.address ?? ""
     },
     mode: "onChange"
   });
 
-  const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
-    queryKey: ["/api/vendors"],
-  });
-
-  const createVendor = useMutation({
+  const updateVendor = useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch("/api/vendors", {
-        method: "POST",
+      const res = await fetch(`/api/vendors/${vendor?.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
         credentials: "include",
@@ -113,17 +97,16 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         throw new Error(await res.text());
       }
 
-      return res.json() as Promise<Vendor>;
+      return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
-      onChange(data.id, data.companyName);
-      setDialogOpen(false);
+      onOpenChange(false);
       form.reset();
       setCurrentSlide(0);
       toast({
         title: "Success",
-        description: "Vendor created successfully",
+        description: "Vendor updated successfully",
       });
     },
     onError: (error) => {
@@ -137,8 +120,6 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       setIsSubmitting(false);
     }
   });
-
-  const selectedVendor = vendors.find((v) => v.id === value);
 
   const validateCurrentSlide = async () => {
     const fieldsToValidate = {
@@ -171,51 +152,16 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
     try {
       setIsSubmitting(true);
-
-      // Validate all fields from all slides
-      const allFields = [
-        'companyName', 'registrationNumber', 'category',
-        'email', 'contactNumber', 'contactPerson', 'address',
-        'bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'
-      ] as const;
-
-      const isValid = await form.trigger(allFields);
-
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const errorFields = Object.keys(errors).join(', ');
-
-        toast({
-          title: "Validation Error",
-          description: `Please check these fields: ${errorFields}`,
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      await createVendor.mutateAsync(data);
+      await updateVendor.mutateAsync(data);
     } catch (error) {
-      console.error("Error creating vendor:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create vendor. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error updating vendor:", error);
     }
-  };
-
-  const handleSelectVendor = (vendorId: number, vendorName: string) => {
-    onChange(vendorId, vendorName);
-    setOpen(false);
   };
 
   const handleNext = async () => {
     const isValid = await validateCurrentSlide();
     if (isValid) {
-      setCurrentSlide(Math.min(formSlides.length - 1, currentSlide + 1));
+      setCurrentSlide(Math.min(2, currentSlide + 1));
     }
   };
 
@@ -449,136 +395,90 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   ];
 
   return (
-    <div className="flex gap-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {isLoading
-              ? "Loading..."
-              : value
-                ? selectedVendor?.companyName
-                : "Select vendor..."}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0">
-          <Command>
-            <CommandInput placeholder="Search vendors..." />
-            <CommandEmpty>No vendor found.</CommandEmpty>
-            <CommandGroup>
-              {vendors.map((vendor) => (
-                <CommandItem
-                  key={vendor.id}
-                  onSelect={() => handleSelectVendor(vendor.id, vendor.companyName)}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            Edit Vendor - Step {currentSlide + 1} of {formSlides.length}
+          </DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit(onSubmit)(e);
+          }} className="space-y-4">
+            {/* Carousel content */}
+            <div className="relative">
+              <div className="overflow-hidden">
+                <div
+                  className="transition-transform duration-300 ease-in-out flex"
+                  style={{
+                    transform: `translateX(-${currentSlide * 100}%)`,
+                  }}
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === vendor.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {vendor.companyName}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              Create New Vendor - Step {currentSlide + 1} of {formSlides.length}
-            </DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              form.handleSubmit(onSubmit)(e);
-            }} className="space-y-4">
-              {/* Carousel content */}
-              <div className="relative">
-                <div className="overflow-hidden">
-                  <div
-                    className="transition-transform duration-300 ease-in-out flex"
-                    style={{
-                      transform: `translateX(-${currentSlide * 100}%)`,
-                    }}
-                  >
-                    {formSlides.map((slide, index) => (
-                      <div
-                        key={index}
-                        className="min-w-full"
-                        style={{ opacity: currentSlide === index ? 1 : 0 }}
-                      >
-                        {slide}
-                      </div>
-                    ))}
-                  </div>
+                  {formSlides.map((slide, index) => (
+                    <div
+                      key={index}
+                      className="min-w-full"
+                      style={{ opacity: currentSlide === index ? 1 : 0 }}
+                    >
+                      {slide}
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Navigation buttons */}
-                <div className="flex justify-between mt-4">
+              {/* Navigation buttons */}
+              <div className="flex justify-between mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={currentSlide === 0}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Previous
+                </Button>
+
+                {currentSlide === formSlides.length - 1 ? (
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || !form.formState.isValid}
+                  >
+                    {isSubmitting ? "Updating..." : "Update Vendor"}
+                  </Button>
+                ) : (
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={handleBack}
-                    disabled={currentSlide === 0}
+                    onClick={handleNext}
                   >
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Previous
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
-
-                  {currentSlide === formSlides.length - 1 ? (
-                    <Button
-                      type="submit"
-                      disabled={isSubmitting || !form.formState.isValid}
-                    >
-                      {isSubmitting ? "Creating..." : "Create Vendor"}
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={handleNext}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
-                </div>
+                )}
               </div>
+            </div>
 
-              {/* Progress indicators */}
-              <div className="flex justify-center gap-2 mt-4">
-                {formSlides.map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      currentSlide === index ? "bg-primary" : "bg-gray-300"
-                    }`}
-                    onClick={() => validateCurrentSlide().then(isValid => {
-                      if (isValid || index < currentSlide) {
-                        setCurrentSlide(index);
-                      }
-                    })}
-                  />
-                ))}
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
+            {/* Progress indicators */}
+            <div className="flex justify-center gap-2 mt-4">
+              {formSlides.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    currentSlide === index ? "bg-primary" : "bg-gray-300"
+                  }`}
+                  onClick={() => validateCurrentSlide().then(isValid => {
+                    if (isValid || index < currentSlide) {
+                      setCurrentSlide(index);
+                    }
+                  })}
+                />
+              ))}
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

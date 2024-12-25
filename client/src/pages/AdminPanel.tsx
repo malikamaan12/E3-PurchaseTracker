@@ -29,19 +29,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Ban, Check, Search, Star } from "lucide-react";
+import { Ban, Check, Edit, Search, Star, Trash2 } from "lucide-react";
 import VendorSelect from "@/components/VendorSelect";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Vendor } from "@db/schema";
+import EditVendorDialog from "@/components/EditVendorDialog";
 
 export default function AdminPanel() {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("branding");
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all"); // Changed default value to "all"
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
@@ -68,6 +82,37 @@ export default function AdminPanel() {
         title: "Success",
         description: "Vendor rating updated successfully",
       });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteVendor = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/vendors/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Success",
+        description: "Vendor deleted successfully",
+      });
+      setDeleteConfirmOpen(false);
+      setSelectedVendor(null);
     },
     onError: (error) => {
       toast({
@@ -111,9 +156,14 @@ export default function AdminPanel() {
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch = vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || vendor.category === categoryFilter; // Updated condition
+    const matchesCategory = categoryFilter === "all" || vendor.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const handleDeleteClick = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setDeleteConfirmOpen(true);
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -247,32 +297,51 @@ export default function AdminPanel() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const newStatus = vendor.status === "active" ? "blocked" : "active";
-                                  const blockReason = newStatus === "blocked"
-                                    ? window.prompt("Please enter the reason for blocking this vendor:")
-                                    : undefined;
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newStatus = vendor.status === "active" ? "blocked" : "active";
+                                    const blockReason = newStatus === "blocked"
+                                      ? window.prompt("Please enter the reason for blocking this vendor:") || undefined
+                                      : undefined;
 
-                                  if (newStatus === "blocked" && !blockReason) {
-                                    return; // Cancel if no reason provided
-                                  }
+                                    if (newStatus === "blocked" && !blockReason) {
+                                      return; // Cancel if no reason provided
+                                    }
 
-                                  toggleVendorStatus.mutate({
-                                    id: vendor.id,
-                                    status: newStatus,
-                                    blockReason,
-                                  });
-                                }}
-                              >
-                                {vendor.status === "active" ? (
-                                  <Ban className="h-4 w-4 text-red-500" />
-                                ) : (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                )}
-                              </Button>
+                                    toggleVendorStatus.mutate({
+                                      id: vendor.id,
+                                      status: newStatus,
+                                      blockReason,
+                                    });
+                                  }}
+                                >
+                                  {vendor.status === "active" ? (
+                                    <Ban className="h-4 w-4 text-red-500" />
+                                  ) : (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedVendor(vendor);
+                                    setEditDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 text-blue-500" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(vendor)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -285,6 +354,32 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the vendor "{selectedVendor?.companyName}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => selectedVendor && deleteVendor.mutate(selectedVendor.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <EditVendorDialog 
+        vendor={selectedVendor}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
     </div>
   );
 }
