@@ -12,38 +12,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
 
-export function NotificationsDropdown() {
+interface NotificationsDropdownProps {
+  onNotificationClick: (notification: { id: number; link: string | null }) => void;
+}
+
+export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
-  const [, setLocation] = useLocation();
   const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
 
-  const handleNotificationClick = async (notificationId: number, link?: string | null) => {
+  const handleNotificationClick = async (notification: { id: number; link: string | null }) => {
     try {
-      console.log('Notification clicked:', { notificationId, link }); // Debug log
-
       // Mark as read if needed
-      if (!notifications.find(n => n.id === notificationId)?.isRead) {
-        await markAsRead(notificationId);
+      if (!notifications.find(n => n.id === notification.id)?.isRead) {
+        await markAsRead(notification.id);
       }
 
-      // Handle navigation if link exists
-      if (link) {
-        // Remove any existing leading slash for wouter compatibility
-        const formattedLink = link.startsWith('/') ? link : `/${link}`;
-        console.log('Navigating to:', formattedLink); // Debug log
+      // Close dropdown first
+      setOpen(false);
 
-        // Close dropdown first
-        setOpen(false);
-
-        // Navigate with a small delay to ensure smooth UI transition
-        setTimeout(() => {
-          try {
-            setLocation(formattedLink);
-          } catch (error) {
-            console.error('Navigation error:', error);
-          }
-        }, 100);
-      }
+      // Call the provided click handler
+      onNotificationClick(notification);
     } catch (error) {
       console.error('Error handling notification click:', error);
     }
@@ -104,7 +92,10 @@ export function NotificationsDropdown() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleNotificationClick(notification.id, notification.link);
+                      handleNotificationClick({
+                        id: notification.id,
+                        link: notification.link
+                      });
                     }}
                     className="w-full text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md p-2 hover:bg-muted/50 transition-colors"
                   >

@@ -131,22 +131,56 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, req.user!.id))
         .limit(1);
 
-      // Query requests based on user role
-      const requests = await db.query.purchaseRequests.findMany({
-        where: user.role === 'admin'
-          ? undefined
-          : eq(purchaseRequests.requesterId, user.id),
-        with: {
-          requester: true,
-          approvals: {
-            with: {
-              approver: true
-            }
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // Add debug logging
+      console.log('Fetching requests for user:', {
+        userId: user.id,
+        role: user.role,
+        department: user.department
+      });
+
+      // Modified query to handle different user roles correctly
+      let requests;
+      if (user.role === 'admin' || ["CEO Office", "Director", "Finance"].includes(user.department)) {
+        // Admins and special departments can see all requests
+        requests = await db.query.purchaseRequests.findMany({
+          with: {
+            requester: true,
+            approvals: {
+              with: {
+                approver: true
+              }
+            },
+            subPurpose: true,
+            attachments: true
           },
-          subPurpose: true,
-          attachments: true
-        },
-        orderBy: desc(purchaseRequests.createdAt)
+          orderBy: desc(purchaseRequests.createdAt)
+        });
+      } else {
+        // Regular users can only see their own requests
+        requests = await db.query.purchaseRequests.findMany({
+          where: eq(purchaseRequests.requesterId, user.id),
+          with: {
+            requester: true,
+            approvals: {
+              with: {
+                approver: true
+              }
+            },
+            subPurpose: true,
+            attachments: true
+          },
+          orderBy: desc(purchaseRequests.createdAt)
+        });
+      }
+
+      // Add debug logging for results
+      console.log('Found requests:', {
+        count: requests.length,
+        requestIds: requests.map(r => r.id)
       });
 
       res.json(requests);

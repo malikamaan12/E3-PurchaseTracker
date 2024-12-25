@@ -53,7 +53,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const { requests, isLoading } = usePurchaseRequests();
+  const { requests, isLoading, error } = usePurchaseRequests();
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -341,6 +341,14 @@ export default function Dashboard() {
     );
   };
 
+  // Update the handleNotificationClick function
+  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
+    if (notification.link) {
+      // Navigate to the notification link
+      setLocation(notification.link);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -367,7 +375,7 @@ export default function Dashboard() {
                   New Request
                 </Button>
               </Link>
-              <NotificationsDropdown />
+              <NotificationsDropdown onNotificationClick={handleNotificationClick} />
               <DashboardPreferences
                 preferences={preferences}
                 onUpdate={updatePreferences}

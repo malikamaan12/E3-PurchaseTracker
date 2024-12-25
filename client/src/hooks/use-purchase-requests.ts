@@ -1,17 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { PurchaseRequest, NewPurchaseRequest, Approval, NewApproval } from "@db/schema";
+import type { PurchaseRequest, PurchaseRequestWithRelations, Approval } from "@db/schema";
 
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: requests, isLoading } = useQuery<PurchaseRequest[]>({
+  const { data: requests, isLoading, error } = useQuery<PurchaseRequestWithRelations[]>({
     queryKey: ["/api/requests"],
+    retry: 1,
+    staleTime: 5000, // Consider data fresh for 5 seconds
+    onError: (error: Error) => {
+      console.error("Error fetching requests:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load requests. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const createRequest = useMutation({
-    mutationFn: async (data: NewPurchaseRequest) => {
+    mutationFn: async (data: Partial<PurchaseRequest>) => {
       console.log("Creating request with data:", data);
       const res = await fetch("/api/requests", {
         method: "POST",
@@ -111,7 +121,7 @@ export function usePurchaseRequests() {
   });
 
   const createApproval = useMutation({
-    mutationFn: async (data: NewApproval) => {
+    mutationFn: async (data: Partial<Approval>) => {
       const res = await fetch("/api/approvals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,6 +191,7 @@ export function usePurchaseRequests() {
   return {
     requests,
     isLoading,
+    error,
     createRequest: createRequest.mutateAsync,
     updateRequest: updateRequest.mutateAsync,
     deleteRequest: deleteRequest.mutateAsync,
