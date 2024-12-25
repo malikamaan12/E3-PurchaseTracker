@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
+import VendorSelect from "@/components/VendorSelect";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -46,11 +47,11 @@ export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{ 
-    name: "", 
-    quantity: 1, 
+  const [items, setItems] = useState([{
+    name: "",
+    quantity: 1,
     estimatedCost: 0,
-    description: "" 
+    description: ""
   }]);
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
@@ -141,7 +142,7 @@ export default function NewRequest() {
         toast({
           title: "Success",
           description: "Request created successfully",
-          className: "animate-success", 
+          className: "animate-success",
         });
         setLocation("/");
       } catch (error: any) {
@@ -150,7 +151,7 @@ export default function NewRequest() {
           title: "Error",
           description: error.message || "Failed to create request",
           variant: "destructive",
-          className: "animate-error", 
+          className: "animate-error",
         });
       }
     } catch (error: any) {
@@ -234,6 +235,17 @@ export default function NewRequest() {
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVendorSelect = (vendorId: number | undefined, vendorName?: string) => {
+    if (vendorId && vendorName) {
+      form.setValue("vendor", vendorName);
+      // Clear previous vendor fields to prevent stale data
+      form.setValue("companyName", vendorName);
+      form.setValue("contactPerson", "");
+      form.setValue("contactNumber", "");
+      form.setValue("accountNumber", "");
+    }
   };
 
   return (
@@ -509,24 +521,11 @@ export default function NewRequest() {
 
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="companyName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Company Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter company name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="space-y-4">
+                    <FormItem>
+                      <FormLabel className="text-[#191160]">Select Vendor</FormLabel>
+                      <VendorSelect onChange={handleVendorSelect} />
+                    </FormItem>
 
                     <FormField
                       control={form.control}
@@ -587,7 +586,7 @@ export default function NewRequest() {
 
                 <DepartmentSelect
                   label="Additional Approvers"
-                  onChange={() => {}}
+                  onChange={() => { }}
                   multiple
                 />
 
