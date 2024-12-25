@@ -310,23 +310,25 @@ export default function RequestCard({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                {showItemDescriptions && <TableHead>Description</TableHead>}
-                <TableHead>Quantity</TableHead>
-                <TableHead>Unit Cost</TableHead>
-                <TableHead>Total</TableHead>
+                <TableHead className="w-1/4">Item</TableHead>
+                {showItemDescriptions && <TableHead className="w-2/5">Description</TableHead>}
+                <TableHead className="w-1/6">Quantity</TableHead>
+                <TableHead className="w-1/6">Unit Cost</TableHead>
+                <TableHead className="w-1/6">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item, index) => (
                 <TableRow key={index}>
-                  <TableCell>{item.name}</TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
                   {showItemDescriptions && (
-                    <TableCell className="max-w-md">
+                    <TableCell>
                       {item.description ? (
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                          {item.description}
-                        </p>
+                        <div className="bg-gray-50 p-2 rounded-md">
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                            {item.description}
+                          </p>
+                        </div>
                       ) : (
                         <p className="text-sm text-gray-400 italic">No description provided</p>
                       )}

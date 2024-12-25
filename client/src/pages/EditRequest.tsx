@@ -91,8 +91,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         name: String(item.name || ""),
         quantity: Number(item.quantity || 1),
         estimatedCost: Number(item.estimatedCost || 0),
-        description: String(item.description || "") //Added description
-      })) : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }]; //Added description
+        description: String(item.description || "") 
+      })) : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }]; 
 
       // Set the form values
       form.reset({
@@ -137,7 +137,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           name: item.name,
           quantity: Number(item.quantity),
           estimatedCost: Number(item.estimatedCost),
-          description: item.description //Added description
+          description: item.description 
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
