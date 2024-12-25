@@ -134,13 +134,61 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
   const selectedVendor = vendors.find((v) => v.id === value);
 
-  const onSubmit = (data: any) => {
+  const validateCurrentSlide = async () => {
+    let fieldsToValidate: string[] = [];
+
+    switch (currentSlide) {
+      case 0: // Basic Information
+        fieldsToValidate = ['companyName', 'registrationNumber', 'category'];
+        break;
+      case 1: // Contact Information
+        fieldsToValidate = ['email', 'contactNumber', 'contactPerson', 'address'];
+        break;
+      case 2: // Banking Information
+        fieldsToValidate = ['bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'];
+        break;
+    }
+
+    const isValid = await form.trigger(fieldsToValidate);
+    if (!isValid) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields before proceeding",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const onSubmit = async (data: any) => {
+    // Final validation before submission
+    const isValid = await form.trigger();
+    if (!isValid) {
+      toast({
+        title: "Validation Error",
+        description: "Please check all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
     createVendor.mutate(data);
   };
 
   const handleSelectVendor = (vendorId: number, vendorName: string) => {
     onChange(vendorId, vendorName);
     setOpen(false);
+  };
+
+  const handleNext = async () => {
+    const isValid = await validateCurrentSlide();
+    if (isValid) {
+      setCurrentSlide(Math.min(formSlides.length - 1, currentSlide + 1));
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentSlide(Math.max(0, currentSlide - 1));
   };
 
   const formSlides = [
@@ -449,7 +497,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
+                    onClick={handleBack}
                     disabled={currentSlide === 0}
                   >
                     <ChevronLeft className="h-4 w-4 mr-2" />
@@ -457,13 +505,16 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                   </Button>
 
                   {currentSlide === formSlides.length - 1 ? (
-                    <Button type="submit">Create Vendor</Button>
+                    <Button 
+                      type="submit" 
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting ? "Creating..." : "Create Vendor"}
+                    </Button>
                   ) : (
                     <Button
                       type="button"
-                      onClick={() =>
-                        setCurrentSlide(Math.min(formSlides.length - 1, currentSlide + 1))
-                      }
+                      onClick={handleNext}
                     >
                       Next
                       <ChevronRight className="h-4 w-4 ml-2" />
@@ -481,7 +532,11 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                     className={`w-2 h-2 rounded-full transition-colors ${
                       currentSlide === index ? "bg-primary" : "bg-gray-300"
                     }`}
-                    onClick={() => setCurrentSlide(index)}
+                    onClick={() => validateCurrentSlide().then(isValid => {
+                      if (isValid || index < currentSlide) {
+                        setCurrentSlide(index);
+                      }
+                    })}
                   />
                 ))}
               </div>
