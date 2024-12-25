@@ -139,6 +139,13 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     }
   });
 
+  // Prevent form submission when clicking enter
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -154,33 +161,57 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     try {
       setIsSubmitting(true);
 
-      // Validate all fields before submission
-      const isValid = await form.trigger();
+      // Get all form values
+      const formData = form.getValues();
 
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const errorFields = Object.keys(errors).join(', ');
+      // Check if all required fields are filled
+      const requiredFields = [
+        'companyName',
+        'registrationNumber',
+        'contactNumber',
+        'contactPerson',
+        'bankName',
+        'accountNumber',
+        'ibanNumber',
+        'address'
+      ];
+
+      const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]?.trim());
+
+      if (missingFields.length > 0) {
         toast({
-          title: "Validation Error",
-          description: `Please check these fields: ${errorFields}`,
+          title: "Missing Required Fields",
+          description: `Please fill in: ${missingFields.map(f => f.replace(/([A-Z])/g, ' $1').toLowerCase()).join(', ')}`,
           variant: "destructive",
         });
         return;
       }
 
-      const formData = form.getValues();
-
-      // Additional validation for required fields
-      const requiredFields = [
-        'companyName', 'registrationNumber', 'contactNumber',
-        'contactPerson', 'bankName', 'accountNumber', 'ibanNumber'
-      ];
-
-      const missingFields = requiredFields.filter(field => !formData[field]);
-      if (missingFields.length > 0) {
+      // Validate email if provided
+      if (formData.email && !formData.email.includes('@')) {
         toast({
-          title: "Missing Required Fields",
-          description: `Please fill in: ${missingFields.join(', ')}`,
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate contact number format (basic validation)
+      if (!/^\+?[\d\s-]+$/.test(formData.contactNumber)) {
+        toast({
+          title: "Invalid Contact Number",
+          description: "Please enter a valid contact number",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Additional validation for bank details
+      if (formData.accountNumber.length < 8 || formData.ibanNumber.length < 15) {
+        toast({
+          title: "Invalid Bank Details",
+          description: "Please enter valid account and IBAN numbers",
           variant: "destructive",
         });
         return;
@@ -208,9 +239,15 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
     const isValid = await form.trigger(fieldsToValidate);
     if (!isValid) {
+      const errors = form.formState.errors;
+      const errorFields = Object.keys(errors)
+        .filter(key => fieldsToValidate.includes(key as any))
+        .map(key => key.replace(/([A-Z])/g, ' $1').toLowerCase())
+        .join(', ');
+
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields before proceeding",
+        description: `Please check these fields: ${errorFields}`,
         variant: "destructive",
       });
       return false;
@@ -239,13 +276,13 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   const formSlides = [
     // Slide 1: Basic Information
     <>
-      <div className="space-y-4">
+      <div className="space-y-4" onKeyPress={handleKeyPress}>
         <FormField
           control={form.control}
           name="companyName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Company Name</FormLabel>
+              <FormLabel>Company Name *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -259,7 +296,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="registrationNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Registration Number</FormLabel>
+              <FormLabel>Registration Number *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -273,7 +310,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category</FormLabel>
+              <FormLabel>Category *</FormLabel>
               <FormControl>
                 <Select
                   value={field.value}
@@ -299,7 +336,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     </>,
     // Slide 2: Contact Information
     <>
-      <div className="space-y-4">
+      <div className="space-y-4" onKeyPress={handleKeyPress}>
         <FormField
           control={form.control}
           name="email"
@@ -319,7 +356,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="contactNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Contact Number</FormLabel>
+              <FormLabel>Contact Number *</FormLabel>
               <FormControl>
                 <Input type="tel" {...field} />
               </FormControl>
@@ -333,7 +370,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="contactPerson"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Contact Person</FormLabel>
+              <FormLabel>Contact Person *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -347,7 +384,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Address</FormLabel>
+              <FormLabel>Address *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -359,13 +396,13 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     </>,
     // Slide 3: Banking Information
     <>
-      <div className="space-y-4">
+      <div className="space-y-4" onKeyPress={handleKeyPress}>
         <FormField
           control={form.control}
           name="bankName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Bank Name</FormLabel>
+              <FormLabel>Bank Name *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -379,7 +416,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="accountNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Account Number</FormLabel>
+              <FormLabel>Account Number *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -393,7 +430,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="ibanNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>IBAN Number</FormLabel>
+              <FormLabel>IBAN Number *</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
@@ -407,7 +444,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="paymentCurrency"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Payment Currency</FormLabel>
+              <FormLabel>Payment Currency *</FormLabel>
               <FormControl>
                 <Select
                   value={field.value}
@@ -435,7 +472,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           name="status"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Status</FormLabel>
+              <FormLabel>Status *</FormLabel>
               <FormControl>
                 <Select
                   value={field.value}
@@ -551,7 +588,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                   {currentSlide === formSlides.length - 1 ? (
                     <Button
                       type="submit"
-                      disabled={isSubmitting || !form.formState.isValid}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? "Creating..." : "Create Vendor"}
                     </Button>
