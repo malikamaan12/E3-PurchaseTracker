@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import { Bell, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,7 +17,14 @@ interface NotificationsDropdownProps {
 
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
+  const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
+
+  // Refetch notifications when dropdown opens
+  useEffect(() => {
+    if (open) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   const handleNotificationClick = async (notification: { id: number; link: string | null }) => {
     try {
