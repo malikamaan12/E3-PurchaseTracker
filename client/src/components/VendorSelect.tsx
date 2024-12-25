@@ -23,6 +23,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Vendor, NewVendor } from "@db/schema";
@@ -43,6 +50,26 @@ interface VendorSelectProps {
   onChange: (value: number | undefined, vendorName?: string) => void;
 }
 
+const VENDOR_CATEGORIES = [
+  { value: "materials_supplier", label: "Materials Supplier" },
+  { value: "service_provider", label: "Service Provider" },
+  { value: "logistic_partner", label: "Logistic Partner" },
+  { value: "equipment_rental", label: "Equipment Rental" },
+  { value: "others", label: "Others" },
+] as const;
+
+const CURRENCIES = [
+  { value: "QAR", label: "QAR - Qatari Riyal" },
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "EUR", label: "EUR - Euro" },
+  { value: "CNY", label: "CNY - Chinese Yuan" },
+] as const;
+
+const STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "blocked", label: "Blocked" },
+] as const;
+
 export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -59,6 +86,10 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       accountNumber: "",
       ibanNumber: "",
       contactPerson: "",
+      bankName: "",
+      category: "materials_supplier",
+      paymentCurrency: "QAR",
+      status: "active"
     },
   });
 
@@ -199,7 +230,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -256,6 +287,104 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                     <FormLabel>Contact Person</FormLabel>
                     <FormControl>
                       <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="bankName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bank Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VENDOR_CATEGORIES.map(({ value, label }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentCurrency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Currency</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map(({ value, label }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map(({ value, label }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
