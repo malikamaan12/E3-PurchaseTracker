@@ -349,6 +349,17 @@ export default function Dashboard() {
     }
   };
 
+  // Add new filter for draft requests ready to submit
+  const draftRequestsReadyToSubmit = filterRequests(
+    requests?.filter((r) =>
+      r.requesterId === user?.id &&
+      r.status === "draft" &&
+      r.title &&
+      r.description &&
+      r.items?.length > 0
+    ) || []
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -478,6 +489,9 @@ export default function Dashboard() {
             <TabsTrigger value="my-requests">
               My Requests ({mySubmittedRequests.length + myDrafts.length})
             </TabsTrigger>
+            <TabsTrigger value="drafts-to-submit">
+              Ready to Submit ({draftRequestsReadyToSubmit.length})
+            </TabsTrigger>
             {(isAdmin || isSpecialRole) && (
               <>
                 <TabsTrigger value="all-requests">
@@ -536,6 +550,27 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="drafts-to-submit">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-medium mb-4">Draft Requests Ready to Submit</h3>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-border" />
+                  </div>
+                ) : draftRequestsReadyToSubmit.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No draft requests ready to submit.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    {renderRequestsTable(draftRequestsReadyToSubmit, false)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {(isAdmin || isSpecialRole) && (

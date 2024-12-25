@@ -16,10 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import DepartmentSelect from "@/components/DepartmentSelect";
-import SubPurposeSelect from "@/components/SubPurposeSelect";
-import { insertPurchaseRequestSchema } from "@db/schema";
-import { ArrowLeft, Plus, Trash } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Trash } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,8 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { NewPurchaseRequest, PurchaseRequest } from "@db/schema";
+import { 
+  insertPurchaseRequestSchema, 
+  type PurchaseRequest,
+  type InsertPurchaseRequest 
+} from "@db/schema";
 import { useQuery } from "@tanstack/react-query";
+import DepartmentSelect from "@/components/DepartmentSelect";
+import SubPurposeSelect from "@/components/SubPurposeSelect";
+
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -55,14 +59,14 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   }]);
   const [freightAmount, setFreightAmount] = useState(0);
 
-  // Fetch the request data with proper type
+  // Fetch the request data
   const { data: request, isLoading } = useQuery<PurchaseRequest>({
     queryKey: [`/api/requests/${params.id}`],
     enabled: !!params.id,
   });
 
-  // Form initialization with proper default values
-  const form = useForm<NewPurchaseRequest>({
+  // Form initialization
+  const form = useForm<InsertPurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
@@ -86,37 +90,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
-      // Ensure items array is properly formatted
-      const formattedItems = Array.isArray(request.items) ? request.items.map(item => ({
+      // Parse and format items array
+      const formattedItems = request.items?.map(item => ({
         name: String(item.name || ""),
         quantity: Number(item.quantity || 1),
         estimatedCost: Number(item.estimatedCost || 0),
         description: String(item.description || "") 
-      })) : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }]; 
+      })) || [{ name: "", quantity: 1, estimatedCost: 0, description: "" }];
 
-      // Set the form values
+      // Reset form with request data
       form.reset({
-        title: request.title || "",
-        description: request.description || "",
+        ...request,
         items: formattedItems,
-        companyName: request.companyName || "",
-        contactPerson: request.contactPerson || "",
-        contactNumber: request.contactNumber || "",
-        accountNumber: request.accountNumber || "",
-        purpose: request.purpose || "",
-        purposeType: request.purposeType || "event",
-        subPurposeId: request.subPurposeId || undefined,
-        priority: request.priority || "medium",
-        currency: request.currency || "QAR",
-        status: request.status || "draft",
         totalEstimatedCost: String(request.totalEstimatedCost || "0"),
         freightAmount: String(request.freightAmount || "0"),
       });
 
-      // Set the items state
+      // Update local state
       setItems(formattedItems);
-
-      // Set freight amount
       setFreightAmount(Number(request.freightAmount || 0));
     }
   }, [request, form]);
@@ -129,7 +120,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     return itemsTotal + freightAmount;
   };
 
-  const onSubmit = async (values: NewPurchaseRequest) => {
+  const onSubmit = async (values: InsertPurchaseRequest) => {
     try {
       const submissionData = {
         ...values,
@@ -143,29 +134,22 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         totalEstimatedCost: calculateTotalCost().toString(),
       };
 
-      try {
-        await updateRequest({
-          id: parseInt(params.id),
-          data: submissionData,
-        });
-        toast({
-          title: "Success",
-          description: "Request updated successfully",
-        });
-        setLocation("/");
-      } catch (error: any) {
-        console.error("Update request error:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update request",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Form validation error:", error);
+      await updateRequest({
+        id: parseInt(params.id),
+        data: submissionData,
+      });
+
       toast({
-        title: "Validation Error",
-        description: "Please check all required fields",
+        title: "Success",
+        description: "Request updated successfully",
+      });
+
+      setLocation("/");
+    } catch (error: any) {
+      console.error("Update error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update request",
         variant: "destructive",
       });
     }
@@ -173,25 +157,25 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const handleSubmit = async (status: "draft" | "pending") => {
     try {
-      form.setValue("status", status);
+      // Validate form data
       const isValid = await form.trigger();
       if (!isValid) {
-        const errors = form.formState.errors;
-        console.error("Form validation errors:", errors);
         toast({
           title: "Validation Error",
-          description: "Please check all required fields and try again",
+          description: "Please check all required fields",
           variant: "destructive",
         });
         return;
       }
 
+      // Set status and submit
+      form.setValue("status", status);
       await form.handleSubmit(onSubmit)();
     } catch (error: any) {
       console.error("Submit error:", error);
       toast({
         title: "Error",
-        description: "Failed to submit form. Please check your input and try again.",
+        description: "Failed to submit form",
         variant: "destructive",
       });
     }
@@ -203,8 +187,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
-      const newItems = items.filter((_, i) => i !== index);
-      setItems(newItems);
+      setItems(items.filter((_, i) => i !== index));
     }
   };
 
@@ -224,7 +207,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           <Card>
             <CardContent className="pt-6">
               <div className="flex justify-center">
-                <p>Loading request data...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-border" />
               </div>
             </CardContent>
           </Card>
@@ -254,7 +237,45 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-                {/* Purpose Type, Sub-purpose, and Priority Section */}
+                {/* Basic Information Section */}
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#191160]">Request Title</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#191160]">Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Purpose Type and Priority Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Type</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -281,23 +302,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="subPurposeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
-                          <FormControl>
-                            <SubPurposeSelect
-                              purposeType={form.watch("purposeType")}
-                              value={field.value}
-                              onChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+
                     <FormField
                       control={form.control}
                       name="priority"
@@ -322,48 +327,27 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="subPurposeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
+                          <FormControl>
+                            <SubPurposeSelect
+                              purposeType={form.watch("purposeType")}
+                              value={field.value}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
 
-                {/* Basic Information Section */}
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Request Title</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] transition-colors"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] transition-colors"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Items Section with Currency */}
+                {/* Items Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
@@ -395,7 +379,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         type="button"
                         variant="outline"
                         onClick={addItem}
-                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 transition-colors"
+                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Item
@@ -407,7 +391,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     {items.map((item, index) => (
                       <div
                         key={index}
-                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30"
                       >
                         <div className="flex-1 space-y-2">
                           <Input
@@ -418,9 +402,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           />
                           <Textarea
                             placeholder="Item description (optional)"
-                            value={item.description || ''}
+                            value={item.description}
                             onChange={(e) => updateItem(index, "description", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20 resize-none"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20"
                           />
                         </div>
                         <div className="w-24">
@@ -481,7 +465,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-[#191160]">
                         <span>Items Total:</span>
-                        <span className="font-medium">
+                        <span>
                           {form.watch("currency")} {items
                             .reduce(
                               (sum, item) => sum + item.quantity * item.estimatedCost,
@@ -590,14 +574,14 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
-                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 transition-colors"
+                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
                   >
                     Save as Draft
                   </Button>
                   <Button
                     type="button"
                     onClick={() => handleSubmit("pending")}
-                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
+                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
                   >
                     Submit for Approval
                   </Button>
