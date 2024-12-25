@@ -32,14 +32,17 @@ async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, salt);
 }
 
-async function createNotification(userId: number, message: string, type: string, requestId?: number) {
+async function createNotification(userId: number, title: string, message: string, type: string, requestId?: number) {
   try {
+    const notificationLink = requestId ? `/requests/${requestId}` : null;
     const [notification] = await db.insert(notifications)
       .values({
         userId,
+        requestId,
+        title,
         message,
         type,
-        requestId,
+        link: notificationLink,
       })
       .returning();
     return notification;
@@ -404,6 +407,7 @@ export function registerRoutes(app: Express): Server {
         // Notify request owner
         await createNotification(
           currentRequest.requesterId,
+          `Purchase Request ${currentRequest.requestNumber} Status Update`,
           `Your purchase request ${currentRequest.requestNumber} has been ${req.body.status}`,
           'status_change',
           currentRequest.id
@@ -413,6 +417,7 @@ export function registerRoutes(app: Express): Server {
         if (req.body.status === 'changes_requested') {
           await createNotification(
             currentRequest.requesterId,
+            `Changes Requested: ${currentRequest.requestNumber}`,
             `Changes have been requested for your purchase request ${currentRequest.requestNumber}. Please review and update.`,
             'changes_requested',
             currentRequest.id
@@ -498,6 +503,7 @@ export function registerRoutes(app: Express): Server {
         if (request) {
           await createNotification(
             request.requesterId,
+            `Purchase Request ${request.requestNumber} Status Update`,
             `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,
             'approval_update',
             request.id
@@ -545,6 +551,7 @@ export function registerRoutes(app: Express): Server {
         // Create notification for the request owner
         await createNotification(
           request.requesterId,
+          `Approval Update`,
           `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,
           'approval_update',
           request.id
@@ -696,6 +703,7 @@ export function registerRoutes(app: Express): Server {
       // Create notification for request owner
       await createNotification(
         request.requesterId,
+        `Priority Analysis: ${request.requestNumber}`,
         `Your purchase request ${request.requestNumber} has been analyzed. Priority: ${priorityAnalysis.priority.toUpperCase()}`,
         'priority_analysis',
         request.id
@@ -953,11 +961,11 @@ export function registerRoutes(app: Express): Server {
 
       for (const admin of admins) {
         await createNotification(
-          admin.id,
+          admin.id,          'New Account Request',
           `New account request from ${request.username} (${request.department})`,
           'account_request'
         );
-            }
+      }
 
       res.json({
         message: "Account request submitted successfully. Your request is under review.",
@@ -1046,6 +1054,7 @@ export function registerRoutes(app: Express): Server {
       if (newUser) {
         await createNotification(
           newUser.id,
+          `Account Approved`,
           "Your account request has been approved. You can now log in.",
           "account_approved"
         );
@@ -1102,6 +1111,7 @@ export function registerRoutes(app: Express): Server {
         if (newUser) {
           await createNotification(
             newUser.id,
+            `Account Approved`,
             "Your account request has been approved. You can now log in.",
             "account_approved"
           );
@@ -1110,6 +1120,7 @@ export function registerRoutes(app: Express): Server {
         // Create a notification in the notifications table for future reference
         await createNotification(
           0, // System notification
+          `Account Request Rejected`,
           `Account request for ${request.username} was rejected`,
           'account_rejected'
         );
