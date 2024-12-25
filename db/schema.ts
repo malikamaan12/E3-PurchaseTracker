@@ -130,7 +130,6 @@ export const vendors = pgTable("vendors", {
   bankName: text("bank_name").notNull(),
   accountNumber: text("account_number").notNull(),
   ibanNumber: text("iban_number").notNull(),
-  branchAddress: text("branch_address"),
   address: text("address"),
   category: text("category").notNull(),
   paymentCurrency: text("payment_currency").notNull(),

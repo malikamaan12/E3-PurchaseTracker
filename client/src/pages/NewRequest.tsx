@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewPurchaseRequest } from "@db/schema";
-import VendorSelect from "@/components/VendorSelect";
+// Remove VendorSelect import since we don't need it anymore
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -63,11 +63,6 @@ export default function NewRequest() {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
-      vendor: "",
-      companyName: "",
-      contactPerson: "",
-      contactNumber: "",
-      accountNumber: "",
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
@@ -108,7 +103,6 @@ export default function NewRequest() {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName
       };
 
 
@@ -237,16 +231,6 @@ export default function NewRequest() {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleVendorSelect = (vendorId: number | undefined, vendorName?: string) => {
-    if (vendorId && vendorName) {
-      form.setValue("vendor", vendorName);
-      // Clear previous vendor fields to prevent stale data
-      form.setValue("companyName", vendorName);
-      form.setValue("contactPerson", "");
-      form.setValue("contactNumber", "");
-      form.setValue("accountNumber", "");
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
@@ -516,71 +500,6 @@ export default function NewRequest() {
                         </span>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
-                  <div className="space-y-4">
-                    <FormItem>
-                      <FormLabel className="text-[#191160]">Select Vendor</FormLabel>
-                      <VendorSelect onChange={handleVendorSelect} />
-                    </FormItem>
-
-                    <FormField
-                      control={form.control}
-                      name="contactPerson"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Contact Person</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter contact person name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="tel"
-                              placeholder="Enter contact number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="accountNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Account Details</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter account number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </div>
 

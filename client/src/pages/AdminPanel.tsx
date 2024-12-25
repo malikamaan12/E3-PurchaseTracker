@@ -14,6 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { insertUserSchema } from "@db/schema";
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -22,8 +23,9 @@ export default function AdminPanel() {
   return (
     <div className="container mx-auto py-8">
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-1">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="branding">Branding</TabsTrigger>
+          <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
         </TabsList>
 
         {/* Branding Tab */}
@@ -37,6 +39,25 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <CompanyBrandingForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Vendors Tab */}
+        <TabsContent value="vendors">
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendor Management</CardTitle>
+              <CardDescription>
+                Add and manage vendor information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <VendorSelect
+                onChange={(id, name) => {
+                  // Handle vendor selection
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>

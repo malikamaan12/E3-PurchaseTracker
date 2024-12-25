@@ -18,7 +18,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -32,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { Vendor, NewVendor } from "@db/schema";
+import type { Vendor } from "@db/schema";
 import {
   Form,
   FormControl,
@@ -77,7 +76,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<NewVendor>({
+  const form = useForm({
     resolver: zodResolver(insertVendorSchema),
     defaultValues: {
       companyName: "",
@@ -90,7 +89,8 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       bankName: "",
       category: "materials_supplier",
       paymentCurrency: "QAR",
-      status: "active"
+      status: "active",
+      address: ""
     },
   });
 
@@ -99,7 +99,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   });
 
   const createVendor = useMutation({
-    mutationFn: async (data: NewVendor) => {
+    mutationFn: async (data: any) => {
       const res = await fetch("/api/vendors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,7 +134,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
 
   const selectedVendor = vendors.find((v) => v.id === value);
 
-  const onSubmit = (data: NewVendor) => {
+  const onSubmit = (data: any) => {
     createVendor.mutate(data);
   };
 
@@ -241,6 +241,20 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Contact Person</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
               <FormControl>
                 <Input {...field} />
               </FormControl>
