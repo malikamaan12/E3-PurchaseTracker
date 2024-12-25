@@ -46,7 +46,12 @@ export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{ name: "", quantity: 1, estimatedCost: 0 }]);
+  const [items, setItems] = useState([{ 
+    name: "", 
+    quantity: 1, 
+    estimatedCost: 0,
+    description: "" 
+  }]);
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +61,7 @@ export default function NewRequest() {
     defaultValues: {
       title: "",
       description: "",
-      items: [{ name: "", quantity: 1, estimatedCost: 0 }],
+      items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
       vendor: "",
       companyName: "",
       contactPerson: "",
@@ -97,12 +102,14 @@ export default function NewRequest() {
         items: items.map(item => ({
           name: item.name || '',
           quantity: Number(item.quantity) || 0,
-          estimatedCost: Number(item.estimatedCost) || 0
+          estimatedCost: Number(item.estimatedCost) || 0,
+          description: item.description || ''
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         vendor: values.companyName
       };
+
 
       // Validate required fields
       if (!formattedData.items || formattedData.items.length === 0) {
@@ -163,7 +170,7 @@ export default function NewRequest() {
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0 }]);
+    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -177,7 +184,7 @@ export default function NewRequest() {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === 'quantity' || field === 'estimatedCost' ? Number(value) : value,
+      [field]: field === 'name' || field === 'description' ? value : Number(value),
     };
     setItems(newItems);
   };
@@ -401,12 +408,18 @@ export default function NewRequest() {
                         key={index}
                         className="flex flex-col sm:flex-row gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors animate-fade-in"
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-2">
                           <Input
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
                             className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                          />
+                          <Textarea
+                            placeholder="Item description (optional)"
+                            value={item.description || ''}
+                            onChange={(e) => updateItem(index, "description", e.target.value)}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20 resize-none"
                           />
                         </div>
                         <div className="w-full sm:w-24">
