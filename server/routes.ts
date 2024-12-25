@@ -534,32 +534,73 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Only admin can delete requests
-      if (req.user!.role !== "admin") {
-        return res.status(403).send("Only admin can delete requests");
+      // Get the request first to check ownership and status
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, parseInt(req.params.id)))
+        .limit(1);
+
+      if (!request) {
+        return res.status(404).send("Request not found");
       }
 
-      // First, delete associated notifications
+      // Get the requester's department
+      const [requester] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, request.requesterId))
+        .limit(1);
+
+      if (!requester) {
+        return res.status(404).send("Requester not found");
+      }
+
+      // Check if user has permission to delete:
+      // 1. User is admin OR
+      // 2. User is from same department as requester AND request is in draft status
+      const isAdmin = req.user!.role === "admin";
+      const isSameDepartment = requester.department === req.user!.department;
+      const isDraft = request.status === "draft";
+
+      if (!isAdmin && !(isSameDepartment && isDraft)) {
+        return res.status(403).send(
+          isDraft 
+            ? "Only users from the same department can delete draft requests" 
+            : "Only draft requests can be deleted by department users"
+        );
+      }
+
+      // Delete associated notifications
       await db
         .delete(notifications)
         .where(eq(notifications.requestId, parseInt(req.params.id)));
 
-      // Then, delete associated approvals
+      // Delete associated approvals
       await db
         .delete(approvals)
         .where(eq(approvals.requestId, parseInt(req.params.id)));
 
-      // Finally, delete the request itself
+      // Delete the request itself
       const [deletedRequest] = await db
         .delete(purchaseRequests)
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
         .returning();
 
-      if (!deletedRequest) {
-        return res.status(404).send("Request not found");
+      // Create notification for request owner if deleted by someone else
+      if (request.requesterId !== req.user!.id) {
+        await createNotification(
+          request.requesterId,
+          `Request ${request.requestNumber} Deleted`,
+          `Your request ${request.requestNumber} has been deleted by ${req.user!.department}`,
+          'request_deleted'
+        );
       }
 
-      res.json({ message: "Request deleted successfully" });
+      res.json({ 
+        message: "Request deleted successfully",
+        request: deletedRequest
+      });
     } catch (error: any) {
       console.error("Error deleting request:", error);
       res.status(500).send(error.message);
