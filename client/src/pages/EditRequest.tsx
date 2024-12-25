@@ -66,7 +66,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     estimatedCost: 0,
     description: "" 
   }]);
-  const [freightAmount, setFreightAmount] = useState(0);
+  const [freightAmount, setFreightAmount] = useState<number>(0);
 
   // Form initialization with default values
   const form = useForm<PurchaseRequest>({
@@ -92,6 +92,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Effect to populate form data when request is loaded
   useEffect(() => {
     if (request) {
+      console.log("Loading request data:", request);
+
       // Parse and format items array
       const formattedItems = request.items?.map(item => ({
         name: String(item.name || ""),
@@ -104,6 +106,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       form.reset({
         ...request,
         items: formattedItems,
+        totalEstimatedCost: String(request.totalEstimatedCost || "0"),
+        freightAmount: String(request.freightAmount || "0"),
       });
 
       // Update local state
@@ -126,7 +130,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+
+      // Update form values to match the new items state
+      form.setValue('items', newItems);
     }
   };
 
@@ -137,6 +145,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       [field]: field === "name" || field === "description" ? value : Number(value),
     };
     setItems(newItems);
+
+    // Update form values to match the new items state
+    form.setValue('items', newItems);
   };
 
   const onSubmit = async (values: PurchaseRequest) => {
@@ -161,6 +172,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       toast({
         title: "Success",
         description: "Request updated successfully",
+        className: "animate-success",
       });
 
       setLocation("/");
@@ -170,6 +182,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         title: "Error",
         description: error.message || "Failed to update request",
         variant: "destructive",
+        className: "animate-error",
       });
     }
   };
@@ -183,6 +196,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           title: "Validation Error",
           description: "Please check all required fields",
           variant: "destructive",
+          className: "animate-error",
         });
         return;
       }
@@ -199,6 +213,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         title: "Error",
         description: "Failed to submit form",
         variant: "destructive",
+        className: "animate-error",
       });
     }
   };
@@ -224,24 +239,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       <div className="max-w-4xl mx-auto px-4">
         <Button
           variant="ghost"
-          className="mb-4 hover:bg-[#7156a2]/10 transition-colors"
+          className="mb-4 hover:bg-[#7156a2]/10 transition-colors interactive-bounce"
           onClick={() => setLocation("/")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
 
-        <Card className="border-[#35bbba]/20 shadow-lg">
+        <Card className="border-[#35bbba]/20 shadow-lg card-hover">
           <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
-            <CardTitle className="text-[#191160] text-2xl font-semibold">
+            <CardTitle className="text-[#191160] heading-responsive">
               Edit Purchase Request
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <Form {...form}>
-              <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+              <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
                 {/* Basic Information Section */}
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
                     control={form.control}
@@ -252,7 +267,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         <FormControl>
                           <Input
                             {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
                         <FormMessage />
@@ -269,7 +284,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         <FormControl>
                           <Textarea
                             {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
                         <FormMessage />
@@ -279,7 +294,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                 </div>
 
                 {/* Purpose Type and Priority Section */}
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Type</h3>
                   <div className="grid grid-cols-2 gap-6">
                     <FormField
@@ -290,7 +305,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring">
                                 <SelectValue placeholder="Select purpose type" />
                               </SelectTrigger>
                             </FormControl>
@@ -314,7 +329,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           <FormLabel className="text-[#191160]">Priority</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring">
                                 <SelectValue placeholder="Select priority" />
                               </SelectTrigger>
                             </FormControl>
@@ -352,7 +367,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                 </div>
 
                 {/* Items Section */}
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
                     <div className="flex items-center gap-4">
@@ -360,11 +375,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         control={form.control}
                         name="currency"
                         render={({ field }) => (
-                          <FormItem className="flex items-center gap-2">
-                            <FormLabel className="text-[#191160] whitespace-nowrap mb-0">Currency:</FormLabel>
+                          <FormItem>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger className="w-[100px] border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectTrigger className="w-[100px] border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring">
                                   <SelectValue />
                                 </SelectTrigger>
                               </FormControl>
@@ -383,7 +397,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         type="button"
                         variant="outline"
                         onClick={addItem}
-                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Item
@@ -395,20 +409,20 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     {items.map((item, index) => (
                       <div
                         key={index}
-                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30"
+                        className="flex gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors animate-fade-in"
                       >
                         <div className="flex-1 space-y-2">
                           <Input
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                           <Textarea
                             placeholder="Item description (optional)"
                             value={item.description}
                             onChange={(e) => updateItem(index, "description", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20 form-focus-ring"
                           />
                         </div>
                         <div className="w-24">
@@ -418,7 +432,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </div>
                         <div className="w-32">
@@ -429,7 +443,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) => updateItem(index, "estimatedCost", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </div>
                         <div className="w-32 text-right">
@@ -443,7 +457,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           size="icon"
                           onClick={() => removeItem(index)}
                           disabled={items.length === 1}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -461,7 +475,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           step="0.01"
                           value={freightAmount}
                           onChange={(e) => setFreightAmount(Number(e.target.value))}
-                          className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                         />
                       </FormControl>
                     </FormItem>
@@ -495,7 +509,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                 </div>
 
                 {/* Vendor Information Section */}
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20">
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
                   <div className="grid grid-cols-2 gap-6">
                     <FormField
@@ -508,7 +522,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             <Input
                               {...field}
                               placeholder="Enter company name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -526,7 +540,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             <Input
                               {...field}
                               placeholder="Enter contact person name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -545,7 +559,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                               {...field}
                               type="tel"
                               placeholder="Enter contact number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -563,7 +577,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             <Input
                               {...field}
                               placeholder="Enter account number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>
                           <FormMessage />
@@ -578,14 +592,14 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
-                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
                   >
                     Save as Draft
                   </Button>
                   <Button
                     type="button"
                     onClick={() => handleSubmit("pending")}
-                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
                   >
                     Submit for Approval
                   </Button>
