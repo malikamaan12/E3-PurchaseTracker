@@ -73,29 +73,33 @@ export function NotificationsDropdown() {
           ) : (
             <div className="divide-y">
               {notifications.map((notification) => (
-                <button
+                <div
                   key={notification.id}
-                  onClick={() => handleNotificationClick(notification.id, notification.link)}
                   className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group relative ${
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <p className="font-medium mb-1">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
+                  <button
+                    onClick={() => handleNotificationClick(notification.id, notification.link)}
+                    className="w-full text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <p className="font-medium mb-1">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground">{notification.message}</p>
+                      </div>
+                      {notification.link && (
+                        <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
                     </div>
-                    {notification.link && (
-                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                  </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                    </p>
+                  </button>
                   {!notification.isRead && (
                     <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
