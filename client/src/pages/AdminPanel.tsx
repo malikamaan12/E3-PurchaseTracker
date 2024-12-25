@@ -14,6 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import VendorSelect from "@/components/VendorSelect";
 import { insertUserSchema } from "@db/schema";
 
 export default function AdminPanel() {
@@ -56,6 +57,10 @@ export default function AdminPanel() {
               <VendorSelect
                 onChange={(id, name) => {
                   // Handle vendor selection
+                  toast({
+                    title: "Vendor Selected",
+                    description: `Selected vendor: ${name}`,
+                  });
                 }}
               />
             </CardContent>
