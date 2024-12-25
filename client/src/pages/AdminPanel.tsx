@@ -41,7 +41,7 @@ export default function AdminPanel() {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("branding");
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all"); // Changed default value to "all"
   const queryClient = useQueryClient();
 
   const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
@@ -111,7 +111,7 @@ export default function AdminPanel() {
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch = vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !categoryFilter || vendor.category === categoryFilter;
+    const matchesCategory = categoryFilter === "all" || vendor.category === categoryFilter; // Updated condition
     return matchesSearch && matchesCategory;
   });
 
@@ -173,7 +173,7 @@ export default function AdminPanel() {
                       <SelectValue placeholder="Filter by category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="materials_supplier">Materials Supplier</SelectItem>
                       <SelectItem value="service_provider">Service Provider</SelectItem>
                       <SelectItem value="logistic_partner">Logistic Partner</SelectItem>
