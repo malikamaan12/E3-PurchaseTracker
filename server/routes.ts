@@ -1056,7 +1056,8 @@ export function registerRoutes(app: Express): Server {
 
       for (const admin of admins) {
         await createNotification(
-          admin.id,          'New Account Request',
+          admin.id,
+          'New Account Request',
           `New account request from ${request.username} (${request.department})`,
           'account_request'
         );
