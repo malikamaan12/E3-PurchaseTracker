@@ -94,9 +94,9 @@ export default function NewRequest() {
 
   const onSubmit = async (values: NewPurchaseRequest) => {
     try {
+      setIsSubmitting(true);
       const formData = new FormData();
 
-      // Ensure items are properly formatted
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -111,7 +111,6 @@ export default function NewRequest() {
       };
 
 
-      // Validate required fields
       if (!formattedData.items || formattedData.items.length === 0) {
         throw new Error("At least one item is required");
       }
@@ -120,7 +119,6 @@ export default function NewRequest() {
         throw new Error("All items must have a name");
       }
 
-      // Log the data being sent for debugging
       console.log('Submitting request with data:', formattedData);
 
       formData.append('data', JSON.stringify(formattedData));
@@ -143,6 +141,7 @@ export default function NewRequest() {
         toast({
           title: "Success",
           description: "Request created successfully",
+          className: "animate-success", 
         });
         setLocation("/");
       } catch (error: any) {
@@ -151,6 +150,7 @@ export default function NewRequest() {
           title: "Error",
           description: error.message || "Failed to create request",
           variant: "destructive",
+          className: "animate-error", 
         });
       }
     } catch (error: any) {
@@ -166,6 +166,8 @@ export default function NewRequest() {
         description: errorMessages || error.message || "Please check all required fields",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -653,7 +655,7 @@ export default function NewRequest() {
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
                     disabled={isSubmitting}
-                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce"
+                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
@@ -668,7 +670,7 @@ export default function NewRequest() {
                     type="button"
                     onClick={() => handleSubmit("pending")}
                     disabled={isSubmitting}
-                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce"
+                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">

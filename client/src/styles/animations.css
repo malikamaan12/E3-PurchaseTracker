@@ -1,0 +1,160 @@
+/* Base transitions */
+.animate-fade-in {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+.animate-slide-in {
+  transform: translateY(10px);
+  opacity: 0;
+  animation: slideIn 0.4s ease-out forwards;
+}
+
+.interactive-bounce {
+  transition: transform 0.2s ease;
+}
+
+.interactive-bounce:active {
+  transform: scale(0.95);
+}
+
+/* Loading animations */
+.loading-spin {
+  border: 2px solid hsla(var(--background));
+  border-top-color: hsla(var(--primary));
+  border-radius: 50%;
+  width: 1em;
+  height: 1em;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
+}
+
+/* Form focus ring animation */
+.form-focus-ring {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-focus-ring:focus {
+  box-shadow: 0 0 0 2px hsla(var(--primary), 0.2);
+}
+
+/* Responsive text size */
+.heading-responsive {
+  font-size: clamp(1.5rem, 2vw + 1rem, 2rem);
+}
+
+/* Keyframe Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success/Error animations */
+.animate-success {
+  animation: successPulse 0.5s ease-out;
+}
+
+.animate-error {
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Button animations */
+.btn-hover-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-hover-effect::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn-hover-effect:hover::after {
+  width: 200%;
+  height: 200%;
+}
+
+/* Toast animations */
+.toast-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.toast-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast-exit {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast-exit-active {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
