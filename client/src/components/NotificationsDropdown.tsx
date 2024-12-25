@@ -18,16 +18,28 @@ export function NotificationsDropdown() {
   const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
 
   const handleNotificationClick = async (notificationId: number, link?: string | null) => {
-    if (!notifications.find(n => n.id === notificationId)?.isRead) {
-      await markAsRead(notificationId);
-    }
+    try {
+      // Mark as read if needed
+      if (!notifications.find(n => n.id === notificationId)?.isRead) {
+        await markAsRead(notificationId);
+      }
 
-    if (link) {
-      // Ensure the link starts with a forward slash for internal navigation
-      const formattedLink = link.startsWith('/') ? link : `/${link}`;
-      console.log('Navigating to:', formattedLink); // Debug log
-      setOpen(false);
-      setLocation(formattedLink);
+      // Handle navigation if link exists
+      if (link) {
+        // Ensure the link starts with a forward slash for internal navigation
+        const formattedLink = link.startsWith('/') ? link : `/${link}`;
+        console.log('Navigating to:', formattedLink); // Debug log
+
+        // Close dropdown first
+        setOpen(false);
+
+        // Small delay to ensure dropdown closes smoothly before navigation
+        setTimeout(() => {
+          setLocation(formattedLink);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error handling notification click:', error);
     }
   };
 
@@ -82,9 +94,10 @@ export function NotificationsDropdown() {
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => handleNotificationClick(notification.id, notification.link)}
-                    className="w-full text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md"
+                    className="w-full text-left h-auto p-0 hover:bg-transparent"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div>
@@ -98,7 +111,7 @@ export function NotificationsDropdown() {
                     <p className="text-xs text-muted-foreground mt-2">
                       {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                     </p>
-                  </button>
+                  </Button>
                   {!notification.isRead && (
                     <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
