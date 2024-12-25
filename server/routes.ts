@@ -971,8 +971,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     if (req.user!.role !== "admin") {
-      return res.status(403).send("Only admin can manage sub-purposes");
-    }
+      return res.status(403).send("Only admin can manage sub-purposes");    }
 
     try{
       const result = insertSubPurposeSchema.safeParse(req.body);
@@ -1548,18 +1547,17 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add vendor routes
+  // Add vendor routes after existing routes
+  // Vendor routes
   app.get("/api/vendors", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const vendorsList = await db
-        .select()
-        .from(vendors)
-        .orderBy(desc(vendors.createdAt));
-
+      const vendorsList = await db.query.vendors.findMany({
+        orderBy: desc(vendors.createdAt)
+      });
       res.json(vendorsList);
     } catch (error: any) {
       console.error("Error fetching vendors:", error);
@@ -1584,107 +1582,36 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      const [vendor] = await db
-        .insert(vendors)
+      const [vendor] = await db.insert(vendors)
         .values(result.data)
         .returning();
 
       res.json(vendor);
     } catch (error: any) {
       console.error("Error creating vendor:", error);
-      res.status(500).send(error.message);
+      res.status(500).json({
+        error: "Failed to create vendor",
+        message: error.message
+      });
     }
   });
 
-  app.put("/api/vendors/:id", async (req, res) => {
+  app.patch("/api/vendors/:id/rating", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const result = insertVendorSchema.partial().safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: result.error.issues.map(issue => ({
-            field: issue.path.join('.'),
-            message: issue.message
-          }))
-        });
+      const { rating } = req.body;
+
+      if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+        return res.status(400).send("Rating must be a number between 1 and 5");
       }
 
       const [vendor] = await db
         .update(vendors)
-        .set({
-          ...result.data,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, parseInt(req.params.id)))
-        .returning();
-
-      if (!vendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      res.json(vendor);
-    } catch (error: any) {
-      console.error("Error updating vendor:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.put("/api/vendors/:id/status", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const { status, blockReason } = req.body;
-      if (!["active", "blocked"].includes(status)) {
-        return res.status(400).send("Invalid status");
-      }
-
-      if (status === "blocked" && !blockReason) {
-        return res.status(400).send("Block reason is required when blocking a vendor");
-      }
-
-      const [vendor] = await db
-        .update(vendors)
-        .set({
-          status,
-          blockReason: status === "blocked" ? blockReason : null,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, parseInt(req.params.id)))
-        .returning();
-
-      if (!vendor) {
-        return res.status(404).send("Vendor not found");
-      }
-
-      res.json(vendor);
-    } catch (error: any) {
-      console.error("Error updating vendor status:", error);
-      res.status(500).send(error.message);
-    }
-  });
-
-  app.put("/api/vendors/:id/rating", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const { rating, comments } = req.body;
-      if (!rating || rating < 1 || rating > 5) {
-        return res.status(400).send("Rating must be between 1 and 5");
-      }
-
-      const [vendor] = await db
-        .update(vendors)
-        .set({
+        .set({ 
           rating,
-          ratingComments: comments || null,
           updatedAt: new Date()
         })
         .where(eq(vendors.id, parseInt(req.params.id)))
@@ -1701,7 +1628,44 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add these routes before the httpServer creation
+  app.patch("/api/vendors/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const { status, blockReason } = req.body;
+
+      if (!['active', 'blocked'].includes(status)) {
+        return res.status(400).send("Status must be either 'active' or 'blocked'");
+      }
+
+      if (status === 'blocked' && !blockReason) {
+        return res.status(400).send("Block reason is required when blocking a vendor");
+      }
+
+      const [vendor] = await db
+        .update(vendors)
+        .set({ 
+          status,
+          blockReason: status === 'blocked' ? blockReason : null,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!vendor) {
+        return res.status(404).send("Vendor not found");
+      }
+
+      res.json(vendor);
+    } catch (error: any) {
+      console.error("Error updating vendor status:", error);
+      res.status(500).send(error.message);
+    }
+  });
+
+  // Return httpServer at the end
   const httpServer = createServer(app);
   return httpServer;
 }
