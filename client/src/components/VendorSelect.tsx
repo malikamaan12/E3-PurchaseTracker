@@ -179,7 +179,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         'bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'
       ];
 
-      const isValid = await form.trigger(allFields);
+      const isValid = await form.trigger(allFields, { shouldFocus: true });
       
       if (!isValid) {
         const errors = form.formState.errors;
@@ -194,7 +194,12 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         return;
       }
 
-      await createVendor.mutateAsync(data);
+      const response = await createVendor.mutateAsync(data);
+      if (response) {
+        setDialogOpen(false);
+        form.reset();
+        setCurrentSlide(0);
+      }
     } catch (error) {
       console.error("Error creating vendor:", error);
       toast({
@@ -202,6 +207,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         description: "Failed to create vendor. Please try again.",
         variant: "destructive",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
