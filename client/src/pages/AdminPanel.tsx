@@ -19,38 +19,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,45 +36,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Check, X, Ban, Star } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type {
-  SubPurpose,
-  NewSubPurpose,
-  AccountRequest,
-  User,
-  Vendor,
-} from "@db/schema";
-import { insertSubPurposeSchema, insertVendorSchema } from "@db/schema";
-import { Calendar } from "@/components/ui/calendar";
-import { Switch } from "@/components/ui/switch";
-import { format } from "date-fns";
+import { FormLabel } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Ban, Star, Check } from "lucide-react";
+import type { Vendor } from "@db/schema";
 
 export default function AdminPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedTab, setSelectedTab] = useState("users");
+  const [selectedTab, setSelectedTab] = useState("vendors");
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-
-  // Fetch users
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-  });
-
-  // Fetch sub-purposes
-  const { data: subPurposes = [], isLoading: isLoadingPurposes } = useQuery<SubPurpose[]>({
-    queryKey: ["/api/sub-purposes"],
-  });
 
   // Fetch vendors
   const { data: vendors = [], isLoading: isLoadingVendors } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-  });
-
-  // Fetch account requests
-  const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery<AccountRequest[]>({
-    queryKey: ["/api/admin/account-requests"],
   });
 
   // Vendor management
@@ -166,855 +123,189 @@ export default function AdminPanel() {
     },
   });
 
-  // Sub-purpose management
-  const createSubPurpose = useMutation({
-    mutationFn: async (data: NewSubPurpose) => {
-      const res = await fetch("/api/admin/sub-purposes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sub-purposes"] });
-      toast({
-        title: "Success",
-        description: "Sub-purpose created successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteSubPurpose = useMutation({
-    mutationFn: async (id: number) => {
-      // First check if sub-purpose is in use
-      const checkResponse = await fetch(`/api/admin/sub-purposes/${id}/check-usage`, {
-        credentials: "include",
-      });
-
-      if (!checkResponse.ok) {
-        const error = await checkResponse.text();
-        throw new Error(error || "Failed to check sub-purpose usage");
-      }
-
-      const { isInUse } = await checkResponse.json();
-
-      if (isInUse) {
-        throw new Error(
-          "This sub-purpose is currently being used by one or more purchase requests. Please freeze it instead of deleting."
-        );
-      }
-
-      const res = await fetch(`/api/admin/sub-purposes/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to delete sub-purpose");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sub-purposes"] });
-      toast({
-        title: "Success",
-        description: "Sub-purpose deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Account request management
-  const approveAccountRequest = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/account-requests/${id}/approve`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "Account request approved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const rejectAccountRequest = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/account-requests/${id}/reject`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
-      toast({
-        title: "Success",
-        description: "Account request rejected successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // User management
-  const deleteUser = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateUser = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "User updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const purposeForm = useForm<NewSubPurpose>({
-    resolver: zodResolver(insertSubPurposeSchema),
-    defaultValues: {
-      name: "",
-      purposeType: "event",
-      isFrozen: false,
-      validFrom: "",
-      validTo: "",
-    },
-  });
-
-  const userForm = useForm({
-    resolver: zodResolver(insertUserSchema.partial()),
-    defaultValues: {
-      username: "",
-      password: "",
-      email: "",
-      contactNumber: "",
-      department: "",
-      role: "user",
-    },
-  });
-
   return (
     <div className="container mx-auto py-8">
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="purposes">Purpose Management</TabsTrigger>
-          <TabsTrigger value="requests">Account Requests</TabsTrigger>
-          <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-        </TabsList>
-
-        {/* User Management Tab */}
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Vendor Management</CardTitle>
               <CardDescription>
-                Manage user accounts and permissions
+                Manage vendor information and status
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingUsers ? (
-                <div className="flex justify-center py-8">Loading...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.department}</TableCell>
-                        <TableCell>
-                          <Select
-                            defaultValue={user.role}
-                            onValueChange={(value) =>
-                              updateUser.mutate({
-                                id: user.id,
-                                data: { role: value },
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="approver">Approver</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this user? This action
-                                  cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={() => deleteUser.mutate(user.id)}
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Purpose Management Tab */}
-        <TabsContent value="purposes">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Purpose Management</CardTitle>
-                  <CardDescription>
-                    Manage purpose types and sub-purposes
-                  </CardDescription>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Sub-purpose
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Sub-purpose</DialogTitle>
-                    </DialogHeader>
-                    <Form {...purposeForm}>
-                      <form
-                        onSubmit={purposeForm.handleSubmit((data) =>
-                          createSubPurpose.mutate(data)
-                        )}
-                        className="space-y-4"
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Vendor
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add New Vendor</DialogTitle>
+                </DialogHeader>
+                <VendorSelect value={undefined} onChange={() => {}} />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingVendors ? (
+            <div className="flex justify-center py-8">Loading...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Contact Person</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vendors.map((vendor) => (
+                  <TableRow key={vendor.id}>
+                    <TableCell>{vendor.companyName}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {vendor.category.replace(/_/g, ' ').split(' ').map(word => 
+                          word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{vendor.contactPerson}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {vendor.email}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={vendor.status === "active" ? "default" : "destructive"}
                       >
-                        <FormField
-                          control={purposeForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={purposeForm.control}
-                          name="purposeType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Purpose Type</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
+                        {vendor.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {vendor.rating ? (
+                          <>
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span>{vendor.rating}/5</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">Not rated</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Star className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Rate Vendor</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <FormLabel>Rating</FormLabel>
+                                <Select
+                                  onValueChange={(value) =>
+                                    updateVendorRating.mutate({
+                                      id: vendor.id,
+                                      rating: parseInt(value),
+                                    })
+                                  }
+                                  defaultValue={vendor.rating?.toString()}
+                                >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select purpose type" />
+                                    <SelectValue placeholder="Select rating" />
                                   </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="event">Event</SelectItem>
-                                  <SelectItem value="project">Project</SelectItem>
-                                  <SelectItem value="mall">Mall</SelectItem>
-                                  <SelectItem value="business_growth">
-                                    Business Growth
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={purposeForm.control}
-                          name="isFrozen"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel>Freeze Status</FormLabel>
-                                <FormDescription>
-                                  When frozen, this sub-purpose will not be available for new requests
-                                </FormDescription>
+                                  <SelectContent>
+                                    {[1, 2, 3, 4, 5].map((rating) => (
+                                      <SelectItem
+                                        key={rating}
+                                        value={rating.toString()}
+                                      >
+                                        {rating} Star{rating !== 1 ? "s" : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={purposeForm.control}
-                            name="validFrom"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Valid From</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="datetime-local"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={purposeForm.control}
-                            name="validTo"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Valid To</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="datetime-local"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <DialogFooter>
-                          <Button type="submit">Create Sub-purpose</Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingPurposes ? (
-                <div className="flex justify-center py-8">Loading...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Valid Period</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subPurposes.map((purpose) => (
-                      <TableRow key={purpose.id}>
-                        <TableCell>{purpose.name}</TableCell>
-                        <TableCell>{purpose.purposeType}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={purpose.isFrozen ? "destructive" : "default"}
-                          >
-                            {purpose.isFrozen ? "Frozen" : "Active"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {purpose.validFrom && purpose.validTo ? (
-                            <span className="text-sm text-muted-foreground">
-                              {format(new Date(purpose.validFrom), "MMM d, yyyy")} -{" "}
-                              {format(new Date(purpose.validTo), "MMM d, yyyy")}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              No date restrictions
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Toggle freeze status
-                                const toggleFreeze = async () => {
-                                  try {
-                                    await fetch(`/api/admin/sub-purposes/${purpose.id}`, {
-                                      method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({
-                                        isFrozen: !purpose.isFrozen,
-                                      }),
-                                      credentials: "include",
-                                    });
-                                    queryClient.invalidateQueries({ queryKey: ["/api/sub-purposes"] });
-                                    toast({
-                                      title: "Success",
-                                      description: `Sub-purpose ${purpose.isFrozen ? "unfrozen" : "frozen"} successfully`,
-                                    });
-                                  } catch (error: any) {
-                                    toast({
-                                      title: "Error",
-                                      description: error.message,
-                                      variant: "destructive",
-                                    });
-                                  }
-                                };
-                                toggleFreeze();
-                              }}
+                              size="icon"
+                              className={
+                                vendor.status === "active"
+                                  ? "text-red-500 hover:text-red-700"
+                                  : "text-green-500 hover:text-green-700"
+                              }
                             >
-                              {purpose.isFrozen ? "Unfreeze" : "Freeze"}
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Sub-purpose</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this sub-purpose?
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="bg-red-600 hover:bg-red-700"
-                                    onClick={() =>
-                                      deleteSubPurpose.mutate(purpose.id)
-                                    }
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Account Requests Tab */}
-        <TabsContent value="requests">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Requests</CardTitle>
-              <CardDescription>
-                Manage pending account creation requests
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingRequests ? (
-                <div className="flex justify-center py-8">Loading...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {accountRequests.map((request) => (
-                      <TableRow key={request.id}>
-                        <TableCell>{request.username}</TableCell>
-                        <TableCell>{request.email}</TableCell>
-                        <TableCell>{request.department}</TableCell>
-                        <TableCell>{request.role}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              request.status === "pending"
-                                ? "outline"
-                                : request.status === "approved"
-                                ? "default"
-                                : "destructive"
-                            }
-                          >
-                            {request.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {request.status === "pending" && (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-green-500 hover:text-green-700"
-                                onClick={() =>
-                                  approveAccountRequest.mutate(request.id)
-                                }
-                              >
+                              {vendor.status === "active" ? (
+                                <Ban className="h-4 w-4" />
+                              ) : (
                                 <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-500 hover:text-red-700"
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {vendor.status === "active"
+                                  ? "Block Vendor"
+                                  : "Activate Vendor"}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {vendor.status === "active"
+                                  ? "Are you sure you want to block this vendor? They won't be able to receive new purchase requests while blocked."
+                                  : "Are you sure you want to activate this vendor?"}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
                                 onClick={() =>
-                                  rejectAccountRequest.mutate(request.id)
+                                  updateVendorStatus.mutate({
+                                    id: vendor.id,
+                                    status:
+                                      vendor.status === "active"
+                                        ? "blocked"
+                                        : "active",
+                                  })
                                 }
                               >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Add new Vendors tab */}
-        <TabsContent value="vendors">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Vendor Management</CardTitle>
-                  <CardDescription>
-                    Manage vendor information and status
-                  </CardDescription>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Vendor
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Add New Vendor</DialogTitle>
-                    </DialogHeader>
-                    <VendorSelect value={undefined} onChange={() => {}} />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingVendors ? (
-                <div className="flex justify-center py-8">Loading...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Company Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Contact Person</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Rating</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {vendors.map((vendor) => (
-                      <TableRow key={vendor.id}>
-                        <TableCell>{vendor.companyName}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {vendor.category.replace(/_/g, ' ').split(' ').map(word => 
-                              word.charAt(0).toUpperCase() + word.slice(1)
-                            ).join(' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span>{vendor.contactPerson}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {vendor.email}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={vendor.status === "active" ? "default" : "destructive"}
-                          >
-                            {vendor.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {vendor.rating ? (
-                              <>
-                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span>{vendor.rating}/5</span>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">Not rated</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Star className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Rate Vendor</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                  <div className="space-y-2">
-                                    <FormLabel>Rating</FormLabel>
-                                    <Select
-                                      onValueChange={(value) =>
-                                        updateVendorRating.mutate({
-                                          id: vendor.id,
-                                          rating: parseInt(value),
-                                        })
-                                      }
-                                      defaultValue={vendor.rating?.toString()}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select rating" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {[1, 2, 3, 4, 5].map((rating) => (
-                                          <SelectItem
-                                            key={rating}
-                                            value={rating.toString()}
-                                          >
-                                            {rating} Star{rating !== 1 ? "s" : ""}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={
-                                    vendor.status === "active"
-                                      ? "text-red-500 hover:text-red-700"
-                                      : "text-green-500 hover:text-green-700"
-                                  }
-                                >
-                                  {vendor.status === "active" ? (
-                                    <Ban className="h-4 w-4" />
-                                  ) : (
-                                    <Check className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    {vendor.status === "active"
-                                      ? "Block Vendor"
-                                      : "Activate Vendor"}
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    {vendor.status === "active"
-                                      ? "Are you sure you want to block this vendor? They won't be able to receive new purchase requests while blocked."
-                                      : "Are you sure you want to activate this vendor?"}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      updateVendorStatus.mutate({
-                                        id: vendor.id,
-                                        status:
-                                          vendor.status === "active"
-                                            ? "blocked"
-                                            : "active",
-                                      })
-                                    }
-                                  >
-                                    {vendor.status === "active"
-                                      ? "Block Vendor"
-                                      : "Activate Vendor"}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Branding Tab */}
-        <TabsContent value="branding">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Branding</CardTitle>
-              <CardDescription>
-                Customize company branding, logo, and PDF templates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CompanyBrandingForm />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                                {vendor.status === "active"
+                                  ? "Block Vendor"
+                                  : "Activate Vendor"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
