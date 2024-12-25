@@ -502,11 +502,22 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              form.handleSubmit(onSubmit)(e);
-            }} className="space-y-4">
-              {/* Carousel content */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // Only allow form submission on the last step
+                if (currentSlide === 2) {
+                  form.handleSubmit(onSubmit)(e);
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "Please complete all steps before submitting",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="space-y-4"
+            >
               <div className="relative">
                 <div className="overflow-hidden">
                   <div
