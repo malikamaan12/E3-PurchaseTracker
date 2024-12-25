@@ -528,6 +528,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Delete the request itself
   app.delete("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -571,6 +572,30 @@ export function registerRoutes(app: Express): Server {
         );
       }
 
+      // First get all file attachments
+      const attachments = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, parseInt(req.params.id)));
+
+      // Delete physical files first
+      for (const attachment of attachments) {
+        try {
+          if (fs.existsSync(attachment.fileUrl)) {
+            fs.unlinkSync(attachment.fileUrl);
+          }
+        } catch (error) {
+          console.error(`Failed to delete file ${attachment.fileUrl}:`, error);
+        }
+      }
+
+      // Delete file attachments records from database
+      if (attachments.length > 0) {
+        await db
+          .delete(fileAttachments)
+          .where(eq(fileAttachments.requestId, parseInt(req.params.id)));
+      }
+
       // Delete associated notifications
       await db
         .delete(notifications)
@@ -581,7 +606,7 @@ export function registerRoutes(app: Express): Server {
         .delete(approvals)
         .where(eq(approvals.requestId, parseInt(req.params.id)));
 
-      // Delete the request itself
+      // Finally delete the request itself
       const [deletedRequest] = await db
         .delete(purchaseRequests)
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
