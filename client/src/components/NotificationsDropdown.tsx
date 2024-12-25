@@ -28,16 +28,20 @@ export function NotificationsDropdown() {
 
       // Handle navigation if link exists
       if (link) {
-        // Ensure the link starts with a forward slash for internal navigation
+        // Remove any existing leading slash for wouter compatibility
         const formattedLink = link.startsWith('/') ? link : `/${link}`;
         console.log('Navigating to:', formattedLink); // Debug log
 
         // Close dropdown first
         setOpen(false);
 
-        // Small delay to ensure dropdown closes smoothly before navigation
+        // Navigate with a small delay to ensure smooth UI transition
         setTimeout(() => {
-          setLocation(formattedLink);
+          try {
+            setLocation(formattedLink);
+          } catch (error) {
+            console.error('Navigation error:', error);
+          }
         }, 100);
       }
     } catch (error) {
@@ -96,21 +100,13 @@ export function NotificationsDropdown() {
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
-                  <div 
-                    role="button"
-                    tabIndex={0}
+                  <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       handleNotificationClick(notification.id, notification.link);
                     }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleNotificationClick(notification.id, notification.link);
-                      }
-                    }}
-                    className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md p-2 hover:bg-muted/50 transition-colors"
+                    className="w-full text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md p-2 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div>
@@ -124,7 +120,7 @@ export function NotificationsDropdown() {
                     <p className="text-xs text-muted-foreground mt-2">
                       {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                     </p>
-                  </div>
+                  </button>
                   {!notification.isRead && (
                     <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
