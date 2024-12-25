@@ -25,6 +25,62 @@ import bcrypt from 'bcrypt';
 import { Parser } from 'json2csv';
 import * as XLSX from 'xlsx';
 
+// Add these at the top with other imports and helper functions
+const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
+
+// Helper function to check if a user can approve a request
+async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
+  try {
+    // Get the user
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      return false;
+    }
+
+    // Get the request
+    const [request] = await db.select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!request) {
+      return false;
+    }
+
+    // Special roles (CEO Office, Director, Finance) can approve any request
+    const isSpecialRole = mandatoryDepartments.includes(user.department);
+
+    // For non-special roles, users cannot approve their own requests
+    if (!isSpecialRole && request.requesterId === userId) {
+      return false;
+    }
+
+    // Check if user has already approved this request
+    const [existingApproval] = await db.select()
+      .from(approvals)
+      .where(
+        and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.approverId, userId)
+        )
+      )
+      .limit(1);
+
+    // If there's an existing approval, user cannot approve again
+    if (existingApproval) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in canUserApprove:", error);
+    return false;
+  }
+}
 
 // Helper functions
 async function hashPassword(password: string): Promise<string> {
@@ -327,7 +383,6 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       // Allow access if user is the requester, an admin, or from mandatory departments
-      const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
       const hasAccess = request.requesterId === user.id ||
                         user.role === 'admin' ||
                         mandatoryDepartments.includes(user.department);
@@ -913,8 +968,7 @@ export function registerRoutes(app: Express): Server {
       console.error("Error updating sub-purpose:", error);
       res.status(500).json({
         error: "Failed to update sub-purpose",
-        message: error.message
-      });
+        message: error.message      });
     }
   });
 
