@@ -96,10 +96,21 @@ export function NotificationsDropdown() {
                     !notification.isRead ? "bg-muted/20" : ""
                   }`}
                 >
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleNotificationClick(notification.id, notification.link)}
-                    className="w-full text-left h-auto p-0 hover:bg-transparent"
+                  <div 
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleNotificationClick(notification.id, notification.link);
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleNotificationClick(notification.id, notification.link);
+                      }
+                    }}
+                    className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md p-2 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div>
@@ -113,7 +124,7 @@ export function NotificationsDropdown() {
                     <p className="text-xs text-muted-foreground mt-2">
                       {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                     </p>
-                  </Button>
+                  </div>
                   {!notification.isRead && (
                     <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
