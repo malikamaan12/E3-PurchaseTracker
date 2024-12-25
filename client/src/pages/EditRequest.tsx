@@ -31,6 +31,13 @@ import {
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 
+interface RequestItem {
+  name: string;
+  quantity: number;
+  estimatedCost: number;
+  description: string;
+}
+
 const currencies = [
   { label: "QAR", value: "QAR" },
   { label: "USD", value: "USD" },
@@ -53,7 +60,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const { data: request, isLoading } = getRequest(parseInt(params.id));
 
   // Initialize state with empty values
-  const [items, setItems] = useState([{ 
+  const [items, setItems] = useState<RequestItem[]>([{ 
     name: "", 
     quantity: 1, 
     estimatedCost: 0,
@@ -111,6 +118,25 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       0
     );
     return itemsTotal + freightAmount;
+  };
+
+  const addItem = () => {
+    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
+  };
+
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateItem = (index: number, field: string, value: string | number) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      [field]: field === "name" || field === "description" ? value : Number(value),
+    };
+    setItems(newItems);
   };
 
   const onSubmit = async (values: PurchaseRequest) => {
@@ -314,7 +340,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           <FormControl>
                             <SubPurposeSelect
                               purposeType={form.watch("purposeType")}
-                              value={field.value}
+                              value={field.value ?? undefined}
                               onChange={field.onChange}
                             />
                           </FormControl>
@@ -572,22 +598,3 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-const addItem = () => {
-  setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
-};
-
-const removeItem = (index: number) => {
-  if (items.length > 1) {
-    setItems(items.filter((_, i) => i !== index));
-  }
-};
-
-const updateItem = (index: number, field: string, value: string | number) => {
-  const newItems = [...items];
-  newItems[index] = {
-    ...newItems[index],
-    [field]: field === "name" || field === "description" ? value : Number(value),
-  };
-  setItems(newItems);
-};
