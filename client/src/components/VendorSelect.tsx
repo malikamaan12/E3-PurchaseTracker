@@ -73,6 +73,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,6 +93,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       status: "active",
       address: ""
     },
+    mode: "onChange"
   });
 
   const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
@@ -118,6 +120,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
       onChange(data.id, data.companyName);
       setDialogOpen(false);
       form.reset();
+      setCurrentSlide(0);
       toast({
         title: "Success",
         description: "Vendor created successfully",
@@ -130,24 +133,19 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      setIsSubmitting(false);
+    }
   });
 
   const selectedVendor = vendors.find((v) => v.id === value);
 
   const validateCurrentSlide = async () => {
-    let fieldsToValidate: string[] = [];
-
-    switch (currentSlide) {
-      case 0: // Basic Information
-        fieldsToValidate = ['companyName', 'registrationNumber', 'category'];
-        break;
-      case 1: // Contact Information
-        fieldsToValidate = ['email', 'contactNumber', 'contactPerson', 'address'];
-        break;
-      case 2: // Banking Information
-        fieldsToValidate = ['bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'];
-        break;
-    }
+    const fieldsToValidate = {
+      0: ['companyName', 'registrationNumber', 'category'] as const,
+      1: ['email', 'contactNumber', 'contactPerson', 'address'] as const,
+      2: ['bankName', 'accountNumber', 'ibanNumber', 'paymentCurrency', 'status'] as const
+    }[currentSlide];
 
     const isValid = await form.trigger(fieldsToValidate);
     if (!isValid) {
@@ -162,17 +160,32 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
   };
 
   const onSubmit = async (data: any) => {
-    // Final validation before submission
-    const isValid = await form.trigger();
-    if (!isValid) {
+    if (currentSlide !== 2) {
       toast({
-        title: "Validation Error",
-        description: "Please check all required fields",
+        title: "Error",
+        description: "Please complete all steps before submitting",
         variant: "destructive",
       });
       return;
     }
-    createVendor.mutate(data);
+
+    try {
+      setIsSubmitting(true);
+      // Final validation of all fields
+      const isValid = await form.trigger();
+      if (!isValid) {
+        toast({
+          title: "Validation Error",
+          description: "Please check all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await createVendor.mutateAsync(data);
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+    }
   };
 
   const handleSelectVendor = (vendorId: number, vendorName: string) => {
@@ -262,7 +275,7 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" {...field} value={field.value ?? ''} />
+                <Input type="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -470,7 +483,10 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              form.handleSubmit(onSubmit)(e);
+            }} className="space-y-4">
               {/* Carousel content */}
               <div className="relative">
                 <div className="overflow-hidden">
@@ -507,9 +523,9 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
                   {currentSlide === formSlides.length - 1 ? (
                     <Button 
                       type="submit" 
-                      disabled={form.formState.isSubmitting}
+                      disabled={isSubmitting || !form.formState.isValid}
                     >
-                      {form.formState.isSubmitting ? "Creating..." : "Create Vendor"}
+                      {isSubmitting ? "Creating..." : "Create Vendor"}
                     </Button>
                   ) : (
                     <Button
