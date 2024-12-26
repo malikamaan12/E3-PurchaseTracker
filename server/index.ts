@@ -2,38 +2,29 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
-import Anthropic from '@anthropic-ai/sdk';
+import { initializeAnthropicClient, analyzeError } from "./utils/anthropic-client";
+import { setupAuth } from "./auth";
 
-// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'ANTHROPIC_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
-async function analyzeServerError(error: Error): Promise<string> {
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
-      messages: [{
-        role: "user",
-        content: `Analyze this server error and provide a clear, user-friendly explanation of what might be wrong and how to fix it. Error: ${error.message}`
-      }]
-    });
+if (missingEnvVars.length > 0) {
+  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
 
-    const content = response.content[0];
-    return content.type === 'text' 
-      ? content.text 
-      : "An unexpected server error occurred. Please check the logs for more details.";
-  } catch (anthropicError) {
-    console.error("Error analyzing server error:", anthropicError);
-    return error.message;
-  }
+// Initialize Anthropic client first
+const anthropicClient = initializeAnthropicClient();
+if (!anthropicClient) {
+  log("Warning: Anthropic client initialization failed. Some features may be limited.");
 }
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -82,8 +73,6 @@ app.use((req, res, next) => {
         }
       } catch (err: any) {
         lastError = err;
-        log(`Connection attempt ${attempt} failed: ${err.message}`);
-
         if (err.message.includes('endpoint is disabled')) {
           log(`
 Database endpoint is disabled. To fix this:
@@ -95,6 +84,8 @@ Database endpoint is disabled. To fix this:
           break; // Don't retry if endpoint is disabled
         }
 
+        log(`Connection attempt ${attempt} failed: ${err.message}`);
+
         if (attempt < maxRetries) {
           const delay = 2000 * attempt; // Exponential backoff
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -103,9 +94,12 @@ Database endpoint is disabled. To fix this:
     }
 
     if (!connectionEstablished) {
-      const analysis = await analyzeServerError(lastError!);
+      const analysis = await analyzeError(lastError!, "Database initialization");
       throw new Error(`Failed to connect to database: ${analysis}`);
     }
+
+    // Set up authentication after database is connected
+    await setupAuth(app);
 
     // Set up routes and get the HTTP server instance
     const server = await registerRoutes(app);
@@ -114,7 +108,7 @@ Database endpoint is disabled. To fix this:
     app.use(async (err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Global error handler caught:', err);
       const status = err.status || err.statusCode || 500;
-      const message = await analyzeServerError(err);
+      const message = await analyzeError(err, "Global error handler");
 
       res.status(status).json({ message });
     });
@@ -132,7 +126,7 @@ Database endpoint is disabled. To fix this:
       log(`Server started and listening on port ${PORT}`);
     });
   } catch (error: any) {
-    console.error('Fatal server error:', await analyzeServerError(error));
+    console.error('Fatal server error:', await analyzeError(error, "Server initialization"));
     process.exit(1);
   }
 })();
