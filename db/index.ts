@@ -11,18 +11,18 @@ if (!process.env.DATABASE_URL) {
 // Parse connection URL to handle Supabase format
 const connectionString = process.env.DATABASE_URL;
 
-// Initialize the postgres client with Supabase-specific configuration
+// Initialize the postgres client with retries and proper SSL
 const client = postgres(connectionString, {
-  max: 3, // Maximum pool size
-  idle_timeout: 20, // Close idle connections after 20 seconds
-  connect_timeout: 10, // Connection timeout in seconds
-  ssl: {
-    rejectUnauthorized: false, // Required for Supabase connections
-  },
+  max: 3,
+  idle_timeout: 20,
+  connect_timeout: 30,
+  ssl: true,
   connection: {
     application_name: 'purchase_management_system'
   },
-  onnotice: () => {}, // Suppress notice messages
+  onnotice: () => {},
+  max_retries: 3,
+  retry_interval: 5000
 });
 
 // Initialize Drizzle with the postgres client and schema

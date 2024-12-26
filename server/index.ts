@@ -110,16 +110,30 @@ app.use((req, res, next) => {
 
     // Start the server with proper error handling
     const PORT = process.env.PORT || 5000;
-    server.listen(PORT, "0.0.0.0", () => {
-      log(`Server started and listening on port ${PORT}`);
-    }).on('error', (err: any) => {
-      if (err.code === 'EADDRINUSE') {
-        log(`Port ${PORT} is in use, trying ${PORT + 1}`);
-        server.listen(PORT + 1, "0.0.0.0");
-      } else {
-        console.error('Server error:', err);
-      }
-    });
+    let retries = 0;
+    const maxRetries = 3;
+
+    const startServer = (port: number) => {
+      server.listen(port, "0.0.0.0", () => {
+        log(`Server started and listening on port ${port}`);
+      }).on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          if (retries < maxRetries) {
+            retries++;
+            log(`Port ${port} is in use, trying ${port + 1}`);
+            startServer(port + 1);
+          } else {
+            console.error(`Failed to find an available port after ${maxRetries} attempts`);
+            process.exit(1);
+          }
+        } else {
+          console.error('Server error:', err);
+          process.exit(1);
+        }
+      });
+    };
+
+    startServer(PORT);
   } catch (error: any) {
     console.error('Fatal server error:', error);
     process.exit(1);
