@@ -2,6 +2,33 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
+import Anthropic from '@anthropic-ai/sdk';
+
+// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+async function analyzeServerError(error: Error): Promise<string> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: `Analyze this server error and provide a clear, user-friendly explanation of what might be wrong and how to fix it. Error: ${error.message}`
+      }]
+    });
+
+    const content = response.content[0];
+    return content.type === 'text' 
+      ? content.text 
+      : "An unexpected server error occurred. Please check the logs for more details.";
+  } catch (anthropicError) {
+    console.error("Error analyzing server error:", anthropicError);
+    return error.message;
+  }
+}
 
 const app = express();
 app.use(express.json());
@@ -40,19 +67,54 @@ app.use((req, res, next) => {
 (async () => {
   try {
     // Test database connection before starting server
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      throw new Error("Failed to connect to database during server startup");
+    const maxRetries = 3;
+    let connectionEstablished = false;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        log(`Database connection attempt ${attempt}/${maxRetries}...`);
+        const isConnected = await testConnection();
+        if (isConnected) {
+          connectionEstablished = true;
+          log("Database connection established successfully");
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        log(`Connection attempt ${attempt} failed: ${err.message}`);
+
+        if (err.message.includes('endpoint is disabled')) {
+          log(`
+Database endpoint is disabled. To fix this:
+1. Go to https://console.neon.tech/app/projects
+2. Select your project
+3. Click on "Branches" in the left sidebar
+4. Find your branch and enable the compute endpoint
+`);
+          break; // Don't retry if endpoint is disabled
+        }
+
+        if (attempt < maxRetries) {
+          const delay = 2000 * attempt; // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    if (!connectionEstablished) {
+      const analysis = await analyzeServerError(lastError!);
+      throw new Error(`Failed to connect to database: ${analysis}`);
     }
 
     // Set up routes and get the HTTP server instance
     const server = await registerRoutes(app);
 
-    // Global error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Global error handler with AI-powered analysis
+    app.use(async (err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Global error handler caught:', err);
       const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
+      const message = await analyzeServerError(err);
 
       res.status(status).json({ message });
     });
@@ -69,8 +131,8 @@ app.use((req, res, next) => {
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server started and listening on port ${PORT}`);
     });
-  } catch (error) {
-    console.error('Fatal server error:', error);
+  } catch (error: any) {
+    console.error('Fatal server error:', await analyzeServerError(error));
     process.exit(1);
   }
 })();

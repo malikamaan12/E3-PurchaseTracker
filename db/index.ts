@@ -49,21 +49,47 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Extract hostname from DATABASE_URL for logging
-const dbUrl = new URL(process.env.DATABASE_URL);
-console.log('Connecting to database host:', dbUrl.hostname);
+// Initialize Neon client with connection retry logic
+async function createNeonClient(retries = 3, delay = 2000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Connection attempt ${attempt}/${retries}...`);
+      const sql = neon(process.env.DATABASE_URL!);
+      // Test the connection
+      await sql`SELECT 1`;
+      console.log('Database connection established successfully');
+      return sql;
+    } catch (error: any) {
+      console.error(`Connection attempt ${attempt} failed:`, error.message);
 
-// Initialize Neon client with direct connection
-const sql = neon(process.env.DATABASE_URL);
+      if (attempt === retries) {
+        const analysis = await analyzeDbError(error);
+        console.error("Database connection analysis:", analysis);
+        throw error;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay * attempt)); // Exponential backoff
+    }
+  }
+  throw new Error('Failed to connect to database after multiple attempts');
+}
+
+// Initialize database connection
+let sql: ReturnType<typeof neon>;
+try {
+  sql = neon(process.env.DATABASE_URL);
+} catch (error: any) {
+  console.error('Failed to initialize database connection:', error);
+  throw error;
+}
 
 // Initialize Drizzle with the Neon client
 export const db = drizzle(sql, { schema });
 
-// Add a function to test the connection with better error handling
+// Add a function to test the connection
 export async function testConnection() {
   try {
     console.log('Testing database connection...');
-    // Use a simple query to test the connection
     await sql`SELECT 1`;
     console.log('Database connection test successful');
     return true;
@@ -77,7 +103,7 @@ export async function testConnection() {
   }
 }
 
-// Add a function to execute a database health check with proper error handling
+// Add a function to execute a database health check
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     await sql`SELECT 1`;
