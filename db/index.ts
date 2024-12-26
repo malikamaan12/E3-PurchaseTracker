@@ -1,24 +1,32 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from "@db/schema";
 
-// Validate required environment variables
-if (!process.env.DATABASE_URL) {
+if (!process.env.SUPABASE_API_KEY) {
   throw new Error(
-    "DATABASE_URL must be set. Please check your database connection settings.",
+    "SUPABASE_API_KEY must be set. Please check your Supabase connection settings.",
   );
 }
 
-export const db = drizzle({
-  connection: process.env.DATABASE_URL,
-  schema,
-  ws: ws,
+// Format Supabase connection string
+const connectionString = `postgresql://postgres:${process.env.SUPABASE_API_KEY}@db.yiybquqbtlwhojpzfzmc.supabase.co:5432/postgres`;
+
+// Initialize postgres connection for Drizzle with proper SSL config
+const client = postgres(connectionString, {
+  max: 1,
+  connect_timeout: 10,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
+
+// Initialize Drizzle with the SQL connection and schema
+export const db = drizzle(client, { schema });
 
 // Test database connection with detailed error handling
 export async function testConnection(): Promise<boolean> {
   try {
-    const result = await db.execute(sql`SELECT current_timestamp AS server_time`);
+    const result = await client`SELECT current_timestamp AS server_time`;
     console.log('Database connection test successful:', result);
     return true;
   } catch (error: any) {
@@ -42,7 +50,7 @@ export async function testConnection(): Promise<boolean> {
 // Database health check with improved error handling
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
-    const result = await db.execute(sql`SELECT current_timestamp AS server_time`);
+    const result = await client`SELECT current_timestamp AS server_time`;
     console.log('Database health check successful:', result);
     return true;
   } catch (error: any) {
