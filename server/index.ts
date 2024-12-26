@@ -111,19 +111,19 @@ app.use((req, res, next) => {
     // Start the server with proper error handling
     const PORT = process.env.PORT || 5000;
     let retries = 0;
-    const maxRetries = 3;
+    const maxServerRetries = 3;
 
     const startServer = (port: number) => {
       server.listen(port, "0.0.0.0", () => {
         log(`Server started and listening on port ${port}`);
       }).on('error', (err: any) => {
         if (err.code === 'EADDRINUSE') {
-          if (retries < maxRetries) {
+          if (retries < maxServerRetries) {
             retries++;
             log(`Port ${port} is in use, trying ${port + 1}`);
             startServer(port + 1);
           } else {
-            console.error(`Failed to find an available port after ${maxRetries} attempts`);
+            console.error(`Failed to find an available port after ${maxServerRetries} attempts`);
             process.exit(1);
           }
         } else {
