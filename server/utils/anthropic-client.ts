@@ -28,27 +28,26 @@ export function getAnthropicClient(): Anthropic | null {
   return anthropicClient;
 }
 
-interface AnalysisOptions {
-  maxTokens?: number;
-  temperature?: number;
-}
-
-export async function analyzeError(error: Error, context: string, options: AnalysisOptions = {}): Promise<string> {
+export async function analyzeError(error: Error | string | unknown, context: string): Promise<string> {
   const client = getAnthropicClient();
   if (!client) {
     return `Error occurred in ${context}. Please check application logs for details.`;
   }
 
   try {
+    // Convert error to string representation for analysis
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
     const response = await client.messages.create({
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: options.maxTokens || 1024,
+      max_tokens: 1024,
       messages: [{
         role: "user",
         content: `Analyze this error from context "${context}" and provide a clear, actionable explanation:
 
-        Error: ${error.message}
-        Stack: ${error.stack || 'No stack trace available'}
+        Error: ${errorMessage}
+        Stack: ${errorStack || 'No stack trace available'}
 
         Consider:
         1. Common causes
@@ -56,17 +55,23 @@ export async function analyzeError(error: Error, context: string, options: Analy
         3. Impact on the system
 
         Provide a concise, user-friendly explanation.`
-      }],
+      }]
     });
 
     const content = response.content[0];
-    return content.type === 'text' 
-      ? content.text 
-      : `Error occurred in ${context}. Please check application logs for details.`;
+    if (!content || content.type !== 'text') {
+      return `Error occurred in ${context}. Please check application logs for details.`;
+    }
+    return content.text;
   } catch (analysisError) {
     console.error("Error analyzing with Anthropic:", analysisError);
     return `Error occurred in ${context}. Please check application logs for details.`;
   }
+}
+
+interface AnalysisOptions {
+  maxTokens?: number;
+  temperature?: number;
 }
 
 export async function analyzePurchaseRequest(request: any): Promise<{
