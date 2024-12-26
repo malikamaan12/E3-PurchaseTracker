@@ -29,9 +29,12 @@ export async function analyzeFormError(formData: any, error: any) {
       model: 'claude-3-5-sonnet-20241022',
     });
 
-    // Extract and format the text response
-    const analysis = message.content[0].text;
-    return analysis ? analysis.trim() : "Unable to analyze the error";
+    // Handle the content properly - get the first content block's text
+    const content = message.content[0];
+    if (content.type === 'text') {
+      return content.text || "Unable to analyze the error";
+    }
+    return "Unable to analyze the error - unexpected response format";
   } catch (error) {
     console.error("Error analyzing form data:", error);
     return "Error analysis failed. Please check the console for details.";

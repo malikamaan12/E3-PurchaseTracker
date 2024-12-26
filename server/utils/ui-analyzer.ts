@@ -48,7 +48,12 @@ Provide a JSON response with:
       }],
     });
 
-    return JSON.parse(response.content[0].text);
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response format from Anthropic API');
+    }
+
+    return JSON.parse(content.text);
   } catch (error) {
     console.error('Error analyzing UI interaction:', error);
     return {

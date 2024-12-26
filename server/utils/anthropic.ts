@@ -58,7 +58,12 @@ Base the priority on:
       }],
     });
 
-    const result = JSON.parse(response.content[0].text);
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response format from Anthropic API');
+    }
+
+    const result = JSON.parse(content.text);
     return {
       priority: result.priority,
       reason: result.reason,

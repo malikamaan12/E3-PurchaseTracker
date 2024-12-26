@@ -46,7 +46,10 @@ async function analyzeAuthError(error: Error, context: string): Promise<string> 
       }]
     });
 
-    return response.content[0].text || "An unexpected error occurred during authentication. Please try again later.";
+    const content = response.content[0];
+    return content.type === 'text' 
+      ? content.text 
+      : "An unexpected error occurred during authentication. Please try again later.";
   } catch (anthropicError) {
     console.error("Error analyzing auth error:", anthropicError);
     return "An unexpected error occurred during authentication. Please try again later.";
