@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/neon-http";
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import * as schema from "@db/schema";
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -49,15 +49,20 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Configure neon to use fetch API
-neonConfig.fetchConnectionCache = true;
+// Extract hostname from DATABASE_URL for logging
+const dbUrl = new URL(process.env.DATABASE_URL);
+console.log('Connecting to database host:', dbUrl.hostname);
+
+// Initialize Neon client with direct connection
 const sql = neon(process.env.DATABASE_URL);
 
+// Initialize Drizzle with the Neon client
 export const db = drizzle(sql, { schema });
 
 // Add a function to test the connection with better error handling
 export async function testConnection() {
   try {
+    console.log('Testing database connection...');
     // Use a simple query to test the connection
     await sql`SELECT 1`;
     console.log('Database connection test successful');
@@ -65,7 +70,6 @@ export async function testConnection() {
   } catch (error: any) {
     console.error('Database connection test failed:', error);
     if (anthropic) {
-      // Only attempt error analysis if Anthropic client is available
       const analysis = await analyzeDbError(error);
       console.error('Error analysis:', analysis);
     }
