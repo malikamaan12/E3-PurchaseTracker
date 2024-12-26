@@ -5,9 +5,15 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, insertUserSchema, loginSchema, type User } from "@db/schema";
-import { db } from "@db";
+import { users, insertUserSchema, loginSchema } from "@db/schema";
+import { db, testConnection } from "@db";
 import { eq } from "drizzle-orm";
+import Anthropic from '@anthropic-ai/sdk';
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -28,21 +34,57 @@ const crypto = {
   },
 };
 
-declare global {
-  namespace Express {
-    interface User extends User {}
+// Add error analysis function
+async function analyzeAuthError(error: Error, context: string): Promise<string> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: `Analyze this authentication error and provide a user-friendly explanation. Context: ${context}. Error: ${error.message}`
+      }]
+    });
+
+    return response.content[0].text || "An unexpected error occurred during authentication. Please try again later.";
+  } catch (anthropicError) {
+    console.error("Error analyzing auth error:", anthropicError);
+    return "An unexpected error occurred during authentication. Please try again later.";
   }
 }
 
-export function setupAuth(app: Express) {
+// extend express user object with our schema
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      password: string;
+      contactNumber?: string;
+      department?: string;
+      role?: string;
+    }
+  }
+}
+
+export async function setupAuth(app: Express) {
+  // Test database connection before setting up auth
+  const isConnected = await testConnection();
+  if (!isConnected) {
+    throw new Error("Failed to connect to database during auth setup");
+  }
+
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
     secret: process.env.REPL_ID || "purchase-management-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {},
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
     store: new MemoryStore({
-      checkPeriod: 86400000,
+      checkPeriod: 86400000, // prune expired entries every 24h
     }),
   };
 
@@ -50,6 +92,7 @@ export function setupAuth(app: Express) {
     app.set("trust proxy", 1);
     sessionSettings.cookie = {
       secure: true,
+      maxAge: 24 * 60 * 60 * 1000,
     };
   }
 
@@ -60,6 +103,12 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        // Check if database is available
+        const isDbConnected = await testConnection();
+        if (!isDbConnected) {
+          throw new Error("Database connection not available");
+        }
+
         const [user] = await db
           .select()
           .from(users)
@@ -69,12 +118,16 @@ export function setupAuth(app: Express) {
         if (!user) {
           return done(null, false, { message: "Incorrect username." });
         }
+
         const isMatch = await crypto.compare(password, user.password);
         if (!isMatch) {
           return done(null, false, { message: "Incorrect password." });
         }
+
         return done(null, user);
-      } catch (err) {
+      } catch (err: any) {
+        const analysis = await analyzeAuthError(err as Error, "User login attempt");
+        console.error("Login error analysis:", analysis);
         return done(err);
       }
     })
@@ -86,14 +139,91 @@ export function setupAuth(app: Express) {
 
   passport.deserializeUser(async (id: number, done) => {
     try {
+      const isDbConnected = await testConnection();
+      if (!isDbConnected) {
+        throw new Error("Database connection not available");
+      }
+
       const [user] = await db
         .select()
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
+
+      if (!user) {
+        return done(new Error("User not found"));
+      }
+
       done(null, user);
-    } catch (err) {
+    } catch (err: any) {
+      const analysis = await analyzeAuthError(err as Error, "Session restoration");
+      console.error("Session restoration error analysis:", analysis);
       done(err);
+    }
+  });
+
+  app.post("/api/login", async (req, res, next) => {
+    try {
+      const result = loginSchema.safeParse(req.body);
+      if (!result.success) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid input",
+            details: result.error.issues.map(i => i.message)
+          });
+      }
+
+      passport.authenticate("local", async (err: any, user: Express.User | false, info: IVerifyOptions) => {
+        try {
+          if (err) {
+            const analysis = await analyzeAuthError(err as Error, "Login authentication");
+            console.error("Authentication error analysis:", analysis);
+            return res.status(500).json({
+              error: "Authentication failed",
+              message: analysis
+            });
+          }
+
+          if (!user) {
+            return res.status(401).json({
+              error: "Login failed",
+              message: info.message || "Invalid credentials"
+            });
+          }
+
+          req.logIn(user, async (loginErr) => {
+            if (loginErr) {
+              const analysis = await analyzeAuthError(loginErr as Error, "Login session creation");
+              console.error("Login session error analysis:", analysis);
+              return res.status(500).json({
+                error: "Login session failed",
+                message: analysis
+              });
+            }
+
+            return res.json({
+              message: "Login successful",
+              user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                contactNumber: user.contactNumber,
+                department: user.department,
+                role: user.role,
+              },
+            });
+          });
+        } catch (authError: any) {
+          const analysis = await analyzeAuthError(authError as Error, "Login process");
+          console.error("Login process error analysis:", analysis);
+          next(authError);
+        }
+      })(req, res, next);
+    } catch (error: any) {
+      const analysis = await analyzeAuthError(error as Error, "Login request processing");
+      console.error("Login request error analysis:", analysis);
+      next(error);
     }
   });
 
@@ -148,47 +278,11 @@ export function setupAuth(app: Express) {
           },
         });
       });
-    } catch (error) {
+    } catch (error: any) {
+      const analysis = await analyzeAuthError(error as Error, "Registration");
+      console.error("Registration error analysis:", analysis);
       next(error);
     }
-  });
-
-  app.post("/api/login", (req, res, next) => {
-    const result = loginSchema.safeParse(req.body);
-    if (!result.success) {
-      return res
-        .status(400)
-        .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
-    }
-
-    const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
-      if (err) {
-        return next(err);
-      }
-
-      if (!user) {
-        return res.status(400).send(info.message ?? "Invalid username or password");
-      }
-
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-
-        return res.json({
-          message: "Login successful",
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            contactNumber: user.contactNumber,
-            department: user.department,
-            role: user.role,
-          },
-        });
-      });
-    };
-    passport.authenticate("local", cb)(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
