@@ -11,10 +11,16 @@ export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   server: {
     host: '0.0.0.0',
-    strictPort: false,
+    port: 3000,
+    strictPort: true,
     hmr: {
       clientPort: 443,
-      timeout: 5000
+      timeout: 10000,
+      path: '/@hmr'
+    },
+    watch: {
+      usePolling: true,
+      interval: 1000
     }
   },
   resolve: {
