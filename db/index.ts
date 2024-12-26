@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/neon-http";
-import { neon, type NeonHttpDatabase } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import * as schema from "@db/schema";
 import { analyzeError } from "../server/utils/anthropic-client";
 
@@ -10,18 +10,15 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Initialize database connection with retry logic
-async function createNeonClient(retries = 3, baseDelay = 1000): Promise<NeonHttpDatabase> {
-  let lastError: Error | null = null;
+async function createDatabaseConnection(retries = 3, baseDelay = 1000) {
+  let lastError = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`Database connection attempt ${attempt}/${retries}`);
 
-      // Configure Neon client with SSL
-      const sql = neon(process.env.DATABASE_URL!, { 
-        ssl: true,
-        poolSize: 1
-      });
+      // Configure Neon client
+      const sql = neon(process.env.DATABASE_URL);
 
       // Test the connection
       await sql`SELECT 1`;
@@ -29,20 +26,12 @@ async function createNeonClient(retries = 3, baseDelay = 1000): Promise<NeonHttp
       return sql;
     } catch (error: any) {
       lastError = error;
-      const analysis = await analyzeError(error, "Database connection");
+      console.error(`Connection attempt ${attempt} failed:`, error.message);
 
-      console.error(`Connection attempt ${attempt} failed:`, {
-        error: error.message,
-        analysis
-      });
-
-      if (attempt === retries) {
-        throw new Error(`Failed to connect to database: ${analysis}`);
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      // Exponential backoff with jitter
-      const delay = baseDelay * Math.pow(2, attempt - 1) * (0.5 + Math.random() * 0.5);
-      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -50,9 +39,9 @@ async function createNeonClient(retries = 3, baseDelay = 1000): Promise<NeonHttp
 }
 
 // Initialize database connection
-let sql: NeonHttpDatabase;
+let sql;
 try {
-  sql = await createNeonClient();
+  sql = await createDatabaseConnection();
 } catch (error: any) {
   console.error('Failed to initialize database connection:', error);
   throw error;
@@ -62,31 +51,23 @@ try {
 export const db = drizzle(sql, { schema });
 
 // Test database connection
-export async function testConnection(): Promise<boolean> {
+export async function testConnection() {
   try {
     await sql`SELECT 1`;
     return true;
-  } catch (error: any) {
-    const analysis = await analyzeError(error, "Database connection test");
-    console.error('Database connection test failed:', {
-      error: error.message,
-      analysis
-    });
+  } catch (error) {
+    console.error('Database connection test failed:', error);
     return false;
   }
 }
 
 // Database health check
-export async function checkDatabaseHealth(): Promise<boolean> {
+export async function checkDatabaseHealth() {
   try {
     await sql`SELECT 1`;
     return true;
-  } catch (error: any) {
-    const analysis = await analyzeError(error, "Database health check");
-    console.error("Database health check failed:", {
-      error: error.message,
-      analysis
-    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
     return false;
   }
 }
