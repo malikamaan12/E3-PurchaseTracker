@@ -108,10 +108,17 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Start the server
-    const PORT = 5000;
+    // Start the server with proper error handling
+    const PORT = process.env.PORT || 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server started and listening on port ${PORT}`);
+    }).on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        log(`Port ${PORT} is in use, trying ${PORT + 1}`);
+        server.listen(PORT + 1, "0.0.0.0");
+      } else {
+        console.error('Server error:', err);
+      }
     });
   } catch (error: any) {
     console.error('Fatal server error:', error);
