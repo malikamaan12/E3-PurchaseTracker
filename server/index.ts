@@ -38,11 +38,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
       log(logLine);
     }
   });
@@ -50,36 +48,15 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+async function initializeServer() {
   try {
-    // Test database connection first with retries
+    // Test database connection first
     log("Testing database connection...");
-    const maxRetries = 3;
-    let connectionEstablished = false;
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const isConnected = await testConnection();
-        if (isConnected) {
-          connectionEstablished = true;
-          log("Database connection established successfully");
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        log(`Connection attempt ${attempt} failed: ${err.message}`);
-
-        if (attempt < maxRetries) {
-          const delay = 2000 * attempt; // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      throw new Error("Failed to establish database connection");
     }
-
-    if (!connectionEstablished) {
-      throw new Error(`Failed to connect to database after ${maxRetries} attempts. Last error: ${lastError?.message}`);
-    }
+    log("Database connection established successfully");
 
     // Initialize Anthropic client (non-blocking)
     const anthropicClient = initializeAnthropicClient();
@@ -108,34 +85,23 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Start the server with proper error handling
-    const PORT = process.env.PORT || 5000;
-    let retries = 0;
-    const maxServerRetries = 3;
+    // Start the server
+    const PORT = Number(process.env.PORT || 5000);
+    server.listen(PORT, "0.0.0.0", () => {
+      log(`Server started and listening on port ${PORT}`);
+    }).on('error', (err: any) => {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    });
 
-    const startServer = (port: number) => {
-      server.listen(port, "0.0.0.0", () => {
-        log(`Server started and listening on port ${port}`);
-      }).on('error', (err: any) => {
-        if (err.code === 'EADDRINUSE') {
-          if (retries < maxServerRetries) {
-            retries++;
-            log(`Port ${port} is in use, trying ${port + 1}`);
-            startServer(port + 1);
-          } else {
-            console.error(`Failed to find an available port after ${maxServerRetries} attempts`);
-            process.exit(1);
-          }
-        } else {
-          console.error('Server error:', err);
-          process.exit(1);
-        }
-      });
-    };
-
-    startServer(PORT);
   } catch (error: any) {
-    console.error('Fatal server error:', error);
+    console.error('Fatal server initialization error:', error);
     process.exit(1);
   }
-})();
+}
+
+// Start the server
+initializeServer().catch(error => {
+  console.error('Failed to initialize server:', error);
+  process.exit(1);
+});

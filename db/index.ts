@@ -1,6 +1,6 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { sql } from "drizzle-orm";
-import ws from "ws";
 import * as schema from "@db/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -9,20 +9,23 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const db = drizzle({
-  connection: process.env.DATABASE_URL,
-  schema,
-  ws: ws,
+// Initialize the postgres client with proper configuration
+const client = postgres(process.env.DATABASE_URL, {
+  max: 1, // Reduce max connections
+  ssl: { rejectUnauthorized: false }, // Allow self-signed certificates but require SSL
+  connect_timeout: 10,
+  idle_timeout: 20,
 });
+
+export const db = drizzle(client, { schema });
 
 // Test database connection with detailed error handling
 export async function testConnection(): Promise<boolean> {
   try {
     console.log('Testing database connection...');
-    console.log('Using connection URL pattern:', process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@'));
 
     // Try to execute a simple query
-    const result = await db.execute<{ server_time: Date }>(sql`SELECT current_timestamp AS server_time`);
+    const result = await client`SELECT current_timestamp AS server_time`;
     console.log('Database connection test successful:', result[0]?.server_time);
 
     return true;
