@@ -1,6 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { neon, NeonQueryFunction } from '@neondatabase/serverless';
-import ws from "ws";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from 'postgres';
 import * as schema from "@db/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -9,33 +8,50 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Initialize the Neon SQL connection with WebSocket support
-const sql = neon(process.env.DATABASE_URL, { 
-  webSocketConstructor: ws 
+// Configure Postgres with connection pooling and better error handling
+const queryClient = postgres(process.env.DATABASE_URL, {
+  max: 10, // Maximum number of connections
+  idle_timeout: 20, // Max idle time for connections
+  connect_timeout: 10, // Connection timeout in seconds
+  prepare: false, // Disable prepared statements for better compatibility
 });
 
-// Initialize Drizzle with the SQL connection
-export const db = drizzle(sql, { schema });
+// Initialize Drizzle with the connection and schema
+export const db = drizzle(queryClient, { schema });
 
-// Test database connection
+// Test database connection with detailed error handling
 export async function testConnection(): Promise<boolean> {
   try {
-    const result = await sql`SELECT 1 AS test`;
+    const result = await queryClient`SELECT 1 AS test`;
     console.log('Database connection test successful:', result);
     return true;
-  } catch (error) {
-    console.error('Database connection test failed:', error);
+  } catch (error: any) {
+    console.error('Database connection test failed:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
     return false;
   }
 }
 
-// Database health check
+// Database health check with improved error handling
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
-    const result = await sql`SELECT 1 AS health_check`;
+    const result = await queryClient`SELECT current_timestamp AS server_time`;
+    console.log('Database health check successful:', result);
     return true;
-  } catch (error) {
-    console.error('Database health check failed:', error);
+  } catch (error: any) {
+    console.error('Database health check failed:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
     return false;
   }
 }
+
+// Explicitly handle cleanup on process exit
+process.on('exit', () => {
+  queryClient.end().catch(console.error);
+});
