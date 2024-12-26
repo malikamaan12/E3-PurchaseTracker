@@ -1,7 +1,7 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import ws from "ws";
 import * as schema from "@db/schema";
-import { analyzeError } from "../server/utils/anthropic-client";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -9,51 +9,19 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Initialize database connection with retry logic
-async function createDatabaseConnection(retries = 3, baseDelay = 1000) {
-  let lastError = null;
+// Initialize the Neon SQL connection with WebSocket support
+const sql = neon(process.env.DATABASE_URL, { 
+  webSocketConstructor: ws 
+});
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`Database connection attempt ${attempt}/${retries}`);
-
-      // Configure Neon client
-      const sql = neon(process.env.DATABASE_URL);
-
-      // Test the connection
-      await sql`SELECT 1`;
-      console.log('Database connection established successfully');
-      return sql;
-    } catch (error: any) {
-      lastError = error;
-      console.error(`Connection attempt ${attempt} failed:`, error.message);
-
-      if (attempt < retries) {
-        const delay = baseDelay * Math.pow(2, attempt - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError || new Error('Failed to connect to database');
-}
-
-// Initialize database connection
-let sql;
-try {
-  sql = await createDatabaseConnection();
-} catch (error: any) {
-  console.error('Failed to initialize database connection:', error);
-  throw error;
-}
-
-// Initialize Drizzle with the database connection
+// Initialize Drizzle with the SQL connection
 export const db = drizzle(sql, { schema });
 
 // Test database connection
-export async function testConnection() {
+export async function testConnection(): Promise<boolean> {
   try {
-    await sql`SELECT 1`;
+    const result = await sql`SELECT 1 AS test`;
+    console.log('Database connection test successful:', result);
     return true;
   } catch (error) {
     console.error('Database connection test failed:', error);
@@ -62,9 +30,9 @@ export async function testConnection() {
 }
 
 // Database health check
-export async function checkDatabaseHealth() {
+export async function checkDatabaseHealth(): Promise<boolean> {
   try {
-    await sql`SELECT 1`;
+    const result = await sql`SELECT 1 AS health_check`;
     return true;
   } catch (error) {
     console.error('Database health check failed:', error);
