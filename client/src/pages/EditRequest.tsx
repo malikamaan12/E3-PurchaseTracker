@@ -24,8 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  insertPurchaseRequestSchema, 
+import {
+  insertPurchaseRequestSchema,
   type PurchaseRequest
 } from "@db/schema";
 import DepartmentSelect from "@/components/DepartmentSelect";
@@ -96,10 +96,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       // Parse and format items array
       const formattedItems = request.items?.map(item => ({
-        name: String(item.name || ""),
-        quantity: Number(item.quantity || 1),
-        estimatedCost: Number(item.estimatedCost || 0),
-        description: String(item.description || "") 
+        name: item?.name || "",
+        quantity: Number(item?.quantity || 1),
+        estimatedCost: Number(item?.estimatedCost || 0),
+        description: item?.description || ""
       })) || [{ name: "", quantity: 1, estimatedCost: 0, description: "" }];
 
       // Reset form with request data
@@ -108,11 +108,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         items: formattedItems,
         totalEstimatedCost: String(request.totalEstimatedCost || "0"),
         freightAmount: String(request.freightAmount || "0"),
+        purposeType: request.purposeType || "event",
+        priority: request.priority || "medium",
+        currency: request.currency || "QAR",
+        subPurposeId: request.subPurposeId,
+        companyName: request.companyName || "",
+        contactPerson: request.contactPerson || "",
+        contactNumber: request.contactNumber || "",
+        accountNumber: request.accountNumber || "",
       });
 
       // Update local state
       setItems(formattedItems);
       setFreightAmount(Number(request.freightAmount || 0));
+
+      console.log("Form data loaded:", {
+        items: formattedItems,
+        freightAmount: Number(request.freightAmount || 0)
+      });
     }
   }, [request, form]);
 

@@ -270,16 +270,16 @@ export default function Dashboard() {
             <TableHead>Department</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Total Cost</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead className="w-[200px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {requests.map((request) => {
             const canSubmitDraft = request.status === "draft" &&
-                                    request.requesterId === user?.id &&
-                                    request.title &&
-                                    request.description &&
-                                    request.items?.length > 0;
+                                  request.requesterId === user?.id &&
+                                  request.title &&
+                                  request.description &&
+                                  request.items?.length > 0;
 
             return (
               <TableRow key={request.id}>
@@ -303,7 +303,7 @@ export default function Dashboard() {
                   </Badge>
                 </TableCell>
                 <TableCell className="capitalize">{request.priority}</TableCell>
-                <TableCell>{request.requester.department}</TableCell>
+                <TableCell>{request.requester?.department}</TableCell>
                 <TableCell>{format(new Date(request.createdAt), "MMM d, yyyy")}</TableCell>
                 <TableCell>
                   {formatCurrency(request.totalEstimatedCost || 0)}
@@ -323,6 +323,7 @@ export default function Dashboard() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                          className="text-blue-600 hover:text-blue-700"
                         >
                           Edit
                         </Button>
@@ -331,7 +332,7 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600"
+                              className="text-red-600 hover:text-red-700"
                             >
                               Delete
                             </Button>
@@ -354,23 +355,24 @@ export default function Dashboard() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        {canSubmitDraft && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
-                            onClick={() => handleDraftSubmit(request.id)}
-                          >
-                            Submit
-                          </Button>
-                        )}
                       </>
+                    )}
+                    {canSubmitDraft && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white ml-2"
+                        onClick={() => handleDraftSubmit(request.id)}
+                      >
+                        Submit Draft
+                      </Button>
                     )}
                     {showApproval && request.status === "pending" && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setLocation(`/requests/${request.id}`)}
+                        className="text-yellow-600 hover:text-yellow-700"
                       >
                         Review
                       </Button>

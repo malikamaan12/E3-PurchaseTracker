@@ -25,7 +25,57 @@ import bcrypt from 'bcrypt';
 import { Parser } from 'json2csv';
 import * as XLSX from 'xlsx';
 
-// Add these at the top with other imports and helper functions
+// Helper function to clean up upload directory
+function cleanupUploads() {
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  if (fs.existsSync(uploadDir)) {
+    try {
+      const files = fs.readdirSync(uploadDir);
+      for (const file of files) {
+        fs.unlinkSync(path.join(uploadDir, file));
+      }
+      console.log('Cleaned up uploads directory');
+    } catch (error) {
+      console.error('Error cleaning uploads directory:', error);
+    }
+  }
+}
+
+// Add missing interface for User
+interface User {
+  id: number;
+  role: string;
+  department: string;
+}
+
+// Add proper type for the analyzePurchaseRequestPriority function
+async function analyzePurchaseRequestPriority(data: {
+  title: string;
+  description: string;
+  purpose: string;
+  purposeType: string;
+  totalEstimatedCost: number;
+  items: Array<{
+    name: string;
+    quantity: number;
+    estimatedCost: number;
+  }>;
+}): Promise<{
+  priority: string;
+  score: number;
+  reason: string;
+  recommendations: string[];
+}> {
+  // Implementation will be added later
+  return {
+    priority: 'medium',
+    score: 50,
+    reason: 'Default priority assigned',
+    recommendations: ['Review request details']
+  };
+}
+
+
 const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
 
 // Helper function to check if a user can approve a request
@@ -566,8 +616,8 @@ export function registerRoutes(app: Express): Server {
 
       if (!isAdmin && !(isSameDepartment && isDraft)) {
         return res.status(403).send(
-          isDraft 
-            ? "Only users from the same department can delete draft requests" 
+          isDraft
+            ? "Only users from the same department can delete draft requests"
             : "Only draft requests can be deleted by department users"
         );
       }
@@ -622,7 +672,10 @@ export function registerRoutes(app: Express): Server {
         );
       }
 
-      res.json({ 
+      // Call cleanup function after deleting request
+      cleanupUploads();
+
+      res.json({
         message: "Request deleted successfully",
         request: deletedRequest
       });
@@ -1034,7 +1087,8 @@ export function registerRoutes(app: Express): Server {
       console.error("Error updating sub-purpose:", error);
       res.status(500).json({
         error: "Failed to update sub-purpose",
-        message: error.message      });
+        message: error.message
+      });
     }
   });
 
