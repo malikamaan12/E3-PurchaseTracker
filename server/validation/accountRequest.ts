@@ -7,6 +7,7 @@ export const insertAccountRequestSchema = z.object({
   contactNumber: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
+  status: z.enum(["pending", "approved", "rejected"]).optional().default("pending")
 });
 
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;

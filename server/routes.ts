@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests } from "@db/schema";
+import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests, fileAttachments } from "@db/schema";
 import { eq } from "drizzle-orm";
 import path from 'path';
 import fs from 'fs';
@@ -175,6 +175,91 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Account request endpoint
+  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      console.log('Processing account request:', req.body);
+      const result = insertAccountRequestSchema.safeParse(req.body);
+
+      if (!result.success) {
+        console.error('Validation failed:', result.error.issues);
+        return res.status(400).json({
+          message: 'Invalid input',
+          errors: result.error.issues
+        });
+      }
+
+      const { username, password, email, department, role, contactNumber } = result.data;
+
+      // Check if username already exists in users or account requests
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const [existingRequest] = await db
+        .select()
+        .from(accountRequests)
+        .where(eq(accountRequests.username, username))
+        .limit(1);
+
+      if (existingRequest) {
+        return res.status(400).json({ message: "An account request with this username is already pending" });
+      }
+
+      // Hash the password before storing
+      const hashedPassword = await hash(password, 10);
+
+      // Create the account request
+      const [newRequest] = await db
+        .insert(accountRequests)
+        .values({
+          username,
+          password: hashedPassword,
+          email,
+          department,
+          role: role || 'user',
+          contactNumber,
+          status: 'pending'
+        })
+        .returning();
+
+      // Create notification for admins about new account request
+      const admins = await db
+        .select()
+        .from(users)
+        .where(eq(users.role, 'admin'));
+
+      // Notify all admins about the new account request
+      for (const admin of admins) {
+        await createNotification({
+          userId: admin.id,
+          title: 'New Account Request',
+          message: `${username} has requested an account`,
+          type: 'account_request'
+        });
+      }
+
+      res.status(201).json({
+        message: "Account request submitted successfully",
+        request: {
+          username: newRequest.username,
+          email: newRequest.email,
+          department: newRequest.department,
+          status: newRequest.status
+        }
+      });
+    } catch (error) {
+      console.error('Account request error:', error);
+      next(error);
+    }
+  });
+
   // Purchase requests endpoints with file upload
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -234,16 +319,15 @@ export function registerRoutes(app: Express): Server {
       // Handle file attachments if any
       if (req.files?.length) {
         const files = req.files as Express.Multer.File[];
-        const fileAttachments = files.map(file => ({
-          requestId: newRequest.id,
-          fileName: file.originalname,
-          fileType: file.mimetype,
-          fileSize: file.size,
-          fileUrl: file.path
-        }));
 
-        if (fileAttachments.length > 0) {
-          await db.insert(fileAttachments).values(fileAttachments);
+        for (const file of files) {
+          await db.insert(fileAttachments).values({
+            requestId: newRequest.id,
+            fileName: file.originalname,
+            fileType: file.mimetype,
+            fileSize: file.size,
+            fileUrl: file.path
+          });
         }
       }
 
@@ -387,88 +471,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account request endpoint
-  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = insertAccountRequestSchema.safeParse(req.body);
-
-      if (!result.success) {
-        return res.status(400).json({
-          message: 'Invalid input',
-          errors: result.error.issues
-        });
-      }
-
-      const { username, password, email, department, role, contactNumber } = result.data;
-
-      // Check if username already exists in users or account requests
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
-
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      const [existingRequest] = await db
-        .select()
-        .from(accountRequests)
-        .where(eq(accountRequests.username, username))
-        .limit(1);
-
-      if (existingRequest) {
-        return res.status(400).json({ message: "An account request with this username is already pending" });
-      }
-
-      // Hash the password before storing
-      const hashedPassword = await hash(password, 10);
-
-      // Create the account request
-      const [newRequest] = await db
-        .insert(accountRequests)
-        .values({
-          username,
-          password: hashedPassword,
-          email,
-          department,
-          role: role || 'user',
-          contactNumber,
-          status: 'pending'
-        })
-        .returning();
-
-      // Create notification for admins about new account request
-      const admins = await db
-        .select()
-        .from(users)
-        .where(eq(users.role, 'admin'));
-
-      // Notify all admins about the new account request
-      for (const admin of admins) {
-        await createNotification({
-          userId: admin.id,
-          title: 'New Account Request',
-          message: `${username} has requested an account`,
-          type: 'account_request'
-        });
-      }
-
-      res.status(201).json({
-        message: "Account request submitted successfully",
-        request: {
-          username: newRequest.username,
-          email: newRequest.email,
-          department: newRequest.department,
-          status: newRequest.status
-        }
-      });
-    } catch (error) {
-      console.error('Account request error:', error);
-      next(error);
-    }
-  });
 
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
