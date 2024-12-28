@@ -702,44 +702,45 @@ export function registerRoutes(app: Express): Server {
       // Get error trends
       const errorTrends = await db
         .select({
-          date: sql<string>`date_trunc('day', ${errorLogs.createdAt}::timestamp)`,
+          date: sql<string>`DATE_TRUNC('day', ${errorLogs.createdAt}::timestamp)::text`,
           severity: errorLogs.severity,
-          count: sql<number>`count(*)`,
+          count: sql<number>`COUNT(*)::integer`,
         })
         .from(errorLogs)
         .where(sql`${errorLogs.createdAt} >= ${startDate}`)
-        .groupBy(sql`date_trunc('day', ${errorLogs.createdAt})`, errorLogs.severity)
-        .orderBy(sql`date_trunc('day', ${errorLogs.createdAt})`);
+        .groupBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`, errorLogs.severity)
+        .orderBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`);
 
       // Get most common errors
       const commonErrors = await db
         .select({
           code: errorLogs.code,
           message: errorLogs.message,
-          count: sql<number>`count(*)`,
+          count: sql<number>`COUNT(*)::integer`,
           severity: errorLogs.severity,
         })
         .from(errorLogs)
         .where(sql`${errorLogs.createdAt} >= ${startDate}`)
         .groupBy(errorLogs.code, errorLogs.message, errorLogs.severity)
-        .orderBy(sql<number>`count(*)`, 'desc')
+        .orderBy(sql<number>`COUNT(*)`, 'desc')
         .limit(10);
 
       // Get error distribution by severity
       const severityDistribution = await db
         .select({
           severity: errorLogs.severity,
-          count: sql<number>`count(*)`,
+          count: sql<number>`COUNT(*)::integer`,
         })
         .from(errorLogs)
         .where(sql`${errorLogs.createdAt} >= ${startDate}`)
-        .groupBy(errorLogs.severity);
+        .groupBy(errorLogs.severity)
+        .orderBy(errorLogs.severity);
 
       // Get recent errors with AI analysis
       const recentErrors = await db
         .select()
         .from(errorLogs)
-        .orderBy(errorLogs.createdAt, 'desc')
+        .orderBy(desc(errorLogs.createdAt))
         .limit(20);
 
       res.json({
@@ -749,6 +750,7 @@ export function registerRoutes(app: Express): Server {
         recentErrors,
       });
     } catch (error) {
+      console.error('Error fetching error analytics:', error);
       next(error);
     }
   });

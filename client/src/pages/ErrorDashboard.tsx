@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
@@ -35,12 +36,41 @@ const SEVERITY_COLORS = {
   error: "#f97316",
   warning: "#eab308",
   info: "#3b82f6",
-};
+} as const;
+
+interface ErrorAnalytics {
+  trends: Array<{
+    date: string;
+    severity: keyof typeof SEVERITY_COLORS;
+    count: number;
+  }>;
+  commonErrors: Array<{
+    code: string;
+    message: string;
+    count: number;
+    severity: keyof typeof SEVERITY_COLORS;
+  }>;
+  severityDistribution: Array<{
+    severity: keyof typeof SEVERITY_COLORS;
+    count: number;
+  }>;
+  recentErrors: Array<{
+    id: number;
+    message: string;
+    severity: keyof typeof SEVERITY_COLORS;
+    createdAt: string;
+    aiAnalysis?: {
+      prediction: string;
+      suggestions: string[];
+      preventiveMeasures: string[];
+    };
+  }>;
+}
 
 export default function ErrorDashboard() {
-  const [timeRange, setTimeRange] = useState("7d");
+  const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("7d");
 
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading } = useQuery<ErrorAnalytics>({
     queryKey: ["/api/analytics/errors", { range: timeRange }],
   });
 
@@ -48,6 +78,14 @@ export default function ErrorDashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
+      </div>
+    );
+  }
+
+  if (!analytics) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">No error data available</p>
       </div>
     );
   }
@@ -94,7 +132,7 @@ export default function ErrorDashboard() {
                       key={severity}
                       type="monotone"
                       dataKey={severity}
-                      stroke={SEVERITY_COLORS[severity]}
+                      stroke={SEVERITY_COLORS[severity as keyof typeof SEVERITY_COLORS]}
                       strokeWidth={2}
                     />
                   ))}
@@ -191,7 +229,7 @@ export default function ErrorDashboard() {
             {analytics.recentErrors.map((error) => (
               <div
                 key={error.id}
-                className={`p-4 rounded-lg border-l-4 ${
+                className={`p-4 rounded-lg border-l-4 border-${
                   SEVERITY_COLORS[error.severity]
                 } bg-background`}
               >
