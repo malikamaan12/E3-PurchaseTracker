@@ -53,13 +53,19 @@ import type { PurchaseRequest, User, Approval } from "@db/schema";
 
 // Define interface for request data with proper types
 interface RequestData extends PurchaseRequest {
-  requester: User;
-  approvals: Approval[];
+  requester?: {
+    id: number;
+    username: string;
+    email?: string;
+    department?: string;
+    role?: string;
+  };
+  approvals?: Approval[];
 }
 
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const { requests, isLoading, error } = usePurchaseRequests<RequestData[]>();
+  const { requests = [], isLoading, error } = usePurchaseRequests<RequestData[]>();
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -95,14 +101,13 @@ export default function Dashboard() {
   const pendingApprovals = useMemo(() => {
     if (!user || !requests) return [];
 
-    return requests.filter((request: RequestData) => {
-      // Only include pending requests
-      if (request.status !== "pending") return false;
+    return requests.filter((request) => {
+      if (!request || request.status !== "pending") return false;
 
       // Admin and special roles can approve any request
       if (
         isAdmin ||
-        ["CEO Office", "Director", "Finance"].includes(user.department)
+        ["CEO Office", "Director", "Finance"].includes(user.department || "")
       ) {
         return true;
       }
@@ -112,7 +117,7 @@ export default function Dashboard() {
 
       // Check if this department hasn't approved yet
       const departmentApproval = request.approvals?.find(
-        (a: Approval) => a.department === user.department
+        (a) => a.department === user.department
       );
 
       return !departmentApproval || departmentApproval.status === "pending";
@@ -127,8 +132,8 @@ export default function Dashboard() {
   const departments = useMemo(() => {
     if (!requests) return [];
     const deptSet = new Set<string>();
-    requests.forEach((r: RequestData) => {
-      if (r.requester.department) {
+    requests.forEach((r) => {
+      if (r.requester?.department) {
         deptSet.add(r.requester.department);
       }
     });
@@ -138,7 +143,7 @@ export default function Dashboard() {
   const purposeTypes = useMemo(() => {
     if (!requests) return [];
     const typeSet = new Set<string>();
-    requests.forEach((r: RequestData) => {
+    requests.forEach((r) => {
       if (r.purposeType) {
         typeSet.add(r.purposeType);
       }
@@ -149,9 +154,11 @@ export default function Dashboard() {
   const priorities = ["low", "medium", "high", "urgent"];
 
   const filterRequests = (requestList: RequestData[]) => {
-    return requestList.filter((r: RequestData) => {
+    return requestList.filter((r) => {
+      if (!r) return false;
+
       const matchesDepartment =
-        departmentFilter === "all" || r.requester.department === departmentFilter;
+        departmentFilter === "all" || r.requester?.department === departmentFilter;
       const matchesPurposeType =
         purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
       const matchesPriority =
@@ -173,39 +180,37 @@ export default function Dashboard() {
 
   const myDrafts = filterRequests(
     requests?.filter(
-      (r: RequestData) =>
-        r.requesterId === user?.id && r.status === "draft"
+      (r) =>
+        r?.requesterId === user?.id && r?.status === "draft"
     ) || []
   );
 
   const mySubmittedRequests = filterRequests(
     requests?.filter(
-      (r: RequestData) => r.requesterId === user?.id && r.status !== "draft"
+      (r) => r?.requesterId === user?.id && r?.status !== "draft"
     ) || []
   );
 
   const pendingRequests = filterRequests(
-    requests?.filter((r: RequestData) => {
-      if (r.status !== "pending") return false;
-      const departmentApproval = r.approvals.find(
-        (a: Approval) => a.department === user?.department
+    requests?.filter((r) => {
+      if (!r || r.status !== "pending") return false;
+      const departmentApproval = r.approvals?.find(
+        (a) => a.department === user?.department
       );
       return !departmentApproval || departmentApproval.status === "pending";
     }) || []
   );
 
   const approvedRequests = filterRequests(
-    requests?.filter((r: RequestData) => r.status === "approved") || []
+    requests?.filter((r) => r?.status === "approved") || []
   );
 
   const rejectedRequests = filterRequests(
-    requests?.filter((r: RequestData) => r.status === "rejected") || []
+    requests?.filter((r) => r?.status === "rejected") || []
   );
 
   const changesRequestedRequests = filterRequests(
-    requests?.filter(
-      (r: RequestData) => r.status === "changes_requested"
-    ) || []
+    requests?.filter((r) => r?.status === "changes_requested") || []
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -316,7 +321,9 @@ export default function Dashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map((request: RequestData) => {
+          {requests.map((request) => {
+            if (!request) return null; //Handle potential null values
+
             const canSubmitDraft =
               request.status === "draft" &&
               request.requesterId === user?.id &&
@@ -392,7 +399,9 @@ export default function Dashboard() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Request</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Delete Request
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
                                 Are you sure you want to delete this request? This
                                 action cannot be undone.
@@ -446,24 +455,21 @@ export default function Dashboard() {
     );
   };
 
-  // Add new filter for draft requests ready to submit
   const draftRequestsReadyToSubmit = filterRequests(
     requests?.filter(
-      (r: RequestData) =>
-        r.requesterId === user?.id &&
-        r.status === "draft" &&
-        r.title &&
-        r.description &&
-        r.items?.length > 0
+      (r) =>
+        r?.requesterId === user?.id &&
+        r?.status === "draft" &&
+        r?.title &&
+        r?.description &&
+        r?.items?.length > 0
     ) || []
   );
 
-  // Update the handleNotificationClick function
   const handleNotificationClick = (
     notification: { id: number; link: string | null }
   ) => {
     if (notification.link) {
-      // Navigate to the notification link
       setLocation(notification.link);
     }
   };

@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests, subPurposes, insertAccountRequestSchema } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests, subPurposes, insertAccountRequestSchema, approvals } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -87,7 +87,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user's requests
+  // Get user's requests with detailed information
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -96,12 +96,16 @@ export function registerRoutes(app: Express): Server {
 
       console.log('Fetching requests for user:', req.user!.id);
 
-      const userRequests = await db
+      // First get the requests with requester information
+      const requests = await db
         .select({
           id: purchaseRequests.id,
           requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
           title: purchaseRequests.title,
+          description: purchaseRequests.description,
           status: purchaseRequests.status,
+          items: purchaseRequests.items,
           totalEstimatedCost: purchaseRequests.totalEstimatedCost,
           createdAt: purchaseRequests.createdAt,
           updatedAt: purchaseRequests.updatedAt,
@@ -112,7 +116,8 @@ export function registerRoutes(app: Express): Server {
             username: users.username,
             email: users.email,
             department: users.department,
-            role: users.role
+            role: users.role,
+            contact_number: users.contact_number
           }
         })
         .from(purchaseRequests)
@@ -120,8 +125,23 @@ export function registerRoutes(app: Express): Server {
         .where(eq(purchaseRequests.requesterId, req.user!.id))
         .orderBy(desc(purchaseRequests.createdAt));
 
-      console.log('Found requests:', userRequests.length);
-      res.json(userRequests);
+      // For each request, fetch its approvals
+      const requestsWithApprovals = await Promise.all(
+        requests.map(async (request) => {
+          const requestApprovals = await db
+            .select()
+            .from(approvals)
+            .where(eq(approvals.requestId, request.id));
+
+          return {
+            ...request,
+            approvals: requestApprovals || []
+          };
+        })
+      );
+
+      console.log('Found requests:', requestsWithApprovals.length);
+      res.json(requestsWithApprovals);
     } catch (error) {
       console.error('Error fetching requests:', error);
       next(new AppError('Failed to fetch requests', 500));
