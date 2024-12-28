@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LoginCredentials, User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
-import { visualizeError, createErrorContext, handleApiError } from '@/lib/errorUtils';
 
 type RequestResult = {
   ok: true;
+  user?: User;
 } | {
   ok: false;
   message: string;
@@ -24,13 +24,14 @@ async function handleRequest(
     });
 
     if (!response.ok) {
-      await handleApiError(response);
+      const errorText = await response.text();
+      return { ok: false, message: errorText };
     }
 
-    return { ok: true };
-  } catch (e: any) {
-    const errorContext = createErrorContext(e);
-    return { ok: false, message: errorContext.message };
+    const data = await response.json();
+    return { ok: true, user: data.user };
+  } catch (error: any) {
+    return { ok: false, message: error.message || 'An error occurred' };
   }
 }
 
@@ -43,7 +44,7 @@ async function fetchUser(): Promise<User | null> {
     if (response.status === 401) {
       return null;
     }
-    await handleApiError(response);
+    throw new Error(await response.text());
   }
 
   return response.json();
@@ -62,12 +63,14 @@ export function useUser() {
 
   const loginMutation = useMutation({
     mutationFn: (userData: LoginCredentials) => handleRequest('/api/auth/login', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
+    onSuccess: (data) => {
+      if (data.ok && data.user) {
+        queryClient.setQueryData(['user'], data.user);
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -81,7 +84,7 @@ export function useUser() {
   const logoutMutation = useMutation({
     mutationFn: () => handleRequest('/api/auth/logout', 'POST'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.setQueryData(['user'], null);
       toast({
         title: "Success",
         description: "Logged out successfully",

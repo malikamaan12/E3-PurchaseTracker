@@ -5,31 +5,21 @@ import { users, notifications, accountRequests } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
-
-// Authentication middleware
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
-  next();
-};
-
-const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Not authenticated' });
-  }
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
-  next();
-};
+import { setupAuth } from './auth';
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
+  // Setup authentication routes and middleware
+  setupAuth(app);
+
   // User management routes
-  app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
       console.log('Fetching all users');
       const allUsers = await db
         .select({
@@ -52,8 +42,11 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Notification endpoints
-  app.get("/api/notifications", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
       const userNotifications = await db
         .select()
         .from(notifications)
@@ -66,8 +59,11 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/notifications/mark-read", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/notifications/mark-read", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
       const { notificationId } = req.body;
 
       await db
@@ -83,8 +79,12 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Account requests management
-  app.get("/api/admin/account-requests", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
       const requests = await db
         .select()
         .from(accountRequests)
@@ -95,8 +95,12 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/admin/account-requests/:id/approve", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/admin/account-requests/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
       const requestId = parseInt(req.params.id);
 
       // Find the account request
@@ -148,8 +152,12 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/admin/account-requests/:id/reject", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/admin/account-requests/:id/reject", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
       const requestId = parseInt(req.params.id);
 
       // Update request status
@@ -178,7 +186,6 @@ export function registerRoutes(app: Express): Server {
       code: 'NOT_FOUND'
     });
   });
-
 
   return httpServer;
 }
