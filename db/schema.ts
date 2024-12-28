@@ -16,13 +16,13 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Account Requests Table - Using contactNumber to match form field
+// Account Requests Table
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(), // Changed to match form field
+  contactNumber: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
@@ -287,4 +287,5 @@ export const mandatoryDepartments = [
 ] as const;
 
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
+
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
