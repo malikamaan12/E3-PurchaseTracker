@@ -6,31 +6,41 @@ export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Improved error handling helper
+  // Improved error handling helper that clones the response
   const handleApiError = async (res: Response) => {
-    // Try to parse as JSON first
-    try {
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || `${res.status}: ${res.statusText}`);
-      }
-      return data;
-    } catch (parseError) {
-      // If JSON parsing fails, handle text response
-      const text = await res.text();
+    const contentType = res.headers.get("content-type");
+    const isJson = contentType?.includes("application/json");
+    const resClone = res.clone(); // Clone response for multiple reads
 
-      // If response is HTML (likely an error page), provide a clearer message
+    try {
+      // If content type is JSON or unknown, try JSON first
+      if (isJson || !contentType) {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || `${res.status}: ${res.statusText}`);
+        }
+        return data;
+      } 
+
+      // For non-JSON responses, read as text
+      const text = await resClone.text();
+
+      // Handle HTML error pages
       if (text.toLowerCase().includes('<!doctype html')) {
         throw new Error(`Server error (${res.status}): Please try again later`);
       }
 
-      // If not ok and not HTML, throw the text as error
+      // For non-OK responses, throw the text
       if (!res.ok) {
         throw new Error(text || `${res.status}: ${res.statusText}`);
       }
 
-      // If ok but not JSON, throw format error
-      throw new Error(`Invalid response format: Expected JSON but got ${res.headers.get('content-type')}`);
+      throw new Error(`Invalid response format: Expected JSON but got ${contentType}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred');
     }
   };
 
