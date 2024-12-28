@@ -265,24 +265,31 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // Account Request endpoint
 app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
-  console.log('Received account request:', JSON.stringify(req.body, null, 2));
-
   try {
-    // Validate request data
-    console.log('Validating request data with schema');
-    const validationResult = insertAccountRequestSchema.safeParse(req.body);
+    debug(req, 'Received account request:', {
+      ...req.body,
+      password: '[REDACTED]'
+    });
+
+    // Transform the request data to match our schema
+    const requestData = {
+      ...req.body,
+      request_purpose: req.body.purpose || req.body.request_purpose, // Handle both field names
+      status: 'pending'
+    };
+
+    debug(req, 'Validating request data');
+    const validationResult = insertAccountRequestSchema.safeParse(requestData);
 
     if (!validationResult.success) {
-      console.error('Validation errors:', validationResult.error.format());
+      debug(req, 'Validation failed:', validationResult.error);
       return res.status(400).json({
         message: 'Validation failed',
         errors: validationResult.error.format()
       });
     }
 
-    console.log('Request data validated successfully');
-
-    // Check if username already exists in account requests
+    // Check for existing username
     const [existingRequest] = await db
       .select()
       .from(accountRequests)
@@ -290,13 +297,13 @@ app.post("/api/auth/request-account", async (req: Request, res: Response, next: 
       .limit(1);
 
     if (existingRequest) {
-      console.log('Username already exists in account requests');
+      debug(req, 'Username already exists in requests');
       return res.status(400).json({
         message: 'An account request with this username already exists'
       });
     }
 
-    // Check if username exists in users
+    // Check in users table
     const [existingUser] = await db
       .select()
       .from(users)
@@ -304,34 +311,29 @@ app.post("/api/auth/request-account", async (req: Request, res: Response, next: 
       .limit(1);
 
     if (existingUser) {
-      console.log('Username already exists in users');
+      debug(req, 'Username exists in users table');
       return res.status(400).json({
         message: 'Username already exists'
       });
     }
 
-    // Hash the password before storing
+    // Hash password and create request
     const hashedPassword = await hash(validationResult.data.password, 10);
-
-    // Create account request
-    console.log('Creating new account request');
     const [newRequest] = await db
       .insert(accountRequests)
       .values({
         ...validationResult.data,
-        password: hashedPassword,
-        status: 'pending'
+        password: hashedPassword
       })
       .returning();
 
-    console.log('Account request created successfully:', newRequest.id);
-
+    debug(req, 'Account request created:', newRequest.id);
     res.status(201).json({
       message: 'Account request submitted successfully',
       requestId: newRequest.id
     });
   } catch (error) {
-    console.error('Error processing account request:', error);
+    debug(req, 'Error processing account request:', error);
     next(error);
   }
 });
@@ -440,16 +442,27 @@ app.get("/api/admin/account-requests", async (req: Request, res: Response, next:
       throw new AppError('Admin access required', 403);
     }
 
-    console.log('Fetching account requests...');
-    const requests = await db
-      .select()
+    debug(req, 'Fetching account requests...');
+    const accountRequestsResult = await db
+      .select({
+        id: accountRequests.id,
+        username: accountRequests.username,
+        email: accountRequests.email,
+        department: accountRequests.department,
+        request_purpose: accountRequests.request_purpose,
+        role: accountRequests.role,
+        status: accountRequests.status,
+        contact_number: accountRequests.contact_number,
+        createdAt: accountRequests.createdAt,
+        updatedAt: accountRequests.updatedAt
+      })
       .from(accountRequests)
       .orderBy(desc(accountRequests.createdAt));
 
-    console.log(`Found ${requests.length} account requests`);
-    res.json(requests);
+    debug(req, `Found ${accountRequestsResult.length} account requests`);
+    res.json(accountRequestsResult);
   } catch (error) {
-    console.error('Error fetching account requests:', error);
+    debug(req, 'Error fetching account requests:', error);
     next(error);
   }
 });

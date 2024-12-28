@@ -24,7 +24,7 @@ export const accountRequests = pgTable("account_requests", {
   email: text("email").notNull(),
   contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
-  purpose: text("purpose").notNull(),
+  request_purpose: text("request_purpose").notNull(),  // Changed from purpose to request_purpose
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -256,7 +256,7 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  purpose: z.string()
+  request_purpose: z.string()
     .min(3, "Purpose must be at least 3 characters")
     .max(200, "Purpose cannot exceed 200 characters"),
   department: z.string().min(1, "Department is required"),
