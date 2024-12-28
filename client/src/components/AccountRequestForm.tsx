@@ -9,8 +9,8 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
+import { FormErrorTooltip } from "@/components/ui/form-error-tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { insertAccountRequestSchema, mandatoryDepartments } from "@db/schema";
+import { motion } from "framer-motion";
+
+const formItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -76,105 +82,139 @@ export default function AccountRequestForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="username"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Username</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={{
+            visible: {
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          className="space-y-6"
+        >
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormErrorTooltip message={form.formState.errors.username?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" {...field} />
+                  </FormControl>
+                  <FormErrorTooltip message={form.formState.errors.password?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} />
+                  </FormControl>
+                  <FormErrorTooltip message={form.formState.errors.email?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <FormField
-          control={form.control}
-          name="contact_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contact Number</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Enter contact number" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="contact_number"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Contact Number</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter contact number" />
+                  </FormControl>
+                  <FormErrorTooltip message={form.formState.errors.contact_number?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <FormField
-          control={form.control}
-          name="purpose"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Purpose</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Enter purpose" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="purpose"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Purpose</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter purpose" />
+                  </FormControl>
+                  <FormErrorTooltip message={form.formState.errors.purpose?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <FormField
-          control={form.control}
-          name="department"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Department</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {mandatoryDepartments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="department"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Department</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {mandatoryDepartments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormErrorTooltip message={form.formState.errors.department?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
 
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? "Submitting..." : "Request Account"}
-        </Button>
+          <motion.div
+            variants={formItemVariants}
+            className="pt-4"
+          >
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full transition-all duration-200 hover:scale-[1.02]"
+            >
+              {isLoading ? "Submitting..." : "Request Account"}
+            </Button>
+          </motion.div>
+        </motion.div>
       </form>
     </Form>
   );
