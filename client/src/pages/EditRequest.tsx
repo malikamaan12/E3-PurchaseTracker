@@ -97,8 +97,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       // Parse and format items array
       const formattedItems = (request.items || []).map(item => ({
         name: item?.name || "",
-        quantity: Number(item?.quantity || 1),
-        estimatedCost: Number(item?.estimatedCost || 0),
+        quantity: Number(item?.quantity) || 1,
+        estimatedCost: Number(item?.estimatedCost) || 0,
         description: item?.description || ""
       }));
 
@@ -112,29 +112,30 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         });
       }
 
-      // Reset form with request data, using type casting and default values
+      setItems(formattedItems);
+      setFreightAmount(Number(request.freightAmount) || 0);
+
+      // Reset form with request data
       form.reset({
-        ...request,
+        title: request.title || "",
+        description: request.description || "",
         items: formattedItems,
-        totalEstimatedCost: String(request.totalEstimatedCost || "0"),
-        freightAmount: String(request.freightAmount || "0"),
-        purposeType: request.purposeType || "event",
-        priority: request.priority || "medium",
-        currency: request.currency || "QAR",
-        subPurposeId: request.subPurposeId,
         companyName: request.companyName || "",
         contactPerson: request.contactPerson || "",
         contactNumber: request.contactNumber || "",
         accountNumber: request.accountNumber || "",
+        purposeType: request.purposeType || "event",
+        subPurposeId: request.subPurposeId,
+        priority: request.priority || "medium",
+        currency: request.currency || "QAR",
+        status: request.status || "draft",
+        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
+        freightAmount: request.freightAmount?.toString() || "0",
       });
-
-      // Update local state
-      setItems(formattedItems);
-      setFreightAmount(Number(request.freightAmount || 0));
 
       console.log("Form data loaded:", {
         items: formattedItems,
-        freightAmount: Number(request.freightAmount || 0)
+        freightAmount: Number(request.freightAmount) || 0
       });
     }
   }, [request, form]);

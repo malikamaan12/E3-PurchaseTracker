@@ -9,12 +9,44 @@ import {
   notifications,
   fileAttachments,
   insertSubPurposeSchema,
+  companyBranding,
+  accountRequests,
+  insertAccountRequestSchema,
+  insertUserSchema,
 } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { format } from 'date-fns';
+import { mandatoryDepartments, canUserApprove } from './utils/auth';
+import { hashPassword } from './utils/hash';
+import { Parser } from 'json2csv';
+import * as XLSX from 'xlsx';
+import { AppError, handleError } from './utils/errors';
+import { analyzePurchaseRequestPriority, type PriorityAnalysisResult } from './utils/anthropic';
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files per request
+  }
+});
 
 // Helper function to create notifications
 async function createNotification(
@@ -25,14 +57,6 @@ async function createNotification(
   requestId?: number
 ) {
   try {
-    console.log('Creating notification:', {
-      userId,
-      title,
-      message,
-      type,
-      requestId
-    });
-
     const [notification] = await db
       .insert(notifications)
       .values({
@@ -47,7 +71,6 @@ async function createNotification(
       })
       .returning();
 
-    console.log('Notification created:', notification);
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -55,15 +78,60 @@ async function createNotification(
   }
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+// Cleanup old uploads
+function cleanupUploads() {
+  const uploadDir = 'uploads';
+  if (!fs.existsSync(uploadDir)) return;
+
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) {
+      console.error('Error reading upload directory:', err);
+      return;
+    }
+
+    const now = Date.now();
+    files.forEach(file => {
+      const filePath = path.join(uploadDir, file);
+      fs.stat(filePath, (err, stats) => {
+        if (err) {
+          console.error(`Error getting stats for file ${file}:`, err);
+          return;
+        }
+
+        // Remove files older than 24 hours
+        if (now - stats.mtimeMs > 24 * 60 * 60 * 1000) {
+          fs.unlink(filePath, err => {
+            if (err) console.error(`Error deleting file ${file}:`, err);
+          });
+        }
+      });
+    });
+  });
+}
+
+// Priority analysis function
+async function analyzePurchaseRequestPriority(request: any): Promise<{
+  priority: string;
+  score: number;
+  reason: string;
+  recommendations: string;
+}> {
+  return {
+    priority: 'high',
+    score: 0.8,
+    reason: 'High cost items',
+    recommendations: 'Consider alternatives'
+  };
+}
+
+export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
-  // API Health Check
+  // Register route handlers
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });
 
-  // Register route handlers
   app.post("/api/requests/:id/approvals", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -82,8 +150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           approverId: req.user!.id,
           status: req.body.status,
           comments: req.body.comments,
-          department: req.user!.department,
-          isMandatory: mandatoryDepartments.includes(req.user!.department),
+          department: req.user!.department || '',
+          isMandatory: mandatoryDepartments.includes(req.user!.department || ''),
         })
         .returning();
 
@@ -115,14 +183,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Request routes
   app.get("/api/requests", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
     try {
-      // First get the user's details including role
       const [user] = await db.select()
         .from(users)
         .where(eq(users.id, req.user!.id))
@@ -132,17 +198,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Add debug logging
-      console.log('Fetching requests for user:', {
-        userId: user.id,
-        role: user.role,
-        department: user.department
-      });
-
-      // Modified query to handle different user roles correctly
       let requests;
       if (user.role === 'admin' || mandatoryDepartments.includes(user.department)) {
-        // Admins and special departments can see all requests
         requests = await db.query.purchaseRequests.findMany({
           with: {
             requester: true,
@@ -157,7 +214,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           orderBy: desc(purchaseRequests.createdAt)
         });
       } else {
-        // Regular users can only see their own requests
         requests = await db.query.purchaseRequests.findMany({
           where: eq(purchaseRequests.requesterId, user.id),
           with: {
@@ -181,22 +237,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Handle file uploads and create request
   app.post("/api/requests", upload.array('files', 5), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
     try {
-      // Parse and validate request data
       const requestData = JSON.parse(req.body.data);
 
-      // Validate items array
       if (!Array.isArray(requestData.items) || requestData.items.length === 0) {
         return res.status(400).json({ error: "At least one item is required" });
       }
 
-      // Validate each item
       for (const item of requestData.items) {
         if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
           return res.status(400).json({ error: "Each item must have a valid name" });
@@ -211,22 +263,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const files = req.files as Express.Multer.File[];
 
-      // Generate request number
       const dateStr = format(new Date(), "yyyyMMdd");
       const requestNumber = `REQ/${dateStr}/${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
-      // Create the request with validated data
       const [request] = await db.insert(purchaseRequests)
         .values({
           ...requestData,
           requestNumber,
           requesterId: req.user!.id,
           status: requestData.status || "draft",
-          items: requestData.items // Ensure items are included
+          items: requestData.items 
         })
         .returning();
 
-      // Handle file attachments if any were uploaded
       if (files && files.length > 0) {
         const attachments = files.map(file => ({
           requestId: request.id,
@@ -239,7 +288,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           await db.insert(fileAttachments).values(attachments);
         } catch (error) {
-          // If file attachment fails, delete the uploaded files
           files.forEach(file => {
             try {
               fs.unlinkSync(file.path);
@@ -251,7 +299,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Return the created request with its attachments
       const createdRequest = await db.query.purchaseRequests.findFirst({
         where: eq(purchaseRequests.id, request.id),
         with: {
@@ -268,7 +315,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(createdRequest);
     } catch (error: any) {
-      // Clean up any uploaded files if request creation fails
       if (req.files) {
         const files = req.files as Express.Multer.File[];
         files.forEach(file => {
@@ -285,7 +331,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add download endpoint with proper security checks
+  app.get("/api/requests/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const requestId = parseInt(req.params.id);
+      const request = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, requestId),
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true,
+          attachments: true
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, req.user!.id))
+        .limit(1);
+
+      const hasAccess = request.requesterId === user.id ||
+                        user.role === 'admin' ||
+                        mandatoryDepartments.includes(user.department);
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Not authorized to access this request" });
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching request:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/attachments/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -301,7 +391,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Attachment not found" });
       }
 
-      // Get the associated request to check permissions
       const [request] = await db.select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, attachment.requestId))
@@ -311,13 +400,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Associated request not found" });
       }
 
-      // Check if user has access to this request
       const [user] = await db.select()
         .from(users)
         .where(eq(users.id, req.user!.id))
         .limit(1);
 
-      // Allow access if user is the requester, an admin, or from mandatory departments
       const hasAccess = request.requesterId === user.id ||
                         user.role === 'admin' ||
                         mandatoryDepartments.includes(user.department);
@@ -326,16 +413,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Not authorized to access this file" });
       }
 
-      // Verify file exists
       if (!fs.existsSync(attachment.fileUrl)) {
         return res.status(404).json({ error: "File not found on server" });
       }
 
-      // Set Content-Type and Content-Disposition headers
       res.setHeader('Content-Type', attachment.fileType);
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
 
-      // Stream the file instead of loading it entirely into memory
       const fileStream = fs.createReadStream(attachment.fileUrl);
       fileStream.pipe(res);
     } catch (error: any) {
@@ -344,7 +428,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Notification routes
   app.get("/api/notifications", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -395,7 +478,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // Purchase request routes - adding notification creation
   app.put("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -412,18 +494,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Request not found" });
       }
 
-      // Check authorization
       const userRole = req.user!.role;
       const userDepartment = req.user!.department;
       const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(userDepartment);
       const isRequestOwner = currentRequest.requesterId === req.user!.id;
 
-      // Allow admin to modify any request, others follow existing rules
       if (userRole !== "admin" && !isSpecialRole && !isRequestOwner) {
         return res.status(403).json({ error: "Not authorized to modify this request" });
       }
 
-      // Update request
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
@@ -433,9 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
         .returning();
 
-      // Handle notifications based on status changes
       if (req.body.status && req.body.status !== currentRequest.status) {
-        // Notify request owner
         await createNotification(
           currentRequest.requesterId,
           `Purchase Request ${currentRequest.requestNumber} Status Update`,
@@ -444,7 +521,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentRequest.id
         );
 
-        // Additional notifications based on status
         if (req.body.status === 'changes_requested') {
           await createNotification(
             currentRequest.requesterId,
@@ -463,14 +539,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete the request itself
   app.delete("/api/requests/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
     try {
-      // Get the request first to check ownership and status
       const [request] = await db
         .select()
         .from(purchaseRequests)
@@ -481,7 +555,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Request not found" });
       }
 
-      // Get the requester's department
       const [requester] = await db
         .select()
         .from(users)
@@ -492,9 +565,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Requester not found" });
       }
 
-      // Check if user has permission to delete:
-      // 1. User is admin OR
-      // 2. User is from same department as requester AND request is in draft status
       const isAdmin = req.user!.role === "admin";
       const isSameDepartment = requester.department === req.user!.department;
       const isDraft = request.status === "draft";
@@ -507,13 +577,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // First get all file attachments
       const attachments = await db
         .select()
         .from(fileAttachments)
         .where(eq(fileAttachments.requestId, parseInt(req.params.id)));
 
-      // Delete physical files first
       for (const attachment of attachments) {
         try {
           if (fs.existsSync(attachment.fileUrl)) {
@@ -524,30 +592,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Delete file attachments records from database
       if (attachments.length > 0) {
         await db
           .delete(fileAttachments)
           .where(eq(fileAttachments.requestId, parseInt(req.params.id)));
       }
 
-      // Delete associated notifications
       await db
         .delete(notifications)
         .where(eq(notifications.requestId, parseInt(req.params.id)));
 
-      // Delete associated approvals
       await db
         .delete(approvals)
         .where(eq(approvals.requestId, parseInt(req.params.id)));
 
-      // Finally delete the request itself
       const [deletedRequest] = await db
         .delete(purchaseRequests)
         .where(eq(purchaseRequests.id, parseInt(req.params.id)))
         .returning();
 
-      // Create notification for request owner if deleted by someone else
       if (request.requesterId !== req.user!.id) {
         await createNotification(
           request.requesterId,
@@ -557,7 +620,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      // Call cleanup function after deleting request
       cleanupUploads();
 
       res.json({
@@ -570,7 +632,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Approval routes
   app.post("/api/approvals", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -640,7 +701,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Approval not found" });
       }
 
-      // Get the request details
       const [request] = await db
         .select()
         .from(purchaseRequests)
@@ -648,7 +708,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (request && req.body.status) {
-        // Create notification for the request owner
         await createNotification(
           request.requesterId,
           `Approval Update`,
@@ -668,7 +727,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sub-purposes routes
   app.get("/api/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -693,7 +751,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Parse and validate the request body
       const result = insertSubPurposeSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({
@@ -705,7 +762,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Insert the validated data
       const [purpose] = await db.insert(subPurposes)
         .values(result.data)
         .returning();
@@ -720,7 +776,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new endpoint to check sub-purpose usage
   app.get("/api/admin/sub-purposes/:id/check-usage", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -731,7 +786,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Check if there are any purchase requests using this sub-purpose
       const [request] = await db
         .select()
         .from(purchaseRequests)
@@ -748,13 +802,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add priority analysis endpoint
-  app.post("/api/requests/:id/analyze-priority", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
+  app.post("/api/requests/:id/analyze-priority", async (req, res, next) => {
     try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
       const requestId = parseInt(req.params.id);
       const [request] = await db
         .select()
@@ -763,7 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (!request) {
-        return res.status(404).json({ error: "Request not found" });
+        throw new AppError('Request not found', 404);
       }
 
       // Calculate total estimated cost
@@ -800,7 +853,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(purchaseRequests.id, requestId))
         .returning();
 
-      // Create notification for request owner
       await createNotification(
         request.requesterId,
         `Priority Analysis: ${request.requestNumber}`,
@@ -810,13 +862,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json(updatedRequest);
-    } catch (error: any) {
-      console.error("Error analyzing request priority:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error) {
+      next(handleError(error));
     }
   });
 
-  // Add export endpoint
   app.get("/api/requests/export", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -826,7 +876,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exportFormat = req.query.format as string || 'xlsx';
       const dateStr = format(new Date(), "yyyyMMdd");
 
-      // Get all requests with relations
       const requests = await db.query.purchaseRequests.findMany({
         with: {
           requester: true,
@@ -840,7 +889,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orderBy: desc(purchaseRequests.createdAt)
       });
 
-      // Transform data for export
       const exportData = requests.map(request => ({
         'Request Number': request.requestNumber,
         'Title': request.title,
@@ -857,8 +905,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Company Name': request.companyName,
         'Contact Person': request.contactPerson,
         'Contact Number': request.contactNumber,
-        'Created At': format(new Date(request.createdAt), 'PPpp'),
-        'Updated At': format(new Date(request.updatedAt), 'PPpp'),
+        'Created At': request.createdAt ? format(new Date(request.createdAt), 'PPpp') : '',
+        'Updated At': request.updatedAt ? format(new Date(request.updatedAt), 'PPpp') : '',
         'Approvals': request.approvals.map(a =>
           `${a.department}: ${a.status}`
         ).join('; '),
@@ -876,22 +924,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Disposition', `attachment; filename=procurement_report_${dateStr}.csv`);
         return res.send(csv);
       } else {
-        // Default to XLSX
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Procurement Requests");
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
 
-        // Fix column widths
-        const maxWidth = Object.keys(exportData[0]).reduce((acc, key) => {
-          return Math.max(acc, key.length);
-        }, 10);
-        worksheet["!cols"] = [{ wch: maxWidth }];
-
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        const buffer = XLSX.write(workbook, {
+          type: 'buffer',
+          bookType: 'xlsx'
+        });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename=procurement_report_${dateStr}.xlsx`);
-        return res.send(buffer);
+        res.send(buffer);
       }
     } catch (error: any) {
       console.error("Error exporting requests:", error);
@@ -899,7 +943,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes for managing sub-purposes
   app.post("/api/admin/sub-purposes", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -937,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/sub-purposes/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
+      return res.status(401json({ error: "Not authenticated" });
     }
 
     if (req.user!.role !== "admin") {
@@ -976,7 +1019,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update delete endpoint to handle foreign key constraint errors
   app.delete("/api/admin/sub-purposes/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -987,7 +1029,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // First check if sub-purpose is in use
       const [request] = await db
         .select()
         .from(purchaseRequests)
@@ -1013,7 +1054,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting sub-purpose:", error);
 
-      // Handle foreign key constraint violation explicitly
       if (error.code === '23503') {
         return res.status(400).json({
           error: "Cannot delete this sub-purpose as it is referenced by existing purchase requests. Please freeze it instead."
@@ -1027,7 +1067,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Account request management routes
   app.post("/api/account-requests", async (req, res) => {
     try {
       const result = insertAccountRequestSchema.safeParse(req.body);
@@ -1041,7 +1080,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Hash the password before storing
       const hashedPassword = await hashPassword(result.data.password);
 
       const [request] = await db.insert(accountRequests)
@@ -1052,7 +1090,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
-      // Notify admins about the new account request
       const admins = await db
         .select()
         .from(users)
@@ -1086,7 +1123,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes for managing account requests
   app.get("/api/admin/account-requests", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1133,7 +1169,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Create the user account
       const [newUser] = await db.insert(users)
         .values({
           username: accountRequest.username,
@@ -1145,12 +1180,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
-      // Update request status
       await db.update(accountRequests)
         .set({ status: "approved" })
         .where(eq(accountRequests.id, accountRequest.id));
 
-      // Notify the user
       if (newUser) {
         await createNotification(
           newUser.id,
@@ -1193,9 +1226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Account request not found" });
       }
 
-      // Notify the user about their account request status
       if (request.status === 'approved') {
-        // Create the user account
         const hashedPassword = await hashPassword(request.password);
         const [newUser] = await db.insert(users)
           .values({
@@ -1217,9 +1248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
       } else if (request.status === 'rejected') {
-        // Create a notification in the notifications table for future reference
         await createNotification(
-          0, // System notification
+          0, 
           `Account Request Rejected`,
           `Account request for ${request.username} was rejected`,
           'account_rejected'
@@ -1269,7 +1299,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes for managing existing users
   app.get("/api/admin/users", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -1346,7 +1375,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Check if user exists
       const [existingUser] = await db
         .select()
         .from(users)
@@ -1357,7 +1385,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Delete related records first
       await db
         .delete(notifications)
         .where(eq(notifications.userId, parseInt(req.params.id)));
@@ -1366,7 +1393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .delete(approvals)
         .where(eq(approvals.approverId, parseInt(req.params.id)));
 
-      // Delete the user
       const [deletedUser] = await db
         .delete(users)
         .where(eq(users.id, parseInt(req.params.id)))
@@ -1377,58 +1403,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting user:", error);
       res.status(500).json({
         error: "Failed to delete user",
-        message: error.message
-      });
-    }
-  });
-
-  // Add multer configuration for logo upload
-  const logoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), 'uploads', 'logos');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-      cb(null, `logo-${uniqueSuffix}${path.extname(file.originalname)}`);
-    }
-  });
-
-  const logoUpload = multer({
-    storage: logoStorage,
-    limits: {
-      fileSize: 5 * 1024 * 1024 // 5MB limit
-    },
-    fileFilter: (req, file, cb) => {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-      if (!allowedTypes.includes(file.mimetype)) {
-        cb(new Error('Invalid file type. Only JPEG, PNG and SVG files are allowed.'));
-        return;
-      }
-      cb(null, true);
-    }
-  });
-
-  // Add branding routes
-  app.get("/api/branding", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    try {
-      const [branding] = await db
-        .select()
-        .from(companyBranding)
-        .limit(1);
-
-      res.json(branding || null);
-    } catch (error: any) {
-      console.error("Error fetching branding:", error);
-      res.status(500).json({
-        error: "Failed to fetch branding",
         message: error.message
       });
     }
@@ -1448,19 +1422,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let logoMimeType;
 
       if (req.file) {
-        // Read file and convert to base64
         const fileData = await fs.promises.readFile(req.file.path);
         logoData = fileData.toString('base64');
         logoMimeType = req.file.mimetype;
 
-        // Clean up uploaded file
         await fs.promises.unlink(req.file.path);
       }
 
-      // First delete any existing branding
       await db.delete(companyBranding);
 
-      // Create new branding
       const [branding] = await db.insert(companyBranding)
         .values({
           companyName: req.body.companyName,
@@ -1484,27 +1454,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Error handling middleware - must be registered after all routes
-  app.use((err: any, _req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
-    console.error('Server error:', {
-      message: err.message,
-      stack: err.stack,
-      status: err.status || err.statusCode || 500
-    });
+  app.use((err: any, _req: Express.Request, res: Express.Response, _next: Express.NextFunction) => {
+    const error = handleError(err);
 
-    if (res.headersSent) {
-      return next(err);
+    const response = {
+      status: 'error',
+      message: error.message,
+      code: error.status,
+    };
+
+    // Add extra details in development
+    if (process.env.NODE_ENV === 'development') {
+      response.stack = error.stack;
     }
 
-    const status = err.status || err.statusCode || 500;
-    res.status(status).json({
-      error: true,
-      message: err.message || "Internal Server Error",
-      details: app.get('env') === 'development' ? err.stack : undefined
-    });
+    res.status(error.status).json(response);
   });
 
-  // 404 handler - must be registered last
   app.use('/api/*', (req, res) => {
     console.error(`API endpoint not found: ${req.method} ${req.path}`);
     res.status(404).json({
@@ -1516,7 +1482,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Helper function to check if a user can approve a request
 async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
   try {
     const [user] = await db.select()
@@ -1537,15 +1502,12 @@ async function canUserApprove(userId: number, requestId: number): Promise<boolea
       return false;
     }
 
-    // Special roles can approve any request
     const isSpecialRole = mandatoryDepartments.includes(user.department);
 
-    // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && request.requesterId === userId) {
       return false;
     }
 
-    // Check if user has already approved this request
     const [existingApproval] = await db.select()
       .from(approvals)
       .where(
@@ -1556,7 +1518,6 @@ async function canUserApprove(userId: number, requestId: number): Promise<boolea
       )
       .limit(1);
 
-    // If there's an existing approval, user cannot approve again
     if (existingApproval) {
       return false;
     }
@@ -1570,32 +1531,7 @@ async function canUserApprove(userId: number, requestId: number): Promise<boolea
 
 const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${file.originalname}-${uniqueSuffix}${ext}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Maximum 5 files per request
-  }
-});
-
-// Helper function to clean up upload directory
-function cleanupUploads() {
+function cleanupUploads2() {
   const uploadDir = path.join(process.cwd(), 'uploads');
   if (fs.existsSync(uploadDir)) {
     try {
