@@ -7,6 +7,8 @@ import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
 import { z } from 'zod';
+import { errorLogs } from "@db/schema";
+import { sql } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
@@ -671,6 +673,110 @@ export function registerRoutes(app: Express): Server {
       next(new AppError('Failed to reject account request', 500));
     }
   });
+
+  // Error analytics endpoints
+  app.get("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const timeRange = req.query.range as string || '7d'; // Default to last 7 days
+      const now = new Date();
+      let startDate = new Date();
+
+      switch (timeRange) {
+        case '24h':
+          startDate.setHours(now.getHours() - 24);
+          break;
+        case '7d':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(now.getDate() - 30);
+          break;
+        default:
+          startDate.setDate(now.getDate() - 7);
+      }
+
+      // Get error trends
+      const errorTrends = await db
+        .select({
+          date: sql<string>`date_trunc('day', ${errorLogs.createdAt}::timestamp)`,
+          severity: errorLogs.severity,
+          count: sql<number>`count(*)`,
+        })
+        .from(errorLogs)
+        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
+        .groupBy(sql`date_trunc('day', ${errorLogs.createdAt})`, errorLogs.severity)
+        .orderBy(sql`date_trunc('day', ${errorLogs.createdAt})`);
+
+      // Get most common errors
+      const commonErrors = await db
+        .select({
+          code: errorLogs.code,
+          message: errorLogs.message,
+          count: sql<number>`count(*)`,
+          severity: errorLogs.severity,
+        })
+        .from(errorLogs)
+        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
+        .groupBy(errorLogs.code, errorLogs.message, errorLogs.severity)
+        .orderBy(sql<number>`count(*)`, 'desc')
+        .limit(10);
+
+      // Get error distribution by severity
+      const severityDistribution = await db
+        .select({
+          severity: errorLogs.severity,
+          count: sql<number>`count(*)`,
+        })
+        .from(errorLogs)
+        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
+        .groupBy(errorLogs.severity);
+
+      // Get recent errors with AI analysis
+      const recentErrors = await db
+        .select()
+        .from(errorLogs)
+        .orderBy(errorLogs.createdAt, 'desc')
+        .limit(20);
+
+      res.json({
+        trends: errorTrends,
+        commonErrors,
+        severityDistribution,
+        recentErrors,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add endpoint to log errors
+  app.post("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { message, code, severity, path, details, aiAnalysis } = req.body;
+
+      const [errorLog] = await db
+        .insert(errorLogs)
+        .values({
+          message,
+          code,
+          severity,
+          path,
+          userId: req.user?.id,
+          details,
+          aiAnalysis,
+        })
+        .returning();
+
+      res.status(201).json(errorLog);
+    } catch (error) {
+      next(error);
+    }
+  });
+
 
   // Add 404 handler for API routes
   app.use('/api/*', (req, res) => {

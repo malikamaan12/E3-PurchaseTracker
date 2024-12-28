@@ -122,6 +122,40 @@ export const companyBranding = pgTable("company_branding", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const purchaseApprovers = pgTable("purchase_approvers", {
+  id: serial("id").primaryKey(),
+  departmentId: text("department").notNull(),
+  approverId: integer("approver_id").notNull().references(() => users.id),
+  isMandatory: boolean("is_mandatory").notNull().default(false),
+  level: integer("level").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Add after the existing tables, before validation schemas
+export const errorLogs = pgTable("error_logs", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  code: text("code"),
+  severity: text("severity").notNull(),
+  path: text("path"),
+  userId: integer("user_id").references(() => users.id),
+  details: json("details").$type<Record<string, unknown>>(),
+  aiAnalysis: json("ai_analysis").$type<{
+    prediction: string;
+    suggestions: string[];
+    preventiveMeasures: string[];
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const errorLogRelations = relations(errorLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [errorLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Type definitions
 export type User = InferModel<typeof users>;
 export type SubPurpose = InferModel<typeof subPurposes>;
@@ -131,6 +165,8 @@ export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
 export type CompanyBranding = InferModel<typeof companyBranding>;
 export type AccountRequest = InferModel<typeof accountRequests>;
+export type ErrorLog = typeof errorLogs.$inferSelect;
+export type InsertErrorLog = typeof errorLogs.$inferInsert;
 
 // Relations
 export const userRelations = relations(users, ({ many }) => ({
@@ -371,16 +407,6 @@ export type MandatoryDepartment = typeof mandatoryDepartments[number];
 
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
 
-
-export const purchaseApprovers = pgTable("purchase_approvers", {
-  id: serial("id").primaryKey(),
-  departmentId: text("department").notNull(),
-  approverId: integer("approver_id").notNull().references(() => users.id),
-  isMandatory: boolean("is_mandatory").notNull().default(false),
-  level: integer("level").notNull().default(1),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
   departmentId: z.string().min(1, "Department is required"),

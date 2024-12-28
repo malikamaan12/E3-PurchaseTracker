@@ -7,6 +7,7 @@ import NewRequest from "./pages/NewRequest";
 import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
+import ErrorDashboard from "./pages/ErrorDashboard";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -33,7 +34,10 @@ function App() {
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
       {user.role === "admin" && (
-        <Route path="/admin" component={AdminPanel} />
+        <>
+          <Route path="/admin" component={AdminPanel} />
+          <Route path="/admin/error-analytics" component={ErrorDashboard} />
+        </>
       )}
       <Route component={NotFound} />
     </Switch>
