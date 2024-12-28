@@ -1,40 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
-
-interface RequestResponse {
-  id: number;
-  requestNumber: string;
-  requesterId: number;
-  title: string;
-  description: string;
-  status: string;
-  items: any[];
-  totalEstimatedCost: number;
-  createdAt: string;
-  updatedAt: string;
-  purposeType: string;
-  priority: string;
-  isLocked: boolean;
-  requester: {
-    id: number;
-    username: string;
-    email: string;
-    department: string;
-    role: string;
-    contact_number: string;
-  };
-  approvals: Array<{
-    id: number;
-    requestId: number;
-    approverId: number;
-    status: string;
-    comments?: string;
-    createdAt: string;
-    department?: string;
-    isMandatory?: boolean;
-  }>;
-}
+import { visualizeError, createErrorContext } from "@/lib/errorUtils";
 
 export function usePurchaseRequests() {
   const { toast } = useToast();
@@ -68,11 +35,19 @@ export function usePurchaseRequests() {
     }
   };
 
-  const { data: requests = [], isLoading, error } = useQuery<RequestResponse[]>({
+  // Fetch all requests
+  const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     retry: 1,
-    staleTime: 30000
+    staleTime: 30000,
+    onError: (error) => {
+      visualizeError(createErrorContext(error, 'error', {
+        path: '/api/requests',
+        details: 'Failed to fetch purchase requests'
+      }));
+    }
   });
+
 
   // Create approval mutation
   const createApproval = useMutation({
@@ -107,93 +82,10 @@ export function usePurchaseRequests() {
     },
   });
 
-  // Create request mutation
-  const createRequest = useMutation({
-    mutationFn: async (data: Partial<PurchaseRequest>) => {
-      const res = await fetch("/api/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      return handleApiError(res);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
-        description: "Request created successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update request mutation
-  const updateRequest = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
-      const res = await fetch(`/api/requests/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      return handleApiError(res);
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/requests/${variables.id}`] });
-      toast({
-        title: "Success",
-        description: "Request updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete request mutation
-  const deleteRequest = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/requests/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      return handleApiError(res);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
-        description: "Request deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   return {
     requests,
     isLoading,
     error,
-    createRequest: createRequest.mutateAsync,
-    updateRequest: updateRequest.mutateAsync,
-    deleteRequest: deleteRequest.mutateAsync,
     createApproval: createApproval.mutateAsync,
   };
 }

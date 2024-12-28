@@ -426,7 +426,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Fetch requests with proper type handling
+  // Get user's requests with detailed information
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -434,102 +434,68 @@ export function registerRoutes(app: Express): Server {
       }
 
       console.log('Fetching requests for user:', req.user!.id);
-      console.log('User role:', req.user!.role);
-      console.log('User department:', req.user!.department);
 
-      // Build the base query for requests with requester information
-      let requests;
+      // First get the requests with requester information
+      const requests = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          items: purchaseRequests.items,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+          requester: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+            role: users.role,
+            contact_number: users.contact_number
+          }
+        })
+        .from(purchaseRequests)
+        .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+        .where(eq(purchaseRequests.requesterId, req.user!.id));
 
-      // If user is an admin, approver, or special department, show all requests
-      if (
-        req.user!.role === 'admin' ||
-        req.user!.role === 'approver' ||
-        ['CEO Office', 'Director', 'Finance'].includes(req.user!.department)
-      ) {
-        requests = await db
-          .select({
-            id: purchaseRequests.id,
-            requestNumber: purchaseRequests.requestNumber,
-            requesterId: purchaseRequests.requesterId,
-            title: purchaseRequests.title,
-            description: purchaseRequests.description,
-            status: purchaseRequests.status,
-            items: purchaseRequests.items,
-            totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-            createdAt: purchaseRequests.createdAt,
-            updatedAt: purchaseRequests.updatedAt,
-            purposeType: purchaseRequests.purposeType,
-            priority: purchaseRequests.priority,
-            isLocked: purchaseRequests.isLocked,
-            requester: {
-              id: users.id,
-              username: users.username,
-              email: users.email,
-              department: users.department,
-              role: users.role,
-              contact_number: users.contact_number
-            }
-          })
-          .from(purchaseRequests)
-          .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-          .orderBy(desc(purchaseRequests.createdAt));
-      } else {
-        // Regular users only see their own requests
-        requests = await db
-          .select({
-            id: purchaseRequests.id,
-            requestNumber: purchaseRequests.requestNumber,
-            requesterId: purchaseRequests.requesterId,
-            title: purchaseRequests.title,
-            description: purchaseRequests.description,
-            status: purchaseRequests.status,
-            items: purchaseRequests.items,
-            totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-            createdAt: purchaseRequests.createdAt,
-            updatedAt: purchaseRequests.updatedAt,
-            purposeType: purchaseRequests.purposeType,
-            priority: purchaseRequests.priority,
-            isLocked: purchaseRequests.isLocked,
-            requester: {
-              id: users.id,
-              username: users.username,
-              email: users.email,
-              department: users.department,
-              role: users.role,
-              contact_number: users.contact_number
-            }
-          })
-          .from(purchaseRequests)
-          .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-          .where(eq(purchaseRequests.requesterId, req.user!.id))
-          .orderBy(desc(purchaseRequests.createdAt));
+      console.log('Raw requests data:', JSON.stringify(requests, null, 2));
+
+      // Validate request data structure
+      if (!Array.isArray(requests)) {
+        throw new Error('Invalid requests data structure');
       }
 
-      console.log('Found requests:', requests.length);
+      // Validate each request has required fields
+      requests.forEach((request, index) => {
+        if (!request.requester || !request.requester.department) {
+          console.error(`Invalid requester data for request ${index}:`, request);
+          throw new Error(`Missing requester data for request ${request.id}`);
+        }
+      });
 
-      // For each request, fetch its approval records
+      // For each request, fetch its approvals
       const requestsWithApprovals = await Promise.all(
         requests.map(async (request) => {
-          const approvalRecords = await db
-            .select({
-              id: approvals.id,
-              requestId: approvals.requestId,
-              approverId: approvals.approverId,
-              status: approvals.status,
-              comments: approvals.comments,
-              createdAt: approvals.createdAt,
-              updatedAt: approvals.updatedAt
-            })
+          const requestApprovals = await db
+            .select()
             .from(approvals)
             .where(eq(approvals.requestId, request.id));
 
+          console.log(`Approvals for request ${request.id}:`, requestApprovals);
+
           return {
             ...request,
-            approvals: approvalRecords || []
+            approvals: requestApprovals || []
           };
         })
       );
 
+      console.log('Found requests:', requestsWithApprovals.length);
       return res.json(requestsWithApprovals);
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -598,7 +564,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
 
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
@@ -745,6 +710,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
@@ -973,7 +939,8 @@ export function registerRoutes(app: Express): Server {
 
       switch (timeRange) {
         case '24h':
-          startDate.setHours(now.getHours() - 24);          break;
+          startDate.setHours(now.getHours() - 24);
+          break;
         case '7d':
           startDate.setDate(now.getDate() - 7);
           break;
@@ -981,7 +948,7 @@ export function registerRoutes(app: Express): Server {
           startDate.setDate(now.getDate() - 30);
           break;
         default:
-          startDate.setDate(now.getDate() - 77);
+          startDate.setDate(now.getDate() - 7);
       }
 
       // Get error trends
