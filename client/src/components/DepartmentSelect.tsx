@@ -17,10 +17,18 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { mandatoryDepartments } from "@db/schema";
 
-// Split departments into mandatory and optional
+// Define mandatory approvers
+const mandatoryApprovers = ["CEO Office", "Finance", "Director"];
+
+// All other departments are optional
 const optionalDepartments = [
+  "Business",
+  "Management",
+  "Operation",
+  "Support",
+  "Sales",
+  "Marketing",
   "Business Growth",
   "Branding",
   "Logistics",
@@ -33,9 +41,8 @@ const optionalDepartments = [
   "Quality Assurance",
   "Customer Service",
   "Project Management",
-  "Sales",
-  "Marketing"
-].filter(dept => !mandatoryDepartments.includes(dept));
+  "Administration"
+];
 
 interface DepartmentSelectProps {
   label: string;
@@ -79,7 +86,7 @@ export default function DepartmentSelect({
           Mandatory Approvers:
         </div>
         <div className="flex flex-wrap gap-2">
-          {mandatoryDepartments.map((dept) => (
+          {mandatoryApprovers.map((dept) => (
             <Badge key={dept} variant="secondary" className="bg-muted">
               <Lock className="w-3 h-3 mr-1" />
               {dept}
