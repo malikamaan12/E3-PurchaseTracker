@@ -37,7 +37,6 @@ export default function AccountRequestForm() {
       role: "user",
       status: "pending",
       contact_number: "",
-      purpose: "",
     },
     mode: "onBlur",
   });
@@ -50,7 +49,6 @@ export default function AccountRequestForm() {
       const formData = {
         ...data,
         contact_number: data.contact_number.trim(),
-        purpose: data.purpose?.trim() || "",
       };
 
       console.log('Processed form data:', formData);
@@ -175,22 +173,6 @@ export default function AccountRequestForm() {
           <motion.div variants={formItemVariants}>
             <FormField
               control={form.control}
-              name="purpose"
-              render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>Purpose</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Enter purpose" />
-                  </FormControl>
-                  <FormErrorTooltip message={form.formState.errors.purpose?.message} />
-                </FormItem>
-              )}
-            />
-          </motion.div>
-
-          <motion.div variants={formItemVariants}>
-            <FormField
-              control={form.control}
               name="department"
               render={({ field }) => (
                 <FormItem className="relative">
@@ -210,6 +192,31 @@ export default function AccountRequestForm() {
                     </SelectContent>
                   </Select>
                   <FormErrorTooltip message={form.formState.errors.department?.message} />
+                </FormItem>
+              )}
+            />
+          </motion.div>
+
+          <motion.div variants={formItemVariants}>
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="approver">Approver</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormErrorTooltip message={form.formState.errors.role?.message} />
                 </FormItem>
               )}
             />
