@@ -259,35 +259,73 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
 });
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
+  title: z.string()
+    .min(1, "Title is required")
+    .max(100, "Title cannot exceed 100 characters"),
+  description: z.string()
+    .min(10, "Description must be at least 10 characters")
+    .max(500, "Description cannot exceed 500 characters"),
   items: z.array(z.object({
-    name: z.string().min(1, "Item name is required"),
-    quantity: z.number().int().positive("Quantity must be a positive number"),
-    estimatedCost: z.number().min(0, "Cost must be non-negative"),
-    description: z.string().optional()
+    name: z.string()
+      .min(1, "Item name is required")
+      .max(100, "Item name cannot exceed 100 characters"),
+    quantity: z.number()
+      .int("Quantity must be a whole number")
+      .positive("Quantity must be a positive number")
+      .max(999999, "Quantity is too large"),
+    estimatedCost: z.number()
+      .min(0, "Cost cannot be negative")
+      .max(999999999, "Cost is too large"),
+    description: z.string()
+      .max(200, "Item description cannot exceed 200 characters")
+      .optional()
   })).min(1, "At least one item is required"),
-  companyName: z.string().min(1, "Company name is required"),
-  contactPerson: z.string().min(1, "Contact person is required"),
+  companyName: z.string()
+    .min(1, "Company name is required")
+    .max(100, "Company name cannot exceed 100 characters"),
+  contactPerson: z.string()
+    .min(1, "Contact person is required")
+    .max(100, "Contact person name cannot exceed 100 characters"),
   contact_number: z.string()
     .min(1, "Contact number is required")
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol")
     .transform((val) => (val || "").trim()),
-  accountNumber: z.string().min(1, "Account number is required"),
+  accountNumber: z.string()
+    .min(1, "Account number is required")
+    .max(50, "Account number cannot exceed 50 characters")
+    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
   purpose: z.string()
     .min(1, "Purpose is required")
+    .max(200, "Purpose cannot exceed 200 characters")
     .transform((val) => (val || "").trim()),
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  purposeType: z.enum(["event", "project", "mall", "business_growth"], {
+    errorMap: () => ({ message: "Please select a valid purpose type" })
+  }),
   subPurposeId: z.number().optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
-  currency: z.enum(["QAR", "USD", "CNY"]),
-  totalEstimatedCost: z.coerce.number().min(0, "Total cost must be non-negative"),
-  freightAmount: z.coerce.number().min(0, "Freight amount must be non-negative"),
-  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
+  priority: z.enum(["low", "medium", "high", "urgent"], {
+    errorMap: () => ({ message: "Please select a valid priority level" })
+  }),
+  currency: z.enum(["QAR", "USD", "CNY"], {
+    errorMap: () => ({ message: "Please select a valid currency" })
+  }),
+  totalEstimatedCost: z.coerce
+    .number()
+    .min(0, "Total cost cannot be negative")
+    .max(999999999, "Total cost is too large"),
+  freightAmount: z.coerce
+    .number()
+    .min(0, "Freight amount cannot be negative")
+    .max(999999999, "Freight amount is too large"),
+  status: z.enum(
+    ["draft", "pending", "approved", "rejected", "changes_requested"],
+    {
+      errorMap: () => ({ message: "Invalid request status" })
+    }
+  ),
   isLocked: z.boolean().optional(),
-  mandatoryApproversCount: z.number().optional(),
+  mandatoryApproversCount: z.number().int().min(0).optional(),
   requestNumber: z.string().optional(),
   requesterId: z.number().optional(),
   priorityScore: z.number().optional(),
