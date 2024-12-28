@@ -722,7 +722,7 @@ export function registerRoutes(app: Express): Server {
         .from(errorLogs)
         .where(sql`${errorLogs.createdAt} >= ${startDate}`)
         .groupBy(errorLogs.code, errorLogs.message, errorLogs.severity)
-        .orderBy(sql<number>`COUNT(*)`, 'desc')
+        .orderBy(sql<number>`COUNT(*)::integer DESC`)
         .limit(10);
 
       // Get error distribution by severity
@@ -742,6 +742,13 @@ export function registerRoutes(app: Express): Server {
         .from(errorLogs)
         .orderBy(desc(errorLogs.createdAt))
         .limit(20);
+
+      console.log('Successfully fetched error analytics:', {
+        trendsCount: errorTrends.length,
+        commonErrorsCount: commonErrors.length,
+        distributionCount: severityDistribution.length,
+        recentErrorsCount: recentErrors.length,
+      });
 
       res.json({
         trends: errorTrends,
@@ -773,8 +780,15 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      console.log('Successfully logged error:', {
+        id: errorLog.id,
+        message: errorLog.message,
+        severity: errorLog.severity,
+      });
+
       res.status(201).json(errorLog);
     } catch (error) {
+      console.error('Error logging error:', error);
       next(error);
     }
   });

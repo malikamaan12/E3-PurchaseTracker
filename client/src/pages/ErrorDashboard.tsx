@@ -38,6 +38,8 @@ const SEVERITY_COLORS = {
   info: "#3b82f6",
 } as const;
 
+type TimeRange = "24h" | "7d" | "30d";
+
 interface ErrorAnalytics {
   trends: Array<{
     date: string;
@@ -68,7 +70,7 @@ interface ErrorAnalytics {
 }
 
 export default function ErrorDashboard() {
-  const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("7d");
+  const [timeRange, setTimeRange] = useState<TimeRange>("7d");
 
   const { data: analytics, isLoading } = useQuery<ErrorAnalytics>({
     queryKey: ["/api/analytics/errors", { range: timeRange }],
@@ -94,7 +96,10 @@ export default function ErrorDashboard() {
     <div className="container mx-auto p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Error Analytics Dashboard</h1>
-        <Select value={timeRange} onValueChange={setTimeRange}>
+        <Select 
+          value={timeRange} 
+          onValueChange={(value: TimeRange) => setTimeRange(value)}
+        >
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Time Range" />
           </SelectTrigger>
@@ -226,39 +231,41 @@ export default function ErrorDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {analytics.recentErrors.map((error) => (
-              <div
-                key={error.id}
-                className={`p-4 rounded-lg border-l-4 border-${
-                  SEVERITY_COLORS[error.severity]
-                } bg-background`}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-medium">{error.message}</h3>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(error.createdAt).toLocaleString()}
-                  </span>
-                </div>
-                {error.aiAnalysis && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">Prediction:</span>{" "}
-                      {error.aiAnalysis.prediction}
-                    </p>
-                    {error.aiAnalysis.suggestions?.length > 0 && (
-                      <div className="text-sm">
-                        <span className="font-medium">Suggestions:</span>
-                        <ul className="list-disc list-inside mt-1">
-                          {error.aiAnalysis.suggestions.map((suggestion, i) => (
-                            <li key={i}>{suggestion}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+            {analytics.recentErrors.map((error) => {
+              const severityColor = SEVERITY_COLORS[error.severity];
+              return (
+                <div
+                  key={error.id}
+                  className="p-4 rounded-lg bg-background"
+                  style={{ borderLeft: `4px solid ${severityColor}` }}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium">{error.message}</h3>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(error.createdAt).toLocaleString()}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {error.aiAnalysis && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm">
+                        <span className="font-medium">Prediction:</span>{" "}
+                        {error.aiAnalysis.prediction}
+                      </p>
+                      {error.aiAnalysis.suggestions?.length > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium">Suggestions:</span>
+                          <ul className="list-disc list-inside mt-1">
+                            {error.aiAnalysis.suggestions.map((suggestion, i) => (
+                              <li key={i}>{suggestion}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
