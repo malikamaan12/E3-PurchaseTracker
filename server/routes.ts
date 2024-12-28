@@ -6,7 +6,7 @@ import {
   notifications, 
   accountRequests, 
   purchaseRequests, 
-  subPurposes, 
+  subPurposes,
   insertAccountRequestSchema, 
   approvals,
   purchaseApprovers,
@@ -23,22 +23,26 @@ import { setupAuth } from './auth';
 import { z } from 'zod';
 import * as crypto from 'crypto';
 
+// Debug logging utility
+const debug = (req: Request, message: string, data?: any) => {
+  console.log(`[${req.id}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+};
+
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
   setupAuth(app);
 
   // Add request validation middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    // Add request ID for tracking
     req.id = crypto.randomUUID();
-    console.log(`[${req.id}] ${req.method} ${req.path} started`);
+    debug(req, `${req.method} ${req.path} started`);
     next();
   });
 
   // Enhanced error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log(`[${req.id}] Error occurred:`, err);
+      debug(req, 'Error occurred:', err);
       const error = await handleError(err);
 
       // Ensure proper error logging with JSON serialization
@@ -49,21 +53,20 @@ export function registerRoutes(app: Express): Server {
           severity: error.severity || 'error',
           path: req.path,
           userId: req.user?.id,
-          details: error.details || null,
-          aiAnalysis: error.details?.aiAnalysis || null
+          details: error.details || {},
+          aiAnalysis: error.details?.aiAnalysis || {}
         };
 
         // Validate error log data
         const validatedData = insertErrorLogSchema.safeParse(errorLogData);
         if (!validatedData.success) {
-          console.error(`[${req.id}] Error log validation failed:`, validatedData.error);
-          // Continue without logging if validation fails
+          debug(req, 'Error log validation failed:', validatedData.error);
         } else {
           await db.insert(errorLogs).values(validatedData.data);
-          console.log(`[${req.id}] Error logged to database`);
+          debug(req, 'Error logged to database');
         }
       } catch (logError) {
-        console.error(`[${req.id}] Failed to log error:`, logError);
+        debug(req, 'Failed to log error:', logError);
       }
 
       // Ensure valid status code
@@ -80,7 +83,7 @@ export function registerRoutes(app: Express): Server {
         });
       }
     } catch (handlingError) {
-      console.error(`[${req.id}] Error in error handling middleware:`, handlingError);
+      debug(req, 'Error in error handling middleware:', handlingError);
 
       // Ensure response hasn't been sent
       if (!res.headersSent) {
@@ -426,25 +429,62 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Sub-purposes management endpoints
+  // Sub-purposes management endpoints with enhanced logging
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes', { purposeType });
 
-      let query = db
+      const query = db
         .select()
         .from(subPurposes)
         .orderBy(subPurposes.createdAt);
 
       if (purposeType) {
-        query = query.where(eq(subPurposes.purposeType, purposeType as string));
+        query.where(eq(subPurposes.purposeType, purposeType as string));
       }
 
       const allSubPurposes = await query;
+      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
       res.json(allSubPurposes);
     } catch (error) {
-      console.error('Error fetching sub-purposes:', error);
+      debug(req, 'Error fetching sub-purposes:', error);
       next(new DatabaseError('Failed to fetch sub-purposes'));
+    }
+  });
+
+  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AuthorizationError('Admin access required');
+      }
+
+      debug(req, 'Creating new sub-purpose', req.body);
+      const validationResult = insertSubPurposeSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        debug(req, 'Validation failed:', validationResult.error);
+        throw new ValidationError('Invalid sub-purpose data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Create new sub-purpose with proper timestamp handling
+      const now = new Date();
+      const [newSubPurpose] = await db
+        .insert(subPurposes)
+        .values({
+          ...validationResult.data,
+          createdAt: now,
+          updatedAt: now
+        })
+        .returning();
+
+      debug(req, 'Successfully created sub-purpose:', newSubPurpose);
+      res.status(201).json(newSubPurpose);
+    } catch (error) {
+      debug(req, 'Error creating sub-purpose:', error);
+      next(error);
     }
   });
 
@@ -466,40 +506,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
-  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
-
-      console.log('Creating new sub-purpose with data:', req.body);
-      const validationResult = insertSubPurposeSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        throw new ValidationError('Invalid sub-purpose data', {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Create new sub-purpose
-      const [newSubPurpose] = await db
-        .insert(subPurposes)
-        .values({
-          ...validationResult.data,
-          updatedAt: new Date(),
-          createdAt: new Date()
-        })
-        .returning();
-
-      console.log('Successfully created sub-purpose:', newSubPurpose.id);
-      res.status(201).json(newSubPurpose);
-    } catch (error) {
-      console.error('Error creating sub-purpose:', error);
-      next(error);
-    }
-  });
-
   app.post("/api/admin/sub-purposes/:id/toggle-freeze", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {

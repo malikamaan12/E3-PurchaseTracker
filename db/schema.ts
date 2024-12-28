@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations, type InferModel } from "drizzle-orm";
 import { z } from "zod";
@@ -55,6 +55,7 @@ export const errorLogs = pgTable("error_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Sub-purposes table definition
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -91,8 +92,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityReason: text("priority_reason"),
   priorityRecommendations: json("priority_recommendations").$type<string[]>(),
   currency: text("currency").notNull().default("QAR"),
-  totalEstimatedCost: decimal("total_estimated_cost", { precision: 10, scale: 2 }).notNull(),
-  freightAmount: decimal("freight_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  totalEstimatedCost: json("total_estimated_cost").$type<number>().notNull(),
+  freightAmount: json("freight_amount").$type<number>().notNull().default('0'),
   status: text("status").notNull().default("draft"),
   isLocked: boolean("is_locked").notNull().default(false),
   mandatoryApproversCount: integer("mandatory_approvers_count").notNull().default(0),
@@ -203,7 +204,7 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
 
 // ============= Basic Type Definitions =============
 export type User = InferModel<typeof users>;
-export type SubPurpose = InferModel<typeof subPurposes>;
+export type SubPurpose = typeof subPurposes.$inferSelect;
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
@@ -218,6 +219,8 @@ export type SelectUser = typeof users.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 export type SelectNotification = typeof notifications.$inferSelect;
 export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;
+export type InsertSubPurpose = typeof subPurposes.$inferInsert;
+
 
 // ============= Validation Schemas =============
 export const loginSchema = z.object({
@@ -237,6 +240,7 @@ export const insertUserSchema = createInsertSchema(users, {
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
+// Sub-purpose validation schema with proper exports
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
@@ -343,6 +347,7 @@ export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers
 // Using createSelectSchema for error logs with proper typing
 export const selectErrorLogSchema = createSelectSchema(errorLogs);
 
+export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 
 // ============= Error log schemas =============
 export const insertErrorLogSchema = z.object({
