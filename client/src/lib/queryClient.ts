@@ -9,30 +9,33 @@ export const queryClient = new QueryClient({
             credentials: "include",
           });
 
-          if (!res.ok) {
-            // First try to get JSON error
-            const contentType = res.headers.get("content-type");
-            if (contentType?.includes("application/json")) {
-              const errorData = await res.json();
-              throw new Error(errorData.message || `${res.status}: ${res.statusText}`);
+          // Always try to parse JSON first
+          try {
+            const data = await res.json();
+
+            // If response is not ok, throw the error data
+            if (!res.ok) {
+              throw new Error(data.message || `${res.status}: ${res.statusText}`);
             }
 
-            // Fallback to text error
-            const errorText = await res.text();
-            // Check if the response is HTML (likely an error page)
-            if (errorText.toLowerCase().includes('<!doctype html>')) {
+            return data;
+          } catch (parseError) {
+            // If JSON parsing fails, handle text response
+            const text = await res.text();
+
+            // If the response looks like HTML, it's probably an error page
+            if (text.toLowerCase().includes('<!doctype html>')) {
               throw new Error(`Server Error (${res.status}): The server encountered an error`);
             }
-            throw new Error(errorText || `${res.status}: ${res.statusText}`);
-          }
 
-          // Verify JSON content type
-          const contentType = res.headers.get("content-type");
-          if (!contentType?.includes("application/json")) {
-            throw new Error(`Invalid response format: Expected JSON but got ${contentType}`);
-          }
+            // If not ok and not HTML, throw the text as error
+            if (!res.ok) {
+              throw new Error(text || `${res.status}: ${res.statusText}`);
+            }
 
-          return res.json();
+            // If ok but not JSON, throw format error
+            throw new Error(`Invalid response format: Expected JSON but got ${res.headers.get('content-type')}`);
+          }
         } catch (error) {
           if (error instanceof Error) {
             throw error;

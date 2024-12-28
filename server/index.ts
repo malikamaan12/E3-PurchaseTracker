@@ -18,6 +18,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Set default content type for API routes
+app.use('/api', (req, res, next) => {
+  res.type('application/json');
+  next();
+});
+
 // Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
@@ -81,7 +87,7 @@ async function initializeServer() {
     const server = await registerRoutes(app);
     log("Routes registered successfully");
 
-    // Global error handler with improved logging
+    // Global error handler with improved JSON responses
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Server error:', {
         message: err.message,
@@ -89,11 +95,27 @@ async function initializeServer() {
         status: err.status || err.statusCode || 500
       });
 
+      // Ensure content type is set to application/json
+      res.type('application/json');
+
       const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      res.status(status).json({ 
-        message,
-        error: app.get('env') === 'development' ? err.stack : undefined
+      const errorResponse = {
+        error: true,
+        message: err.message || "Internal Server Error",
+        details: app.get('env') === 'development' ? {
+          stack: err.stack,
+          ...err
+        } : undefined
+      };
+
+      res.status(status).json(errorResponse);
+    });
+
+    // 404 handler for API routes
+    app.use('/api/*', (req, res) => {
+      res.status(404).json({
+        error: true,
+        message: `API endpoint not found: ${req.path}`
       });
     });
 
