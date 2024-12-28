@@ -15,7 +15,7 @@ import {
   insertPurchaseRequestSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { AppError } from './utils/errors';
+import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
 import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
 import { z } from 'zod';
@@ -23,6 +23,45 @@ import { z } from 'zod';
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
   setupAuth(app);
+
+  // Add enhanced error handling middleware
+  app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
+    try {
+      const error = await handleError(err);
+
+      // Log error to database
+      try {
+        await db.insert(errorLogs).values({
+          message: error.message,
+          code: error.code,
+          severity: error.severity,
+          path: req.path,
+          userId: req.user?.id,
+          details: error.details,
+          aiAnalysis: error.details?.aiAnalysis
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+
+      // Send error response
+      res.status(error.status).json({
+        status: 'error',
+        message: error.message,
+        code: error.code,
+        severity: error.severity,
+        ...(error.details && { details: error.details })
+      });
+    } catch (handlingError) {
+      console.error('Error in error handling middleware:', handlingError);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error',
+        code: 'INTERNAL_ERROR',
+        severity: 'critical'
+      });
+    }
+  });
 
   // Approver management endpoints
   app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
@@ -59,7 +98,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/approvers", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const { departmentId, approverId, isMandatory, level } = req.body;
@@ -75,7 +114,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!approver) {
-        return res.status(404).json({ message: 'Approver not found or inactive' });
+        throw new AppError('Approver not found or inactive', 404);
       }
 
       // Create new approver assignment
@@ -92,14 +131,14 @@ export function registerRoutes(app: Express): Server {
       res.json(newApprover);
     } catch (error) {
       console.error('Error creating approver assignment:', error);
-      next(new AppError('Failed to create approver assignment', 500));
+      next(error);
     }
   });
 
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const approverId = parseInt(req.params.id);
@@ -112,7 +151,7 @@ export function registerRoutes(app: Express): Server {
       res.json({ message: 'Approver assignment deleted successfully' });
     } catch (error) {
       console.error('Error deleting approver assignment:', error);
-      next(new AppError('Failed to delete approver assignment', 500));
+      next(error);
     }
   });
 
@@ -185,7 +224,7 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       console.error('Error processing account request:', error);
-      next(new AppError('Failed to process account request', 500));
+      next(error);
     }
   });
 
@@ -193,7 +232,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        throw new AppError('Not authenticated', 401);
       }
 
       console.log('Fetching requests for user:', req.user!.id);
@@ -262,7 +301,7 @@ export function registerRoutes(app: Express): Server {
       return res.json(requestsWithApprovals);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      next(new AppError('Failed to fetch requests', 500));
+      next(error);
     }
   });
 
@@ -270,7 +309,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        throw new AppError('Not authenticated', 401);
       }
 
       console.log('Received request body:', JSON.stringify(req.body, null, 2));
@@ -314,7 +353,7 @@ export function registerRoutes(app: Express): Server {
       res.status(201).json(newRequest);
     } catch (error) {
       console.error('Error creating purchase request:', error);
-      next(new AppError('Failed to create purchase request', 500));
+      next(error);
     }
   });
 
@@ -339,7 +378,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const allSubPurposes = await db
@@ -350,14 +389,14 @@ export function registerRoutes(app: Express): Server {
       res.json(allSubPurposes);
     } catch (error) {
       console.error('Error fetching sub-purposes:', error);
-      next(new AppError('Failed to fetch sub-purposes', 500));
+      next(error);
     }
   });
 
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const { name, purposeType, validFrom, validTo } = req.body;
@@ -377,14 +416,14 @@ export function registerRoutes(app: Express): Server {
       res.json(newSubPurpose);
     } catch (error) {
       console.error('Error creating sub-purpose:', error);
-      next(new AppError('Failed to create sub-purpose', 500));
+      next(error);
     }
   });
 
   app.post("/api/admin/sub-purposes/:id/toggle-freeze", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const subPurposeId = parseInt(req.params.id);
@@ -398,13 +437,13 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       if (!updatedSubPurpose) {
-        return res.status(404).json({ message: 'Sub-purpose not found' });
+        throw new AppError('Sub-purpose not found', 404);
       }
 
       res.json(updatedSubPurpose);
     } catch (error) {
       console.error('Error updating sub-purpose:', error);
-      next(new AppError('Failed to update sub-purpose', 500));
+      next(error);
     }
   });
 
@@ -412,7 +451,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       console.log('Fetching all users');
@@ -433,7 +472,7 @@ export function registerRoutes(app: Express): Server {
       res.json(allUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
-      next(new AppError('Failed to fetch users', 500));
+      next(error);
     }
   });
 
@@ -441,14 +480,14 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/users/:id/toggle-activation", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const userId = parseInt(req.params.id);
       const { isActive } = req.body;
 
       if (userId === req.user.id) {
-        return res.status(400).json({ message: 'Cannot modify your own account status' });
+        throw new AppError('Cannot modify your own account status', 400);
       }
 
       // Update user's active status
@@ -459,7 +498,7 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found' });
+        throw new AppError('User not found', 404);
       }
 
       res.json({
@@ -472,7 +511,7 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       console.error('Error updating user status:', error);
-      next(new AppError('Failed to update user status', 500));
+      next(error);
     }
   });
 
@@ -480,14 +519,14 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/users/:id/reset-password", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const userId = parseInt(req.params.id);
       const { password } = req.body;
 
       if (!password || password.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+        throw new AppError('Password must be at least 6 characters long', 400);
       }
 
       // Hash the new password
@@ -501,7 +540,7 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found' });
+        throw new AppError('User not found', 404);
       }
 
       res.json({
@@ -513,7 +552,7 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       console.error('Error resetting password:', error);
-      next(new AppError('Failed to reset password', 500));
+      next(error);
     }
   });
 
@@ -521,14 +560,14 @@ export function registerRoutes(app: Express): Server {
   app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const userId = parseInt(req.params.id);
 
       // Prevent self-deletion
       if (userId === req.user.id) {
-        return res.status(400).json({ message: 'Cannot delete your own account' });
+        throw new AppError('Cannot delete your own account', 400);
       }
 
       // Check if user exists
@@ -539,7 +578,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
+        throw new AppError('User not found', 404);
       }
 
       // Check if user has associated purchase requests
@@ -550,9 +589,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (purchaseRequest) {
-        return res.status(400).json({
-          message: 'Cannot delete user with associated purchase requests. Please deactivate the user instead.'
-        });
+        throw new AppError('Cannot delete user with associated purchase requests. Please deactivate the user instead.', 400);
       }
 
       console.log('Attempting to delete user:', userId);
@@ -585,14 +622,14 @@ export function registerRoutes(app: Express): Server {
   app.put("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const userId = parseInt(req.params.id);
       const { role } = req.body;
 
       if (!['user', 'approver', 'admin'].includes(role)) {
-        return res.status(400).json({ message: 'Invalid role' });
+        throw new AppError('Invalid role', 400);
       }
 
       // Check if user exists
@@ -603,7 +640,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
+        throw new AppError('User not found', 404);
       }
 
       // Update user role
@@ -623,7 +660,7 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       console.error('Error updating user role:', error);
-      next(new AppError('Failed to update user role', 500));
+      next(error);
     }
   });
 
@@ -631,7 +668,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        throw new AppError('Not authenticated', 401);
       }
       const userNotifications = await db
         .select()
@@ -641,14 +678,14 @@ export function registerRoutes(app: Express): Server {
 
       res.json(userNotifications);
     } catch (error) {
-      next(new AppError('Failed to fetch notifications', 500));
+      next(error);
     }
   });
 
   app.post("/api/notifications/mark-read", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        throw new AppError('Not authenticated', 401);
       }
       const { notificationId } = req.body;
 
@@ -660,7 +697,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json({ message: 'Notification marked as read' });
     } catch (error) {
-      next(new AppError('Failed to update notification', 500));
+      next(error);
     }
   });
 
@@ -668,23 +705,27 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
+      console.log('Fetching account requests...');
       const requests = await db
         .select()
         .from(accountRequests)
-        .orderBy(accountRequests.createdAt);
+        .orderBy(desc(accountRequests.createdAt));
+
+      console.log(`Found ${requests.length} account requests`);
       res.json(requests);
     } catch (error) {
-      next(new AppError('Failed to fetch account requests', 500));
+      console.error('Error fetching account requests:', error);
+      next(error);
     }
   });
 
   app.post("/api/admin/account-requests/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const requestId = parseInt(req.params.id);
@@ -697,11 +738,11 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!accountRequest) {
-        return res.status(404).json({ message: 'Account request not found' });
+        throw new AppError('Account request not found', 404);
       }
 
       if (accountRequest.status !== 'pending') {
-        return res.status(400).json({ message: 'Account request is not pending' });
+        throw new AppError('Account request is not pending', 400);
       }
 
       // Check if username already exists in users table
@@ -712,7 +753,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (existingUser) {
-        return res.status(400).json({ message: 'Username already exists' });
+        throw new AppError('Username already exists', 400);
       }
 
       // Create new user
@@ -745,14 +786,14 @@ export function registerRoutes(app: Express): Server {
         }
       });
     } catch (error) {
-      next(new AppError('Failed to approve account request', 500));
+      next(error);
     }
   });
 
   app.post("/api/admin/account-requests/:id/reject", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const requestId = parseInt(req.params.id);
@@ -765,12 +806,12 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       if (!updatedRequest) {
-        return res.status(404).json({ message: 'Account request not found' });
+        throw new AppError('Account request not found', 404);
       }
 
       res.json({ message: 'Account request rejected' });
     } catch (error) {
-      next(new AppError('Failed to reject account request', 500));
+      next(error);
     }
   });
 
@@ -778,7 +819,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        throw new AppError('Admin access required', 403);
       }
 
       const timeRange = req.query.range as string || '7d';

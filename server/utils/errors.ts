@@ -43,6 +43,30 @@ export class AppError extends Error {
   public async withAnalysis(): Promise<ErrorContext> {
     return enhanceErrorContext(this);
   }
+
+  public static ensureError(err: unknown): AppError {
+    if (err instanceof AppError) {
+      return err;
+    }
+
+    if (err instanceof z.ZodError) {
+      const details = err.errors.map(e => ({
+        path: e.path.join('.'),
+        message: e.message
+      }));
+      const error = new ValidationError('Validation failed');
+      error.details = details;
+      return error;
+    }
+
+    if (err instanceof Error) {
+      const error = new AppError(err.message);
+      error.stack = err.stack;
+      return error;
+    }
+
+    return new AppError(String(err));
+  }
 }
 
 export class ValidationError extends AppError {
@@ -74,38 +98,37 @@ export class NotFoundError extends AppError {
   }
 }
 
-export class AnthropicError extends AppError {
-  constructor(message: string) {
-    super(message, 503, 'critical');
-    this.code = 'ANTHROPIC_API_ERROR';
+export class DatabaseError extends AppError {
+  constructor(message: string = 'Database operation failed') {
+    super(message, 500, 'critical');
+    this.code = 'DATABASE_ERROR';
+  }
+}
+
+export class SessionError extends AppError {
+  constructor(message: string = 'Session error occurred') {
+    super(message, 500, 'error');
+    this.code = 'SESSION_ERROR';
   }
 }
 
 export async function handleError(err: unknown): Promise<AppError> {
-  console.error('Original error:', err);
+  const error = AppError.ensureError(err);
+  console.error('Error details:', {
+    name: error.name,
+    message: error.message,
+    status: error.status,
+    severity: error.severity,
+    code: error.code,
+    timestamp: error.timestamp,
+    stack: error.stack
+  });
 
-  let appError: AppError;
-
-  if (err instanceof AppError) {
-    appError = err;
-  } else if (err instanceof z.ZodError) {
-    const details = err.errors.map(e => ({
-      path: e.path.join('.'),
-      message: e.message
-    }));
-    appError = new ValidationError('Validation failed', { details });
-  } else if (err instanceof Error) {
-    console.error('Error stack:', err.stack);
-    appError = new AppError(err.message);
-    appError.stack = err.stack;
-  } else {
-    console.error('Unhandled error:', err);
-    appError = new AppError('An unexpected error occurred', 500, 'critical');
+  // Enhance error with AI analysis for 500-level errors
+  if (error.status >= 500) {
+    const enhancedContext = await error.withAnalysis();
+    error.details = enhancedContext.details;
   }
 
-  // Enhance error with AI analysis
-  const enhancedContext = await appError.withAnalysis();
-  appError.details = enhancedContext.details;
-
-  return appError;
+  return error;
 }
