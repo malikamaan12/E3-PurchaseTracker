@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, purchaseRequests, subPurposes, notifications, companyBranding } from "@db/schema";
+import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests } from "@db/schema";
 import { eq } from "drizzle-orm";
 import path from 'path';
 import fs from 'fs';
@@ -11,16 +11,61 @@ import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './uti
 import { logoUpload, attachmentUpload, handleUploadError } from './utils/middleware';
 import passport from 'passport';
 
+// Authorization middleware
+const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
+};
+
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
-  // Authentication routes with enhanced error handling
+  // Admin routes with enhanced security
+  app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      console.log('Fetching all users');
+      const allUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          department: users.department,
+          role: users.role,
+          contactNumber: users.contactNumber,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        })
+        .from(users)
+        .orderBy(users.username);
+
+      res.json(allUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      next(new AppError('Failed to fetch users', 500));
+    }
+  });
+
+  app.get("/api/admin/account-requests", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requests = await db
+        .select()
+        .from(accountRequests)
+        .orderBy(accountRequests.createdAt);
+      res.json(requests);
+    } catch (error) {
+      next(new AppError('Failed to fetch account requests', 500));
+    }
+  });
+
+  // Authentication routes
   app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Login request received:', { username: req.body.username });
-
       if (!req.body.username || !req.body.password) {
-        console.log('Login failed: Missing credentials');
         return res.status(400).json({ message: 'Username and password are required' });
       }
 
@@ -37,12 +82,11 @@ export function registerRoutes(app: Express): Server {
 
         req.logIn(user, (loginErr) => {
           if (loginErr) {
-            console.error('Login session error:', loginErr);
+            console.error('Login error:', loginErr);
             return next(loginErr);
           }
 
-          console.log('Login successful:', { userId: user.id, username: user.username });
-          return res.json({ 
+          return res.json({
             user: {
               id: user.id,
               username: user.username,
