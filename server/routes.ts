@@ -13,7 +13,8 @@ import {
   errorLogs,
   insertErrorLogSchema,
   type PurchaseApprover,
-  insertPurchaseRequestSchema
+  insertPurchaseRequestSchema,
+  insertSubPurposeSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -446,7 +447,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
+        throw new AuthorizationError('Admin access required');
       }
 
       const allSubPurposes = await db
@@ -464,24 +465,24 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
+        throw new AuthorizationError('Admin access required');
       }
 
-      const { name, purposeType, validFrom, validTo } = req.body;
+      const validationResult = insertSubPurposeSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid sub-purpose data', {
+          errors: validationResult.error.errors
+        });
+      }
 
       // Create new sub-purpose
       const [newSubPurpose] = await db
         .insert(subPurposes)
-        .values({
-          name,
-          purposeType,
-          validFrom: validFrom ? new Date(validFrom) : null,
-          validTo: validTo ? new Date(validTo) : null,
-          isFrozen: false
-        })
+        .values(validationResult.data)
         .returning();
 
-      res.json(newSubPurpose);
+      res.status(201).json(newSubPurpose);
     } catch (error) {
       console.error('Error creating sub-purpose:', error);
       next(error);
@@ -491,11 +492,15 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/sub-purposes/:id/toggle-freeze", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
+        throw new AuthorizationError('Admin access required');
       }
 
       const subPurposeId = parseInt(req.params.id);
       const { isFrozen } = req.body;
+
+      if (typeof isFrozen !== 'boolean') {
+        throw new ValidationError('isFrozen must be a boolean value');
+      }
 
       // Update sub-purpose freeze status
       const [updatedSubPurpose] = await db
