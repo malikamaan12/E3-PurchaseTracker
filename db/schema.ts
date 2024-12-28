@@ -25,6 +25,7 @@ export const accountRequests = pgTable("account_requests", {
   email: text("email").notNull(),
   contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
+  purpose: text("purpose").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -218,15 +219,15 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  department: z.string().refine(
-    (val) => mandatoryDepartments.includes(val as any),
-    "Invalid department"
-  ),
   purpose: z.string()
     .trim()
-    .min(1, "Purpose is required"),
+    .min(1, "Purpose is required")
+    .min(3, "Purpose must be at least 3 characters"),
+  department: z.string()
+    .min(1, "Department is required")
+    .refine((val) => mandatoryDepartments.includes(val as any), "Invalid department"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
-  status: z.enum(["pending", "approved", "rejected"]).default("pending")
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications);
