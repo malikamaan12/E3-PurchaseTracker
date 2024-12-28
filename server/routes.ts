@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests, subPurposes, purchaseApprovers, insertPurchaseRequestSchema } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests, subPurposes, insertAccountRequestSchema } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -13,6 +13,79 @@ export function registerRoutes(app: Express): Server {
 
   // Setup authentication routes and middleware
   setupAuth(app);
+
+  // Account Request endpoint
+  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+    console.log('Received account request:', JSON.stringify(req.body, null, 2));
+
+    try {
+      // Validate request data
+      console.log('Validating request data with schema');
+      const validationResult = insertAccountRequestSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        console.error('Validation errors:', validationResult.error.format());
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: validationResult.error.format()
+        });
+      }
+
+      console.log('Request data validated successfully');
+
+      // Check if username already exists in account requests
+      const [existingRequest] = await db
+        .select()
+        .from(accountRequests)
+        .where(eq(accountRequests.username, validationResult.data.username))
+        .limit(1);
+
+      if (existingRequest) {
+        console.log('Username already exists in account requests');
+        return res.status(400).json({
+          message: 'An account request with this username already exists'
+        });
+      }
+
+      // Check if username exists in users
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, validationResult.data.username))
+        .limit(1);
+
+      if (existingUser) {
+        console.log('Username already exists in users');
+        return res.status(400).json({
+          message: 'Username already exists'
+        });
+      }
+
+      // Hash the password before storing
+      const hashedPassword = await hash(validationResult.data.password, 10);
+
+      // Create account request
+      console.log('Creating new account request');
+      const [newRequest] = await db
+        .insert(accountRequests)
+        .values({
+          ...validationResult.data,
+          password: hashedPassword,
+          status: 'pending'
+        })
+        .returning();
+
+      console.log('Account request created successfully:', newRequest.id);
+
+      res.status(201).json({
+        message: 'Account request submitted successfully',
+        requestId: newRequest.id
+      });
+    } catch (error) {
+      console.error('Error processing account request:', error);
+      next(new AppError('Failed to process account request', 500));
+    }
+  });
 
   // Get user's requests
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {

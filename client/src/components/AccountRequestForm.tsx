@@ -43,13 +43,17 @@ export default function AccountRequestForm() {
   });
 
   const onSubmit = async (data: InsertAccountRequest) => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
+      console.log('Submitting form data:', data);
+
       const formData = {
         ...data,
         contact_number: data.contact_number.trim(),
         purpose: data.purpose?.trim() || "",
       };
+
+      console.log('Processed form data:', formData);
 
       const response = await fetch("/api/auth/request-account", {
         method: "POST",
@@ -58,18 +62,24 @@ export default function AccountRequestForm() {
         credentials: "include",
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit account request');
+        console.error('Form submission error:', responseData);
+        throw new Error(responseData.message || 'Failed to submit account request');
       }
+
+      console.log('Form submitted successfully:', responseData);
 
       toast({
         title: "Success",
         description: "Your account request has been submitted successfully",
       });
+
       form.reset();
     } catch (error: any) {
       console.error("Account request error:", error);
+
       toast({
         title: "Error",
         description: error.message || "Failed to submit account request",
@@ -79,6 +89,9 @@ export default function AccountRequestForm() {
       setIsLoading(false);
     }
   };
+
+  // Log form errors whenever they change
+  console.log('Current form errors:', form.formState.errors);
 
   return (
     <Form {...form}>
