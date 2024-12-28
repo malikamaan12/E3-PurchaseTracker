@@ -323,7 +323,6 @@ export function registerRoutes(app: Express): Server {
       // Transform the request data to match our schema
       const requestData = {
         ...req.body,
-        request_purpose: req.body.purpose || req.body.request_purpose, // Handle both field names
         status: 'pending'
       };
 
@@ -498,7 +497,6 @@ export function registerRoutes(app: Express): Server {
           username: accountRequests.username,
           email: accountRequests.email,
           department: accountRequests.department,
-          request_purpose: accountRequests.request_purpose,
           role: accountRequests.role,
           status: accountRequests.status,
           contact_number: accountRequests.contact_number,
@@ -559,7 +557,8 @@ export function registerRoutes(app: Express): Server {
           email: accountRequest.email,
           contact_number: accountRequest.contact_number,
           department: accountRequest.department,
-          role: accountRequest.role
+          role: accountRequest.role,
+          isActive: true
         })
         .returning();
 
@@ -956,5 +955,4 @@ export function registerRoutes(app: Express): Server {
 
   // Create and return the HTTP server
   const httpServer = createServer(app);
-  return httpServer;
-}
+  return httpServer;}

@@ -463,8 +463,8 @@ export default function AdminPanel() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Purpose Type</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
+                            <Select
+                              onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -491,9 +491,9 @@ export default function AdminPanel() {
                           <FormItem>
                             <FormLabel>Valid From</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="datetime-local" 
-                                {...field} 
+                              <Input
+                                type="datetime-local"
+                                {...field}
                                 value={field.value || ''}
                                 onChange={(e) => {
                                   const date = e.target.value;
@@ -518,9 +518,9 @@ export default function AdminPanel() {
                           <FormItem>
                             <FormLabel>Valid To</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="datetime-local" 
-                                {...field} 
+                              <Input
+                                type="datetime-local"
+                                {...field}
                                 value={field.value || ''}
                                 onChange={(e) => {
                                   const date = e.target.value;
