@@ -1,10 +1,6 @@
-// Standard error handling without Anthropic API
-interface ErrorAnalysisResult {
-  message: string;
-  context: string;
-  suggestions: string[];
-}
+import { type PurchaseRequestWithRelations } from '@db/schema';
 
+// Standard error analysis utility
 export async function analyzeError(error: Error | string | unknown, context: string): Promise<string> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
@@ -14,21 +10,14 @@ export async function analyzeError(error: Error | string | unknown, context: str
     stack: errorStack,
   });
 
-  return `Error occurred in ${context}. Please check the application logs for details.`;
+  return `An error occurred in ${context}. Please try again later.`;
 }
 
-interface AnalysisResult {
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  reason: string;
-  score: number;
-  recommendations?: string[];
-}
-
-export async function analyzePurchaseRequest(request: any): Promise<AnalysisResult> {
+// Standard analysis without AI
+export async function analyzePurchaseRequest(request: PurchaseRequestWithRelations) {
   try {
-    // Basic priority calculation based on request properties
     const totalCost = Number(request.totalEstimatedCost || 0);
-    const hasMandatoryApprovals = request.approvals?.some((a: any) => a.isMandatory);
+    const hasMandatoryApprovals = request.approvals?.some(a => a.isMandatory);
     const isUrgent = request.priority === 'urgent';
 
     let priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -68,25 +57,37 @@ export async function analyzePurchaseRequest(request: any): Promise<AnalysisResu
   }
 }
 
+// Simple UI component analysis without AI
 export async function analyzeUIComponent(
   componentCode: string,
   errorDescription: string
 ): Promise<{
   issues: string[];
   recommendations: string[];
-  fixedCode?: string;
 }> {
-  console.log('UI Component analysis requested:', {
-    componentLength: componentCode.length,
-    errorDescription
-  });
+  const issues = [];
+  const recommendations = [];
 
-  return {
-    issues: ['Manual review required'],
-    recommendations: [
+  // Basic error pattern matching
+  if (errorDescription.toLowerCase().includes('undefined')) {
+    issues.push('Possible null/undefined value access');
+    recommendations.push('Add null checks before accessing properties');
+  }
+
+  if (errorDescription.toLowerCase().includes('type')) {
+    issues.push('Type mismatch in component');
+    recommendations.push('Verify prop types and event handler parameters');
+  }
+
+  // Add default recommendations if no specific issues found
+  if (issues.length === 0) {
+    issues.push('Manual review required');
+    recommendations.push(
       'Check component props and types',
       'Verify event handlers',
       'Review component lifecycle'
-    ]
-  };
+    );
+  }
+
+  return { issues, recommendations };
 }
