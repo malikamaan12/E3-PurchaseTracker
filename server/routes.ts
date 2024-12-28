@@ -159,7 +159,7 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      const { username, password, email, contactNumber, department, role } = validationResult.data;
+      const { username, password, email, contact_number, department, role } = validationResult.data;
 
       // Check if username already exists in users table
       const [existingUser] = await db
@@ -187,7 +187,7 @@ export function registerRoutes(app: Express): Server {
       // Hash password
       const hashedPassword = await hash(password, 10);
 
-      // Create account request
+      // Create account request with correct field names
       console.log('Creating account request for:', username);
       const [newRequest] = await db
         .insert(accountRequests)
@@ -195,7 +195,7 @@ export function registerRoutes(app: Express): Server {
           username,
           password: hashedPassword,
           email,
-          contact_number: contactNumber,
+          contact_number,
           department,
           role,
           status: 'pending',
@@ -218,6 +218,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
 
   // Add request logging middleware
@@ -477,7 +478,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
 
   // Error handling middleware

@@ -22,7 +22,7 @@ export const accountRequests = pgTable("account_requests", {
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(),
+  contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
@@ -128,7 +128,7 @@ export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
 export type CompanyBranding = InferModel<typeof companyBranding>;
-export type AccountRequestModel = InferModel<typeof accountRequests>;
+export type AccountRequest = InferModel<typeof accountRequests>;
 
 // Relations
 export const userRelations = relations(users, ({ many }) => ({
@@ -204,12 +204,15 @@ export const insertUserSchema = createInsertSchema(users, {
 });
 
 // Account Request Schema
-export const insertAccountRequestSchema = z.object({
+export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contactNumber: z.string().min(1, "Contact number is required"),
-  department: z.string().min(1, "Department is required"),
+  contact_number: z.string().min(1, "Contact number is required"),
+  department: z.string().refine(
+    (val) => mandatoryDepartments.includes(val as any),
+    "Invalid department"
+  ),
   role: z.enum(["user", "approver", "admin"]).default("user"),
   status: z.enum(["pending", "approved", "rejected"]).default("pending")
 });
