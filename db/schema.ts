@@ -269,11 +269,13 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   contact_number: z.string()
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format")
+    .optional()
+    .or(z.literal("")),
   accountNumber: z.string().min(1, "Account number is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
-  purpose: z.string().min(1, "Purpose is required"),
+  purpose: z.string().min(1, "Purpose is required").optional().or(z.literal("")),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]).optional(),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().optional(),
