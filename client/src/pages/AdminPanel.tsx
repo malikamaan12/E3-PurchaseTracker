@@ -249,7 +249,7 @@ export default function AdminPanel() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
       toast({
         title: "Success",
         description: "User role updated successfully",
