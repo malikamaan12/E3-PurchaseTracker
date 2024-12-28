@@ -29,11 +29,46 @@ import { Pencil, Trash2, AlertTriangle, Clock, Flag, FileDown, FileIcon, Eye, Fi
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
-import { mandatoryDepartments, type PurchaseRequestWithRelations, type MandatoryDepartment } from "@db/schema";
+import { mandatoryDepartments, type MandatoryDepartment } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
 import { defaultBranding, type TemplateConfig } from '@/lib/pdfTemplates';
+import { useQueryClient } from "@tanstack/react-query";
+
+// Define a more complete request type that includes relations
+interface PurchaseRequestWithRelations extends PurchaseRequest {
+  requester: User;
+  approvals: Approval[];
+  attachments?: Array<{
+    id: number;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+  }>;
+  items?: Array<{
+    name: string;
+    quantity: number;
+    estimatedCost: number;
+    description?: string;
+  }>;
+  requestNumber: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  status: string;
+  priority: string;
+  currency: string;
+  freightAmount: string;
+  purposeType: string;
+  subPurpose?: { name: string };
+  purpose: string;
+  isLocked: boolean;
+  priorityReason?: string;
+  priorityScore?: number;
+  priorityRecommendations?: string[];
+
+}
 
 interface RequestCardProps {
   request: PurchaseRequestWithRelations;
@@ -56,6 +91,7 @@ export default function RequestCard({
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
+  const queryClient = useQueryClient();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -427,7 +463,12 @@ export default function RequestCard({
         <ApprovalFlow
           approvals={request.approvals}
           requestId={request.id}
-          onApprovalUpdate={() => {}} // Refresh data when approval is updated
+          requesterId={request.requesterId}
+          status={request.status}
+          onApprovalUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+            queryClient.invalidateQueries({ queryKey: [`/api/requests/${request.id}`] });
+          }}
         />
 
         {showApproval && (

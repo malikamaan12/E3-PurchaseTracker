@@ -99,7 +99,15 @@ export function usePurchaseRequests() {
 
   // Create approval mutation
   const createApproval = useMutation({
-    mutationFn: async ({ requestId, status, comments }: { requestId: number; status: 'approved' | 'rejected'; comments?: string }) => {
+    mutationFn: async ({ requestId, status, comments }: { 
+      requestId: number; 
+      status: 'approved' | 'rejected' | 'changes_requested'; 
+      comments?: string 
+    }) => {
+      if (!requestId) {
+        throw new Error('Request ID is required');
+      }
+
       const res = await fetch(`/api/requests/${requestId}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,9 +124,9 @@ export function usePurchaseRequests() {
         description: `Request ${variables.status} successfully`,
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       visualizeError(createErrorContext(error, 'error', {
-        path: `/api/requests/${requestId}/approvals`,
+        path: `/api/requests/${variables.requestId}/approvals`,
         details: `Failed to approve/reject request`
       }));
       toast({
