@@ -24,43 +24,60 @@ export const queryClient = new QueryClient({
                 throw new Error(`API endpoint not found: ${queryKey[0]}`);
               }
 
-              // Visualize the error using our error utility
+              // Enhanced error visualization with context
               visualizeError({
                 message: data.message || `${res.status}: ${res.statusText}`,
                 severity: res.status >= 500 ? 'critical' : 'error',
                 code: data.code,
-                details: data.details
+                details: data.details || `Failed to fetch data from ${queryKey[0]}`
               });
 
               throw new Error(data.message || `${res.status}: ${res.statusText}`);
             }
 
+            // Validate and transform response data
+            if (Array.isArray(data)) {
+              return data.map(item => {
+                // Ensure requester object has all required fields
+                if (item.requester) {
+                  item.requester = {
+                    id: item.requester.id || 0,
+                    username: item.requester.username || '',
+                    email: item.requester.email || '',
+                    department: item.requester.department || 'Unknown',
+                    role: item.requester.role || 'user',
+                    contact_number: item.requester.contact_number || ''
+                  };
+                }
+                return item;
+              });
+            }
+
             return data;
           } catch (parseError) {
-            // If JSON parsing fails, handle text response
+            console.error('Response parsing error:', parseError);
             const text = await res.text();
 
-            // If the response looks like HTML, it's probably an error page
             if (text.toLowerCase().includes('<!doctype html>')) {
               throw new Error(`Server Error (${res.status}): The server encountered an error`);
             }
 
-            // If not ok and not HTML, throw the text as error
             if (!res.ok) {
               throw new Error(text || `${res.status}: ${res.statusText}`);
             }
 
-            // If ok but not JSON, throw format error
             throw new Error(`Invalid response format: Expected JSON but got ${res.headers.get('content-type')}`);
           }
         } catch (error) {
-          // Log error for debugging
+          // Enhanced error logging
           console.error('Query error:', {
             queryKey,
             error: error instanceof Error ? {
               message: error.message,
-              stack: error.stack
-            } : error
+              stack: error.stack,
+              name: error.name
+            } : error,
+            timestamp: new Date().toISOString()
           });
 
           if (error instanceof Error) {
@@ -69,13 +86,12 @@ export const queryClient = new QueryClient({
           throw new Error('An unexpected error occurred');
         }
       },
-      staleTime: 30 * 1000, // Data considered fresh for 30 seconds
-      gcTime: 5 * 60 * 1000, // Keep unused data in cache for 5 minutes
-      refetchOnWindowFocus: true, // Refetch when window regains focus
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: true,
       refetchOnMount: true,
       refetchOnReconnect: true,
       retry: (failureCount, error) => {
-        // Only retry on network errors or 5xx errors, not on 404s or validation errors
         if (error instanceof Error) {
           const shouldRetry = 
             error.message.includes('Failed to fetch') || 
