@@ -17,12 +17,12 @@ export function registerRoutes(app: Express): Server {
   // Authentication routes with enhanced error handling
   app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log('Login request received:', { username: req.body.username });
+
       if (!req.body.username || !req.body.password) {
+        console.log('Login failed: Missing credentials');
         return res.status(400).json({ message: 'Username and password are required' });
       }
-
-      // Log the login attempt
-      console.log('Login attempt for username:', req.body.username);
 
       passport.authenticate('local', async (err: any, user: any, info: any) => {
         if (err) {
@@ -31,36 +31,37 @@ export function registerRoutes(app: Express): Server {
         }
 
         if (!user) {
-          // Log failed login attempt
-          console.log('Login failed for username:', req.body.username, 'Reason:', info?.message);
-          return res.status(401).json({ message: info?.message || 'Authentication failed' });
+          console.log('Login failed:', { 
+            username: req.body.username, 
+            reason: info?.message || 'Unknown reason'
+          });
+          return res.status(401).json({ 
+            message: info?.message || 'Invalid username or password'
+          });
         }
 
-        // Verify user exists in database
-        const [dbUser] = await db.select()
-          .from(users)
-          .where(eq(users.id, user.id))
-          .limit(1);
+        // Log successful authentication
+        console.log('Authentication successful:', { 
+          userId: user.id,
+          username: user.username 
+        });
 
-        if (!dbUser) {
-          console.error('User found in passport but not in database:', user.id);
-          return res.status(401).json({ message: 'User account not found' });
-        }
-
-        req.logIn(user, (err) => {
-          if (err) {
-            console.error('Login error:', err);
-            return next(err);
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            console.error('Login session error:', loginErr);
+            return next(loginErr);
           }
-          // Log successful login
-          console.log('Login successful for user:', user.username);
-          res.json({ user: { 
-            id: user.id,
-            username: user.username,
-            department: user.department,
-            role: user.role,
-            email: user.email
-          }});
+
+          console.log('Login session created successfully');
+          return res.json({ 
+            user: {
+              id: user.id,
+              username: user.username,
+              department: user.department,
+              role: user.role,
+              email: user.email
+            }
+          });
         });
       })(req, res, next);
     } catch (error) {
