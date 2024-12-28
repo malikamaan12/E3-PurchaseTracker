@@ -181,13 +181,13 @@ export function registerRoutes(app: Express): Server {
 
       // Handle file uploads first
       await new Promise<void>((resolve, reject) => {
-        attachmentUpload(req, res, (err) => {
+        attachmentUpload.array('files')(req, res, (err) => {
           if (err) reject(handleUploadError(err));
           else resolve();
         });
       });
 
-      const { title, description, purposeType, items, totalEstimatedCost, contactNumber, companyName } = req.body;
+      const { title, description, purposeType, items, totalEstimatedCost, companyName, contactNumber, accountNumber, priority } = req.body;
 
       // Validate required fields
       if (!title || !description || !purposeType) {
@@ -200,13 +200,14 @@ export function registerRoutes(app: Express): Server {
       // Parse items safely
       let parsedItems;
       try {
-        parsedItems = JSON.parse(items || '[]');
+        parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
       } catch (e) {
         throw new AppError('Invalid items format', 400, 'warning');
       }
 
       // Create new purchase request
-      const [newRequest] = await db.insert(purchaseRequests)
+      const [newRequest] = await db
+        .insert(purchaseRequests)
         .values({
           requestNumber,
           requesterId: req.user!.id,
@@ -217,20 +218,38 @@ export function registerRoutes(app: Express): Server {
           totalEstimatedCost: parseFloat(totalEstimatedCost || '0'),
           companyName: companyName || '',
           contactNumber: contactNumber || '',
-          accountNumber: '',
+          accountNumber: accountNumber || '',
           status: 'draft',
-          priority: 'low',
+          priority: priority || 'low',
           freightAmount: 0,
           isLocked: false,
-          mandatoryApproversCount: 0
+          mandatoryApproversCount: 0,
+          currency: 'QAR'
         })
         .returning();
+
+      // Handle file attachments if any
+      if (req.files?.length) {
+        const files = req.files as Express.Multer.File[];
+        const fileAttachments = files.map(file => ({
+          requestId: newRequest.id,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          fileSize: file.size,
+          fileUrl: file.path
+        }));
+
+        if (fileAttachments.length > 0) {
+          await db.insert(fileAttachments).values(fileAttachments);
+        }
+      }
 
       res.status(201).json(newRequest);
     } catch (error) {
       // Clean up uploaded files if request fails
-      if (req.files) {
-        await cleanupUploads(req.files as Express.Multer.File[]);
+      if (req.files?.length) {
+        const files = req.files as Express.Multer.File[];
+        await Promise.all(files.map(file => fs.promises.unlink(file.path).catch(() => {})));
       }
       next(error);
     }
