@@ -265,10 +265,24 @@ export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 
 
+// Constants
+export const mandatoryDepartments = [
+  "CEO Office",
+  "Finance",
+  "Director",
+  "Human Resources",
+  "Information Technology",
+  "Operations",
+  "Sales",
+  "Marketing",
+  "Research & Development",
+  "Legal",
+  "Customer Service",
+  "Supply Chain",
+  "Quality Assurance"
+] as const;
+export type MandatoryDepartment = typeof mandatoryDepartments[number];
+
 // Export type for use in components
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
 export type AccountRequest = InferModel<typeof accountRequests>;
-
-// Constants
-export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;
-export type MandatoryDepartment = typeof mandatoryDepartments[number];
