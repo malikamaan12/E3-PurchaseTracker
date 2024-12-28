@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { users, notifications, accountRequests, purchaseRequests, subPurposes, purchaseApprovers, insertPurchaseRequestSchema } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
@@ -13,6 +13,39 @@ export function registerRoutes(app: Express): Server {
 
   // Setup authentication routes and middleware
   setupAuth(app);
+
+  // Get user's requests
+  app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+
+      console.log('Fetching requests for user:', req.user!.id);
+
+      const userRequests = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          title: purchaseRequests.title,
+          status: purchaseRequests.status,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+        })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.requesterId, req.user!.id))
+        .orderBy(desc(purchaseRequests.createdAt));
+
+      console.log('Found requests:', userRequests.length);
+      res.json(userRequests);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+      next(new AppError('Failed to fetch requests', 500));
+    }
+  });
 
   // Purchase Request endpoints
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
