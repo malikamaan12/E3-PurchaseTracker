@@ -102,9 +102,7 @@ app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: Ne
 
     const [newSubPurpose] = await db
       .insert(subPurposes)
-      .values({
-        ...validationResult.data,
-      })
+      .values(validationResult.data)
       .returning();
 
     debug(req, 'Successfully created sub-purpose:', newSubPurpose);
