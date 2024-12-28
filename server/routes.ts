@@ -21,16 +21,26 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
-      // Validate request data
-      const validationResult = insertPurchaseRequestSchema.safeParse({
+      console.log('Received request body:', JSON.stringify(req.body, null, 2));
+
+      // Prepare the request data with all required fields
+      const requestData = {
         ...req.body,
         status: 'pending',
         requesterId: req.user!.id,
-        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-      });
+        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        // Ensure these required fields are present
+        contact_number: req.body.contact_number?.trim(),
+        purpose: req.body.purpose?.trim()
+      };
+
+      console.log('Prepared request data:', JSON.stringify(requestData, null, 2));
+
+      // Validate request data
+      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
       if (!validationResult.success) {
-        console.error('Validation errors:', validationResult.error.errors);
+        console.error('Validation errors:', JSON.stringify(validationResult.error.errors, null, 2));
         return res.status(400).json({
           message: 'Validation failed',
           errors: validationResult.error.errors
