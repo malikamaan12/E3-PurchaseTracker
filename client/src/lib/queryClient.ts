@@ -14,9 +14,12 @@ export const queryClient = new QueryClient({
             },
           });
 
+          // Clone response before reading
+          const resClone = res.clone();
+
           // Always try to parse JSON first
           try {
-            const data = await res.json();
+            const data = await resClone.json();
 
             // If response is not ok, throw the error data
             if (!res.ok) {
@@ -35,28 +38,23 @@ export const queryClient = new QueryClient({
               throw new Error(data.message || `${res.status}: ${res.statusText}`);
             }
 
-            // Validate and transform response data
-            if (Array.isArray(data)) {
-              return data.map(item => {
-                // Ensure requester object has all required fields
-                if (item.requester) {
-                  item.requester = {
-                    id: item.requester.id || 0,
-                    username: item.requester.username || '',
-                    email: item.requester.email || '',
-                    department: item.requester.department || 'Unknown',
-                    role: item.requester.role || 'user',
-                    contact_number: item.requester.contact_number || ''
-                  };
-                }
-                return item;
-              });
-            }
+            // Cache configuration based on route
+            const cacheTime = queryKey[0].toString().includes('/admin') ? 
+              30 * 1000 : // 30 seconds for admin routes
+              5 * 60 * 1000; // 5 minutes for other routes
+
+            queryClient.setQueryDefaults(queryKey, {
+              staleTime: cacheTime,
+              gcTime: cacheTime * 2,
+            });
 
             return data;
           } catch (parseError) {
             console.error('Response parsing error:', parseError);
+
+            // Try to read the original response if clone parsing failed
             const text = await res.text();
+            console.error('Original response text:', text);
 
             if (text.toLowerCase().includes('<!doctype html>')) {
               throw new Error(`Server Error (${res.status}): The server encountered an error`);
@@ -86,8 +84,6 @@ export const queryClient = new QueryClient({
           throw new Error('An unexpected error occurred');
         }
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnMount: true,
       refetchOnReconnect: true,
