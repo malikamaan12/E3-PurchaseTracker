@@ -16,8 +16,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import DepartmentSelect from "@/components/DepartmentSelect";
-import SubPurposeSelect from "@/components/SubPurposeSelect";
 import { insertPurchaseRequestSchema } from "@db/schema";
 import { ArrowLeft, Plus, Trash, Upload } from "lucide-react";
 import {
@@ -27,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { NewPurchaseRequest } from "@db/schema";
+import type { PurchaseRequest } from "@db/schema";
+import SubPurposeSelect from "@/components/SubPurposeSelect";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -40,6 +39,13 @@ const priorities = [
   { label: "Medium", value: "medium" },
   { label: "High", value: "high" },
   { label: "Urgent", value: "urgent" },
+] as const;
+
+const purposeTypes = [
+  { label: "E3 EVENT", value: "E3 EVENT" },
+  { label: "PROJECT", value: "PROJECT" },
+  { label: "MALL", value: "MALL" },
+  { label: "BUSINESS GROWTH", value: "BUSINESS GROWTH" },
 ] as const;
 
 export default function NewRequest() {
@@ -56,33 +62,31 @@ export default function NewRequest() {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<NewPurchaseRequest>({
+  const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
-      vendor: "",
       companyName: "",
       contactPerson: "",
       contactNumber: "",
       accountNumber: "",
-      purposeType: "event",
+      purpose: "", // Added purpose field
+      purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
       currency: "QAR",
       status: "draft",
-      totalEstimatedCost: "0",
-      freightAmount: "0",
+      totalEstimatedCost: 0,
+      freightAmount: 0,
     },
   });
 
+  // Reset sub-purpose when purpose type changes
   useEffect(() => {
-    const totalCost = calculateTotalCost();
-    form.setValue("items", items);
-    form.setValue("freightAmount", freightAmount.toString());
-    form.setValue("totalEstimatedCost", totalCost.toString());
-  }, [items, freightAmount, form]);
+    form.setValue("subPurposeId", undefined);
+  }, [form.watch("purposeType")]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
@@ -92,7 +96,14 @@ export default function NewRequest() {
     return itemsTotal + freightAmount;
   };
 
-  const onSubmit = async (values: NewPurchaseRequest) => {
+  useEffect(() => {
+    const totalCost = calculateTotalCost();
+    form.setValue("items", items);
+    form.setValue("freightAmount", freightAmount);
+    form.setValue("totalEstimatedCost", totalCost);
+  }, [items, freightAmount, form]);
+
+  const onSubmit = async (values: PurchaseRequest) => {
     try {
       setIsSubmitting(true);
       const formData = new FormData();
@@ -105,11 +116,9 @@ export default function NewRequest() {
           estimatedCost: Number(item.estimatedCost) || 0,
           description: item.description || ''
         })),
-        freightAmount: freightAmount.toString(),
-        totalEstimatedCost: calculateTotalCost().toString(),
-        vendor: values.companyName
+        freightAmount,
+        totalEstimatedCost: calculateTotalCost(),
       };
-
 
       if (!formattedData.items || formattedData.items.length === 0) {
         throw new Error("At least one item is required");
@@ -119,52 +128,35 @@ export default function NewRequest() {
         throw new Error("All items must have a name");
       }
 
-      console.log('Submitting request with data:', formattedData);
-
       formData.append('data', JSON.stringify(formattedData));
 
       files.forEach(file => {
         formData.append('files', file);
       });
 
-      try {
-        const response = await fetch('/api/requests', {
-          method: 'POST',
-          body: formData,
-        });
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText);
-        }
-
-        toast({
-          title: "Success",
-          description: "Request created successfully",
-          className: "animate-success", 
-        });
-        setLocation("/");
-      } catch (error: any) {
-        console.error("Create request error:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to create request",
-          variant: "destructive",
-          className: "animate-error", 
-        });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
       }
-    } catch (error: any) {
-      console.error("Form validation error:", error);
-      const errors = form.formState.errors;
-
-      const errorMessages = Object.entries(errors)
-        .map(([field, error]) => `${field}: ${error?.message}`)
-        .join('\n');
 
       toast({
-        title: "Validation Error",
-        description: errorMessages || error.message || "Please check all required fields",
+        title: "Success",
+        description: "Request created successfully",
+        className: "animate-success",
+      });
+      setLocation("/");
+    } catch (error: any) {
+      console.error("Create request error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create request",
         variant: "destructive",
+        className: "animate-error",
       });
     } finally {
       setIsSubmitting(false);
@@ -238,7 +230,7 @@ export default function NewRequest() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4">
         <Button
           variant="ghost"
           className="mb-4 hover:bg-[#7156a2]/10 transition-colors interactive-bounce"
@@ -257,8 +249,9 @@ export default function NewRequest() {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
+                {/* Purpose Type and Sub-purpose Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Purpose & Priority</h3>
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Purpose Selection</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
@@ -266,17 +259,18 @@ export default function NewRequest() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                 <SelectValue placeholder="Select purpose type" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="event">Event</SelectItem>
-                              <SelectItem value="project">Project</SelectItem>
-                              <SelectItem value="mall">Mall</SelectItem>
-                              <SelectItem value="business_growth">Business Growth</SelectItem>
+                              {purposeTypes.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -297,31 +291,6 @@ export default function NewRequest() {
                               onChange={field.onChange}
                             />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="priority"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Priority</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
-                            <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {priorities.map(({ label, value }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
