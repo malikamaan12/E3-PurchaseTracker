@@ -503,16 +503,18 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/approvals", async (req: Request, res: Response, next: NextFunction) => {
+  // Approval endpoint from edited snippet
+  app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+        throw new Error('Not authenticated');
       }
 
-      const { requestId, status, comments } = req.body;
+      const requestId = parseInt(req.params.requestId);
+      const { status, comments } = req.body;
 
       if (!requestId || !status) {
-        throw new ValidationError('Missing required fields');
+        return res.status(400).json({ message: 'Missing required fields' });
       }
 
       // Create the approval record
@@ -528,7 +530,7 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      // If approved by Finance department, lock the request
+      // Handle request status updates based on approval
       if (req.user?.department === "Finance" && status === "approved") {
         await db
           .update(purchaseRequests)
@@ -562,6 +564,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
