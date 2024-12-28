@@ -21,20 +21,46 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Username and password are required' });
       }
 
-      passport.authenticate('local', (err: any, user: any, info: any) => {
+      // Log the login attempt
+      console.log('Login attempt for username:', req.body.username);
+
+      passport.authenticate('local', async (err: any, user: any, info: any) => {
         if (err) {
           console.error('Authentication error:', err);
           return next(err);
         }
+
         if (!user) {
-          return res.status(401).json({ message: info.message || 'Authentication failed' });
+          // Log failed login attempt
+          console.log('Login failed for username:', req.body.username, 'Reason:', info?.message);
+          return res.status(401).json({ message: info?.message || 'Authentication failed' });
         }
+
+        // Verify user exists in database
+        const [dbUser] = await db.select()
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+
+        if (!dbUser) {
+          console.error('User found in passport but not in database:', user.id);
+          return res.status(401).json({ message: 'User account not found' });
+        }
+
         req.logIn(user, (err) => {
           if (err) {
             console.error('Login error:', err);
             return next(err);
           }
-          res.json({ user });
+          // Log successful login
+          console.log('Login successful for user:', user.username);
+          res.json({ user: { 
+            id: user.id,
+            username: user.username,
+            department: user.department,
+            role: user.role,
+            email: user.email
+          }});
         });
       })(req, res, next);
     } catch (error) {
