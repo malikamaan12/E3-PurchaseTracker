@@ -38,9 +38,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AccountRequest } from "@db/schema";
-
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -175,15 +176,13 @@ export default function AdminPanel() {
                         <TableCell>{request.department}</TableCell>
                         <TableCell>{request.role}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              request.status === "pending"
-                                ? "outline"
-                                : request.status === "approved"
-                                ? "default"
-                                : "destructive"
-                            }
-                          >
+                          <Badge className={cn(
+                            request.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : request.status === "approved"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          )}>
                             {request.status}
                           </Badge>
                         </TableCell>
