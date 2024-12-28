@@ -4,10 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
 import fs from 'fs';
 import path from 'path';
-import session from 'express-session';
-import MemoryStore from 'memorystore';
-import passport from 'passport';
-import { configurePassport, createTestUser } from './utils/auth';
+import { setupAuth, createTestUser } from './auth';
 import { AppError } from './utils/errors';
 
 // Validate required environment variables
@@ -28,47 +25,6 @@ const app = express();
 // Basic middleware setup with detailed logging
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// Configure session store with detailed options
-const MemoryStoreSession = MemoryStore(session);
-const sessionConfig = {
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  store: new MemoryStoreSession({
-    checkPeriod: 86400000 // Prune expired entries every 24h
-  }),
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-};
-
-if (app.get('env') === 'production') {
-  app.set('trust proxy', 1);
-  sessionConfig.cookie.secure = true;
-}
-
-console.log('Configuring session middleware with settings:', {
-  secure: sessionConfig.cookie.secure,
-  maxAge: sessionConfig.cookie.maxAge
-});
-
-app.use(session(sessionConfig));
-
-// Initialize passport authentication with detailed logging
-console.log('Initializing passport authentication');
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Configure passport strategies
-configurePassport(passport).then(() => {
-  console.log('Passport configuration completed');
-}).catch(error => {
-  console.error('Failed to configure passport:', error);
-  process.exit(1);
-});
 
 // Set default content type for API routes
 app.use('/api', (req, res, next) => {
@@ -137,6 +93,10 @@ async function initializeServer() {
         }
       }
     }
+
+    // Set up authentication before routes
+    await setupAuth(app);
+    log("Authentication setup completed");
 
     // Create test user after database connection is established
     try {

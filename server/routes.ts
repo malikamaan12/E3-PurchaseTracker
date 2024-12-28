@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { users, purchaseRequests, subPurposes, notifications, companyBranding } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import path from 'path';
 import fs from 'fs';
 import { AppError, handleError } from './utils/errors';
@@ -31,20 +31,9 @@ export function registerRoutes(app: Express): Server {
         }
 
         if (!user) {
-          console.log('Login failed:', { 
-            username: req.body.username, 
-            reason: info?.message || 'Unknown reason'
-          });
-          return res.status(401).json({ 
-            message: info?.message || 'Invalid username or password'
-          });
+          console.log('Login failed:', info?.message);
+          return res.status(401).json({ message: info?.message || 'Invalid username or password' });
         }
-
-        // Log successful authentication
-        console.log('Authentication successful:', { 
-          userId: user.id,
-          username: user.username 
-        });
 
         req.logIn(user, (loginErr) => {
           if (loginErr) {
@@ -52,7 +41,7 @@ export function registerRoutes(app: Express): Server {
             return next(loginErr);
           }
 
-          console.log('Login session created successfully');
+          console.log('Login successful:', { userId: user.id, username: user.username });
           return res.json({ 
             user: {
               id: user.id,

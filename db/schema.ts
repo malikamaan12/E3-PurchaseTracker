@@ -192,10 +192,12 @@ export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
 });
 
 export const insertUserSchema = createInsertSchema(users, {
-  role: z.enum(["user", "approver", "admin"]).default("user"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
   contactNumber: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
+  role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
@@ -214,6 +216,8 @@ export type LoginCredentials = z.infer<typeof loginSchema>;
 export type InsertNotification = typeof notifications.$inferInsert;
 export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 export const selectUserSchema = createSelectSchema(users);
+export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   isFrozen: z.boolean().optional(),
