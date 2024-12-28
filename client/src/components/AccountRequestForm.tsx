@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertAccountRequestSchema } from "@db/schema";
-import type { NewAccountRequest } from "@db/schema";
+import type { InsertAccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,22 +13,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { insertAccountRequestSchema } from "@db/schema";
 
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const form = useForm<NewAccountRequest>({
+  const form = useForm<InsertAccountRequest>({
     resolver: zodResolver(insertAccountRequestSchema),
     defaultValues: {
       role: "user",
-      status: "pending"
     }
   });
 
-  const onSubmit = async (data: NewAccountRequest) => {
+  const onSubmit = async (data: InsertAccountRequest) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/account-requests", {
+      console.log("Submitting account request:", data);
+      const response = await fetch("/api/auth/request-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -37,19 +37,23 @@ export default function AccountRequestForm() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText);
       }
 
       const result = await response.json();
+      console.log("Account request response:", result);
+
       toast({
         title: "Success",
         description: result.message,
       });
       form.reset();
     } catch (error: any) {
+      console.error("Account request error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to submit account request",
         variant: "destructive",
       });
     } finally {
@@ -119,31 +123,11 @@ export default function AccountRequestForm() {
 
       <div>
         <Label htmlFor="department">Department</Label>
-        <Select
-          onValueChange={(value) => form.setValue("department", value)}
-          defaultValue={form.getValues("department")}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Management">Management</SelectItem>
-            <SelectItem value="Business">Business</SelectItem>
-            <SelectItem value="Operations">Operations</SelectItem>
-            <SelectItem value="Support">Support</SelectItem>
-            <SelectItem value="Finance">Finance</SelectItem>
-            <SelectItem value="Director">Director</SelectItem>
-            <SelectItem value="CEO Office">CEO Office</SelectItem>
-            <SelectItem value="Sales">Sales</SelectItem>
-            <SelectItem value="Marketing">Marketing</SelectItem>
-            <SelectItem value="Business Growth">Business Growth</SelectItem>
-            <SelectItem value="Branding">Branding</SelectItem>
-            <SelectItem value="Logistics">Logistics</SelectItem>
-            <SelectItem value="Mall Activation">Mall Activation</SelectItem>
-            <SelectItem value="IT">IT</SelectItem>
-            <SelectItem value="HR">HR</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input
+          id="department"
+          {...form.register("department")}
+          className="mt-1"
+        />
         {form.formState.errors.department && (
           <p className="text-sm text-red-500 mt-1">
             {form.formState.errors.department.message}

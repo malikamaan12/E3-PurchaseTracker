@@ -175,7 +175,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account request endpoint with improved error handling
+  // Account request endpoint with enhanced error handling
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('Processing account request:', req.body);

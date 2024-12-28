@@ -5,14 +5,16 @@ import { db } from "@db";
 import fs from 'fs';
 import path from 'path';
 import { setupAuth } from './auth';
-import { AppError } from './utils/errors';
+import { AppError, handleError } from './utils/errors';
+import session from "express-session";
+import createMemoryStore from "memorystore";
 
 // Initialize express app
 const app = express();
 
-// Basic middleware setup
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Enhanced middleware setup
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 // Set default content type for API routes
 app.use('/api', (req, res, next) => {
@@ -39,11 +41,12 @@ app.use((req, res, next) => {
   };
 
   // Log request details for debugging
-  if (path.startsWith('/api/auth')) {
-    console.log('Auth request received:', {
+  if (path.startsWith('/api')) {
+    console.log('API request received:', {
       method: req.method,
       path: req.path,
       body: req.body,
+      query: req.query,
       headers: req.headers
     });
   }
@@ -65,35 +68,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Session setup
+const MemoryStore = createMemoryStore(session);
+const sessionSettings: session.SessionOptions = {
+  secret: process.env.REPL_ID || "secure-session-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: app.get("env") === "production",
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  },
+  store: new MemoryStore({
+    checkPeriod: 86400000 // prune expired entries every 24h
+  })
+};
 
-// Request logging middleware (original middleware)
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+if (app.get("env") === "production") {
+  app.set("trust proxy", 1);
+}
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-      log(logLine);
-    }
-  });
-
-  next();
-});
+app.use(session(sessionSettings));
 
 async function initializeServer() {
   try {
@@ -105,7 +99,6 @@ async function initializeServer() {
 
     while (!isConnected && retries < maxRetries) {
       try {
-        // Simple query to test connection
         await db.execute('SELECT 1');
         isConnected = true;
         log("Database connection established successfully");
@@ -136,26 +129,27 @@ async function initializeServer() {
         status: err.status || err.statusCode || 500
       });
 
-      res.type('application/json');
+      // Convert error to AppError for consistent handling
+      const appError = handleError(err);
 
-      const status = err.status || err.statusCode || 500;
-      const errorResponse = {
+      res.status(appError.status).json({
         error: true,
-        message: err.message || "Internal Server Error",
+        message: appError.message,
+        severity: appError.severity,
         details: app.get('env') === 'development' ? {
-          stack: err.stack,
-          ...err
+          stack: appError.stack,
+          ...appError.details
         } : undefined
-      };
-
-      res.status(status).json(errorResponse);
+      });
     });
 
     // 404 handler for API routes
     app.use('/api/*', (req, res) => {
+      const error = new AppError(`API endpoint not found: ${req.path}`, 404, 'warning');
       res.status(404).json({
         error: true,
-        message: `API endpoint not found: ${req.path}`
+        message: error.message,
+        severity: error.severity
       });
     });
 
