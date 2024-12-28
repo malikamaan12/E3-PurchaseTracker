@@ -79,6 +79,24 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add session recovery middleware
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
+      console.log(`[${req.id}] Session expired, attempting to regenerate`);
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
+          next(new AppError('Session recovery failed', 500));
+        } else {
+          console.log(`[${req.id}] Session regenerated successfully`);
+          next();
+        }
+      });
+    } else {
+      next(err);
+    }
+  });
+
   // Approver management endpoints
   app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -952,7 +970,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add 404 handler for API routes
   app.use('/api/*', (req: Request, res: Response) => {
-    res.status(404).json({
+    res.status.status(404).json({
       status: 'error',
       message: `Cannot ${req.method} ${req.path}`,
       severity: 'warning',
