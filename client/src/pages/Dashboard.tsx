@@ -90,6 +90,7 @@ export default function Dashboard() {
   const isSpecialRole = useMemo(() => {
     return (
       user?.role === "admin" ||
+      user?.role === "approver" ||
       user?.department === "CEO Office" ||
       user?.department === "Director" ||
       user?.department === "Finance"
@@ -106,9 +107,10 @@ export default function Dashboard() {
     return requests.filter((request) => {
       if (!request || request.status !== "pending") return false;
 
-      // Admin and special roles can approve any request
+      // Admin, approvers and special roles can approve any request
       if (
         isAdmin ||
+        user.role === "approver" ||
         ["CEO Office", "Director", "Finance"].includes(user.department || "")
       ) {
         return true;
@@ -180,9 +182,7 @@ export default function Dashboard() {
   };
 
   const myDrafts = filterRequests(
-    requests?.filter(
-      (r) => r?.requesterId === user?.id && r?.status === "draft"
-    ) || []
+    requests?.filter((r) => r?.requesterId === user?.id && r?.status === "draft") || []
   );
 
   const mySubmittedRequests = filterRequests(
