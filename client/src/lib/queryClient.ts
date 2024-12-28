@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { visualizeError } from "./errorUtils";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -7,6 +8,10 @@ export const queryClient = new QueryClient({
         try {
           const res = await fetch(queryKey[0] as string, {
             credentials: "include",
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
           });
 
           // Always try to parse JSON first
@@ -18,6 +23,15 @@ export const queryClient = new QueryClient({
               if (res.status === 404) {
                 throw new Error(`API endpoint not found: ${queryKey[0]}`);
               }
+
+              // Visualize the error using our error utility
+              visualizeError({
+                message: data.message || `${res.status}: ${res.statusText}`,
+                severity: res.status >= 500 ? 'critical' : 'error',
+                code: data.code,
+                details: data.details
+              });
+
               throw new Error(data.message || `${res.status}: ${res.statusText}`);
             }
 
@@ -40,6 +54,15 @@ export const queryClient = new QueryClient({
             throw new Error(`Invalid response format: Expected JSON but got ${res.headers.get('content-type')}`);
           }
         } catch (error) {
+          // Log error for debugging
+          console.error('Query error:', {
+            queryKey,
+            error: error instanceof Error ? {
+              message: error.message,
+              stack: error.stack
+            } : error
+          });
+
           if (error instanceof Error) {
             throw error;
           }
@@ -48,25 +71,31 @@ export const queryClient = new QueryClient({
       },
       staleTime: 30 * 1000, // Data considered fresh for 30 seconds
       gcTime: 5 * 60 * 1000, // Keep unused data in cache for 5 minutes
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchOnMount: true,
+      refetchOnReconnect: true,
       retry: (failureCount, error) => {
-        // Only retry on network errors or 5xx errors, not on 404s
-        if (error instanceof Error && (
-          error.message.includes('Failed to fetch') || 
-          error.message.includes('Server Error')
-        )) {
-          return failureCount < 2;
+        // Only retry on network errors or 5xx errors, not on 404s or validation errors
+        if (error instanceof Error) {
+          const shouldRetry = 
+            error.message.includes('Failed to fetch') || 
+            error.message.includes('Server Error') ||
+            error.message.includes('NetworkError');
+
+          return shouldRetry && failureCount < 3;
         }
         return false;
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
-      retry: false,
       onError: (error) => {
         console.error('Mutation error:', error);
+        visualizeError({
+          message: error instanceof Error ? error.message : 'An unexpected error occurred',
+          severity: 'error',
+          details: error instanceof Error ? error.stack : undefined
+        });
       }
     }
   },
@@ -74,7 +103,10 @@ export const queryClient = new QueryClient({
 
 // Add global cache invalidation utilities
 export const invalidateQueries = async (queryKey: string | string[]) => {
-  await queryClient.invalidateQueries({ queryKey: Array.isArray(queryKey) ? queryKey : [queryKey] });
+  await queryClient.invalidateQueries({ 
+    queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
+    refetchType: 'active'
+  });
 };
 
 export const prefetchQuery = async (queryKey: string | string[]) => {
@@ -82,4 +114,21 @@ export const prefetchQuery = async (queryKey: string | string[]) => {
     queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
     staleTime: 30 * 1000,
   });
+};
+
+// Helper to handle API errors consistently
+export const handleQueryError = (error: unknown) => {
+  if (error instanceof Error) {
+    visualizeError({
+      message: error.message,
+      severity: error.message.includes('Server Error') ? 'critical' : 'error',
+      details: error.stack
+    });
+  } else {
+    visualizeError({
+      message: 'An unexpected error occurred',
+      severity: 'error',
+      details: String(error)
+    });
+  }
 };

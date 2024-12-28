@@ -1,46 +1,14 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { companyBranding } from "@db/schema";
-import { eq } from "drizzle-orm";
-import multer from 'multer';
+import { users, purchaseRequests, subPurposes, notifications, companyBranding } from "@db/schema";
+import { eq, and } from "drizzle-orm";
 import path from 'path';
 import fs from 'fs';
 import { AppError, handleError } from './utils/errors';
 import { createNotification, cleanupUploads } from './utils/notifications';
-
-// Configure multer for file uploads
-const createStorage = (uploadDir: string) => {
-  return multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: (_req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-      cb(null, `${uniqueSuffix}-${file.originalname}`);
-    }
-  });
-};
-
-const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = /jpeg|jpg|png|gif/i;
-  if (!file.originalname.match(allowedTypes)) {
-    return cb(new AppError('Only image files (jpg, jpeg, png, gif) are allowed!', 400, 'warning'));
-  }
-  cb(null, true);
-};
-
-const logoUpload = multer({
-  storage: createStorage('uploads/logos'),
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 1 // Only one logo at a time
-  }
-}).single('logo');
+import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './utils/anthropic';
+import { logoUpload, attachmentUpload } from './utils/middleware';
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
@@ -60,7 +28,54 @@ export function registerRoutes(app: Express): Server {
     res.json({ status: "ok" });
   });
 
-  // Company branding routes with proper error handling
+  // Purchase requests endpoints
+  app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      const requests = await db.query.purchaseRequests.findMany({
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true,
+        },
+        where: req.user!.role === 'admin' ? undefined : eq(purchaseRequests.requesterId, req.user!.id)
+      });
+
+      res.json(requests);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // User data endpoint
+  app.get("/api/user", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.user!.id)
+      });
+
+      if (!user) {
+        throw new AppError('User not found', 404, 'error');
+      }
+
+      res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Company branding endpoint
   app.post("/api/company/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -83,7 +98,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('No logo file provided', 400, 'warning');
       }
 
-      // Delete existing branding record if it exists
+      // Delete existing branding if it exists
       await db.delete(companyBranding);
 
       const [branding] = await db.insert(companyBranding)
@@ -111,6 +126,21 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Priority analysis endpoint
+  app.post("/api/analyze-priority", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      const purchaseRequest = req.body as PurchaseRequestInput;
+      const analysis = await analyzePurchaseRequestPriority(purchaseRequest);
+      res.json(analysis);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Error handling middleware - Must be after all routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
@@ -130,7 +160,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add 404 handler for API routes
   app.use('/api/*', (req, res) => {
-    res.status(404).json({ 
+    res.status(404).json({
       status: 'error',
       message: `Cannot ${req.method} ${req.path}`,
       severity: 'warning',

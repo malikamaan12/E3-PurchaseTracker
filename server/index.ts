@@ -3,9 +3,14 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
 import { setupAuth } from "./auth";
+import fs from 'fs';
+import path from 'path';
 
 // Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL'];
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'ANTHROPIC_API_KEY'
+];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -23,6 +28,12 @@ app.use('/api', (req, res, next) => {
   res.type('application/json');
   next();
 });
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
 
 // Logging middleware
 app.use((req, res, next) => {
