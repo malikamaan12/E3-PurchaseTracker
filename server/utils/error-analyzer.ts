@@ -17,7 +17,7 @@ const errorAnalysisSchema = z.object({
 
 type ErrorAnalysis = z.infer<typeof errorAnalysisSchema>;
 
-// Initialize Anthropic client
+// Initialize Anthropic client with error handling
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 });
@@ -30,7 +30,6 @@ export async function analyzeError(error: Error | AppError): Promise<ErrorAnalys
       name: error.name
     };
 
-    // Enhanced analysis prompt for database and schema issues
     const prompt = `Analyze this error and provide detailed recommendations:
 Error: ${JSON.stringify(errorContext, null, 2)}
 
@@ -65,12 +64,14 @@ Format as JSON:
       }]
     });
 
-    if (!response.content[0] || typeof response.content[0].text !== 'string') {
-      throw new Error('Invalid response from Anthropic API');
+    // Handle the response content properly
+    if (!response.content || !response.content[0] || typeof response.content[0].text !== 'string') {
+      throw new Error('Invalid response format from Anthropic API');
     }
 
+    const analysisText = response.content[0].text;
     // Parse and validate the response
-    const analysis = JSON.parse(response.content[0].text);
+    const analysis = JSON.parse(analysisText);
     return errorAnalysisSchema.parse(analysis);
   } catch (analysisError) {
     console.error('Error analysis failed:', analysisError);

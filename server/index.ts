@@ -4,10 +4,11 @@ import { setupVite, serveStatic, log } from "./vite";
 import { db } from "@db";
 import fs from 'fs';
 import path from 'path';
-import { setupAuth } from './auth';
 import { AppError, handleError } from './utils/errors';
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { sql } from 'drizzle-orm';
+import { setupAuth } from './auth';
 
 // Initialize express app
 const app = express();
@@ -99,7 +100,7 @@ async function initializeServer() {
 
     while (!isConnected && retries < maxRetries) {
       try {
-        await db.execute('SELECT 1');
+        await db.execute(sql`SELECT 1`);
         isConnected = true;
         log("Database connection established successfully");
       } catch (err) {
@@ -121,26 +122,26 @@ async function initializeServer() {
     const server = registerRoutes(app);
     log("Routes registered successfully");
 
-    // Global error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Global error handler with proper async handling
+    app.use(async (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Server error:', {
-        message: err.message,
-        stack: err.stack,
-        status: err.status || err.statusCode || 500
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
       });
 
-      // Convert error to AppError for consistent handling
-      const appError = handleError(err);
+      const appError = await handleError(err);
 
-      res.status(appError.status).json({
-        error: true,
-        message: appError.message,
-        severity: appError.severity,
-        details: app.get('env') === 'development' ? {
-          stack: appError.stack,
-          ...appError.details
-        } : undefined
-      });
+      if (!res.headersSent) {
+        res.status(appError.status).json({
+          error: true,
+          message: appError.message,
+          severity: appError.severity,
+          details: app.get('env') === 'development' ? {
+            stack: appError.stack,
+            ...appError.details
+          } : undefined
+        });
+      }
     });
 
     // 404 handler for API routes
@@ -162,11 +163,41 @@ async function initializeServer() {
       log("Static files serving configured");
     }
 
-    // Start the server
-    const PORT = Number(process.env.PORT || 5000);
-    server.listen(PORT, "0.0.0.0", () => {
-      log(`Server started and listening on port ${PORT}`);
-    });
+    // Try different ports if the default is in use
+    const ports = [5000, 3000, 8080, 4000];
+    let serverStarted = false;
+
+    for (const port of ports) {
+      try {
+        await new Promise((resolve, reject) => {
+          server.listen(port, "0.0.0.0")
+            .once('listening', () => {
+              log(`Server started and listening on port ${port}`);
+              serverStarted = true;
+              resolve(true);
+            })
+            .once('error', (err: any) => {
+              if (err.code === 'EADDRINUSE') {
+                log(`Port ${port} is in use, trying next port...`);
+                resolve(false);
+              } else {
+                reject(err);
+              }
+            });
+        });
+
+        if (serverStarted) break;
+      } catch (error: any) {
+        log(`Error starting server on port ${port}: ${error.message}`);
+        if (port === ports[ports.length - 1]) {
+          throw error; // Throw if we've tried all ports
+        }
+      }
+    }
+
+    if (!serverStarted) {
+      throw new Error('Failed to start server on any available port');
+    }
 
   } catch (error: any) {
     console.error('Fatal server initialization error:', {

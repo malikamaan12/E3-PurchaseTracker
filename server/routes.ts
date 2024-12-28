@@ -39,13 +39,74 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Update error handling middleware section
+  // Enhanced sub-purposes endpoint with proper query building
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes', { purposeType });
+
+      let query = db
+        .select()
+        .from(subPurposes);
+
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purposeType, purposeType as string));
+      }
+
+      const allSubPurposes = await query.orderBy(desc(subPurposes.createdAt));
+
+      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
+      res.json(allSubPurposes);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(new DatabaseError('Failed to fetch sub-purposes'));
+    }
+  });
+
+  // Enhanced approvers endpoint with proper query building
+  app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { department } = req.query;
+      debug(req, 'Fetching approvers', { department });
+
+      let query = db
+        .select({
+          id: purchaseApprovers.id,
+          departmentId: purchaseApprovers.departmentId,
+          approverId: purchaseApprovers.approverId,
+          isMandatory: purchaseApprovers.isMandatory,
+          level: purchaseApprovers.level,
+          approver: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+          },
+        })
+        .from(purchaseApprovers)
+        .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
+        .where(eq(users.isActive, true));
+
+      if (department) {
+        query = query.where(eq(purchaseApprovers.departmentId, department as string));
+      }
+
+      const approvers = await query.orderBy(purchaseApprovers.level);
+      debug(req, `Found ${approvers.length} approvers`);
+      res.json(approvers);
+    } catch (error) {
+      debug(req, 'Error fetching approvers:', error);
+      next(new DatabaseError('Failed to fetch approvers'));
+    }
+  });
+
+  // Error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
       debug(req, 'Error occurred:', err);
       const error = await handleError(err);
 
-      // Ensure proper error logging with JSON serialization
+      // Ensure proper error logging
       try {
         const errorLogData = {
           message: error.message,
@@ -57,7 +118,6 @@ export function registerRoutes(app: Express): Server {
           aiAnalysis: error.details?.aiAnalysis || {}
         };
 
-        // Validate error log data before inserting
         const validatedData = insertErrorLogSchema.safeParse(errorLogData);
         if (!validatedData.success) {
           debug(req, 'Error log validation failed:', validatedData.error);
@@ -69,14 +129,8 @@ export function registerRoutes(app: Express): Server {
         debug(req, 'Failed to log error:', logError);
       }
 
-      // Ensure valid status code
-      const status = error.status && error.status >= 100 && error.status < 600 
-        ? error.status 
-        : 500;
-
-      // Ensure response hasn't been sent and headers haven't been written
-      if (!res.headersSent && !res.finished) {
-        res.status(status).json({
+      if (!res.headersSent) {
+        res.status(error.status).json({
           status: 'error',
           message: error.message,
           code: error.code || 'INTERNAL_ERROR',
@@ -87,8 +141,7 @@ export function registerRoutes(app: Express): Server {
     } catch (handlingError) {
       debug(req, 'Error in error handling middleware:', handlingError);
 
-      // Final fallback if everything else fails
-      if (!res.headersSent && !res.finished) {
+      if (!res.headersSent) {
         res.status(500).json({
           status: 'error',
           message: 'Internal Server Error',
@@ -137,102 +190,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add enhanced error handling for database queries
-  app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { department } = req.query;
-      debug(req, 'Fetching approvers', { department });
-
-      const query = db
-        .select({
-          id: purchaseApprovers.id,
-          departmentId: purchaseApprovers.departmentId,
-          approverId: purchaseApprovers.approverId,
-          isMandatory: purchaseApprovers.isMandatory,
-          level: purchaseApprovers.level,
-          approver: {
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            department: users.department,
-          },
-        })
-        .from(purchaseApprovers)
-        .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
-        .where(eq(users.isActive, true));
-
-      if (department) {
-        query.where(eq(purchaseApprovers.departmentId, department as string));
-      }
-
-      const approvers = await query.orderBy(purchaseApprovers.level);
-      debug(req, `Found ${approvers.length} approvers`);
-      res.json(approvers);
-    } catch (error) {
-      debug(req, 'Error fetching approvers:', error);
-      next(new DatabaseError('Failed to fetch approvers'));
-    }
-  });
-
-  app.post("/api/admin/approvers", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const { departmentId, approverId, isMandatory, level } = req.body;
-
-      // Check if approver exists and is active
-      const [approver] = await db
-        .select()
-        .from(users)
-        .where(and(
-          eq(users.id, approverId),
-          eq(users.isActive, true)
-        ))
-        .limit(1);
-
-      if (!approver) {
-        throw new AppError('Approver not found or inactive', 404);
-      }
-
-      // Create new approver assignment
-      const [newApprover] = await db
-        .insert(purchaseApprovers)
-        .values({
-          departmentId,
-          approverId,
-          isMandatory,
-          level,
-        })
-        .returning();
-
-      res.json(newApprover);
-    } catch (error) {
-      console.error('Error creating approver assignment:', error);
-      next(error);
-    }
-  });
-
-  app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const approverId = parseInt(req.params.id);
-
-      // Delete approver assignment
-      await db
-        .delete(purchaseApprovers)
-        .where(eq(purchaseApprovers.id, approverId));
-
-      res.json({ message: 'Approver assignment deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting approver assignment:', error);
-      next(error);
-    }
-  });
 
   // Account Request endpoint
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
@@ -384,447 +341,62 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Enhanced sub-purposes endpoint
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { purposeType } = req.query;
-      debug(req, 'Fetching sub-purposes', { purposeType });
+  // app.post("/api/admin/approvers", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
+  //
+  //     const { departmentId, approverId, isMandatory, level } = req.body;
+  //
+  //     // Check if approver exists and is active
+  //     const [approver] = await db
+  //       .select()
+  //       .from(users)
+  //       .where(and(
+  //         eq(users.id, approverId),
+  //         eq(users.isActive, true)
+  //       ))
+  //       .limit(1);
+  //
+  //     if (!approver) {
+  //       throw new AppError('Approver not found or inactive', 404);
+  //     }
+  //
+  //     // Create new approver assignment
+  //     const [newApprover] = await db
+  //       .insert(purchaseApprovers)
+  //       .values({
+  //         departmentId,
+  //         approverId,
+  //         isMandatory,
+  //         level,
+  //       })
+  //       .returning();
+  //
+  //     res.json(newApprover);
+  //   } catch (error) {
+  //     console.error('Error creating approver assignment:', error);
+  //     next(error);
+  //   }
+  // });
 
-      const query = db
-        .select({
-          id: subPurposes.id,
-          name: subPurposes.name,
-          purposeType: subPurposes.purposeType,
-          description: subPurposes.description,
-          isFrozen: subPurposes.isFrozen,
-          validFrom: subPurposes.validFrom,
-          validTo: subPurposes.validTo,
-          createdAt: subPurposes.createdAt,
-          updatedAt: subPurposes.updatedAt,
-        })
-        .from(subPurposes);
-
-      if (purposeType) {
-        query.where(eq(subPurposes.purposeType, purposeType as string));
-      }
-
-      const allSubPurposes = await query.orderBy(desc(subPurposes.createdAt));
-      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
-      res.json(allSubPurposes);
-    } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
-      next(new DatabaseError('Failed to fetch sub-purposes'));
-    }
-  });
-
-  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
-
-      debug(req, 'Creating new sub-purpose', req.body);
-      const validationResult = insertSubPurposeSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid sub-purpose data', {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Create new sub-purpose with proper timestamp handling
-      const now = new Date();
-      const insertData = {
-        ...validationResult.data,
-        createdAt: now,
-        updatedAt: now
-      };
-
-      debug(req, 'Inserting sub-purpose with data:', insertData);
-
-      const [newSubPurpose] = await db
-        .insert(subPurposes)
-        .values(insertData)
-        .returning();
-
-      debug(req, 'Successfully created sub-purpose:', newSubPurpose);
-      res.status(201).json(newSubPurpose);
-    } catch (error) {
-      debug(req, 'Error creating sub-purpose:', error);
-      next(error);
-    }
-  });
-
-  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
-
-      const allSubPurposes = await db
-        .select()
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.createdAt));
-
-      console.log('Successfully fetched sub-purposes:', allSubPurposes.length);
-      res.json(allSubPurposes);
-    } catch (error) {
-      console.error('Error fetching sub-purposes:', error);
-      next(error);
-    }
-  });
-  app.post("/api/admin/sub-purposes/:id/toggle-freeze", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
-
-      const subPurposeId = parseInt(req.params.id);
-      const { isFrozen } = req.body;
-
-      if (typeof isFrozen !== 'boolean') {
-        throw new ValidationError('isFrozen must be a boolean value');
-      }
-
-      // Update sub-purpose freeze status
-      const [updatedSubPurpose] = await db
-        .update(subPurposes)
-        .set({ 
-          isFrozen,
-          updatedAt: new Date()
-        })
-        .where(eq(subPurposes.id, subPurposeId))
-        .returning();
-
-      if (!updatedSubPurpose) {
-        throw new AppError('Sub-purpose not found', 404);
-      }
-
-      console.log('Successfully updated sub-purpose freeze status:', {
-        id: updatedSubPurpose.id,
-        isFrozen: updatedSubPurpose.isFrozen
-      });
-
-      res.json(updatedSubPurpose);
-    } catch (error) {
-      console.error('Error updating sub-purpose:', error);
-      next(error);
-    }
-  });
-
-  // User management routes
-  app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
+  app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AppError('Admin access required', 403);
       }
 
-      console.log('Fetching all users');
-      const allUsers = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          department: users.department,
-          role: users.role,
-          isActive: users.isActive,
-          contact_number: users.contact_number,
-          created_at: users.createdAt,
-          updated_at: users.updatedAt
-        })
-        .from(users);
+      const approverId = parseInt(req.params.id);
 
-      res.json(allUsers);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      next(error);
-    }
-  });
-
-  // Toggle user activation status
-  app.post("/api/admin/users/:id/toggle-activation", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const userId = parseInt(req.params.id);
-      const { isActive } = req.body;
-
-      if (userId === req.user.id) {
-        throw new AppError('Cannot modify your own account status', 400);
-      }
-
-      // Update user's active status
-      const [updatedUser] = await db
-        .update(users)
-        .set({ isActive })
-        .where(eq(users.id, userId))
-        .returning();
-
-      if (!updatedUser) {
-        throw new AppError('User not found', 404);
-      }
-
-      res.json({
-        message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username,
-          isActive: updatedUser.isActive
-        }
-      });
-    } catch (error) {
-      console.error('Error updating user status:', error);
-      next(error);
-    }
-  });
-
-  // Reset user password
-  app.post("/api/admin/users/:id/reset-password", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const userId = parseInt(req.params.id);
-      const { password } = req.body;
-
-      if (!password || password.length < 6) {
-        throw new AppError('Password must be at least 6 characters long', 400);
-      }
-
-      // Hash the new password
-      const hashedPassword = await hash(password, 10);
-
-      // Update user's password
-      const [updatedUser] = await db
-        .update(users)
-        .set({ password: hashedPassword })
-        .where(eq(users.id, userId))
-        .returning();
-
-      if (!updatedUser) {
-        throw new AppError('User not found', 404);
-      }
-
-      res.json({
-        message: 'Password reset successfully',
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username
-        }
-      });
-    } catch (error) {
-      console.error('Error resetting password:', error);
-      next(error);
-    }
-  });
-
-  // Delete user endpoint
-  app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const userId = parseInt(req.params.id);
-
-      // Prevent self-deletion
-      if (userId === req.user.id) {
-        throw new AppError('Cannot delete your own account', 400);
-      }
-
-      // Check if user exists
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!existingUser) {
-        throw new AppError('User not found', 404);
-      }
-
-      // Check if user has associated purchase requests
-      const [purchaseRequest] = await db
-        .select()
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.requesterId, userId))
-        .limit(1);
-
-      if (purchaseRequest) {
-        throw new AppError('Cannot delete user with associated purchase requests. Please deactivate the user instead.', 400);
-      }
-
-      console.log('Attempting to delete user:', userId);
-
-      try {
-        // Delete user's notifications and then the user
-        await db.transaction(async (tx) => {
-          await tx
-            .delete(notifications)
-            .where(eq(notifications.userId, userId));
-
-          await tx
-            .delete(users)
-            .where(eq(users.id, userId));
-        });
-
-        console.log('Successfully deleted user:', userId);
-        res.json({ message: 'User deleted successfully' });
-      } catch (deleteError: any) {
-        console.error('Error during delete operation:', deleteError);
-        throw new AppError('Failed to delete user: ' + deleteError.message, 500);
-      }
-    } catch (error) {
-      console.error('Error in delete user endpoint:', error);
-      next(error);
-    }
-  });
-
-  // Update user role endpoint
-  app.put("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const userId = parseInt(req.params.id);
-      const { role } = req.body;
-
-      if (!['user', 'approver', 'admin'].includes(role)) {
-        throw new AppError('Invalid role', 400);
-      }
-
-      // Check if user exists
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!existingUser) {
-        throw new AppError('User not found', 404);
-      }
-
-      // Update user role
-      const [updatedUser] = await db
-        .update(users)
-        .set({ role })
-        .where(eq(users.id, userId))
-        .returning();
-
-      res.json({
-        message: 'User role updated successfully',
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username,
-          role: updatedUser.role
-        }
-      });
-    } catch (error) {
-      console.error('Error updating user role:', error);
-      next(error);
-    }
-  });
-
-  // Enhanced purchase request endpoint
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Creating new purchase request', req.body);
-
-      const requestData = {
-        ...req.body,
-        status: 'pending',
-        requesterId: req.user!.id,
-        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      };
-
-      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-      if (!validationResult.success) {
-        debug(req, 'Validation failed', validationResult.error);
-        throw new ValidationError('Invalid request data', {
-          errors: validationResult.error.format()
-        });
-      }
-
-      const data = validationResult.data;
-
-      // Validate numeric fields
-      if (!Number.isInteger(data.totalEstimatedCost) || !Number.isInteger(data.freightAmount)) {
-        throw new ValidationError('Cost values must be whole numbers');
-      }
-
-      // Validate items costs
-      data.items.forEach((item, index) => {
-        if (!Number.isInteger(item.estimatedCost)) {
-          throw new ValidationError(`Item ${index + 1} cost must be a whole number`);
-        }
-        if (!Number.isInteger(item.quantity)) {
-          throw new ValidationError(`Item ${index + 1} quantity must be a whole number`);
-        }
-      });
-
-      debug(req, 'Creating purchase request', data);
-
-      const [newRequest] = await db
-        .insert(purchaseRequests)
-        .values(data)
-        .returning();
-
-      if (!newRequest) {
-        throw new DatabaseError('Failed to create purchase request');
-      }
-
-      debug(req, 'Successfully created purchase request', newRequest);
-      res.status(201).json(newRequest);
-    } catch (error) {
-      debug(req, 'Error creating purchase request:', error);
-      next(error);
-    }
-  });
-
-
-  // Notification endpoints
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-      const userNotifications = await db
-        .select()
-        .from(notifications)
-        .where(eq(notifications.userId, req.user!.id))
-        .orderBy(notifications.createdAt);
-
-      res.json(userNotifications);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/notifications/mark-read", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-      const { notificationId } = req.body;
-
+      // Delete approver assignment
       await db
-        .update(notifications)
-        .set({ isRead: true })
-        .where(eq(notifications.id, notificationId))
-        .where(eq(notifications.userId, req.user!.id));
+        .delete(purchaseApprovers)
+        .where(eq(purchaseApprovers.id, approverId));
 
-      res.json({ message: 'Notification marked as read' });
+      res.json({ message: 'Approver assignment deleted successfully' });
     } catch (error) {
+      console.error('Error deleting approver assignment:', error);
       next(error);
     }
   });

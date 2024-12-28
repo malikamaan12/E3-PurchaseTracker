@@ -3,7 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import { compare, hash } from "bcrypt";
+import { compare, hash } from 'bcrypt';
 import { users, accountRequests } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
@@ -19,6 +19,7 @@ declare global {
       department: string;
       role: string;
       contact_number: string;
+      isActive: boolean;
     }
   }
 }
@@ -81,7 +82,8 @@ export async function setupAuth(app: Express) {
           email: user.email,
           department: user.department,
           role: user.role,
-          contact_number: user.contact_number
+          contact_number: user.contact_number,
+          isActive: user.isActive
         };
 
         console.log('Authentication successful for user:', username);
@@ -110,7 +112,8 @@ export async function setupAuth(app: Express) {
           email: users.email,
           department: users.department,
           role: users.role,
-          contact_number: users.contact_number
+          contact_number: users.contact_number,
+          isActive: users.isActive
         })
         .from(users)
         .where(eq(users.id, id))
@@ -130,7 +133,7 @@ export async function setupAuth(app: Express) {
 
   // Auth routes
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate('local', (err, user, info) => {
+    passport.authenticate('local', (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
         console.error('Login error:', err);
         return next(err);
@@ -168,62 +171,7 @@ export async function setupAuth(app: Express) {
     res.json(req.user);
   });
 
-  app.post("/api/auth/request-account", async (req, res, next) => {
-    try {
-      const { username, password, email, contact_number, department, role } = req.body;
-
-      // Check for existing user
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
-
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      // Check for existing request
-      const [existingRequest] = await db
-        .select()
-        .from(accountRequests)
-        .where(eq(accountRequests.username, username))
-        .limit(1);
-
-      if (existingRequest) {
-        return res.status(400).json({ message: "Account request already exists" });
-      }
-
-      const hashedPassword = await hash(password, 10);
-
-      const [newRequest] = await db
-        .insert(accountRequests)
-        .values({
-          username,
-          password: hashedPassword,
-          email,
-          contact_number,
-          department,
-          role: role || 'user',
-          status: 'pending'
-        })
-        .returning();
-
-      res.status(201).json({
-        message: "Account request submitted successfully",
-        request: {
-          id: newRequest.id,
-          username: newRequest.username,
-          email: newRequest.email,
-          status: newRequest.status
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Create test admin user
+  // Create test admin user if it doesn't exist
   try {
     const password = await hash('admin123', 10);
     await db
@@ -234,7 +182,8 @@ export async function setupAuth(app: Express) {
         email: 'admin@example.com',
         department: 'IT',
         role: 'admin',
-        contact_number: '123-456-7890'
+        contact_number: '123-456-7890',
+        isActive: true
       })
       .onConflictDoNothing()
       .execute();
