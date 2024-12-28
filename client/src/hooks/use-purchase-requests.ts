@@ -17,40 +17,67 @@ export function usePurchaseRequests() {
   const getRequest = (id: number) => {
     return useQuery<PurchaseRequestWithRelations>({
       queryKey: [`/api/requests/${id}`],
+      enabled: !!id,
+      staleTime: 30000,
       queryFn: async () => {
         const res = await fetch(`/api/requests/${id}`, {
           credentials: "include",
         });
 
         if (!res.ok) {
-          throw new Error(await res.text());
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || `${res.status}: ${res.statusText}`);
+          }
+          const errorText = await res.text();
+          throw new Error(errorText || `${res.status}: ${res.statusText}`);
         }
 
         return res.json();
       },
-      enabled: !!id,
-      staleTime: 30000,
     });
   };
 
-  // Create approval mutation
+  // Create approval mutation with enhanced error handling
   const createApproval = useMutation({
     mutationFn: async ({ requestId, status, comments }: { requestId: number; status: 'approved' | 'rejected'; comments?: string }) => {
-      const res = await fetch(`/api/requests/${requestId}/approvals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status, comments }),
-      });
+      try {
+        const res = await fetch(`/api/requests/${requestId}/approvals`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ status, comments }),
+        });
 
-      if (!res.ok) {
-        throw new Error(await res.text());
+        if (!res.ok) {
+          const contentType = res.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || `${res.status}: ${res.statusText}`);
+          }
+          const errorText = await res.text();
+          if (errorText.toLowerCase().includes('<!doctype html>')) {
+            throw new Error(`Server Error (${res.status}): The server encountered an error`);
+          }
+          throw new Error(errorText || `${res.status}: ${res.statusText}`);
+        }
+
+        const contentType = res.headers.get("content-type");
+        if (!contentType?.includes("application/json")) {
+          throw new Error(`Invalid response format: Expected JSON but got ${contentType}`);
+        }
+
+        return res.json();
+      } catch (error) {
+        console.error('Approval error:', error);
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error('Failed to process approval');
       }
-
-      return res.json();
     },
     onSuccess: (_, variables) => {
-      // Invalidate both the list and the individual request
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       queryClient.invalidateQueries({ queryKey: [`/api/requests/${variables.requestId}`] });
       toast({
@@ -59,9 +86,10 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
+      console.error('Approval error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to process approval",
         variant: "destructive",
       });
     },

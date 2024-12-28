@@ -2,11 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
-import { initializeAnthropicClient } from "./utils/anthropic-client";
 import { setupAuth } from "./auth";
 
 // Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL', 'ANTHROPIC_API_KEY'];
+const requiredEnvVars = ['DATABASE_URL'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -74,14 +73,6 @@ async function initializeServer() {
       }
     }
 
-    // Initialize Anthropic client (non-blocking)
-    const anthropicClient = await initializeAnthropicClient();
-    if (!anthropicClient) {
-      log("Warning: Anthropic client initialization failed. Some features may be limited.");
-    } else {
-      log("Anthropic client initialized successfully");
-    }
-
     // Set up authentication
     await setupAuth(app);
     log("Authentication setup completed");
@@ -90,12 +81,20 @@ async function initializeServer() {
     const server = await registerRoutes(app);
     log("Routes registered successfully");
 
-    // Global error handler
+    // Global error handler with improved logging
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Server error:', err);
+      console.error('Server error:', {
+        message: err.message,
+        stack: err.stack,
+        status: err.status || err.statusCode || 500
+      });
+
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
-      res.status(status).json({ message });
+      res.status(status).json({ 
+        message,
+        error: app.get('env') === 'development' ? err.stack : undefined
+      });
     });
 
     // Setup vite in development or serve static files in production
@@ -117,7 +116,10 @@ async function initializeServer() {
     });
 
   } catch (error: any) {
-    console.error('Fatal server initialization error:', error);
+    console.error('Fatal server initialization error:', {
+      message: error.message,
+      stack: error.stack
+    });
     process.exit(1);
   }
 }

@@ -1,42 +1,48 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-  dangerouslyAllowBrowser: true // Enable browser usage
-});
-
 export async function analyzeFormError(formData: any, error: any) {
   try {
-    const message = await anthropic.messages.create({
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze this form submission error and provide debugging suggestions:
-          Form Data: ${JSON.stringify(formData, null, 2)}
-          Error: ${JSON.stringify(error, null, 2)}
-
-          Focus on:
-          1. Data type mismatches
-          2. Missing required fields
-          3. Invalid field formats
-          4. Validation rule violations
-
-          Provide a clear, concise explanation of the issues and how to fix them.`
-        }
-      ],
-      model: 'claude-3-5-sonnet-20241022',
+    console.error("Form submission error:", {
+      formData,
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack
+      } : error
     });
 
-    // Handle the content properly - get the first content block's text
-    const content = message.content[0];
-    if (content.type === 'text') {
-      return content.text || "Unable to analyze the error";
+    // Standard form error analysis
+    const issues = [];
+
+    // Check for common form issues
+    if (!formData) {
+      issues.push("Form data is missing");
     }
-    return "Unable to analyze the error - unexpected response format";
-  } catch (error) {
-    console.error("Error analyzing form data:", error);
-    return "Error analysis failed. Please check the console for details.";
+
+    if (error instanceof Error) {
+      // Check for validation errors
+      if (error.message.includes("required")) {
+        issues.push("Required fields are missing");
+      }
+      // Check for type mismatches
+      if (error.message.includes("type")) {
+        issues.push("Invalid data type in form fields");
+      }
+      // Check for format errors
+      if (error.message.includes("format")) {
+        issues.push("Data format is incorrect");
+      }
+    }
+
+    // If no specific issues found, provide generic guidance
+    if (issues.length === 0) {
+      issues.push(
+        "Please check all required fields are filled",
+        "Ensure data formats are correct",
+        "Verify field values meet validation rules"
+      );
+    }
+
+    return issues.join("\n");
+  } catch (analyzeError) {
+    console.error("Error analysis failed:", analyzeError);
+    return "Unable to analyze the error. Please check the form inputs and try again.";
   }
 }

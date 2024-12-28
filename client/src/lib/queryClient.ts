@@ -4,29 +4,53 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: async ({ queryKey }) => {
-        const res = await fetch(queryKey[0] as string, {
-          credentials: "include",
-        });
+        try {
+          const res = await fetch(queryKey[0] as string, {
+            credentials: "include",
+          });
 
-        if (!res.ok) {
-          if (res.status >= 500) {
-            throw new Error(`${res.status}: ${res.statusText}`);
+          if (!res.ok) {
+            // First try to get JSON error
+            const contentType = res.headers.get("content-type");
+            if (contentType?.includes("application/json")) {
+              const errorData = await res.json();
+              throw new Error(errorData.message || `${res.status}: ${res.statusText}`);
+            }
+
+            // Fallback to text error
+            const errorText = await res.text();
+            // Check if the response is HTML (likely an error page)
+            if (errorText.toLowerCase().includes('<!doctype html>')) {
+              throw new Error(`Server Error (${res.status}): The server encountered an error`);
+            }
+            throw new Error(errorText || `${res.status}: ${res.statusText}`);
           }
 
-          const errorText = await res.text();
-          throw new Error(errorText || `${res.status}: ${res.statusText}`);
-        }
+          // Verify JSON content type
+          const contentType = res.headers.get("content-type");
+          if (!contentType?.includes("application/json")) {
+            throw new Error(`Invalid response format: Expected JSON but got ${contentType}`);
+          }
 
-        return res.json();
+          return res.json();
+        } catch (error) {
+          if (error instanceof Error) {
+            throw error;
+          }
+          throw new Error('An unexpected error occurred');
+        }
       },
       staleTime: 30 * 1000, // Data considered fresh for 30 seconds
-      cacheTime: 5 * 60 * 1000, // Cache data for 5 minutes
+      gcTime: 5 * 60 * 1000, // Keep unused data in cache for 5 minutes
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: false,
       retry: (failureCount, error) => {
         // Only retry on network errors or 5xx errors
-        if (error instanceof Error && error.message.includes('500')) {
+        if (error instanceof Error && (
+          error.message.includes('Failed to fetch') || 
+          error.message.includes('Server Error')
+        )) {
           return failureCount < 2;
         }
         return false;

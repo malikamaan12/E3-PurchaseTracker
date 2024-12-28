@@ -8,12 +8,6 @@ import { promisify } from "util";
 import { users, insertUserSchema, loginSchema } from "@db/schema";
 import { db, testConnection } from "@db";
 import { eq } from "drizzle-orm";
-import Anthropic from '@anthropic-ai/sdk';
-
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -34,26 +28,27 @@ const crypto = {
   },
 };
 
-// Add error analysis function
-async function analyzeAuthError(error: Error, context: string): Promise<string> {
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
-      messages: [{
-        role: "user",
-        content: `Analyze this authentication error and provide a user-friendly explanation. Context: ${context}. Error: ${error.message}`
-      }]
-    });
+// Standard error analysis function
+function getAuthErrorMessage(error: Error, context: string): string {
+  const baseMessage = "Authentication failed";
 
-    const content = response.content[0];
-    return content.type === 'text' 
-      ? content.text 
-      : "An unexpected error occurred during authentication. Please try again later.";
-  } catch (anthropicError) {
-    console.error("Error analyzing auth error:", anthropicError);
-    return "An unexpected error occurred during authentication. Please try again later.";
+  // Common error patterns
+  if (error.message.includes("duplicate key")) {
+    return "This username is already taken";
   }
+  if (error.message.includes("database")) {
+    return "Unable to access user data. Please try again later";
+  }
+  if (context === "Login authentication" && error.message.includes("password")) {
+    return "Invalid username or password";
+  }
+
+  console.error(`Auth error in ${context}:`, {
+    message: error.message,
+    stack: error.stack
+  });
+
+  return `${baseMessage}. Please try again later`;
 }
 
 // extend express user object with our schema
@@ -106,7 +101,6 @@ export async function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // Check if database is available
         const isDbConnected = await testConnection();
         if (!isDbConnected) {
           throw new Error("Database connection not available");
@@ -129,8 +123,11 @@ export async function setupAuth(app: Express) {
 
         return done(null, user);
       } catch (err: any) {
-        const analysis = await analyzeAuthError(err as Error, "User login attempt");
-        console.error("Login error analysis:", analysis);
+        const errorMessage = getAuthErrorMessage(err, "Login attempt");
+        console.error("Login error:", {
+          message: err.message,
+          stack: err.stack
+        });
         return done(err);
       }
     })
@@ -159,8 +156,11 @@ export async function setupAuth(app: Express) {
 
       done(null, user);
     } catch (err: any) {
-      const analysis = await analyzeAuthError(err as Error, "Session restoration");
-      console.error("Session restoration error analysis:", analysis);
+      const errorMessage = getAuthErrorMessage(err, "Session restoration");
+      console.error("Session restoration error:", {
+        message: err.message,
+        stack: err.stack
+      });
       done(err);
     }
   });
@@ -177,14 +177,17 @@ export async function setupAuth(app: Express) {
           });
       }
 
-      passport.authenticate("local", async (err: any, user: Express.User | false, info: IVerifyOptions) => {
+      passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
         try {
           if (err) {
-            const analysis = await analyzeAuthError(err as Error, "Login authentication");
-            console.error("Authentication error analysis:", analysis);
+            const errorMessage = getAuthErrorMessage(err, "Login authentication");
+            console.error("Authentication error:", {
+              message: err.message,
+              stack: err.stack
+            });
             return res.status(500).json({
               error: "Authentication failed",
-              message: analysis
+              message: errorMessage
             });
           }
 
@@ -195,13 +198,16 @@ export async function setupAuth(app: Express) {
             });
           }
 
-          req.logIn(user, async (loginErr) => {
+          req.logIn(user, (loginErr) => {
             if (loginErr) {
-              const analysis = await analyzeAuthError(loginErr as Error, "Login session creation");
-              console.error("Login session error analysis:", analysis);
+              const errorMessage = getAuthErrorMessage(loginErr, "Login session creation");
+              console.error("Login session error:", {
+                message: loginErr.message,
+                stack: loginErr.stack
+              });
               return res.status(500).json({
                 error: "Login session failed",
-                message: analysis
+                message: errorMessage
               });
             }
 
@@ -218,14 +224,20 @@ export async function setupAuth(app: Express) {
             });
           });
         } catch (authError: any) {
-          const analysis = await analyzeAuthError(authError as Error, "Login process");
-          console.error("Login process error analysis:", analysis);
+          const errorMessage = getAuthErrorMessage(authError, "Login process");
+          console.error("Login process error:", {
+            message: authError.message,
+            stack: authError.stack
+          });
           next(authError);
         }
       })(req, res, next);
     } catch (error: any) {
-      const analysis = await analyzeAuthError(error as Error, "Login request processing");
-      console.error("Login request error analysis:", analysis);
+      const errorMessage = getAuthErrorMessage(error, "Login request processing");
+      console.error("Login request error:", {
+        message: error.message,
+        stack: error.stack
+      });
       next(error);
     }
   });
@@ -236,7 +248,10 @@ export async function setupAuth(app: Express) {
       if (!result.success) {
         return res
           .status(400)
-          .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+          .json({
+            error: "Invalid input",
+            details: result.error.issues.map(i => i.message)
+          });
       }
 
       const { username, password, email, contactNumber, department, role } = result.data;
@@ -248,7 +263,10 @@ export async function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
-        return res.status(400).send("Username already exists");
+        return res.status(400).json({
+          error: "Registration failed",
+          message: "Username already exists"
+        });
       }
 
       const hashedPassword = await crypto.hash(password);
@@ -282,8 +300,11 @@ export async function setupAuth(app: Express) {
         });
       });
     } catch (error: any) {
-      const analysis = await analyzeAuthError(error as Error, "Registration");
-      console.error("Registration error analysis:", analysis);
+      const errorMessage = getAuthErrorMessage(error, "Registration");
+      console.error("Registration error:", {
+        message: error.message,
+        stack: error.stack
+      });
       next(error);
     }
   });
@@ -291,9 +312,11 @@ export async function setupAuth(app: Express) {
   app.post("/api/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
-        return res.status(500).send("Logout failed");
+        return res.status(500).json({
+          error: "Logout failed",
+          message: "Failed to end session"
+        });
       }
-
       res.json({ message: "Logout successful" });
     });
   });
@@ -310,7 +333,9 @@ export async function setupAuth(app: Express) {
         role: user.role,
       });
     }
-
-    res.status(401).send("Not logged in");
+    res.status(401).json({
+      error: "Not authenticated",
+      message: "Please log in to access this resource"
+    });
   });
 }
