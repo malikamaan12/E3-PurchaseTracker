@@ -41,7 +41,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
@@ -65,15 +65,28 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Delete user
-      await db
-        .delete(users)
-        .where(eq(users.id, userId));
+      console.log('Attempting to delete user:', userId);
 
-      res.json({ message: 'User deleted successfully' });
+      try {
+        // Delete user's notifications first
+        await db
+          .delete(notifications)
+          .where(eq(notifications.userId, userId));
+
+        // Delete the user
+        await db
+          .delete(users)
+          .where(eq(users.id, userId));
+
+        console.log('Successfully deleted user:', userId);
+        res.json({ message: 'User deleted successfully' });
+      } catch (deleteError) {
+        console.error('Error during delete operation:', deleteError);
+        throw new AppError('Failed to delete user: ' + deleteError.message, 500);
+      }
     } catch (error) {
-      console.error('Error deleting user:', error);
-      next(new AppError('Failed to delete user', 500));
+      console.error('Error in delete user endpoint:', error);
+      next(error);
     }
   });
 
