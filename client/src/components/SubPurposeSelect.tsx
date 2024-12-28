@@ -52,7 +52,7 @@ export default function SubPurposeSelect({
   const { data: subPurposes = [], isLoading } = useQuery<SubPurpose[]>({
     queryKey: ["/api/sub-purposes", { purposeType }],
     queryFn: async () => {
-      const response = await fetch(`/api/sub-purposes?purposeType=${purposeType}`, {
+      const response = await fetch(`/api/sub-purposes?purposeType=${encodeURIComponent(purposeType)}`, {
         credentials: "include",
       });
       if (!response.ok) {
@@ -65,15 +65,15 @@ export default function SubPurposeSelect({
 
   // Filter active sub-purposes based on time constraints and frozen status
   const activeSubPurposes = subPurposes.filter(sp => {
-    if (sp.isFrozen) return false;
+    if (sp.is_frozen) return false;
 
     const now = new Date();
 
-    if (sp.validFrom && new Date(sp.validFrom) > now) {
+    if (sp.valid_from && new Date(sp.valid_from) > now) {
       return false;
     }
 
-    if (sp.validTo && new Date(sp.validTo) < now) {
+    if (sp.valid_to && new Date(sp.valid_to) < now) {
       return false;
     }
 
@@ -85,7 +85,10 @@ export default function SubPurposeSelect({
       const res = await fetch("/api/sub-purposes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, purposeType }),
+        body: JSON.stringify({ 
+          name, 
+          purpose_type: purposeType 
+        }),
         credentials: "include",
       });
 

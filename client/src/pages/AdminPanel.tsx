@@ -94,10 +94,10 @@ export default function AdminPanel() {
     resolver: zodResolver(insertSubPurposeSchema),
     defaultValues: {
       name: "",
-      purposeType: "event",
-      isFrozen: false,
-      validFrom: undefined,
-      validTo: undefined,
+      purpose_type: "E3 EVENT",
+      is_frozen: false,
+      valid_from: undefined,
+      valid_to: undefined,
     },
   });
 
@@ -438,8 +438,8 @@ export default function AdminPanel() {
                       // Format dates properly before submission
                       const formattedData = {
                         ...data,
-                        validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : undefined,
-                        validTo: data.validTo ? new Date(data.validTo).toISOString() : undefined,
+                        valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : undefined,
+                        valid_to: data.valid_to ? new Date(data.valid_to).toISOString() : undefined,
                       };
                       createSubPurpose.mutate(formattedData);
                     })} className="space-y-4">
@@ -459,7 +459,7 @@ export default function AdminPanel() {
 
                       <FormField
                         control={form.control}
-                        name="purposeType"
+                        name="purpose_type"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Purpose Type</FormLabel>
@@ -473,10 +473,10 @@ export default function AdminPanel() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="event">Event</SelectItem>
-                                <SelectItem value="project">Project</SelectItem>
-                                <SelectItem value="mall">Mall</SelectItem>
-                                <SelectItem value="business_growth">Business Growth</SelectItem>
+                                <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
+                                <SelectItem value="PROJECT">PROJECT</SelectItem>
+                                <SelectItem value="MALL">MALL</SelectItem>
+                                <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -486,7 +486,7 @@ export default function AdminPanel() {
 
                       <FormField
                         control={form.control}
-                        name="validFrom"
+                        name="valid_from"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Valid From</FormLabel>
@@ -513,7 +513,7 @@ export default function AdminPanel() {
 
                       <FormField
                         control={form.control}
-                        name="validTo"
+                        name="valid_to"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Valid To</FormLabel>
