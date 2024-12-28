@@ -13,18 +13,43 @@ export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
   setupAuth(app);
 
+  // Purchase Request endpoints
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+
+      const requestData = {
+        ...req.body,
+        requesterId: req.user!.id,
+        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      };
+
+      // Create new purchase request
+      const [newRequest] = await db
+        .insert(purchaseRequests)
+        .values(requestData)
+        .returning();
+
+      res.json(newRequest);
+    } catch (error) {
+      console.error('Error creating purchase request:', error);
+      next(new AppError('Failed to create purchase request', 500));
+    }
+  });
+
   // Sub-purposes management endpoints
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
 
       let query = db.select().from(subPurposes);
-
       if (purposeType) {
         query = query.where(eq(subPurposes.purposeType, purposeType as string));
       }
 
-      const allSubPurposes = await query.orderBy(subPurposes.createdAt);
+      const allSubPurposes = await query;
       res.json(allSubPurposes);
     } catch (error) {
       console.error('Error fetching sub-purposes:', error);
@@ -479,6 +504,7 @@ export function registerRoutes(app: Express): Server {
       code: 'NOT_FOUND'
     });
   });
+
 
   // Approver management endpoints
   app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
