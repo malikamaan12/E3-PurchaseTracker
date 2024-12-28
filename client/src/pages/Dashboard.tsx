@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
@@ -89,6 +89,10 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // For debugging
+  console.log('Current user:', user);
+  console.log('All requests:', requests);
+
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -97,6 +101,7 @@ export default function Dashboard() {
   // Reset filters when component mounts or user changes
   useEffect(() => {
     if (user) {
+      console.log('Resetting filters for user:', user.username);
       setDepartmentFilter("all");
       setPurposeTypeFilter("all");
       setPriorityFilter("all");
@@ -106,14 +111,15 @@ export default function Dashboard() {
   }, [user, resetFilters]);
 
   const isSpecialRole = useMemo(() => {
-    return (
-      user?.role === "admin" ||
+    const hasSpecialRole = user?.role === "admin" ||
       user?.role === "approver" ||
       user?.department === "CEO Office" ||
       user?.department === "Director" ||
-      user?.department === "Finance"
-    );
-  }, [user?.department, user?.role]);
+      user?.department === "Finance";
+
+    console.log('User special role status:', hasSpecialRole);
+    return hasSpecialRole;
+  }, [user?.role, user?.department]);
 
   const isAdmin = useMemo(() => {
     return user?.role === "admin";
