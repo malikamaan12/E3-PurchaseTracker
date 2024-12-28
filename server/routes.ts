@@ -503,18 +503,19 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Approval endpoint from edited snippet
+  // Approval endpoint
   app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new Error('Not authenticated');
+        throw new AppError('Not authenticated', 401);
       }
 
       const requestId = parseInt(req.params.requestId);
-      const { status, comments } = req.body;
+      const { status, comments, department } = req.body;
 
-      if (!requestId || !status) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      // Validate required fields
+      if (!requestId || !status || !department) {
+        throw new ValidationError('Missing required fields: requestId, status, and department are required');
       }
 
       // Create the approval record
@@ -525,6 +526,7 @@ export function registerRoutes(app: Express): Server {
           approverId: req.user!.id,
           status,
           comments,
+          department,  // Ensure department is included
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -561,30 +563,11 @@ export function registerRoutes(app: Express): Server {
 
       res.status(201).json(approval);
     } catch (error) {
+      console.error("Error creating approval:", error);
       next(error);
     }
   });
 
-
-  app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const approverId = parseInt(req.params.id);
-
-      // Delete approver assignment
-      await db
-        .delete(purchaseApprovers)
-        .where(eq(purchaseApprovers.id, approverId));
-
-      res.json({ message: 'Approver assignment deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting approver assignment:', error);
-      next(error);
-    }
-  });
 
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
@@ -710,7 +693,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
@@ -988,7 +970,7 @@ export function registerRoutes(app: Express): Server {
         .groupBy(errorLogs.severity)
         .orderBy(errorLogs.severity);
 
-      // Get recent errors with AI analysis
+            // Get recent errors with AI analysis
       const recentErrors = await db
         .select()
         .from(errorLogs)

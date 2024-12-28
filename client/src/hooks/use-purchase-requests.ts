@@ -41,27 +41,30 @@ export function usePurchaseRequests() {
     retry: 1,
     staleTime: 30000,
     onError: (error) => {
-      visualizeError(createErrorContext(error, 'error', {
-        path: '/api/requests',
-        details: 'Failed to fetch purchase requests'
-      }));
+      console.error("Error fetching requests:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch requests",
+        variant: "destructive",
+      });
     }
   });
 
-
   // Create approval mutation
   const createApproval = useMutation({
-    mutationFn: async ({ requestId, status, comments }: { 
+    mutationFn: async ({ requestId, status, comments, department }: { 
       requestId: number; 
       status: 'approved' | 'rejected' | 'changes_requested'; 
       comments?: string;
-      department?: string;
+      department: string;  // Make department required
     }) => {
+      console.log('Creating approval with:', { requestId, status, comments, department });
+
       const res = await fetch(`/api/requests/${requestId}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status, comments }),
+        body: JSON.stringify({ status, comments, department }),
       });
       return handleApiError(res);
     },
@@ -74,6 +77,7 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
+      console.error("Error creating approval:", error);
       toast({
         title: "Error",
         description: error.message,
