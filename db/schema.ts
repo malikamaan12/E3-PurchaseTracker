@@ -132,7 +132,7 @@ export const purchaseApprovers = pgTable("purchase_approvers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Add after the existing tables, before validation schemas
+// Error logging table with proper text fields for JSON data
 export const errorLogs = pgTable("error_logs", {
   id: serial("id").primaryKey(),
   message: text("message").notNull(),
@@ -140,8 +140,8 @@ export const errorLogs = pgTable("error_logs", {
   severity: text("severity").notNull(),
   path: text("path"),
   userId: integer("user_id").references(() => users.id),
-  details: text("details"), 
-  aiAnalysis: text("ai_analysis"), 
+  details: text("details"),
+  aiAnalysis: text("ai_analysis"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -33,13 +33,49 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Update error handling middleware
+  // Update session handling middleware
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
+      console.log(`[${req.id}] Session expired, attempting to regenerate`);
+
+      // Ensure session exists before regeneration
+      if (!req.session) {
+        console.error(`[${req.id}] Invalid session state`);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Invalid session state',
+          code: 'SESSION_ERROR'
+        });
+      }
+
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
+          return res.status(500).json({
+            status: 'error',
+            message: 'Session recovery failed',
+            code: 'SESSION_ERROR'
+          });
+        }
+
+        console.log(`[${req.id}] Session regenerated successfully`);
+        // Ensure response hasn't been sent before continuing
+        if (!res.headersSent) {
+          next();
+        }
+      });
+    } else {
+      next(err);
+    }
+  });
+
+  // Enhanced error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
       console.log(`[${req.id}] Error occurred:`, err);
       const error = await handleError(err);
 
-      // Log error to database with proper serialization
+      // Ensure proper error logging with string serialization
       try {
         const errorLogData = {
           message: error.message,
@@ -60,44 +96,28 @@ export function registerRoutes(app: Express): Server {
       // Ensure valid status code
       const status = error.status && error.status >= 100 && error.status < 600 ? error.status : 500;
 
-      // Send error response with proper structure
-      res.status(status).json({
-        status: 'error',
-        message: error.message,
-        code: error.code || 'INTERNAL_ERROR',
-        severity: error.severity || 'error',
-        ...(error.details && { details: error.details })
-      });
+      // Ensure response hasn't been sent
+      if (!res.headersSent) {
+        res.status(status).json({
+          status: 'error',
+          message: error.message,
+          code: error.code || 'INTERNAL_ERROR',
+          severity: error.severity || 'error',
+          ...(error.details && { details: error.details })
+        });
+      }
     } catch (handlingError) {
       console.error(`[${req.id}] Error in error handling middleware:`, handlingError);
-      res.status(500).json({
-        status: 'error',
-        message: 'Internal Server Error',
-        code: 'INTERNAL_ERROR',
-        severity: 'critical'
-      });
-    }
-  });
 
-  // Add session recovery middleware
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
-      console.log(`[${req.id}] Session expired, attempting to regenerate`);
-      if (req.session) {
-        req.session.regenerate((regenerateErr) => {
-          if (regenerateErr) {
-            console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
-            next(new AppError('Session recovery failed', 500));
-          } else {
-            console.log(`[${req.id}] Session regenerated successfully`);
-            next();
-          }
+      // Ensure response hasn't been sent
+      if (!res.headersSent) {
+        res.status(500).json({
+          status: 'error',
+          message: 'Internal Server Error',
+          code: 'INTERNAL_ERROR',
+          severity: 'critical'
         });
-      } else {
-        next(new AppError('Invalid session state', 500));
       }
-    } else {
-      next(err);
     }
   });
 
@@ -945,7 +965,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/analytics/errors", async (req: Request,res: Response, next: NextFunction) => {
     try {
       const { message, code, severity, path, details, aiAnalysis } = req.body;
 
