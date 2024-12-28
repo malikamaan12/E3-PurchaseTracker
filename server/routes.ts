@@ -16,22 +16,6 @@ import path from 'path';
 import fs from 'fs';
 import { format } from 'date-fns';
 
-// Helper function to clean up upload directory
-function cleanupUploads() {
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (fs.existsSync(uploadDir)) {
-    try {
-      const files = fs.readdirSync(uploadDir);
-      for (const file of files) {
-        fs.unlinkSync(path.join(uploadDir, file));
-      }
-      console.log('Cleaned up uploads directory');
-    } catch (error) {
-      console.error('Error cleaning uploads directory:', error);
-    }
-  }
-}
-
 // Helper function to create notifications
 async function createNotification(
   userId: number,
@@ -59,92 +43,64 @@ async function createNotification(
   }
 }
 
-const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
-
-// Helper function to check if a user can approve a request
-async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
-  try {
-    // Get the user
-    const [user] = await db.select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user) {
-      return false;
-    }
-
-    // Get the request
-    const [request] = await db.select()
-      .from(purchaseRequests)
-      .where(eq(purchaseRequests.id, requestId))
-      .limit(1);
-
-    if (!request) {
-      return false;
-    }
-
-    // Special roles can approve any request
-    const isSpecialRole = mandatoryDepartments.includes(user.department);
-
-    // For non-special roles, users cannot approve their own requests
-    if (!isSpecialRole && request.requesterId === userId) {
-      return false;
-    }
-
-    // Check if user has already approved this request
-    const [existingApproval] = await db.select()
-      .from(approvals)
-      .where(
-        and(
-          eq(approvals.requestId, requestId),
-          eq(approvals.approverId, userId)
-        )
-      )
-      .limit(1);
-
-    // If there's an existing approval, user cannot approve again
-    if (existingApproval) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error in canUserApprove:", error);
-    return false;
-  }
-}
-
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${file.originalname}-${uniqueSuffix}${ext}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Maximum 5 files per request
-  }
-});
-
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // API Health Check
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Register route handlers
+  app.post("/api/requests/:id/approvals", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    try {
+      const requestId = parseInt(req.params.id);
+      const canApprove = await canUserApprove(req.user!.id, requestId);
+      if (!canApprove) {
+        return res.status(403).json({ error: "Not authorized to approve this request" });
+      }
+
+      const [approval] = await db.insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status: req.body.status,
+          comments: req.body.comments,
+          department: req.user!.department,
+          isMandatory: mandatoryDepartments.includes(req.user!.department),
+        })
+        .returning();
+
+      if (approval) {
+        const [request] = await db
+          .select()
+          .from(purchaseRequests)
+          .where(eq(purchaseRequests.id, approval.requestId))
+          .limit(1);
+
+        if (request) {
+          await createNotification(
+            request.requesterId,
+            `Purchase Request ${request.requestNumber} Status Update`,
+            `Your purchase request ${request.requestNumber} has been ${approval.status} by ${req.user!.department}`,
+            'approval_update',
+            request.id
+          );
+        }
+      }
+
+      res.json(approval);
+    } catch (error: any) {
+      console.error("Error creating approval:", error);
+      res.status(500).json({
+        error: "Failed to create approval",
+        message: error.message
+      });
+    }
   });
 
   // Request routes
@@ -1516,5 +1472,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Error handling middleware - must be registered after all routes
+  app.use((err: any, _req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+    console.error('Server error:', {
+      message: err.message,
+      stack: err.stack,
+      status: err.status || err.statusCode || 500
+    });
+
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    const status = err.status || err.statusCode || 500;
+    res.status(status).json({
+      error: true,
+      message: err.message || "Internal Server Error",
+      details: app.get('env') === 'development' ? err.stack : undefined
+    });
+  });
+
+  // 404 handler - must be registered last
+  app.use('/api/*', (req, res) => {
+    console.error(`API endpoint not found: ${req.method} ${req.path}`);
+    res.status(404).json({
+      error: true,
+      message: `API endpoint not found: ${req.method} ${req.path}`
+    });
+  });
+
   return httpServer;
+}
+
+// Helper function to check if a user can approve a request
+async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
+  try {
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      return false;
+    }
+
+    const [request] = await db.select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!request) {
+      return false;
+    }
+
+    // Special roles can approve any request
+    const isSpecialRole = mandatoryDepartments.includes(user.department);
+
+    // For non-special roles, users cannot approve their own requests
+    if (!isSpecialRole && request.requesterId === userId) {
+      return false;
+    }
+
+    // Check if user has already approved this request
+    const [existingApproval] = await db.select()
+      .from(approvals)
+      .where(
+        and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.approverId, userId)
+        )
+      )
+      .limit(1);
+
+    // If there's an existing approval, user cannot approve again
+    if (existingApproval) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in canUserApprove:", error);
+    return false;
+  }
+}
+
+const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `${file.originalname}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files per request
+  }
+});
+
+// Helper function to clean up upload directory
+function cleanupUploads() {
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  if (fs.existsSync(uploadDir)) {
+    try {
+      const files = fs.readdirSync(uploadDir);
+      for (const file of files) {
+        fs.unlinkSync(path.join(uploadDir, file));
+      }
+      console.log('Cleaned up uploads directory');
+    } catch (error) {
+      console.error('Error cleaning uploads directory:', error);
+    }
+  }
 }
