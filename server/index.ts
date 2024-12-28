@@ -1,28 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { testConnection } from "@db";
+import { db } from "@db";
 import fs from 'fs';
 import path from 'path';
-import { setupAuth, createTestUser } from './auth';
+import { setupAuth } from './auth';
 import { AppError } from './utils/errors';
-
-// Validate required environment variables
-const requiredEnvVars = [
-  'DATABASE_URL',
-  'ANTHROPIC_API_KEY'
-];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  process.exit(1);
-}
 
 // Initialize express app
 const app = express();
 
-// Basic middleware setup with detailed logging
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -38,7 +26,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// Request logging middleware with detailed information
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -69,7 +57,7 @@ app.use((req, res, next) => {
 
 async function initializeServer() {
   try {
-    // Test database connection first with retries
+    // Test database connection first
     log("Testing database connection...");
     let isConnected = false;
     let retries = 0;
@@ -77,12 +65,10 @@ async function initializeServer() {
 
     while (!isConnected && retries < maxRetries) {
       try {
-        const result = await testConnection();
-        isConnected = result;
-        if (isConnected) {
-          log("Database connection established successfully");
-          break;
-        }
+        // Simple query to test connection
+        await db.execute('SELECT 1');
+        isConnected = true;
+        log("Database connection established successfully");
       } catch (err) {
         retries++;
         if (retries < maxRetries) {
@@ -97,15 +83,6 @@ async function initializeServer() {
     // Set up authentication before routes
     await setupAuth(app);
     log("Authentication setup completed");
-
-    // Create test user after database connection is established
-    try {
-      await createTestUser();
-      log("Test user created/updated successfully");
-    } catch (error) {
-      console.error("Failed to create test user:", error);
-      // Continue execution even if test user creation fails
-    }
 
     // Set up routes
     const server = registerRoutes(app);
@@ -155,9 +132,6 @@ async function initializeServer() {
     const PORT = Number(process.env.PORT || 5000);
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server started and listening on port ${PORT}`);
-    }).on('error', (err: any) => {
-      console.error('Failed to start server:', err);
-      process.exit(1);
     });
 
   } catch (error: any) {
