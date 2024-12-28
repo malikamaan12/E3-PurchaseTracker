@@ -503,6 +503,66 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.post("/api/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { requestId, status, comments } = req.body;
+
+      if (!requestId || !status) {
+        throw new ValidationError('Missing required fields');
+      }
+
+      // Create the approval record
+      const [approval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status,
+          comments,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      // If approved by Finance department, lock the request
+      if (req.user?.department === "Finance" && status === "approved") {
+        await db
+          .update(purchaseRequests)
+          .set({ 
+            isLocked: true,
+            status: "approved",
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+      } else if (status === "rejected") {
+        await db
+          .update(purchaseRequests)
+          .set({ 
+            status: "rejected",
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+      } else if (status === "changes_requested") {
+        await db
+          .update(purchaseRequests)
+          .set({ 
+            status: "changes_requested",
+            isLocked: false,
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+      }
+
+      res.status(201).json(approval);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {

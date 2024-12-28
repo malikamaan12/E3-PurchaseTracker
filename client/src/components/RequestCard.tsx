@@ -460,45 +460,18 @@ export default function RequestCard({
 
         <RequestStatusTimeline request={request} />
 
-        <ApprovalFlow
-          approvals={request.approvals}
-          requestId={request.id}
-          requesterId={request.requesterId}
-          status={request.status}
-          onApprovalUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-            queryClient.invalidateQueries({ queryKey: [`/api/requests/${request.id}`] });
-          }}
-        />
-
         {showApproval && (
           <div className="space-y-4 pt-4 border-t border-gray-100">
-            <Textarea
-              placeholder="Add comments..."
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              className="min-h-[100px]"
+            <ApprovalFlow
+              approvals={request.approvals}
+              requestId={request.id}
+              requesterId={request.requesterId}
+              status={request.status}
+              onApprovalUpdate={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+                queryClient.invalidateQueries({ queryKey: [`/api/requests/${request.id}`] });
+              }}
             />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleApproval("changes_requested")}
-              >
-                Request Changes
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => handleApproval("rejected")}
-              >
-                Reject
-              </Button>
-              <Button
-                onClick={() => handleApproval("approved")}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Approve
-              </Button>
-            </div>
           </div>
         )}
 
