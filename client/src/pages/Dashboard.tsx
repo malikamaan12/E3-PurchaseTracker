@@ -16,7 +16,6 @@ import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState as useState2, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,10 +48,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateRequest } from "@/services/requests";
-import type { PurchaseRequest, User, Approval } from "@db/schema";
 
-// Define interface for request data with proper types
-interface RequestData extends PurchaseRequest {
+interface RequestData {
+  id: number;
+  requesterId: number;
+  status: string;
+  title: string;
+  description: string;
+  requestNumber: string;
+  createdAt: string;
+  priority: string;
+  purposeType: string;
+  totalEstimatedCost: number;
+  items?: Array<{
+    name: string;
+    quantity: number;
+    estimatedCost: number;
+    description?: string;
+  }>;
   requester?: {
     id: number;
     username: string;
@@ -60,21 +73,26 @@ interface RequestData extends PurchaseRequest {
     department?: string;
     role?: string;
   };
-  approvals?: Approval[];
+  approvals?: Array<{
+    id: number;
+    status: string;
+    department: string;
+    comments?: string;
+  }>;
 }
 
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const { requests = [], isLoading, error } = usePurchaseRequests<RequestData[]>();
+  const { requests = [], isLoading, error } = usePurchaseRequests();
   const { preferences, updatePreferences, resetFilters } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [departmentFilter, setDepartmentFilter] = useState2<string>("all");
-  const [purposeTypeFilter, setPurposeTypeFilter] = useState2<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState2<string>("all");
-  const [searchQuery, setSearchQuery] = useState2("");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Reset filters when component mounts or user changes
   useEffect(() => {
@@ -101,16 +119,20 @@ export default function Dashboard() {
     return user?.role === "admin";
   }, [user?.role]);
 
-  const pendingApprovals = useMemo(() => {
-    if (!user || !requests) return [];
+  const isApprover = useMemo(() => {
+    return user?.role === "approver";
+  }, [user?.role]);
 
-    return requests.filter((request) => {
+  const pendingApprovals = useMemo(() => {
+    if (!user || !Array.isArray(requests)) return [];
+
+    return requests.filter((request: RequestData) => {
       if (!request || request.status !== "pending") return false;
 
       // Admin, approvers and special roles can approve any request
       if (
         isAdmin ||
-        user.role === "approver" ||
+        isApprover ||
         ["CEO Office", "Director", "Finance"].includes(user.department || "")
       ) {
         return true;
@@ -126,37 +148,15 @@ export default function Dashboard() {
 
       return !departmentApproval || departmentApproval.status === "pending";
     });
-  }, [requests, user, isAdmin]);
+  }, [requests, user, isAdmin, isApprover]);
 
   const showApprovalsTab = useMemo(() => {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
 
-  const departments = useMemo(() => {
-    if (!requests) return [];
-    const deptSet = new Set<string>();
-    requests.forEach((r) => {
-      if (r.requester?.department) {
-        deptSet.add(r.requester.department);
-      }
-    });
-    return Array.from(deptSet);
-  }, [requests]);
-
-  const purposeTypes = useMemo(() => {
-    if (!requests) return [];
-    const typeSet = new Set<string>();
-    requests.forEach((r) => {
-      if (r.purposeType) {
-        typeSet.add(r.purposeType);
-      }
-    });
-    return Array.from(typeSet);
-  }, [requests]);
-
-  const priorities = ["low", "medium", "high", "urgent"];
-
   const filterRequests = (requestList: RequestData[]) => {
+    if (!Array.isArray(requestList)) return [];
+
     return requestList.filter((r) => {
       if (!r) return false;
 
@@ -181,34 +181,40 @@ export default function Dashboard() {
     });
   };
 
+  // Get all requests visible to the user based on their role
+  const visibleRequests = useMemo(() => {
+    if (!Array.isArray(requests)) return [];
+
+    if (isAdmin || isApprover || isSpecialRole) {
+      return requests;
+    }
+
+    // Regular users can only see their own requests
+    return requests.filter((r: RequestData) => r?.requesterId === user?.id);
+  }, [requests, isAdmin, isApprover, isSpecialRole, user?.id]);
+
   const myDrafts = filterRequests(
-    requests?.filter((r) => r?.requesterId === user?.id && r?.status === "draft") || []
+    visibleRequests.filter((r) => r?.requesterId === user?.id && r?.status === "draft")
   );
 
   const mySubmittedRequests = filterRequests(
-    requests?.filter((r) => r?.requesterId === user?.id && r?.status !== "draft") || []
+    visibleRequests.filter((r) => r?.requesterId === user?.id && r?.status !== "draft")
   );
 
   const pendingRequests = filterRequests(
-    requests?.filter((r) => {
-      if (!r || r.status !== "pending") return false;
-      const departmentApproval = r.approvals?.find(
-        (a) => a.department === user?.department
-      );
-      return !departmentApproval || departmentApproval.status === "pending";
-    }) || []
+    visibleRequests.filter((r) => r?.status === "pending")
   );
 
   const approvedRequests = filterRequests(
-    requests?.filter((r) => r?.status === "approved") || []
+    visibleRequests.filter((r) => r?.status === "approved")
   );
 
   const rejectedRequests = filterRequests(
-    requests?.filter((r) => r?.status === "rejected") || []
+    visibleRequests.filter((r) => r?.status === "rejected")
   );
 
   const changesRequestedRequests = filterRequests(
-    requests?.filter((r) => r?.status === "changes_requested") || []
+    visibleRequests.filter((r) => r?.status === "changes_requested")
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -451,14 +457,14 @@ export default function Dashboard() {
   };
 
   const draftRequestsReadyToSubmit = filterRequests(
-    requests?.filter(
+    visibleRequests.filter(
       (r) =>
         r?.requesterId === user?.id &&
         r?.status === "draft" &&
         r?.title &&
         r?.description &&
         r?.items?.length > 0
-    ) || []
+    )
   );
 
   const handleNotificationClick = (
@@ -468,6 +474,31 @@ export default function Dashboard() {
       setLocation(notification.link);
     }
   };
+
+  const departments = useMemo(() => {
+    if (!Array.isArray(requests)) return [];
+    const deptSet = new Set<string>();
+    requests.forEach((r) => {
+      if (r.requester?.department) {
+        deptSet.add(r.requester.department);
+      }
+    });
+    return Array.from(deptSet);
+  }, [requests]);
+
+  const purposeTypes = useMemo(() => {
+    if (!Array.isArray(requests)) return [];
+    const typeSet = new Set<string>();
+    requests.forEach((r) => {
+      if (r.purposeType) {
+        typeSet.add(r.purposeType);
+      }
+    });
+    return Array.from(typeSet);
+  }, [requests]);
+
+  const priorities = ["low", "medium", "high", "urgent"];
+
 
   return (
     <div className="min-h-screen bg-gray-50">
