@@ -49,8 +49,18 @@ export function useDashboardPreferences() {
     setPreferences((prev) => ({ ...prev, ...updates }));
   };
 
+  const resetFilters = () => {
+    setPreferences((prev) => ({
+      ...prev,
+      defaultDepartmentFilter: "all",
+      defaultPurposeFilter: "all",
+      defaultPriorityFilter: "all"
+    }));
+  };
+
   return {
     preferences,
     updatePreferences,
+    resetFilters,
   };
 }

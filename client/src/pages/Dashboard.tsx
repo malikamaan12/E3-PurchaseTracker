@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
@@ -66,23 +66,27 @@ interface RequestData extends PurchaseRequest {
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests = [], isLoading, error } = usePurchaseRequests<RequestData[]>();
-  const { preferences, updatePreferences } = useDashboardPreferences();
+  const { preferences, updatePreferences, resetFilters } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [departmentFilter, setDepartmentFilter] = useState2<string>(
-    preferences.defaultDepartmentFilter
-  );
-  const [purposeTypeFilter, setPurposeTypeFilter] = useState2<string>(
-    preferences.defaultPurposeFilter
-  );
-  const [priorityFilter, setPriorityFilter] = useState2<string>(
-    preferences.defaultPriorityFilter
-  );
+  const [departmentFilter, setDepartmentFilter] = useState2<string>("all");
+  const [purposeTypeFilter, setPurposeTypeFilter] = useState2<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState2<string>("all");
   const [searchQuery, setSearchQuery] = useState2("");
 
-  // Check if user is in special role (can see all requests)
+  // Reset filters when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      setDepartmentFilter("all");
+      setPurposeTypeFilter("all");
+      setPriorityFilter("all");
+      setSearchQuery("");
+      resetFilters();
+    }
+  }, [user, resetFilters]);
+
   const isSpecialRole = useMemo(() => {
     return (
       user?.role === "admin" ||
@@ -92,12 +96,10 @@ export default function Dashboard() {
     );
   }, [user?.department, user?.role]);
 
-  // Check if user is admin
   const isAdmin = useMemo(() => {
     return user?.role === "admin";
   }, [user?.role]);
 
-  // Get pending approvals with proper type safety
   const pendingApprovals = useMemo(() => {
     if (!user || !requests) return [];
 
@@ -124,7 +126,6 @@ export default function Dashboard() {
     });
   }, [requests, user, isAdmin]);
 
-  // Only show approvals tab if user has pending approvals
   const showApprovalsTab = useMemo(() => {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
@@ -180,15 +181,12 @@ export default function Dashboard() {
 
   const myDrafts = filterRequests(
     requests?.filter(
-      (r) =>
-        r?.requesterId === user?.id && r?.status === "draft"
+      (r) => r?.requesterId === user?.id && r?.status === "draft"
     ) || []
   );
 
   const mySubmittedRequests = filterRequests(
-    requests?.filter(
-      (r) => r?.requesterId === user?.id && r?.status !== "draft"
-    ) || []
+    requests?.filter((r) => r?.requesterId === user?.id && r?.status !== "draft") || []
   );
 
   const pendingRequests = filterRequests(
@@ -250,7 +248,6 @@ export default function Dashboard() {
     }).format(Number(amount));
   };
 
-  // Delete request function
   const deleteRequest = async (requestId: string) => {
     try {
       const response = await fetch(`/api/requests/${requestId}`, {
@@ -262,7 +259,6 @@ export default function Dashboard() {
         throw new Error(await response.text());
       }
 
-      // Invalidate requests cache to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
 
       toast({
@@ -290,7 +286,6 @@ export default function Dashboard() {
         description: "Draft request submitted successfully",
       });
 
-      // Refresh requests after submission
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
     } catch (error: any) {
       console.error("Submit error:", error);
@@ -322,7 +317,7 @@ export default function Dashboard() {
         </TableHeader>
         <TableBody>
           {requests.map((request) => {
-            if (!request) return null; //Handle potential null values
+            if (!request) return null;
 
             const canSubmitDraft =
               request.status === "draft" &&
