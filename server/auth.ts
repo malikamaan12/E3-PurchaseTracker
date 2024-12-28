@@ -4,14 +4,21 @@ import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { compare, hash } from "bcrypt";
-import { users, type SelectUser } from "@db/schema";
+import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
-// extend express user object with our schema
+// Extend Express.User interface
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      department: string;
+      role: string;
+      contactNumber: string;
+    }
   }
 }
 
@@ -66,8 +73,18 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Create sanitized user object (without password)
+        const sanitizedUser: Express.User = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          department: user.department,
+          role: user.role,
+          contactNumber: user.contactNumber
+        };
+
         console.log('Authentication successful for user:', username);
-        return done(null, user);
+        return done(null, sanitizedUser);
       } catch (err) {
         console.error('Authentication error:', err);
         return done(err);
@@ -75,7 +92,7 @@ export async function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: Express.User, done) => {
     console.log('Serializing user:', user.id);
     done(null, user.id);
   });
@@ -84,7 +101,14 @@ export async function setupAuth(app: Express) {
     try {
       console.log('Deserializing user:', id);
       const [user] = await db
-        .select()
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          department: users.department,
+          role: users.role,
+          contactNumber: users.contactNumber
+        })
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
@@ -100,89 +124,18 @@ export async function setupAuth(app: Express) {
       done(err);
     }
   });
-
-  // Authentication routes
-  app.post("/api/login", (req, res, next) => {
-    try {
-      console.log('Login request received:', { username: req.body.username });
-
-      if (!req.body.username || !req.body.password) {
-        console.log('Login failed: Missing credentials');
-        return res.status(400).json({ message: 'Username and password are required' });
-      }
-
-      passport.authenticate('local', (err: any, user: any, info: any) => {
-        if (err) {
-          console.error('Authentication error:', err);
-          return next(err);
-        }
-
-        if (!user) {
-          console.log('Login failed:', info?.message);
-          return res.status(401).json({ message: info?.message || 'Invalid username or password' });
-        }
-
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error('Login session error:', loginErr);
-            return next(loginErr);
-          }
-
-          console.log('Login successful:', { userId: user.id, username: user.username });
-          return res.json({ 
-            user: {
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              department: user.department,
-              role: user.role,
-              contactNumber: user.contactNumber
-            }
-          });
-        });
-      })(req, res, next);
-    } catch (error) {
-      console.error('Unexpected login error:', error);
-      next(error);
-    }
-  });
-
-  app.get("/api/user", (req, res) => {
-    if (req.isAuthenticated()) {
-      const user = req.user;
-      return res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        department: user.department,
-        role: user.role,
-        contactNumber: user.contactNumber
-      });
-    }
-    res.status(401).json({
-      error: "Not authenticated",
-      message: "Please log in to access this resource"
-    });
-  });
 }
 
-// Create or update test user
+// Create or update test user with proper password hashing
 export async function createTestUser() {
   try {
     console.log('Creating/updating test user');
-    const testUserData = {
-      username: 'admin',
-      password: await hash('admin123', 10),
-      email: 'admin@example.com',
-      department: 'IT',
-      role: 'admin',
-      contactNumber: '123-456-7890'
-    };
+    const hashedPassword = await hash('admin123', 10);
 
     const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.username, testUserData.username))
+      .where(eq(users.username, 'admin'))
       .limit(1);
 
     if (existingUser) {
@@ -190,11 +143,11 @@ export async function createTestUser() {
       const [updatedUser] = await db
         .update(users)
         .set({
-          password: testUserData.password,
-          email: testUserData.email,
-          department: testUserData.department,
-          role: testUserData.role,
-          contactNumber: testUserData.contactNumber
+          password: hashedPassword,
+          email: 'admin@example.com',
+          department: 'IT',
+          role: 'admin',
+          contactNumber: '123-456-7890'
         })
         .where(eq(users.id, existingUser.id))
         .returning();
@@ -208,7 +161,14 @@ export async function createTestUser() {
       // Create new user
       const [newUser] = await db
         .insert(users)
-        .values(testUserData)
+        .values({
+          username: 'admin',
+          password: hashedPassword,
+          email: 'admin@example.com',
+          department: 'IT',
+          role: 'admin',
+          contactNumber: '123-456-7890'
+        })
         .returning();
 
       console.log('Test user created:', {

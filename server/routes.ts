@@ -24,7 +24,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Username and password are required' });
       }
 
-      passport.authenticate('local', async (err: any, user: any, info: any) => {
+      passport.authenticate('local', (err: any, user: Express.User | false, info: any) => {
         if (err) {
           console.error('Authentication error:', err);
           return next(err);
@@ -46,9 +46,10 @@ export function registerRoutes(app: Express): Server {
             user: {
               id: user.id,
               username: user.username,
+              email: user.email,
               department: user.department,
               role: user.role,
-              email: user.email
+              contactNumber: user.contactNumber
             }
           });
         });
@@ -59,19 +60,14 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/auth/logout", (req: Request, res: Response, next: NextFunction) => {
-    try {
-      req.logout((err) => {
-        if (err) {
-          console.error('Logout error:', err);
-          return next(err);
-        }
-        res.json({ message: 'Logged out successfully' });
-      });
-    } catch (error) {
-      console.error('Unexpected logout error:', error);
-      next(error);
-    }
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.logout((err) => {
+      if (err) {
+        console.error('Logout error:', err);
+        return res.status(500).json({ message: 'Logout failed' });
+      }
+      res.json({ message: 'Logged out successfully' });
+    });
   });
 
   app.get("/api/auth/user", (req: Request, res: Response) => {
@@ -147,7 +143,7 @@ export function registerRoutes(app: Express): Server {
         });
       });
 
-      const { title, description, purposeType, items, totalEstimatedCost } = req.body;
+      const { title, description, purposeType, items, totalEstimatedCost, contactNumber, companyName } = req.body;
 
       // Validate required fields
       if (!title || !description || !purposeType) {
@@ -157,22 +153,32 @@ export function registerRoutes(app: Express): Server {
       // Generate request number
       const requestNumber = `REQ-${Date.now().toString().slice(-6)}`;
 
-      // Create new purchase request with correct types
+      // Parse items safely
+      let parsedItems;
+      try {
+        parsedItems = JSON.parse(items || '[]');
+      } catch (e) {
+        throw new AppError('Invalid items format', 400, 'warning');
+      }
+
+      // Create new purchase request
       const [newRequest] = await db.insert(purchaseRequests)
         .values({
           requestNumber,
+          requesterId: req.user!.id,
           title,
           description,
           purposeType,
-          requesterId: req.user!.id,
-          status: 'draft',
-          items: JSON.parse(items || '[]'),
+          items: parsedItems,
           totalEstimatedCost: parseFloat(totalEstimatedCost || '0'),
-          attachments: (req.files as Express.Multer.File[])?.map(f => f.path) || [],
-          priority: 'low', // Default priority
-          contactNumber: '', // Empty string as default
-          createdAt: new Date(),
-          updatedAt: new Date()
+          companyName: companyName || '',
+          contactNumber: contactNumber || '',
+          accountNumber: '',
+          status: 'draft',
+          priority: 'low',
+          freightAmount: 0,
+          isLocked: false,
+          mandatoryApproversCount: 0
         })
         .returning();
 
@@ -318,16 +324,19 @@ export function registerRoutes(app: Express): Server {
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
-    const error = handleError(err);
-    const status = error.status || 500;
-    const message = error.message || "Internal Server Error";
 
+    // Convert error to AppError
+    const error = err instanceof AppError ? err : new AppError(
+      err.message || 'Internal Server Error',
+      err.status || 500,
+      err.severity || 'error'
+    );
+
+    const status = error.status;
     res.status(status).json({
       status: 'error',
-      message,
+      message: error.message,
       severity: error.severity,
-      code: error.code,
-      details: error.details,
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
   });

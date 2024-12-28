@@ -12,6 +12,8 @@ export const users = pgTable("users", {
   contactNumber: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const accountRequests = pgTable("account_requests", {
