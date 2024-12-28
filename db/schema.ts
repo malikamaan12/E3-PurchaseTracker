@@ -235,6 +235,14 @@ export const insertUserSchema = createInsertSchema(users, {
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
+export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
+  name: z.string().min(1, "Name is required"),
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  validFrom: z.date().optional(),
+  validTo: z.date().optional(),
+  isFrozen: z.boolean().default(false)
+});
+
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -343,8 +351,6 @@ export const insertErrorLogSchema = z.object({
   details: z.record(z.unknown()).optional(),
   aiAnalysis: z.record(z.unknown()).optional(),
 });
-
-
 
 // ============= Department Constants =============
 export const mandatoryDepartments = [
