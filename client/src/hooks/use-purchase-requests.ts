@@ -2,6 +2,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
 
+interface RequestResponse {
+  id: number;
+  requestNumber: string;
+  requesterId: number;
+  title: string;
+  description: string;
+  status: string;
+  items: any[];
+  totalEstimatedCost: number;
+  createdAt: string;
+  updatedAt: string;
+  purposeType: string;
+  priority: string;
+  isLocked: boolean;
+  requester: {
+    id: number;
+    username: string;
+    email: string;
+    department: string;
+    role: string;
+    contact_number: string;
+  };
+  approvals: Array<{
+    id: number;
+    requestId: number;
+    approverId: number;
+    status: string;
+    comments?: string;
+    createdAt: string;
+    department?: string;
+    isMandatory?: boolean;
+  }>;
+}
+
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,8 +68,7 @@ export function usePurchaseRequests() {
     }
   };
 
-  // Fetch all requests
-  const { data: requests = [], isLoading, error } = useQuery({
+  const { data: requests = [], isLoading, error } = useQuery<RequestResponse[]>({
     queryKey: ["/api/requests"],
     retry: 1,
     staleTime: 30000

@@ -426,7 +426,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user's requests with detailed information
+  // Fetch requests with proper type handling
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -507,17 +507,25 @@ export function registerRoutes(app: Express): Server {
 
       console.log('Found requests:', requests.length);
 
-      // For each request, fetch its approvals
+      // For each request, fetch its approval records
       const requestsWithApprovals = await Promise.all(
         requests.map(async (request) => {
-          const approvals = await db
-            .select()
+          const approvalRecords = await db
+            .select({
+              id: approvals.id,
+              requestId: approvals.requestId,
+              approverId: approvals.approverId,
+              status: approvals.status,
+              comments: approvals.comments,
+              createdAt: approvals.createdAt,
+              updatedAt: approvals.updatedAt
+            })
             .from(approvals)
             .where(eq(approvals.requestId, request.id));
 
           return {
             ...request,
-            approvals: approvals || []
+            approvals: approvalRecords || []
           };
         })
       );
@@ -737,7 +745,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
@@ -966,8 +973,7 @@ export function registerRoutes(app: Express): Server {
 
       switch (timeRange) {
         case '24h':
-          startDate.setHours(now.getHours() - 24);
-          break;
+          startDate.setHours(now.getHours() - 24);          break;
         case '7d':
           startDate.setDate(now.getDate() - 7);
           break;
