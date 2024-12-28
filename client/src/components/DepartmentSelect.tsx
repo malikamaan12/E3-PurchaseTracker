@@ -27,6 +27,9 @@ const optionalDepartments = [
   "Management",
   "Operation",
   "Support",
+  "Finance",
+  "Director",
+  "CEO Office",
   "Sales",
   "Marketing",
   "Business Growth",
@@ -121,7 +124,9 @@ export default function DepartmentSelect({
               <CommandEmpty>No department found.</CommandEmpty>
               <ScrollArea className="h-[200px]">
                 <CommandGroup>
-                  {optionalDepartments.map((department) => (
+                  {optionalDepartments
+                    .filter(dept => !mandatoryApprovers.includes(dept))
+                    .map((department) => (
                     <CommandItem
                       key={department}
                       onSelect={() => handleSelect(department)}
