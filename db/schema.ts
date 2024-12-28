@@ -266,7 +266,10 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   })).min(1, "At least one item is required"),
   companyName: z.string().min(1, "Company name is required"),
   contactPerson: z.string().min(1, "Contact person is required"),
-  contact_number: z.string().min(1, "Contact number is required"),
+  contact_number: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
   accountNumber: z.string().min(1, "Account number is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -286,6 +289,7 @@ export const selectApprovalSchema = createSelectSchema(approvals);
 export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
 export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
+
 
 
 // Department Constants
