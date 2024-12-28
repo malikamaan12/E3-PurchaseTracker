@@ -1,11 +1,12 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests, subPurposes, purchaseApprovers } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests, subPurposes, purchaseApprovers, insertPurchaseRequestSchema } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
+import { z } from 'zod';
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
@@ -20,10 +21,33 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
+      // Validate request data
+      const validationResult = insertPurchaseRequestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Check if subPurpose exists if provided
+      if (validationResult.data.subPurposeId) {
+        const [subPurpose] = await db
+          .select()
+          .from(subPurposes)
+          .where(eq(subPurposes.id, validationResult.data.subPurposeId))
+          .limit(1);
+
+        if (!subPurpose) {
+          return res.status(400).json({ message: 'Invalid subPurpose' });
+        }
+      }
+
       const requestData = {
-        ...req.body,
+        ...validationResult.data,
         requesterId: req.user!.id,
         requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        status: 'pending'
       };
 
       // Create new purchase request
@@ -32,9 +56,20 @@ export function registerRoutes(app: Express): Server {
         .values(requestData)
         .returning();
 
-      res.json(newRequest);
+      if (!newRequest) {
+        throw new Error('Failed to create purchase request');
+      }
+
+      // Send response
+      res.status(201).json(newRequest);
     } catch (error) {
       console.error('Error creating purchase request:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: error.errors
+        });
+      }
       next(new AppError('Failed to create purchase request', 500));
     }
   });
