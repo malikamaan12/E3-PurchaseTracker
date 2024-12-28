@@ -40,7 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-
+import { cn } from "@/lib/utils";
 
 interface User {
   id: number;
@@ -372,7 +372,11 @@ export default function UserManagement() {
                 <TableCell>{user.department}</TableCell>
                 <TableCell>{user.role}</TableCell>
                 <TableCell>
-                  <Badge variant={user.isActive ? "success" : "destructive"}>
+                  <Badge className={cn(
+                    user.isActive 
+                      ? "bg-green-100 text-green-800 hover:bg-green-200" 
+                      : "bg-red-100 text-red-800 hover:bg-red-200"
+                  )}>
                     {user.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
@@ -387,6 +391,7 @@ export default function UserManagement() {
                         setSelectedUser(user);
                         setIsRoleDialogOpen(true);
                       }}
+                      className="flex items-center"
                     >
                       <Shield className="h-4 w-4 mr-1" />
                       Role
@@ -398,21 +403,27 @@ export default function UserManagement() {
                         setSelectedUser(user);
                         setIsPasswordDialogOpen(true);
                       }}
+                      className="flex items-center"
                     >
                       <Lock className="h-4 w-4 mr-1" />
                       Password
                     </Button>
                     <Button
                       size="sm"
-                      variant={user.isActive ? "destructive" : "default"}
+                      variant={user.isActive ? "outline" : "default"}
                       onClick={() => {
                         toggleActivationMutation.mutate({
                           userId: user.id,
                           isActive: !user.isActive
                         });
                       }}
+                      className={cn(
+                        "flex items-center",
+                        user.isActive ? "hover:bg-red-100 hover:text-red-800" : "hover:bg-green-100 hover:text-green-800"
+                      )}
                     >
-                      <Power className="h-4 w-4" />
+                      <Power className="h-4 w-4 mr-1" />
+                      {user.isActive ? "Deactivate" : "Activate"}
                     </Button>
                     <Button
                       size="sm"
@@ -421,6 +432,7 @@ export default function UserManagement() {
                         setUserToDelete(user);
                         setIsDeleteDialogOpen(true);
                       }}
+                      className="flex items-center"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
