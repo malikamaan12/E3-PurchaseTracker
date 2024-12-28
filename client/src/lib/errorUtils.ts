@@ -2,6 +2,12 @@ import { toast } from "@/hooks/use-toast";
 
 export type ErrorSeverity = 'critical' | 'error' | 'warning' | 'info';
 
+interface ErrorAnalysis {
+  prediction?: string;
+  suggestions?: string[];
+  preventiveMeasures?: string[];
+}
+
 interface ErrorContext {
   message: string;
   severity: ErrorSeverity;
@@ -9,6 +15,7 @@ interface ErrorContext {
   code?: string;
   path?: string;
   timestamp?: Date;
+  analysis?: ErrorAnalysis;
 }
 
 const severityColors = {
@@ -33,37 +40,45 @@ const severityDurations = {
 } as const;
 
 export function visualizeError(context: ErrorContext): void {
-  const { message, severity, details, code } = context;
+  const { message, severity, details, code, analysis } = context;
 
   // Log to console for debugging
   console.error(`[${severity.toUpperCase()}] ${message}`, {
     details,
     code,
+    analysis,
     timestamp: new Date().toISOString()
   });
 
-  // Format details if they exist
-  let detailsMessage = '';
-  if (details) {
-    if (typeof details === 'string') {
-      detailsMessage = details;
-    } else if (Array.isArray(details)) {
-      detailsMessage = details.map(d => 
-        typeof d === 'string' ? d : JSON.stringify(d)
-      ).join('\n');
-    } else if (typeof details === 'object') {
-      detailsMessage = Object.entries(details)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
+  // Format error message with AI analysis if available
+  let description = message;
+
+  if (analysis) {
+    if (analysis.prediction) {
+      description += `\n\nProbable Cause: ${analysis.prediction}`;
+    }
+
+    if (analysis.suggestions?.length) {
+      description += '\n\nSuggestions:';
+      analysis.suggestions.forEach(suggestion => {
+        description += `\n• ${suggestion}`;
+      });
+    }
+
+    if (analysis.preventiveMeasures?.length) {
+      description += '\n\nPreventive Measures:';
+      analysis.preventiveMeasures.forEach(measure => {
+        description += `\n• ${measure}`;
+      });
     }
   }
 
   // Show toast notification with appropriate styling
   toast({
     title: `${severityIcons[severity]} ${code || severity.toUpperCase()}`,
-    description: detailsMessage ? `${message}\n${detailsMessage}` : message,
+    description,
     variant: severity === 'critical' ? 'destructive' : 'default',
-    className: `${severityColors[severity]} border-l-4`,
+    className: `${severityColors[severity]} border-l-4 whitespace-pre-wrap`,
     duration: severityDurations[severity],
   });
 }
@@ -86,7 +101,6 @@ export function determineSeverity(error: unknown): ErrorSeverity {
       return 'warning';
     }
   }
-  // Default to error for unknown cases
   return 'error';
 }
 
@@ -98,11 +112,17 @@ export function createErrorContext(
   const errorMessage = error instanceof Error ? error.message : String(error);
   const determinedSeverity = severity || determineSeverity(error);
 
+  // Extract analysis from error if available
+  const analysis = error instanceof Error && (error as any).details?.analysis 
+    ? (error as any).details.analysis as ErrorAnalysis
+    : undefined;
+
   return {
     message: errorMessage,
     severity: determinedSeverity,
     details: error instanceof Error ? error.stack : undefined,
     timestamp: new Date(),
+    analysis,
     ...additionalContext
   };
 }
@@ -128,13 +148,23 @@ export async function analyzeFormError(formData: any, error: any): Promise<strin
       formData,
       error: error instanceof Error ? {
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        analysis: (error as any).details?.analysis
       } : error
     });
 
-    const issues: string[] = [];
+    // If we have AI analysis, use it
+    if (error instanceof Error && (error as any).details?.analysis) {
+      const analysis = (error as any).details.analysis as ErrorAnalysis;
+      const suggestions = [
+        ...(analysis.suggestions || []),
+        ...(analysis.preventiveMeasures || [])
+      ];
+      return suggestions.join("\n");
+    }
 
-    // Check for common form issues
+    // Fallback to basic analysis
+    const issues: string[] = [];
     if (!formData) {
       issues.push("Form data is missing");
     }
@@ -151,7 +181,6 @@ export async function analyzeFormError(formData: any, error: any): Promise<strin
       }
     }
 
-    // If no specific issues found, provide generic guidance
     if (issues.length === 0) {
       issues.push(
         "Please check all required fields are filled",

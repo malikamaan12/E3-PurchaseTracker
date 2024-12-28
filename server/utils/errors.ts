@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { enhanceErrorContext } from './error-analyzer';
 
 export type ErrorSeverity = 'critical' | 'error' | 'warning' | 'info';
 
@@ -38,6 +39,10 @@ export class AppError extends Error {
       timestamp: this.timestamp
     };
   }
+
+  public async withAnalysis(): Promise<ErrorContext> {
+    return enhanceErrorContext(this);
+  }
 }
 
 export class ValidationError extends AppError {
@@ -76,48 +81,31 @@ export class AnthropicError extends AppError {
   }
 }
 
-export function handleError(err: unknown): AppError {
+export async function handleError(err: unknown): Promise<AppError> {
   console.error('Original error:', err);
 
+  let appError: AppError;
+
   if (err instanceof AppError) {
-    return err;
-  }
-
-  // Database errors
-  if (err instanceof Error && 'code' in err) {
-    const dbError = err as Error & { code: string };
-    switch (dbError.code) {
-      case '23505': // Unique violation
-        return new ValidationError('A record with this value already exists', { 
-          code: dbError.code,
-          details: dbError.message 
-        });
-      case '23503': // Foreign key violation
-        return new ValidationError('Referenced record does not exist', {
-          code: dbError.code,
-          details: dbError.message
-        });
-    }
-  }
-
-  // Zod validation errors
-  if (err instanceof z.ZodError) {
+    appError = err;
+  } else if (err instanceof z.ZodError) {
     const details = err.errors.map(e => ({
       path: e.path.join('.'),
       message: e.message
     }));
-    return new ValidationError('Validation failed', { details });
-  }
-
-  // Generic error handling
-  if (err instanceof Error) {
+    appError = new ValidationError('Validation failed', { details });
+  } else if (err instanceof Error) {
     console.error('Error stack:', err.stack);
-    const appError = new AppError(err.message);
+    appError = new AppError(err.message);
     appError.stack = err.stack;
-    return appError;
+  } else {
+    console.error('Unhandled error:', err);
+    appError = new AppError('An unexpected error occurred', 500, 'critical');
   }
 
-  // Unknown errors
-  console.error('Unhandled error:', err);
-  return new AppError('An unexpected error occurred', 500, 'critical');
+  // Enhance error with AI analysis
+  const enhancedContext = await appError.withAnalysis();
+  appError.details = enhancedContext.details;
+
+  return appError;
 }
