@@ -59,10 +59,12 @@ export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   purposeType: text("purpose_type").notNull(),
+  description: text("description"),
   isFrozen: boolean("is_frozen").notNull().default(false),
   validFrom: timestamp("valid_from"),
   validTo: timestamp("valid_to"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const purchaseRequests = pgTable("purchase_requests", {
@@ -238,9 +240,10 @@ export const insertUserSchema = createInsertSchema(users, {
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  description: z.string().optional(),
   validFrom: z.date().optional(),
   validTo: z.date().optional(),
-  isFrozen: z.boolean().default(false)
+  isFrozen: z.boolean().default(false),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {

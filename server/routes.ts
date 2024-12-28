@@ -431,7 +431,11 @@ export function registerRoutes(app: Express): Server {
     try {
       const { purposeType } = req.query;
 
-      let query = db.select().from(subPurposes);
+      let query = db
+        .select()
+        .from(subPurposes)
+        .orderBy(subPurposes.createdAt);
+
       if (purposeType) {
         query = query.where(eq(subPurposes.purposeType, purposeType as string));
       }
@@ -440,7 +444,7 @@ export function registerRoutes(app: Express): Server {
       res.json(allSubPurposes);
     } catch (error) {
       console.error('Error fetching sub-purposes:', error);
-      next(new AppError('Failed to fetch sub-purposes', 500));
+      next(new DatabaseError('Failed to fetch sub-purposes'));
     }
   });
 
@@ -453,8 +457,9 @@ export function registerRoutes(app: Express): Server {
       const allSubPurposes = await db
         .select()
         .from(subPurposes)
-        .orderBy(subPurposes.createdAt);
+        .orderBy(desc(subPurposes.createdAt));
 
+      console.log('Successfully fetched sub-purposes:', allSubPurposes.length);
       res.json(allSubPurposes);
     } catch (error) {
       console.error('Error fetching sub-purposes:', error);
@@ -468,6 +473,7 @@ export function registerRoutes(app: Express): Server {
         throw new AuthorizationError('Admin access required');
       }
 
+      console.log('Creating new sub-purpose with data:', req.body);
       const validationResult = insertSubPurposeSchema.safeParse(req.body);
 
       if (!validationResult.success) {
@@ -479,9 +485,14 @@ export function registerRoutes(app: Express): Server {
       // Create new sub-purpose
       const [newSubPurpose] = await db
         .insert(subPurposes)
-        .values(validationResult.data)
+        .values({
+          ...validationResult.data,
+          updatedAt: new Date(),
+          createdAt: new Date()
+        })
         .returning();
 
+      console.log('Successfully created sub-purpose:', newSubPurpose.id);
       res.status(201).json(newSubPurpose);
     } catch (error) {
       console.error('Error creating sub-purpose:', error);
@@ -505,13 +516,21 @@ export function registerRoutes(app: Express): Server {
       // Update sub-purpose freeze status
       const [updatedSubPurpose] = await db
         .update(subPurposes)
-        .set({ isFrozen })
+        .set({ 
+          isFrozen,
+          updatedAt: new Date()
+        })
         .where(eq(subPurposes.id, subPurposeId))
         .returning();
 
       if (!updatedSubPurpose) {
         throw new AppError('Sub-purpose not found', 404);
       }
+
+      console.log('Successfully updated sub-purpose freeze status:', {
+        id: updatedSubPurpose.id,
+        isFrozen: updatedSubPurpose.isFrozen
+      });
 
       res.json(updatedSubPurpose);
     } catch (error) {
