@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import {
   Table,
   TableBody,
@@ -9,27 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Loader2, Shield, Lock, Power, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,54 +20,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Shield, Lock, Power, Trash2, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { User } from "@db/schema";
 
 export default function UserManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "User role updated successfully",
-      });
-      setIsRoleDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
+  // Mutation for toggling user activation
   const toggleActivationMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: number; isActive: boolean }) => {
       const res = await fetch(`/api/admin/users/${userId}/toggle-activation`, {
@@ -119,9 +68,9 @@ export default function UserManagement() {
     },
   });
 
+  // Mutation for deleting user
   const deleteMutation = useMutation({
     mutationFn: async (userId: number) => {
-      // First check if user can be deleted
       const checkResponse = await fetch(`/api/admin/users/${userId}/check-deletion`, {
         credentials: "include",
       });
@@ -131,12 +80,10 @@ export default function UserManagement() {
       }
 
       const { canDelete, reason } = await checkResponse.json();
-
       if (!canDelete) {
         throw new Error(reason || "Cannot delete this user. Try deactivating instead.");
       }
 
-      // If user can be deleted, proceed with deletion
       const deleteResponse = await fetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
         credentials: "include",
@@ -166,51 +113,11 @@ export default function UserManagement() {
     },
   });
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
-      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Password reset successfully",
-      });
-      setIsPasswordDialogOpen(false);
-      setNewPassword("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handlePasswordReset = (user: User) => {
-    if (newPassword.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    resetPasswordMutation.mutate({
-      userId: user.id,
-      password: newPassword,
+  // Handle password change success
+  const handlePasswordChangeSuccess = () => {
+    toast({
+      title: "Success",
+      description: "Password updated successfully",
     });
   };
 
@@ -256,27 +163,18 @@ export default function UserManagement() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsRoleDialogOpen(true);
-                    }}
                     className="flex items-center"
                   >
                     <Shield className="h-4 w-4 mr-1" />
                     Role
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsPasswordDialogOpen(true);
-                    }}
-                    className="flex items-center"
-                  >
-                    <Lock className="h-4 w-4 mr-1" />
-                    Password
-                  </Button>
+
+                  <ChangePasswordDialog
+                    userId={user.id}
+                    username={user.username}
+                    onPasswordChange={handlePasswordChangeSuccess}
+                  />
+
                   <Button
                     size="sm"
                     variant={user.isActive ? "outline" : "default"}
@@ -299,6 +197,7 @@ export default function UserManagement() {
                     )}
                     {user.isActive ? "Deactivate" : "Activate"}
                   </Button>
+
                   <Button
                     size="sm"
                     variant="destructive"
@@ -317,91 +216,6 @@ export default function UserManagement() {
         </TableBody>
       </Table>
 
-      {/* Role Change Dialog */}
-      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
-            <DialogDescription>
-              Select a new role for this user.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedUser && (
-            <div className="space-y-4">
-              <div>
-                <p className="font-semibold mb-2">Current Role: {selectedUser.role}</p>
-                <Select
-                  onValueChange={(value) => {
-                    updateRoleMutation.mutate({
-                      userId: selectedUser.id,
-                      role: value
-                    });
-                  }}
-                  defaultValue={selectedUser.role}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select new role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="approver">Approver</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Password Reset Dialog */}
-      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription>
-              Enter a new password for {selectedUser?.username}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsPasswordDialogOpen(false);
-                  setNewPassword("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => selectedUser && handlePasswordReset(selectedUser)}
-                disabled={resetPasswordMutation.isPending || newPassword.length < 6}
-              >
-                {resetPasswordMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  'Reset Password'
-                )}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
@@ -409,7 +223,7 @@ export default function UserManagement() {
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this user? This action cannot be undone.
-              Users with associated purchase requests cannot be deleted - use the deactivate option instead.
+              Users with associated data cannot be deleted - use the deactivate option instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

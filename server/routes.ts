@@ -649,6 +649,58 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+  // Add password update endpoint after the account requests management section
+  app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const userId = parseInt(req.params.id);
+      const { password } = req.body;
+
+      if (!password || password.length < 6) {
+        throw new ValidationError('Password must be at least 6 characters');
+      }
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Hash the new password
+      const hashedPassword = await hash(password, 10);
+
+      // Update user password
+      const [updatedUser] = await db
+        .update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json({
+        message: 'Password updated successfully',
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          email: updatedUser.email,
+          updatedAt: updatedUser.updatedAt
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Add role update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-role", async (req: Request, res: Response, next: NextFunction) => {
     try {
