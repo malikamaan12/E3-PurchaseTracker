@@ -1,20 +1,19 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests } from "@db/schema";
+import { users, notifications, accountRequests } from "@db/schema";
 import { eq } from "drizzle-orm";
-import path from 'path';
-import fs from 'fs';
-import { AppError, handleError } from './utils/errors';
-import { createNotification } from './utils/notifications';
-import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './utils/anthropic';
-import { logoUpload, attachmentUpload, handleUploadError } from './utils/middleware';
-import passport from 'passport';
+import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
-import { insertAccountRequestSchema } from "@db/schema"; // Corrected import path
-import { mandatoryDepartments } from './utils/auth';
 
-// Authorization middleware
+// Authentication middleware
+const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+  next();
+};
+
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: 'Not authenticated' });
@@ -28,7 +27,7 @@ const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
-  // Admin routes with enhanced security
+  // User management routes
   app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('Fetching all users');
@@ -39,12 +38,11 @@ export function registerRoutes(app: Express): Server {
           email: users.email,
           department: users.department,
           role: users.role,
-          contactNumber: users.contactNumber,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt
+          contact_number: users.contact_number,
+          created_at: users.createdAt,
+          updated_at: users.updatedAt
         })
-        .from(users)
-        .orderBy(users.username);
+        .from(users);
 
       res.json(allUsers);
     } catch (error) {
@@ -53,6 +51,38 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Notification endpoints
+  app.get("/api/notifications", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user!.id))
+        .orderBy(notifications.createdAt);
+
+      res.json(userNotifications);
+    } catch (error) {
+      next(new AppError('Failed to fetch notifications', 500));
+    }
+  });
+
+  app.post("/api/notifications/mark-read", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { notificationId } = req.body;
+
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, notificationId))
+        .where(eq(notifications.userId, req.user!.id));
+
+      res.json({ message: 'Notification marked as read' });
+    } catch (error) {
+      next(new AppError('Failed to update notification', 500));
+    }
+  });
+
+  // Account requests management
   app.get("/api/admin/account-requests", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requests = await db
@@ -65,439 +95,78 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Authentication routes
-  app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/admin/account-requests/:id/approve", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.body.username || !req.body.password) {
-        return res.status(400).json({ message: 'Username and password are required' });
-      }
+      const requestId = parseInt(req.params.id);
 
-      passport.authenticate('local', async (err: any, user: Express.User | false, info: any) => {
-        if (err) {
-          console.error('Authentication error:', err);
-          return next(err);
-        }
-
-        if (!user) {
-          console.log('Login failed:', info?.message);
-          return res.status(401).json({ message: info?.message || 'Invalid username or password' });
-        }
-
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error('Login error:', loginErr);
-            return next(loginErr);
-          }
-
-          return res.json({
-            user: {
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              department: user.department,
-              role: user.role,
-              contact_number: user.contact_number
-            }
-          });
-        });
-      })(req, res, next);
-    } catch (error) {
-      console.error('Unexpected login error:', error);
-      next(error);
-    }
-  });
-
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.logout((err) => {
-      if (err) {
-        console.error('Logout error:', err);
-        return res.status(500).json({ message: 'Logout failed' });
-      }
-      res.json({ message: 'Logged out successfully' });
-    });
-  });
-
-  app.get("/api/auth/user", async (req: Request, res: Response) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, req.user!.id)
-      });
-
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        department: user.department,
-        role: user.role,
-        contact_number: user.contact_number
-      });
-    } catch (error) {
-      console.error('User fetch error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // Account request endpoint with enhanced error handling
-  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      console.log('Processing account request:', req.body);
-      const validationResult = insertAccountRequestSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        console.error('Validation failed:', validationResult.error.issues);
-        return res.status(400).json({
-          message: 'Invalid input',
-          errors: validationResult.error.issues
-        });
-      }
-
-      const { username, password, email, contact_number, department, role } = validationResult.data;
-
-      // Check if username already exists in users table
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
-
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      // Check if username already exists in account requests
-      const [existingRequest] = await db
+      // Find the account request
+      const [accountRequest] = await db
         .select()
         .from(accountRequests)
-        .where(eq(accountRequests.username, username))
+        .where(eq(accountRequests.id, requestId))
         .limit(1);
 
-      if (existingRequest) {
-        console.log('Account request exists for:', username);
-        return res.status(400).json({ message: "An account request with this username is already pending" });
+      if (!accountRequest) {
+        return res.status(404).json({ message: 'Account request not found' });
       }
 
-      // Hash password
-      const hashedPassword = await hash(password, 10);
+      if (accountRequest.status !== 'pending') {
+        return res.status(400).json({ message: 'Account request is not pending' });
+      }
 
-      // Create account request with correct field names
-      console.log('Creating account request for:', username);
-      const [newRequest] = await db
-        .insert(accountRequests)
+      // Create new user
+      const [newUser] = await db
+        .insert(users)
         .values({
-          username,
-          password: hashedPassword,
-          email,
-          contact_number,
-          department,
-          role,
-          status: 'pending',
+          username: accountRequest.username,
+          password: accountRequest.password, // Password is already hashed
+          email: accountRequest.email,
+          contact_number: accountRequest.contact_number,
+          department: accountRequest.department,
+          role: accountRequest.role
         })
         .returning();
 
-      console.log('Account request created successfully:', newRequest.username);
-      res.status(201).json({
-        message: "Account request submitted successfully",
-        request: {
-          username: newRequest.username,
-          email: newRequest.email,
-          department: newRequest.department,
-          status: newRequest.status
+      // Update request status
+      await db
+        .update(accountRequests)
+        .set({ status: 'approved' })
+        .where(eq(accountRequests.id, requestId));
+
+      res.json({ 
+        message: 'Account request approved',
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+          department: newUser.department,
+          role: newUser.role
         }
       });
-
     } catch (error) {
-      console.error('Account request error:', error);
-      next(error);
+      next(new AppError('Failed to approve account request', 500));
     }
   });
 
-
-
-  // Add request logging middleware
-  app.use((req, res, next) => {
-    const start = Date.now();
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      console.log(`${req.method} ${req.path} ${res.statusCode} - ${duration}ms`);
-    });
-    next();
-  });
-
-  // Basic health check
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok" });
-  });
-
-  // Sub-purposes endpoints
-  app.post("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/admin/account-requests/:id/reject", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
+      const requestId = parseInt(req.params.id);
 
-      const { name, purposeType, validFrom, validTo } = req.body;
-
-      // Validate input
-      if (!name || !purposeType) {
-        throw new AppError('Name and purpose type are required', 400, 'warning');
-      }
-
-      // Create new sub-purpose
-      const [newSubPurpose] = await db.insert(subPurposes)
-        .values({
-          name,
-          purposeType,
-          validFrom: validFrom ? new Date(validFrom) : null,
-          validTo: validTo ? new Date(validTo) : null,
-          isFrozen: false,
-        })
+      // Update request status
+      const [updatedRequest] = await db
+        .update(accountRequests)
+        .set({ status: 'rejected' })
+        .where(eq(accountRequests.id, requestId))
         .returning();
 
-      res.status(201).json(newSubPurpose);
+      if (!updatedRequest) {
+        return res.status(404).json({ message: 'Account request not found' });
+      }
+
+      res.json({ message: 'Account request rejected' });
     } catch (error) {
-      next(error);
+      next(new AppError('Failed to reject account request', 500));
     }
-  });
-
-
-  // Purchase requests endpoints with file upload
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      // Handle file uploads first
-      await new Promise<void>((resolve, reject) => {
-        attachmentUpload.array('files')(req, res, (err) => {
-          if (err) reject(handleUploadError(err));
-          else resolve();
-        });
-      });
-
-      const { title, description, purposeType, items, totalEstimatedCost, companyName, contactNumber, accountNumber, priority } = req.body;
-
-      // Validate required fields
-      if (!title || !description || !purposeType) {
-        throw new AppError('Missing required fields', 400, 'warning');
-      }
-
-      // Generate request number
-      const requestNumber = `REQ-${Date.now().toString().slice(-6)}`;
-
-      // Parse items safely
-      let parsedItems;
-      try {
-        parsedItems = typeof items === 'string' ? JSON.parse(items) : items;
-      } catch (e) {
-        throw new AppError('Invalid items format', 400, 'warning');
-      }
-
-      // Create new purchase request
-      const [newRequest] = await db
-        .insert(purchaseRequests)
-        .values({
-          requestNumber,
-          requesterId: req.user!.id,
-          title,
-          description,
-          purposeType,
-          items: parsedItems,
-          totalEstimatedCost: parseFloat(totalEstimatedCost || '0'),
-          companyName: companyName || '',
-          contactNumber: contactNumber || '',
-          accountNumber: accountNumber || '',
-          status: 'draft',
-          priority: priority || 'low',
-          freightAmount: 0,
-          isLocked: false,
-          mandatoryApproversCount: 0,
-          currency: 'QAR'
-        })
-        .returning();
-
-      // Handle file attachments if any
-      if (req.files?.length) {
-        const files = req.files as Express.Multer.File[];
-
-        for (const file of files) {
-          await db.insert(fileAttachments).values({
-            requestId: newRequest.id,
-            fileName: file.originalname,
-            fileType: file.mimetype,
-            fileSize: file.size,
-            fileUrl: file.path
-          });
-        }
-      }
-
-      res.status(201).json(newRequest);
-    } catch (error) {
-      // Clean up uploaded files if request fails
-      if (req.files?.length) {
-        const files = req.files as Express.Multer.File[];
-        await Promise.all(files.map(file => fs.promises.unlink(file.path).catch(() => {})));
-      }
-      next(error);
-    }
-  });
-
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      const allSubPurposes = await db.query.subPurposes.findMany({
-        orderBy: [subPurposes.name]
-      });
-
-      res.json(allSubPurposes);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Purchase requests endpoints
-  app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      const requests = await db.query.purchaseRequests.findMany({
-        with: {
-          requester: true,
-          approvals: {
-            with: {
-              approver: true
-            }
-          },
-          subPurpose: true,
-        },
-        where: req.user!.role === 'admin' ? undefined : eq(purchaseRequests.requesterId, req.user!.id)
-      });
-
-      res.json(requests);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // User data endpoint
-  app.get("/api/user", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, req.user!.id)
-      });
-
-      if (!user) {
-        throw new AppError('User not found', 404, 'error');
-      }
-
-      res.json(user);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Company branding endpoint
-  app.post("/api/company/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      if (req.user!.role !== "admin") {
-        throw new AppError('Only admin can update company branding', 403, 'error');
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        logoUpload(req, res, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      const file = req.file;
-      if (!file) {
-        throw new AppError('No logo file provided', 400, 'warning');
-      }
-
-      // Delete existing branding if it exists
-      await db.delete(companyBranding);
-
-      const [branding] = await db.insert(companyBranding)
-        .values({
-          companyName: req.body.companyName,
-          primaryColor: req.body.primaryColor || '#191160',
-          secondaryColor: req.body.secondaryColor || '#35bbba',
-          accentColor: req.body.accentColor || '#7156a2',
-          logoUrl: file.path,
-          headerStyle: req.body.headerStyle || 'modern',
-          footerText: req.body.footerText || '',
-        })
-        .returning();
-
-      res.json(branding);
-    } catch (error) {
-      if (req.file) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (e) {
-          console.error(`Failed to delete uploaded file ${req.file.path}:`, e);
-        }
-      }
-      next(error);
-    }
-  });
-
-  // Priority analysis endpoint
-  app.post("/api/analyze-priority", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401, 'error');
-      }
-
-      const purchaseRequest = req.body as PurchaseRequestInput;
-      const analysis = await analyzePurchaseRequestPriority(purchaseRequest);
-      res.json(analysis);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('Error:', err);
-
-    // Convert error to AppError
-    const error = err instanceof AppError ? err : new AppError(
-      err.message || 'Internal Server Error',
-      err.status || 500,
-      err.severity || 'error'
-    );
-
-    const status = error.status;
-    res.status(status).json({
-      status: 'error',
-      message: error.message,
-      severity: error.severity,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
   });
 
   // Add 404 handler for API routes
@@ -509,6 +178,7 @@ export function registerRoutes(app: Express): Server {
       code: 'NOT_FOUND'
     });
   });
+
 
   return httpServer;
 }
