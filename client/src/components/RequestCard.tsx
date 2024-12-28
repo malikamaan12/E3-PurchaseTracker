@@ -168,34 +168,44 @@ export default function RequestCard({
       return;
     }
 
+    // Check if user's department has already approved
+    const hasApproved = request.approvals?.some(
+      approval => approval.department === user.department
+    );
+
+    if (hasApproved) {
+      toast({
+        title: "Error",
+        description: "Your department has already processed this request",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await createApproval({
+      console.log('Attempting approval with:', {
         requestId: request.id,
-        approverId: user.id,
-        department: user.department,
         status,
         comments,
+        department: user.department
       });
 
-      if (user.department === "Finance" && status === "approved") {
-        await updateRequest({
-          id: request.id,
-          data: { isLocked: true, status: "approved" }
-        });
-      } else if (status === "changes_requested") {
-        await updateRequest({
-          id: request.id,
-          data: { status: "changes_requested", isLocked: false }
-        });
-      } else if (status === "rejected") {
-        await updateRequest({
-          id: request.id,
-          data: { status: "rejected" }
-        });
-      }
+      await createApproval({
+        requestId: request.id,
+        status,
+        comments,
+        department: user.department
+      });
+
+      // Clear comments after successful approval
+      setComments("");
     } catch (error) {
-      console.error("Error handling approval:", error);
-      throw error;
+      console.error('Error in handleApproval:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process approval",
+        variant: "destructive",
+      });
     }
   };
 

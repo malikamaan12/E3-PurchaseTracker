@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
-import { visualizeError, createErrorContext } from "@/lib/errorUtils";
 
 export function usePurchaseRequests() {
   const { toast } = useToast();
@@ -69,8 +68,8 @@ export function usePurchaseRequests() {
       return handleApiError(res);
     },
     onSuccess: (_, variables) => {
+      console.log('Approval created successfully');
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/requests/${variables.requestId}`] });
       toast({
         title: "Success",
         description: `Request ${variables.status} successfully`,

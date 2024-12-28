@@ -513,10 +513,58 @@ export function registerRoutes(app: Express): Server {
       const requestId = parseInt(req.params.requestId);
       const { status, comments, department } = req.body;
 
+      debug(req, 'Creating approval with data:', { 
+        requestId,
+        status,
+        comments,
+        department,
+        userId: req.user?.id,
+        userDepartment: req.user?.department
+      });
+
       // Validate required fields
       if (!requestId || !status || !department) {
+        debug(req, 'Validation failed - missing fields:', { requestId, status, department });
         throw new ValidationError('Missing required fields: requestId, status, and department are required');
       }
+
+      // Validate department matches user's department
+      if (department !== req.user?.department) {
+        debug(req, 'Department mismatch:', { 
+          providedDepartment: department, 
+          userDepartment: req.user?.department 
+        });
+        throw new ValidationError('Department must match user department');
+      }
+
+      // Check if request exists
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Check for existing approval from same department
+      const [existingApproval] = await db
+        .select()
+        .from(approvals)
+        .where(
+          and(
+            eq(approvals.requestId, requestId),
+            eq(approvals.department, department)
+          )
+        )
+        .limit(1);
+
+      if (existingApproval) {
+        throw new ValidationError('Department has already approved/rejected this request');
+      }
+
+      debug(req, 'Creating approval record');
 
       // Create the approval record
       const [approval] = await db
@@ -526,11 +574,13 @@ export function registerRoutes(app: Express): Server {
           approverId: req.user!.id,
           status,
           comments,
-          department,  // Ensure department is included
+          department,
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
+
+      debug(req, 'Approval created:', approval);
 
       // Handle request status updates based on approval
       if (req.user?.department === "Finance" && status === "approved") {
@@ -542,6 +592,8 @@ export function registerRoutes(app: Express): Server {
             updatedAt: new Date()
           })
           .where(eq(purchaseRequests.id, requestId));
+
+        debug(req, 'Request locked and approved by Finance');
       } else if (status === "rejected") {
         await db
           .update(purchaseRequests)
@@ -550,6 +602,8 @@ export function registerRoutes(app: Express): Server {
             updatedAt: new Date()
           })
           .where(eq(purchaseRequests.id, requestId));
+
+        debug(req, 'Request rejected');
       } else if (status === "changes_requested") {
         await db
           .update(purchaseRequests)
@@ -559,11 +613,13 @@ export function registerRoutes(app: Express): Server {
             updatedAt: new Date()
           })
           .where(eq(purchaseRequests.id, requestId));
+
+        debug(req, 'Changes requested for request');
       }
 
       res.status(201).json(approval);
     } catch (error) {
-      console.error("Error creating approval:", error);
+      debug(req, 'Error creating approval:', error);
       next(error);
     }
   });
