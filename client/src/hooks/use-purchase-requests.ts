@@ -70,7 +70,7 @@ export function usePurchaseRequests() {
   };
 
   // Fetch all requests
-  const { data: requests, isLoading, error } = useQuery<PurchaseRequestWithRelations[]>({
+  const { data: requests = [], isLoading, error } = useQuery<PurchaseRequestWithRelations[]>({
     queryKey: ["/api/requests"],
     retry: 1,
     staleTime: 30000,
@@ -179,10 +179,10 @@ export function usePurchaseRequests() {
         description: "Request updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       visualizeError(createErrorContext(error, 'error', {
-        path: `/api/requests/${id}`,
-        details: `Failed to update purchase request with ID ${id}`
+        path: `/api/requests/${variables.id}`,
+        details: `Failed to update purchase request with ID ${variables.id}`
       }));
       toast({
         title: "Error",

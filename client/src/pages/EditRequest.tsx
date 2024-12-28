@@ -95,14 +95,24 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       console.log("Loading request data:", request);
 
       // Parse and format items array
-      const formattedItems = request.items?.map(item => ({
+      const formattedItems = (request.items || []).map(item => ({
         name: item?.name || "",
         quantity: Number(item?.quantity || 1),
         estimatedCost: Number(item?.estimatedCost || 0),
         description: item?.description || ""
-      })) || [{ name: "", quantity: 1, estimatedCost: 0, description: "" }];
+      }));
 
-      // Reset form with request data
+      // Ensure we have at least one item
+      if (formattedItems.length === 0) {
+        formattedItems.push({ 
+          name: "", 
+          quantity: 1, 
+          estimatedCost: 0, 
+          description: "" 
+        });
+      }
+
+      // Reset form with request data, using type casting and default values
       form.reset({
         ...request,
         items: formattedItems,
