@@ -53,11 +53,11 @@ export default function NewRequest() {
   const [, setLocation] = useLocation();
   const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
-  const [items, setItems] = useState([{ 
-    name: "", 
-    quantity: 1, 
+  const [items, setItems] = useState([{
+    name: "",
+    quantity: 1,
     estimatedCost: 0,
-    description: "" 
+    description: ""
   }]);
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
@@ -72,9 +72,8 @@ export default function NewRequest() {
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
       companyName: "",
       contactPerson: "",
-      contact_number: "", // Changed from contactNumber to contact_number
+      contact_number: "",
       accountNumber: "",
-      purpose: "",
       purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
@@ -286,23 +285,6 @@ export default function NewRequest() {
 
                     <FormField
                       control={form.control}
-                      name="purpose"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Purpose</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter purpose"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
                       name="subPurposeId"
                       render={({ field }) => (
                         <FormItem>
@@ -314,30 +296,6 @@ export default function NewRequest() {
                               onChange={field.onChange}
                             />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="priority"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Priority</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {priorities.map(({ label, value }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
