@@ -49,12 +49,12 @@ app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunct
       .select({
         id: subPurposes.id,
         name: subPurposes.name,
-        purpose_type: subPurposes.purpose_type,
-        is_frozen: subPurposes.is_frozen,
-        valid_from: subPurposes.valid_from,
-        valid_to: subPurposes.valid_to,
-        created_at: subPurposes.created_at,
-        updated_at: subPurposes.updated_at
+        purposeType: subPurposes.purpose_type,
+        isFrozen: subPurposes.is_frozen,
+        validFrom: subPurposes.valid_from,
+        validTo: subPurposes.valid_to,
+        createdAt: subPurposes.created_at,
+        updatedAt: subPurposes.updated_at
       })
       .from(subPurposes);
 
@@ -121,6 +121,38 @@ app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: Ne
     res.status(201).json(newSubPurpose);
   } catch (error) {
     debug(req, 'Error creating sub-purpose:', error);
+    next(error);
+  }
+});
+
+// Add user management endpoint
+app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+      throw new AuthorizationError('Admin access required');
+    }
+
+    debug(req, 'Fetching users');
+
+    const allUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        department: users.department,
+        role: users.role,
+        contact_number: users.contact_number,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(users)
+      .orderBy(desc(users.createdAt));
+
+    debug(req, `Found ${allUsers.length} users`);
+    res.json(allUsers);
+  } catch (error) {
+    debug(req, 'Error fetching users:', error);
     next(error);
   }
 });
