@@ -2,9 +2,13 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "@db";
-import { setupAuth } from "./auth";
 import fs from 'fs';
 import path from 'path';
+import session from 'express-session';
+import MemoryStore from 'memorystore';
+import passport from 'passport';
+import { configurePassport } from './utils/auth';
+import { AppError } from './utils/errors';
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -18,10 +22,32 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-// Initialize express app first
+// Initialize express app
 const app = express();
+
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure session store
+const MemoryStoreSession = MemoryStore(session);
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  store: new MemoryStoreSession({
+    checkPeriod: 86400000 // Prune expired entries every 24h
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Initialize passport authentication
+app.use(passport.initialize());
+app.use(passport.session());
+configurePassport(passport);
 
 // Set default content type for API routes
 app.use('/api', (req, res, next) => {
@@ -74,7 +100,8 @@ async function initializeServer() {
 
     while (!isConnected && retries < maxRetries) {
       try {
-        isConnected = await testConnection();
+        const result = await testConnection();
+        isConnected = result;
         if (isConnected) {
           log("Database connection established successfully");
           break;
@@ -90,12 +117,8 @@ async function initializeServer() {
       }
     }
 
-    // Set up authentication
-    await setupAuth(app);
-    log("Authentication setup completed");
-
     // Set up routes
-    const server = await registerRoutes(app);
+    const server = registerRoutes(app);
     log("Routes registered successfully");
 
     // Global error handler with improved JSON responses

@@ -8,11 +8,11 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Initialize the postgres client with proper connection pooling
+// Configure postgres client with proper types and connection pooling
 const client = postgres(process.env.DATABASE_URL, {
-  max: 10, // Maximum pool size
-  min: 2,  // Minimum pool size 
+  max: 10,
   idle_timeout: 20,
+  connect_timeout: 10,
   max_lifetime: 60 * 30, // Connection lifetime of 30 minutes
   ssl: { rejectUnauthorized: false },
 });
@@ -40,16 +40,16 @@ export async function testConnection(): Promise<boolean> {
 
   try {
     connectionTestInProgress = true;
-    const result = await client`SELECT 1 as connection_test`;
+    await client`SELECT 1 as connection_test`;
     lastConnectionTest = now;
     return true;
   } catch (error: any) {
     console.error('Database connection test failed:', {
       message: error.message,
       code: error.code,
-      detail: error.detail || error.hint // Preserving detail from original
+      detail: error.detail || error.hint
     });
-    // Enhanced error reporting for specific issues (from original)
+    // Enhanced error reporting for specific issues
     if (error.code === '28P01') {
       console.error('Authentication failed. Please check your database credentials.');
     } else if (error.code === 'ENOTFOUND') {

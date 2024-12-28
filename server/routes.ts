@@ -8,10 +8,29 @@ import fs from 'fs';
 import { AppError, handleError } from './utils/errors';
 import { createNotification, cleanupUploads } from './utils/notifications';
 import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './utils/anthropic';
-import { logoUpload, attachmentUpload } from './utils/middleware';
+import { logoUpload, attachmentUpload, handleUploadError } from './utils/middleware';
+import session from 'express-session';
+import passport from 'passport';
+import { configurePassport } from './utils/auth';
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
+
+  // Configure session middleware
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // Initialize passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+  configurePassport(passport);
 
   // Add request logging middleware
   app.use((req, res, next) => {
@@ -21,6 +40,26 @@ export function registerRoutes(app: Express): Server {
       console.log(`${req.method} ${req.path} ${res.statusCode} - ${duration}ms`);
     });
     next();
+  });
+
+  // Authentication routes
+  app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: info.message || 'Authentication failed' });
+      }
+      req.logIn(user, (err) => {
+        if (err) return next(err);
+        res.json({ user });
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.logout(() => {
+      res.json({ message: 'Logged out successfully' });
+    });
   });
 
   // Basic health check
@@ -55,6 +94,60 @@ export function registerRoutes(app: Express): Server {
 
       res.status(201).json(newSubPurpose);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Purchase requests endpoints with file upload
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      // Handle file uploads first
+      await new Promise<void>((resolve, reject) => {
+        attachmentUpload(req, res, (err) => {
+          if (err) reject(handleUploadError(err));
+          else resolve();
+        });
+      });
+
+      const { title, description, purposeType, items, totalEstimatedCost } = req.body;
+
+      // Validate required fields
+      if (!title || !description || !purposeType) {
+        throw new AppError('Missing required fields', 400, 'warning');
+      }
+
+      // Generate request number
+      const requestNumber = `REQ-${Date.now().toString().slice(-6)}`;
+
+      // Create new purchase request with correct types
+      const [newRequest] = await db.insert(purchaseRequests)
+        .values({
+          requestNumber,
+          title,
+          description,
+          purposeType,
+          requesterId: req.user!.id,
+          status: 'draft',
+          items: JSON.parse(items || '[]'),
+          totalEstimatedCost: parseFloat(totalEstimatedCost || '0'),
+          attachments: (req.files as Express.Multer.File[])?.map(f => f.path) || [],
+          priority: 'low', // Default priority
+          contactNumber: '', // Empty string as default
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      res.status(201).json(newRequest);
+    } catch (error) {
+      // Clean up uploaded files if request fails
+      if (req.files) {
+        await cleanupUploads(req.files as Express.Multer.File[]);
+      }
       next(error);
     }
   });
@@ -188,7 +281,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Error handling middleware - Must be after all routes
+  // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
     const error = handleError(err);
