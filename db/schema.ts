@@ -267,21 +267,21 @@ export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 
 // Constants
 export const mandatoryDepartments = [
-  "CEO Office",
+  "Business",
+  "Management",
+  "Operation",
+  "Support",
   "Finance",
   "Director",
-  "Human Resources",
-  "Information Technology",
-  "Operations",
+  "CEO Office",
   "Sales",
   "Marketing",
-  "Research & Development",
-  "Legal",
-  "Customer Service",
-  "Supply Chain",
-  "Quality Assurance",
+  "Business Growth",
+  "Branding",
   "Logistics",
-  "Admin"
+  "Mall Activations",
+  "Information Technology",
+  "HR"
 ] as const;
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
 
