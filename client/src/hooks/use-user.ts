@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { User, NewUser } from "@db/schema";
+import type { LoginCredentials, User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+import { visualizeError, createErrorContext, handleApiError } from '@/lib/errorUtils';
 
 type RequestResult = {
   ok: true;
@@ -12,7 +13,7 @@ type RequestResult = {
 async function handleRequest(
   url: string,
   method: string,
-  body?: NewUser
+  body?: LoginCredentials
 ): Promise<RequestResult> {
   try {
     const response = await fetch(url, {
@@ -23,17 +24,13 @@ async function handleRequest(
     });
 
     if (!response.ok) {
-      if (response.status >= 500) {
-        return { ok: false, message: response.statusText };
-      }
-
-      const message = await response.text();
-      return { ok: false, message };
+      await handleApiError(response);
     }
 
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, message: e.toString() };
+    const errorContext = createErrorContext(e);
+    return { ok: false, message: errorContext.message };
   }
 }
 
@@ -46,8 +43,7 @@ async function fetchUser(): Promise<User | null> {
     if (response.status === 401) {
       return null;
     }
-
-    throw new Error(`${response.status}: ${await response.text()}`);
+    await handleApiError(response);
   }
 
   return response.json();
@@ -65,20 +61,19 @@ export function useUser() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (userData: NewUser) => handleRequest('/api/login', 'POST', userData),
+    mutationFn: (userData: LoginCredentials) => handleRequest('/api/login', 'POST', userData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
+      visualizeError({
+        message: "Logged in successfully",
+        severity: "info",
+        code: "AUTH_SUCCESS"
       });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      visualizeError(createErrorContext(error, 'error', {
+        code: 'AUTH_ERROR'
+      }));
     },
   });
 
@@ -86,35 +81,16 @@ export function useUser() {
     mutationFn: () => handleRequest('/api/logout', 'POST'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      toast({
-        title: "Success",
-        description: "Logged out successfully",
+      visualizeError({
+        message: "Logged out successfully",
+        severity: "info",
+        code: "AUTH_SUCCESS"
       });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: (userData: NewUser) => handleRequest('/api/register', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      toast({
-        title: "Success",
-        description: "Registration successful",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      visualizeError(createErrorContext(error, 'error', {
+        code: 'AUTH_ERROR'
+      }));
     },
   });
 
@@ -124,6 +100,5 @@ export function useUser() {
     error,
     login: loginMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
   };
 }
