@@ -434,68 +434,94 @@ export function registerRoutes(app: Express): Server {
       }
 
       console.log('Fetching requests for user:', req.user!.id);
+      console.log('User role:', req.user!.role);
+      console.log('User department:', req.user!.department);
 
-      // First get the requests with requester information
-      const requests = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          items: purchaseRequests.items,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          purposeType: purchaseRequests.purposeType,
-          priority: purchaseRequests.priority,
-          requester: {
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            department: users.department,
-            role: users.role,
-            contact_number: users.contact_number
-          }
-        })
-        .from(purchaseRequests)
-        .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-        .where(eq(purchaseRequests.requesterId, req.user!.id));
+      // Build the base query for requests with requester information
+      let requests;
 
-      console.log('Raw requests data:', JSON.stringify(requests, null, 2));
-
-      // Validate request data structure
-      if (!Array.isArray(requests)) {
-        throw new Error('Invalid requests data structure');
+      // If user is an admin, approver, or special department, show all requests
+      if (
+        req.user!.role === 'admin' ||
+        req.user!.role === 'approver' ||
+        ['CEO Office', 'Director', 'Finance'].includes(req.user!.department)
+      ) {
+        requests = await db
+          .select({
+            id: purchaseRequests.id,
+            requestNumber: purchaseRequests.requestNumber,
+            requesterId: purchaseRequests.requesterId,
+            title: purchaseRequests.title,
+            description: purchaseRequests.description,
+            status: purchaseRequests.status,
+            items: purchaseRequests.items,
+            totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+            createdAt: purchaseRequests.createdAt,
+            updatedAt: purchaseRequests.updatedAt,
+            purposeType: purchaseRequests.purposeType,
+            priority: purchaseRequests.priority,
+            isLocked: purchaseRequests.isLocked,
+            requester: {
+              id: users.id,
+              username: users.username,
+              email: users.email,
+              department: users.department,
+              role: users.role,
+              contact_number: users.contact_number
+            }
+          })
+          .from(purchaseRequests)
+          .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+          .orderBy(desc(purchaseRequests.createdAt));
+      } else {
+        // Regular users only see their own requests
+        requests = await db
+          .select({
+            id: purchaseRequests.id,
+            requestNumber: purchaseRequests.requestNumber,
+            requesterId: purchaseRequests.requesterId,
+            title: purchaseRequests.title,
+            description: purchaseRequests.description,
+            status: purchaseRequests.status,
+            items: purchaseRequests.items,
+            totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+            createdAt: purchaseRequests.createdAt,
+            updatedAt: purchaseRequests.updatedAt,
+            purposeType: purchaseRequests.purposeType,
+            priority: purchaseRequests.priority,
+            isLocked: purchaseRequests.isLocked,
+            requester: {
+              id: users.id,
+              username: users.username,
+              email: users.email,
+              department: users.department,
+              role: users.role,
+              contact_number: users.contact_number
+            }
+          })
+          .from(purchaseRequests)
+          .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+          .where(eq(purchaseRequests.requesterId, req.user!.id))
+          .orderBy(desc(purchaseRequests.createdAt));
       }
 
-      // Validate each request has required fields
-      requests.forEach((request, index) => {
-        if (!request.requester || !request.requester.department) {
-          console.error(`Invalid requester data for request ${index}:`, request);
-          throw new Error(`Missing requester data for request ${request.id}`);
-        }
-      });
+      console.log('Found requests:', requests.length);
 
       // For each request, fetch its approvals
       const requestsWithApprovals = await Promise.all(
         requests.map(async (request) => {
-          const requestApprovals = await db
+          const approvals = await db
             .select()
             .from(approvals)
             .where(eq(approvals.requestId, request.id));
 
-          console.log(`Approvals for request ${request.id}:`, requestApprovals);
-
           return {
             ...request,
-            approvals: requestApprovals || []
+            approvals: approvals || []
           };
         })
       );
 
-      console.log('Found requests:', requestsWithApprovals.length);
       return res.json(requestsWithApprovals);
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -564,6 +590,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
 
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
@@ -948,7 +975,7 @@ export function registerRoutes(app: Express): Server {
           startDate.setDate(now.getDate() - 30);
           break;
         default:
-          startDate.setDate(now.getDate() - 7);
+          startDate.setDate(now.getDate() - 77);
       }
 
       // Get error trends
