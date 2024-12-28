@@ -136,3 +136,31 @@ export async function canUserApprove(userId: number, requestId: number): Promise
     return false;
   }
 }
+
+export async function createTestUser() {
+  try {
+    const hashedPassword = await hash('admin123', 10);
+    const [user] = await db
+      .insert(users)
+      .values({
+        username: 'testadmin',
+        password: hashedPassword,
+        department: 'CEO Office',
+        role: 'admin',
+        email: 'testadmin@example.com',
+      })
+      .onConflictDoUpdate({
+        target: users.username,
+        set: {
+          password: hashedPassword
+        }
+      })
+      .returning();
+
+    console.log('Test user created/updated successfully');
+    return user;
+  } catch (error) {
+    console.error('Failed to create test user:', error);
+    throw error;
+  }
+}
