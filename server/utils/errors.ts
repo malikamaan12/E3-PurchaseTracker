@@ -41,7 +41,12 @@ export class AppError extends Error {
   }
 
   public async withAnalysis(): Promise<ErrorContext> {
-    return enhanceErrorContext(this);
+    try {
+      return await enhanceErrorContext(this);
+    } catch (analysisError) {
+      console.error('Error analysis failed:', analysisError);
+      return this.toJSON();
+    }
   }
 
   public static ensureError(err: unknown): AppError {

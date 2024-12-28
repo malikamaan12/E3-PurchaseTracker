@@ -140,12 +140,8 @@ export const errorLogs = pgTable("error_logs", {
   severity: text("severity").notNull(),
   path: text("path"),
   userId: integer("user_id").references(() => users.id),
-  details: json("details").$type<Record<string, unknown>>(),
-  aiAnalysis: json("ai_analysis").$type<{
-    prediction: string;
-    suggestions: string[];
-    preventiveMeasures: string[];
-  }>(),
+  details: text("details"), 
+  aiAnalysis: text("ai_analysis"), 
   createdAt: timestamp("created_at").defaultNow(),
 });
 

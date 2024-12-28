@@ -33,13 +33,13 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Add enhanced error handling middleware
+  // Update error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
       console.log(`[${req.id}] Error occurred:`, err);
       const error = await handleError(err);
 
-      // Log error to database with proper type checking
+      // Log error to database with proper serialization
       try {
         const errorLogData = {
           message: error.message,
@@ -83,15 +83,19 @@ export function registerRoutes(app: Express): Server {
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
       console.log(`[${req.id}] Session expired, attempting to regenerate`);
-      req.session.regenerate((regenerateErr) => {
-        if (regenerateErr) {
-          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
-          next(new AppError('Session recovery failed', 500));
-        } else {
-          console.log(`[${req.id}] Session regenerated successfully`);
-          next();
-        }
-      });
+      if (req.session) {
+        req.session.regenerate((regenerateErr) => {
+          if (regenerateErr) {
+            console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
+            next(new AppError('Session recovery failed', 500));
+          } else {
+            console.log(`[${req.id}] Session regenerated successfully`);
+            next();
+          }
+        });
+      } else {
+        next(new AppError('Invalid session state', 500));
+      }
     } else {
       next(err);
     }

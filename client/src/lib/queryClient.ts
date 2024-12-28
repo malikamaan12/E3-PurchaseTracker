@@ -31,7 +31,7 @@ export const queryClient = new QueryClient({
               visualizeError({
                 message: data.message || `${res.status}: ${res.statusText}`,
                 severity: res.status >= 500 ? 'critical' : 'error',
-                code: data.code,
+                code: data.code || 'UNKNOWN_ERROR',
                 details: data.details || `Failed to fetch data from ${queryKey[0]}`
               });
 
@@ -39,11 +39,12 @@ export const queryClient = new QueryClient({
             }
 
             // Cache configuration based on route
-            const cacheTime = queryKey[0].toString().includes('/admin') ? 
+            const route = queryKey[0].toString();
+            const cacheTime = route.includes('/admin') ? 
               30 * 1000 : // 30 seconds for admin routes
               5 * 60 * 1000; // 5 minutes for other routes
 
-            queryClient.setQueryDefaults(queryKey, {
+            queryClient.setQueryDefaults([route], {
               staleTime: cacheTime,
               gcTime: cacheTime * 2,
             });
@@ -56,12 +57,12 @@ export const queryClient = new QueryClient({
             const text = await res.text();
             console.error('Original response text:', text);
 
-            if (text.toLowerCase().includes('<!doctype html>')) {
-              throw new Error(`Server Error (${res.status}): The server encountered an error`);
-            }
-
             if (!res.ok) {
               throw new Error(text || `${res.status}: ${res.statusText}`);
+            }
+
+            if (text.toLowerCase().includes('<!doctype html>')) {
+              throw new Error(`Server Error (${res.status}): The server encountered an error`);
             }
 
             throw new Error(`Invalid response format: Expected JSON but got ${res.headers.get('content-type')}`);
