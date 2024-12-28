@@ -239,10 +239,13 @@ export const insertUserSchema = createInsertSchema(users, {
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
-// Sub-purpose validation schema with proper exports and date handling
+// SubPurpose validation schema with proper purpose types
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
-  purpose_type: z.enum(["event", "project", "mall", "business_growth"]),
+  purpose_type: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
+    required_error: "Purpose type is required",
+    invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
+  }),
   is_frozen: z.boolean().default(false),
   valid_from: z.coerce.date().optional().nullable(),
   valid_to: z.coerce.date().optional().nullable(),
@@ -264,6 +267,7 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
 });
 
+// Update PurchaseRequest schema to use the same purpose types
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   title: z.string()
     .min(1, "Title is required")
@@ -303,7 +307,10 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   purpose: z.string()
     .min(1, "Purpose is required")
     .max(200, "Purpose cannot exceed 200 characters"),
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
+    required_error: "Purpose type is required",
+    invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
+  }),
   subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),

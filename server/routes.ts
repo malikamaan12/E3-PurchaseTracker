@@ -71,6 +71,12 @@ app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunct
   }
 });
 
+// Add purpose types endpoint
+app.get("/api/purpose-types", (_req: Request, res: Response) => {
+  const purposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
+  res.json(purposeTypes);
+});
+
 // Enhanced sub-purpose creation endpoint with proper date handling and field mapping
 app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -92,10 +98,10 @@ app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: Ne
     debug(req, 'Transformed request data:', requestData);
 
     // Validate the purpose_type is one of the allowed values
-    if (!['event', 'project', 'mall', 'business_growth'].includes(requestData.purpose_type)) {
+    if (!["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"].includes(requestData.purpose_type)) {
       throw new ValidationError('Invalid purpose type', {
         details: {
-          allowed: ['event', 'project', 'mall', 'business_growth'],
+          allowed: ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"],
           received: requestData.purpose_type
         }
       });
