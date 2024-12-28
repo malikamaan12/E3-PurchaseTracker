@@ -2,6 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
 
+interface ApprovalData {
+  requestId: number;
+  status: 'approved' | 'rejected' | 'changes_requested';
+  comments?: string;
+  department: string;
+}
+
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -37,6 +44,19 @@ export function usePurchaseRequests() {
   // Fetch all requests
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
+    queryFn: async ({ queryKey }) => {
+      console.log('Fetching requests...');
+      const res = await fetch(queryKey[0], {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch requests: ${errorText}`);
+      }
+      const data = await res.json();
+      console.log('Fetched requests:', data);
+      return data;
+    },
     retry: 1,
     staleTime: 30000,
     onError: (error) => {
@@ -51,20 +71,21 @@ export function usePurchaseRequests() {
 
   // Create approval mutation
   const createApproval = useMutation({
-    mutationFn: async ({ requestId, status, comments, department }: { 
-      requestId: number; 
-      status: 'approved' | 'rejected' | 'changes_requested'; 
-      comments?: string;
-      department: string;  // Make department required
-    }) => {
-      console.log('Creating approval with:', { requestId, status, comments, department });
+    mutationFn: async (data: ApprovalData) => {
+      // Validate required fields
+      if (!data.requestId || !data.status || !data.department) {
+        throw new Error('Missing required fields: requestId, status, and department are required');
+      }
 
-      const res = await fetch(`/api/requests/${requestId}/approvals`, {
+      console.log('Creating approval with:', data);
+
+      const res = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status, comments, department }),
+        body: JSON.stringify(data),
       });
+
       return handleApiError(res);
     },
     onSuccess: (_, variables) => {

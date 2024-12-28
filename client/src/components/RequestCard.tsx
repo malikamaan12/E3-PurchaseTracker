@@ -168,37 +168,44 @@ export default function RequestCard({
       return;
     }
 
-    // Check if user's department has already approved
-    const hasApproved = request.approvals?.some(
-      approval => approval.department === user.department
-    );
-
-    if (hasApproved) {
+    if (!request.id) {
       toast({
         title: "Error",
-        description: "Your department has already processed this request",
+        description: "Invalid request ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate required fields before making the API call
+    const approvalData = {
+      requestId: request.id,
+      status,
+      comments,
+      department: user.department
+    };
+
+    // Check if all required fields are present
+    if (!approvalData.requestId || !approvalData.status || !approvalData.department) {
+      toast({
+        title: "Error",
+        description: "Missing required fields for approval",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      console.log('Attempting approval with:', {
-        requestId: request.id,
-        status,
-        comments,
-        department: user.department
-      });
+      console.log('Attempting approval with:', approvalData);
 
-      await createApproval({
-        requestId: request.id,
-        status,
-        comments,
-        department: user.department
-      });
+      await createApproval(approvalData);
 
       // Clear comments after successful approval
       setComments("");
+
+      // Invalidate queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+
     } catch (error) {
       console.error('Error in handleApproval:', error);
       toast({

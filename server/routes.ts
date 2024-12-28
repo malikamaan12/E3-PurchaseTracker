@@ -433,7 +433,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      console.log('Fetching requests for user:', req.user!.id);
+      debug(req, 'Fetching requests for user:', req.user!.id);
 
       // First get the requests with requester information
       const requests = await db
@@ -450,6 +450,7 @@ export function registerRoutes(app: Express): Server {
           updatedAt: purchaseRequests.updatedAt,
           purposeType: purchaseRequests.purposeType,
           priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
           requester: {
             id: users.id,
             username: users.username,
@@ -460,10 +461,9 @@ export function registerRoutes(app: Express): Server {
           }
         })
         .from(purchaseRequests)
-        .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-        .where(eq(purchaseRequests.requesterId, req.user!.id));
+        .innerJoin(users, eq(users.id, purchaseRequests.requesterId));
 
-      console.log('Raw requests data:', JSON.stringify(requests, null, 2));
+      debug(req, 'Raw requests data:', JSON.stringify(requests, null, 2));
 
       // Validate request data structure
       if (!Array.isArray(requests)) {
@@ -486,7 +486,7 @@ export function registerRoutes(app: Express): Server {
             .from(approvals)
             .where(eq(approvals.requestId, request.id));
 
-          console.log(`Approvals for request ${request.id}:`, requestApprovals);
+          debug(req, `Approvals for request ${request.id}:`, requestApprovals);
 
           return {
             ...request,
@@ -495,10 +495,10 @@ export function registerRoutes(app: Express): Server {
         })
       );
 
-      console.log('Found requests:', requestsWithApprovals.length);
+      debug(req, 'Found requests:', requestsWithApprovals.length);
       return res.json(requestsWithApprovals);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      debug(req, 'Error fetching requests:', error);
       next(error);
     }
   });
@@ -1033,7 +1033,7 @@ export function registerRoutes(app: Express): Server {
         .orderBy(desc(errorLogs.createdAt))
         .limit(20);
 
-      console.log('Successfully fetched error analytics:', {
+      debug(req, 'Successfully fetched error analytics:', {
         trendsCount: errorTrends.length,
         commonErrorsCount: commonErrors.length,
         distributionCount: severityDistribution.length,
@@ -1051,7 +1051,7 @@ export function registerRoutes(app: Express): Server {
         }))
       });
     } catch (error) {
-      console.error('Error fetching error analytics:', error);
+      debug(req, 'Error fetching error analytics:', error);
       next(error);    }
   });
 
@@ -1072,7 +1072,7 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      console.log('Successfully logged error:', {
+      debug(req, 'Successfully logged error:', {
         id: errorLog.id,
         message: errorLog.message,
         severity: errorLog.severity,
@@ -1080,7 +1080,7 @@ export function registerRoutes(app: Express): Server {
 
       res.status(201).json(errorLog);
     } catch (error) {
-      console.error('Error logging error:', error);
+      debug(req, 'Error logging error:', error);
       next(error);
     }
   });
@@ -1150,11 +1150,11 @@ export function registerRoutes(app: Express): Server {
   // Update session handling middleware
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
-      console.log(`[${req.id}] Session expired, attempting to regenerate`);
+      debug(req, `Session expired, attempting to regenerate`);
 
       // Ensure session exists before regeneration
       if (!req.session) {
-        console.error(`[${req.id}] Invalid session state`);
+        debug(req, `Invalid session state`);
         return res.status(500).json({
           status: 'error',
           message: 'Invalid session state',
@@ -1164,7 +1164,7 @@ export function registerRoutes(app: Express): Server {
 
       req.session.regenerate((regenerateErr) => {
         if (regenerateErr) {
-          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
+          debug(req, `Failed to regenerate session:`, regenerateErr);
           if (!res.headersSent) {
             res.status(500).json({
               status: 'error',
@@ -1175,7 +1175,7 @@ export function registerRoutes(app: Express): Server {
           return;
         }
 
-        console.log(`[${req.id}] Session regenerated successfully`);
+        debug(req, `Session regenerated successfully`);
         if (!res.headersSent) {
           next();
         }
