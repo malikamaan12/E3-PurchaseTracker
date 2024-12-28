@@ -17,8 +17,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { mandatoryDepartments } from "@db/schema";
 
-// Using all departments from the schema
-const allDepartments = [
+// Using all departments from the schema for selection
+const departments = [
   "Business",
   "Management",
   "Operation",
@@ -42,9 +42,6 @@ const allDepartments = [
   "Project Management",
   "Administration"
 ];
-
-// Filter out mandatory departments for selection
-const departments = allDepartments.filter(dept => !mandatoryDepartments.includes(dept as any));
 
 interface DepartmentSelectProps {
   label: string;
@@ -83,7 +80,7 @@ export default function DepartmentSelect({
       </label>
       <div className="space-y-2">
         <div className="text-sm text-gray-500">
-          Note: CEO Office, Finance, and Director approvals are mandatory and will be added automatically.
+          Note: Some department approvals are mandatory and will be added automatically.
         </div>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -94,7 +91,7 @@ export default function DepartmentSelect({
               className="w-full justify-between"
             >
               {selectedDepartments.length === 0
-                ? "Select additional approvers..."
+                ? "Select departments..."
                 : multiple
                 ? `${selectedDepartments.length} selected`
                 : selectedDepartments[0]}
