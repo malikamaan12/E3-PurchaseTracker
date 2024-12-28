@@ -92,8 +92,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityReason: text("priority_reason"),
   priorityRecommendations: json("priority_recommendations").$type<string[]>(),
   currency: text("currency").notNull().default("QAR"),
-  totalEstimatedCost: json("total_estimated_cost").$type<number>().notNull(),
-  freightAmount: json("freight_amount").$type<number>().notNull().default('0'),
+  totalEstimatedCost: integer("total_estimated_cost").notNull(),
+  freightAmount: integer("freight_amount").notNull().default(0),
   status: text("status").notNull().default("draft"),
   isLocked: boolean("is_locked").notNull().default(false),
   mandatoryApproversCount: integer("mandatory_approvers_count").notNull().default(0),
@@ -309,12 +309,12 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
-  totalEstimatedCost: z.coerce
-    .number()
+  totalEstimatedCost: z.number()
+    .int("Total cost must be a whole number")
     .min(0, "Total cost cannot be negative")
     .max(999999999, "Total cost is too large"),
-  freightAmount: z.coerce
-    .number()
+  freightAmount: z.number()
+    .int("Freight amount must be a whole number")
     .min(0, "Freight amount cannot be negative")
     .max(999999999, "Freight amount is too large"),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),

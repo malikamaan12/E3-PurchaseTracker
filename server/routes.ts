@@ -386,32 +386,42 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      console.log('Received request body:', JSON.stringify(req.body, null, 2));
+      debug(req, 'Creating new purchase request', req.body);
 
       // Ensure required fields are present and properly formatted
       const requestData = {
         ...req.body,
-        status: req.body.status || 'pending',
+        status: 'pending',
         requesterId: req.user!.id,
         requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        contact_number: req.body.contact_number?.trim() || '',
-        purpose: req.body.purpose?.trim() || '',
-        totalEstimatedCost: req.body.totalEstimatedCost?.toString() || '0',
-        freightAmount: req.body.freightAmount?.toString() || '0',
       };
 
-      console.log('Prepared request data:', JSON.stringify(requestData, null, 2));
-
-      // Validate request data
+      debug(req, 'Validating request data');
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
       if (!validationResult.success) {
-        console.error('Validation errors:', validationResult.error.format());
-        return res.status(400).json({
-          message: 'Validation failed',
+        debug(req, 'Validation failed', validationResult.error);
+        throw new ValidationError('Invalid request data', {
           errors: validationResult.error.errors
         });
       }
+
+      // Validate numeric fields
+      const { totalEstimatedCost, freightAmount, items } = validationResult.data;
+
+      // Ensure costs are valid integers
+      if (!Number.isInteger(totalEstimatedCost) || !Number.isInteger(freightAmount)) {
+        throw new ValidationError('Cost values must be whole numbers');
+      }
+
+      // Validate items costs are integers
+      for (const item of items) {
+        if (!Number.isInteger(item.estimatedCost)) {
+          throw new ValidationError('Item costs must be whole numbers');
+        }
+      }
+
+      debug(req, 'Creating purchase request', validationResult.data);
 
       // Create new purchase request
       const [newRequest] = await db
@@ -420,13 +430,13 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       if (!newRequest) {
-        throw new Error('Failed to create purchase request');
+        throw new DatabaseError('Failed to create purchase request');
       }
 
-      // Send response
+      debug(req, 'Successfully created purchase request', newRequest);
       res.status(201).json(newRequest);
     } catch (error) {
-      console.error('Error creating purchase request:', error);
+      debug(req, 'Error creating purchase request:', error);
       next(error);
     }
   });
@@ -967,6 +977,7 @@ export function registerRoutes(app: Express): Server {
         .groupBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`, errorLogs.severity)
         .orderBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`);
 
+      
       // Get most common errors
       const commonErrors = await db
         .select({
