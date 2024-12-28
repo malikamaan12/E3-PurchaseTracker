@@ -25,6 +25,18 @@ const departments = [
   "IT",
   "HR",
   "Mall Management",
+  "Operations",
+  "Marketing",
+  "Sales",
+  "Finance",
+  "Legal",
+  "Administration",
+  "Procurement",
+  "Customer Service",
+  "Business Development",
+  "Project Management",
+  "Quality Assurance",
+  "Research and Development"
 ].filter(dept => !mandatoryDepartments.includes(dept as any));
 
 interface DepartmentSelectProps {
