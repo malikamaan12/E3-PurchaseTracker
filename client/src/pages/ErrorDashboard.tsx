@@ -39,27 +39,28 @@ const SEVERITY_COLORS = {
 } as const;
 
 type TimeRange = "24h" | "7d" | "30d";
+type SeverityType = keyof typeof SEVERITY_COLORS;
 
 interface ErrorAnalytics {
   trends: Array<{
     date: string;
-    severity: keyof typeof SEVERITY_COLORS;
+    severity: SeverityType;
     count: number;
   }>;
   commonErrors: Array<{
     code: string;
     message: string;
     count: number;
-    severity: keyof typeof SEVERITY_COLORS;
+    severity: SeverityType;
   }>;
   severityDistribution: Array<{
-    severity: keyof typeof SEVERITY_COLORS;
+    severity: SeverityType;
     count: number;
   }>;
   recentErrors: Array<{
     id: number;
     message: string;
-    severity: keyof typeof SEVERITY_COLORS;
+    severity: SeverityType;
     createdAt: string;
     aiAnalysis?: {
       prediction: string;
@@ -72,22 +73,24 @@ interface ErrorAnalytics {
 export default function ErrorDashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>("7d");
 
-  const { data: analytics, isLoading } = useQuery<ErrorAnalytics>({
+  const { data: analytics, isLoading, error } = useQuery<ErrorAnalytics>({
     queryKey: ["/api/analytics/errors", { range: timeRange }],
   });
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!analytics) {
+  if (error || !analytics) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">No error data available</p>
+        <p className="text-muted-foreground">
+          {error?.message || "No error data available"}
+        </p>
       </div>
     );
   }
@@ -96,8 +99,8 @@ export default function ErrorDashboard() {
     <div className="container mx-auto p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Error Analytics Dashboard</h1>
-        <Select 
-          value={timeRange} 
+        <Select
+          value={timeRange}
           onValueChange={(value: TimeRange) => setTimeRange(value)}
         >
           <SelectTrigger className="w-32">
@@ -125,11 +128,15 @@ export default function ErrorDashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
-                    tickFormatter={(date) => new Date(date).toLocaleDateString()}
+                    tickFormatter={(date) =>
+                      new Date(date).toLocaleDateString()
+                    }
                   />
                   <YAxis />
                   <Tooltip
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) =>
+                      new Date(date).toLocaleDateString()
+                    }
                   />
                   <Legend />
                   {Object.keys(SEVERITY_COLORS).map((severity) => (
