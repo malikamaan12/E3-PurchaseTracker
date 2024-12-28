@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests, fileAttachments } from "@db/schema";
+import { users, purchaseRequests, subPurposes, notifications, companyBranding, accountRequests } from "@db/schema";
 import { eq } from "drizzle-orm";
 import path from 'path';
 import fs from 'fs';
@@ -175,8 +175,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account request endpoint
-  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+  // Account request endpoint with improved error handling
+  app.post("/api/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('Processing account request:', req.body);
       const result = insertAccountRequestSchema.safeParse(req.body);
