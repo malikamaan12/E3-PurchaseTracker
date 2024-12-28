@@ -36,13 +36,11 @@ export default function AccountRequestForm() {
         credentials: "include",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit account request');
-      }
-
       const result = await response.json();
-      console.log("Account request response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to submit account request');
+      }
 
       toast({
         title: "Success",
@@ -108,15 +106,15 @@ export default function AccountRequestForm() {
       </div>
 
       <div>
-        <Label htmlFor="contactNumber">Contact Number</Label>
+        <Label htmlFor="contact_number">Contact Number</Label>
         <Input
-          id="contactNumber"
-          {...form.register("contactNumber")}
+          id="contact_number"
+          {...form.register("contact_number")}
           className="mt-1"
         />
-        {form.formState.errors.contactNumber && (
+        {form.formState.errors.contact_number && (
           <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.contactNumber.message}
+            {form.formState.errors.contact_number.message}
           </p>
         )}
       </div>
