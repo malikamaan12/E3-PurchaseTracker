@@ -122,8 +122,22 @@ export function registerRoutes(app: Express): Server {
         })
         .from(purchaseRequests)
         .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-        .where(eq(purchaseRequests.requesterId, req.user!.id))
-        .orderBy(desc(purchaseRequests.createdAt));
+        .where(eq(purchaseRequests.requesterId, req.user!.id));
+
+      console.log('Raw requests data:', JSON.stringify(requests, null, 2));
+
+      // Validate request data structure
+      if (!Array.isArray(requests)) {
+        throw new Error('Invalid requests data structure');
+      }
+
+      // Validate each request has required fields
+      requests.forEach((request, index) => {
+        if (!request.requester || !request.requester.department) {
+          console.error(`Invalid requester data for request ${index}:`, request);
+          throw new Error(`Missing requester data for request ${request.id}`);
+        }
+      });
 
       // For each request, fetch its approvals
       const requestsWithApprovals = await Promise.all(
@@ -133,6 +147,8 @@ export function registerRoutes(app: Express): Server {
             .from(approvals)
             .where(eq(approvals.requestId, request.id));
 
+          console.log(`Approvals for request ${request.id}:`, requestApprovals);
+
           return {
             ...request,
             approvals: requestApprovals || []
@@ -141,7 +157,7 @@ export function registerRoutes(app: Express): Server {
       );
 
       console.log('Found requests:', requestsWithApprovals.length);
-      res.json(requestsWithApprovals);
+      return res.json(requestsWithApprovals);
     } catch (error) {
       console.error('Error fetching requests:', error);
       next(new AppError('Failed to fetch requests', 500));

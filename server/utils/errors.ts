@@ -109,16 +109,9 @@ export function handleError(err: unknown): AppError {
     return new ValidationError('Validation failed', { details });
   }
 
-  // Multer errors
-  if (err instanceof Error && err.name === 'MulterError') {
-    return new ValidationError(`File upload error: ${err.message}`, {
-      code: 'MULTER_ERROR',
-      details: err.message
-    });
-  }
-
   // Generic error handling
   if (err instanceof Error) {
+    console.error('Error stack:', err.stack);
     const appError = new AppError(err.message);
     appError.stack = err.stack;
     return appError;
