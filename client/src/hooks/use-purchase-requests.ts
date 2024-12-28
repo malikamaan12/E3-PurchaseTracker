@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest, PurchaseRequestWithRelations } from "@db/schema";
+import { visualizeError, createErrorContext } from "@/lib/errorUtils";
 
 export function usePurchaseRequests() {
   const { toast } = useToast();
@@ -10,28 +11,46 @@ export function usePurchaseRequests() {
   const handleApiError = async (res: Response) => {
     const contentType = res.headers.get("content-type");
     const isJson = contentType?.includes("application/json");
-    const resClone = res.clone(); // Clone response for multiple reads
+    const resClone = res.clone();
 
     try {
       // If content type is JSON or unknown, try JSON first
       if (isJson || !contentType) {
         const data = await res.json();
         if (!res.ok) {
+          const errorContext = createErrorContext(
+            new Error(data.message || `${res.status}: ${res.statusText}`),
+            data.severity || undefined,
+            { code: res.status.toString(), path: res.url }
+          );
+          visualizeError(errorContext);
           throw new Error(data.message || `${res.status}: ${res.statusText}`);
         }
         return data;
-      } 
+      }
 
       // For non-JSON responses, read as text
       const text = await resClone.text();
 
       // Handle HTML error pages
       if (text.toLowerCase().includes('<!doctype html')) {
+        const errorContext = createErrorContext(
+          new Error(`Server error (${res.status}): Please try again later`),
+          'critical',
+          { code: res.status.toString(), path: res.url }
+        );
+        visualizeError(errorContext);
         throw new Error(`Server error (${res.status}): Please try again later`);
       }
 
       // For non-OK responses, throw the text
       if (!res.ok) {
+        const errorContext = createErrorContext(
+          new Error(text || `${res.status}: ${res.statusText}`),
+          'error',
+          { code: res.status.toString(), path: res.url }
+        );
+        visualizeError(errorContext);
         throw new Error(text || `${res.status}: ${res.statusText}`);
       }
 
@@ -40,6 +59,12 @@ export function usePurchaseRequests() {
       if (error instanceof Error) {
         throw error;
       }
+      const errorContext = createErrorContext(
+        new Error('An unexpected error occurred'),
+        'critical',
+        { path: res.url }
+      );
+      visualizeError(errorContext);
       throw new Error('An unexpected error occurred');
     }
   };
@@ -49,6 +74,12 @@ export function usePurchaseRequests() {
     queryKey: ["/api/requests"],
     retry: 1,
     staleTime: 30000,
+    onError: (error) => {
+      visualizeError(createErrorContext(error, 'error', {
+        path: '/api/requests',
+        details: 'Failed to fetch purchase requests'
+      }));
+    }
   });
 
   // Fetch single request
@@ -57,6 +88,12 @@ export function usePurchaseRequests() {
       queryKey: [`/api/requests/${id}`],
       enabled: !!id,
       staleTime: 30000,
+      onError: (error) => {
+        visualizeError(createErrorContext(error, 'error', {
+          path: `/api/requests/${id}`,
+          details: `Failed to fetch purchase request with ID ${id}`
+        }));
+      }
     });
   };
 
@@ -80,7 +117,10 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
-      console.error('Approval error:', error);
+      visualizeError(createErrorContext(error, 'error', {
+        path: `/api/requests/${requestId}/approvals`,
+        details: `Failed to approve/reject request`
+      }));
       toast({
         title: "Error",
         description: error.message,
@@ -108,7 +148,10 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
-      console.error("Create request error:", error);
+      visualizeError(createErrorContext(error, 'error', {
+        path: '/api/requests',
+        details: 'Failed to create purchase request'
+      }));
       toast({
         title: "Error",
         description: error.message,
@@ -137,6 +180,10 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
+      visualizeError(createErrorContext(error, 'error', {
+        path: `/api/requests/${id}`,
+        details: `Failed to update purchase request with ID ${id}`
+      }));
       toast({
         title: "Error",
         description: error.message,
@@ -162,6 +209,10 @@ export function usePurchaseRequests() {
       });
     },
     onError: (error: Error) => {
+      visualizeError(createErrorContext(error, 'error', {
+        path: `/api/requests/${id}`,
+        details: `Failed to delete purchase request with ID ${id}`
+      }));
       toast({
         title: "Error",
         description: error.message,
