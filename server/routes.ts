@@ -19,41 +19,57 @@ import { AppError, handleError, DatabaseError, AuthorizationError, ValidationErr
 import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
 import { z } from 'zod';
+import * as crypto from 'crypto';
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
   setupAuth(app);
 
+  // Add request validation middleware
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    // Add request ID for tracking
+    req.id = crypto.randomUUID();
+    console.log(`[${req.id}] ${req.method} ${req.path} started`);
+    next();
+  });
+
   // Add enhanced error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log(`[${req.id}] Error occurred:`, err);
       const error = await handleError(err);
 
-      // Log error to database
+      // Log error to database with proper type checking
       try {
-        await db.insert(errorLogs).values({
+        const errorLogData = {
           message: error.message,
-          code: error.code,
-          severity: error.severity,
+          code: error.code || 'UNKNOWN_ERROR',
+          severity: error.severity || 'error',
           path: req.path,
           userId: req.user?.id,
-          details: error.details,
-          aiAnalysis: error.details?.aiAnalysis
-        });
+          details: error.details ? JSON.stringify(error.details) : null,
+          aiAnalysis: error.details?.aiAnalysis ? JSON.stringify(error.details.aiAnalysis) : null
+        };
+
+        await db.insert(errorLogs).values(errorLogData);
+        console.log(`[${req.id}] Error logged to database`);
       } catch (logError) {
-        console.error('Failed to log error:', logError);
+        console.error(`[${req.id}] Failed to log error:`, logError);
       }
 
-      // Send error response
-      res.status(error.status).json({
+      // Ensure valid status code
+      const status = error.status && error.status >= 100 && error.status < 600 ? error.status : 500;
+
+      // Send error response with proper structure
+      res.status(status).json({
         status: 'error',
         message: error.message,
-        code: error.code,
-        severity: error.severity,
+        code: error.code || 'INTERNAL_ERROR',
+        severity: error.severity || 'error',
         ...(error.details && { details: error.details })
       });
     } catch (handlingError) {
-      console.error('Error in error handling middleware:', handlingError);
+      console.error(`[${req.id}] Error in error handling middleware:`, handlingError);
       res.status(500).json({
         status: 'error',
         message: 'Internal Server Error',

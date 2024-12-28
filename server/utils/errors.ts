@@ -6,7 +6,7 @@ export type ErrorSeverity = 'critical' | 'error' | 'warning' | 'info';
 export interface ErrorContext {
   message: string;
   severity: ErrorSeverity;
-  details?: string | Record<string, unknown>;
+  details?: unknown;
   code?: string;
   path?: string;
   timestamp?: Date;
@@ -16,7 +16,7 @@ export class AppError extends Error {
   public status: number;
   public severity: ErrorSeverity;
   public isOperational: boolean;
-  public details?: string | Record<string, unknown>;
+  public details?: unknown;
   public code?: string;
   public timestamp: Date;
 
@@ -50,12 +50,13 @@ export class AppError extends Error {
     }
 
     if (err instanceof z.ZodError) {
-      const details = err.errors.map(e => ({
-        path: e.path.join('.'),
-        message: e.message
-      }));
       const error = new ValidationError('Validation failed');
-      error.details = details;
+      error.details = {
+        errors: err.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      };
       return error;
     }
 
@@ -70,7 +71,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, details?: Record<string, unknown>) {
+  constructor(message: string, details?: unknown) {
     super(message, 400, 'warning');
     this.details = details;
     this.code = 'VALIDATION_ERROR';
@@ -114,6 +115,7 @@ export class SessionError extends AppError {
 
 export async function handleError(err: unknown): Promise<AppError> {
   const error = AppError.ensureError(err);
+
   console.error('Error details:', {
     name: error.name,
     message: error.message,
@@ -126,8 +128,12 @@ export async function handleError(err: unknown): Promise<AppError> {
 
   // Enhance error with AI analysis for 500-level errors
   if (error.status >= 500) {
-    const enhancedContext = await error.withAnalysis();
-    error.details = enhancedContext.details;
+    try {
+      const enhancedContext = await error.withAnalysis();
+      error.details = enhancedContext.details;
+    } catch (analysisError) {
+      console.error('Failed to enhance error with AI analysis:', analysisError);
+    }
   }
 
   return error;
