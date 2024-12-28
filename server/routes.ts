@@ -609,7 +609,47 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-  // Add new route handlers after account requests management section and before error analytics endpoints
+  // Add role update endpoint after the account requests management section
+  app.post("/api/admin/users/:id/update-role", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+
+      if (!role || !['user', 'approver', 'admin'].includes(role)) {
+        throw new ValidationError('Invalid role specified');
+      }
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Update user role
+      const [updatedUser] = await db
+        .update(users)
+        .set({ role: role })
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json({
+        message: 'User role updated successfully',
+        user: updatedUser
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/admin/users/:id/toggle-activation", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
@@ -955,4 +995,5 @@ export function registerRoutes(app: Express): Server {
 
   // Create and return the HTTP server
   const httpServer = createServer(app);
-  return httpServer;}
+  return httpServer;
+}

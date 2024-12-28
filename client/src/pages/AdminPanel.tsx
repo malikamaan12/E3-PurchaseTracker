@@ -71,6 +71,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
+import { Loader2 } from "lucide-react";
+
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -228,6 +230,40 @@ export default function AdminPanel() {
     },
   });
 
+  // Add role update mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      const res = await fetch(`/api/admin/users/${userId}/update-role`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "Success",
+        description: "User role updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="container mx-auto py-8">
       <Button
@@ -273,7 +309,9 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               {isLoadingRequests ? (
-                <div className="flex justify-center py-8">Loading...</div>
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -292,15 +330,51 @@ export default function AdminPanel() {
                         <TableCell>{request.username}</TableCell>
                         <TableCell>{request.email}</TableCell>
                         <TableCell>{request.department}</TableCell>
-                        <TableCell>{request.role}</TableCell>
                         <TableCell>
-                          <Badge className={cn(
-                            request.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : request.status === "approved"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                          )}>
+                          {request.status === "pending" ? (
+                            <Select
+                              defaultValue={request.role}
+                              onValueChange={(value) => {
+                                updateRoleMutation.mutate({
+                                  userId: request.id,
+                                  role: value,
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Select role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="approver">Approver</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge
+                              className={cn(
+                                "bg-slate-100 text-slate-800",
+                                {
+                                  "bg-blue-100 text-blue-800": request.role === "admin",
+                                  "bg-purple-100 text-purple-800": request.role === "approver",
+                                  "bg-green-100 text-green-800": request.role === "user",
+                                }
+                              )}
+                            >
+                              {request.role}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={cn(
+                              request.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : request.status === "approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                            )}
+                          >
                             {request.status}
                           </Badge>
                         </TableCell>
@@ -311,21 +385,27 @@ export default function AdminPanel() {
                                 variant="ghost"
                                 size="icon"
                                 className="text-green-500 hover:text-green-700"
-                                onClick={() =>
-                                  approveAccountRequest.mutate(request.id)
-                                }
+                                onClick={() => approveAccountRequest.mutate(request.id)}
+                                disabled={approveAccountRequest.isPending}
                               >
-                                <Check className="h-4 w-4" />
+                                {approveAccountRequest.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="text-red-500 hover:text-red-700"
-                                onClick={() =>
-                                  rejectAccountRequest.mutate(request.id)
-                                }
+                                onClick={() => rejectAccountRequest.mutate(request.id)}
+                                disabled={rejectAccountRequest.isPending}
                               >
-                                <X className="h-4 w-4" />
+                                {rejectAccountRequest.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <X className="h-4 w-4" />
+                                )}
                               </Button>
                             </div>
                           )}
