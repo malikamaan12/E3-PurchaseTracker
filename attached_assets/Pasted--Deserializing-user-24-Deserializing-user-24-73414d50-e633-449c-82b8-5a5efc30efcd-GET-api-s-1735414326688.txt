@@ -1,0 +1,52 @@
+}
+Deserializing user: 24
+Deserializing user: 24
+[73414d50-e633-449c-82b8-5a5efc30efcd] GET /api/sub-purposes started 
+[73414d50-e633-449c-82b8-5a5efc30efcd] Fetching sub-purposes {
+  "purposeType": "event"
+}
+[73414d50-e633-449c-82b8-5a5efc30efcd] Error fetching sub-purposes: {
+  "length": 111,
+  "name": "error",
+  "severity": "ERROR",
+  "code": "42703",
+  "position": "38",
+  "file": "parse_relation.c",
+  "line": "3722",
+  "routine": "errorMissingColumn"
+}
+Server error: {
+  message: 'Failed to fetch sub-purposes',
+  stack: 'DatabaseError: Failed to fetch sub-purposes\n' +
+    '    at <anonymous> (/home/runner/workspace/server/routes.ts:452:12)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)',
+  status: 500
+}
+Error details: {
+  name: 'DatabaseError',
+  message: 'Failed to fetch sub-purposes',
+  status: 500,
+  severity: 'critical',
+  code: 'DATABASE_ERROR',
+  timestamp: 2024-12-28T19:31:20.968Z,
+  stack: 'DatabaseError: Failed to fetch sub-purposes\n' +
+    '    at <anonymous> (/home/runner/workspace/server/routes.ts:452:12)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)'
+}
+node:_http_server:351
+    throw new ERR_HTTP_INVALID_STATUS_CODE(originalStatusCode);
+    ^
+
+RangeError [ERR_HTTP_INVALID_STATUS_CODE]: Invalid status code: undefined
+    at ServerResponse.writeHead (node:_http_server:351:11)
+    at ServerResponse.writeHead (/home/runner/workspace/node_modules/on-headers/index.js:44:26)
+    at ServerResponse._implicitHeader (node:_http_server:337:8)
+    at write_ (node:_http_outgoing:941:9)
+    at ServerResponse.end (node:_http_outgoing:1052:5)
+    at writeend (/home/runner/workspace/node_modules/express-session/index.js:270:22)
+    at Immediate.ontouch (/home/runner/workspace/node_modules/express-session/index.js:361:11)
+    at process.processImmediate (node:internal/timers:485:21) {
+  code: 'ERR_HTTP_INVALID_STATUS_CODE'
+}
+
+Node.js v20.18.1

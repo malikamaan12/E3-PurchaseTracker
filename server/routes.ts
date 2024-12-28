@@ -39,7 +39,7 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Enhanced error handling middleware
+  // Update error handling middleware section
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
       debug(req, 'Error occurred:', err);
@@ -70,7 +70,9 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Ensure valid status code
-      const status = (error.status >= 100 && error.status < 600) ? error.status : 500;
+      const status = error.status && error.status >= 100 && error.status < 600 
+        ? error.status 
+        : 500;
 
       // Ensure response hasn't been sent
       if (!res.headersSent) {
