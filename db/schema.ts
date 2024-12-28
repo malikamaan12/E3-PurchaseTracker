@@ -253,11 +253,8 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
 });
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
-  currency: z.enum(["QAR", "USD", "CNY"]),
-  totalEstimatedCost: z.string().transform((val) => Number(val)),
-  freightAmount: z.string().transform((val) => Number(val)),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
   items: z.array(z.object({
     name: z.string().min(1, "Item name is required"),
     quantity: z.number().int().positive("Quantity must be a positive number"),
@@ -269,13 +266,14 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   contact_number: z.string()
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format")
-    .optional()
-    .or(z.literal("")),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
   accountNumber: z.string().min(1, "Account number is required"),
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  purpose: z.string().min(1, "Purpose is required").optional().or(z.literal("")),
+  purpose: z.string().min(1, "Purpose is required"),
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  currency: z.enum(["QAR", "USD", "CNY"]),
+  totalEstimatedCost: z.number().min(0, "Total estimated cost must be non-negative").or(z.string().transform(Number)),
+  freightAmount: z.number().min(0, "Freight amount must be non-negative").or(z.string().transform(Number)),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]).optional(),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().optional(),
