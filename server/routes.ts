@@ -71,13 +71,23 @@ app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: Ne
     // Transform frontend field names to match database schema
     const requestData = {
       name: req.body.name,
-      purpose_type: req.body.purposeType || req.body.purpose_type,
+      purpose_type: req.body.purposeType || req.body.purpose_type, // Accept both formats
       is_frozen: req.body.isFrozen || req.body.is_frozen || false,
       valid_from: req.body.validFrom || req.body.valid_from ? new Date(req.body.validFrom || req.body.valid_from) : null,
       valid_to: req.body.validTo || req.body.valid_to ? new Date(req.body.validTo || req.body.valid_to) : null,
     };
 
     debug(req, 'Transformed request data:', requestData);
+
+    // Validate the purpose_type is one of the allowed values
+    if (!['event', 'project', 'mall', 'business_growth'].includes(requestData.purpose_type)) {
+      throw new ValidationError('Invalid purpose type', {
+        details: {
+          allowed: ['event', 'project', 'mall', 'business_growth'],
+          received: requestData.purpose_type
+        }
+      });
+    }
 
     const validationResult = insertSubPurposeSchema.safeParse(requestData);
 
