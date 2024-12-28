@@ -6,7 +6,7 @@ export type ErrorSeverity = 'critical' | 'error' | 'warning' | 'info';
 export interface ErrorContext {
   message: string;
   severity: ErrorSeverity;
-  details?: unknown;
+  details?: Record<string, unknown>;
   code?: string;
   path?: string;
   timestamp?: Date;
@@ -16,7 +16,7 @@ export class AppError extends Error {
   public status: number;
   public severity: ErrorSeverity;
   public isOperational: boolean;
-  public details?: unknown;
+  public details?: Record<string, unknown>;
   public code?: string;
   public timestamp: Date;
 
@@ -42,7 +42,12 @@ export class AppError extends Error {
 
   public async withAnalysis(): Promise<ErrorContext> {
     try {
-      return await enhanceErrorContext(this);
+      const enhancedContext = await enhanceErrorContext(this);
+      this.details = {
+        ...this.details,
+        aiAnalysis: enhancedContext.details
+      };
+      return this.toJSON();
     } catch (analysisError) {
       console.error('Error analysis failed:', analysisError);
       return this.toJSON();
@@ -76,7 +81,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, details?: unknown) {
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message, 400, 'warning');
     this.details = details;
     this.code = 'VALIDATION_ERROR';
@@ -111,13 +116,6 @@ export class DatabaseError extends AppError {
   }
 }
 
-export class SessionError extends AppError {
-  constructor(message: string = 'Session error occurred') {
-    super(message, 500, 'error');
-    this.code = 'SESSION_ERROR';
-  }
-}
-
 export async function handleError(err: unknown): Promise<AppError> {
   const error = AppError.ensureError(err);
 
@@ -134,8 +132,7 @@ export async function handleError(err: unknown): Promise<AppError> {
   // Enhance error with AI analysis for 500-level errors
   if (error.status >= 500) {
     try {
-      const enhancedContext = await error.withAnalysis();
-      error.details = enhancedContext.details;
+      await error.withAnalysis();
     } catch (analysisError) {
       console.error('Failed to enhance error with AI analysis:', analysisError);
     }

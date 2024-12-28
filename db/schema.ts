@@ -3,7 +3,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations, type InferModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Define tables
+// ============= Tables =============
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -17,7 +17,6 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Account Requests Table
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -41,6 +40,18 @@ export const notifications = pgTable("notifications", {
   type: text("type").notNull(),
   isRead: boolean("is_read").notNull().default(false),
   link: text("link"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const errorLogs = pgTable("error_logs", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  code: text("code"),
+  severity: text("severity").notNull(),
+  path: text("path"),
+  userId: integer("user_id").references(() => users.id),
+  details: json("details").$type<Record<string, unknown>>(),
+  aiAnalysis: json("ai_analysis").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -70,7 +81,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   contactPerson: text("contact_person").notNull(),
   contact_number: text("contact_number").notNull(),
   accountNumber: text("account_number").notNull(),
-  purpose: text("purpose").notNull().default(""),
+  purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
@@ -132,19 +143,7 @@ export const purchaseApprovers = pgTable("purchase_approvers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Error logging table with proper text fields for JSON data
-export const errorLogs = pgTable("error_logs", {
-  id: serial("id").primaryKey(),
-  message: text("message").notNull(),
-  code: text("code"),
-  severity: text("severity").notNull(),
-  path: text("path"),
-  userId: integer("user_id").references(() => users.id),
-  details: text("details"),
-  aiAnalysis: text("ai_analysis"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
+// ============= Relations =============
 export const errorLogRelations = relations(errorLogs, ({ one }) => ({
   user: one(users, {
     fields: [errorLogs.userId],
@@ -152,19 +151,6 @@ export const errorLogRelations = relations(errorLogs, ({ one }) => ({
   }),
 }));
 
-// Type definitions
-export type User = InferModel<typeof users>;
-export type SubPurpose = InferModel<typeof subPurposes>;
-export type PurchaseRequest = InferModel<typeof purchaseRequests>;
-export type Approval = InferModel<typeof approvals>;
-export type FileAttachment = InferModel<typeof fileAttachments>;
-export type NotificationType = InferModel<typeof notifications>;
-export type CompanyBranding = InferModel<typeof companyBranding>;
-export type AccountRequest = InferModel<typeof accountRequests>;
-export type ErrorLog = typeof errorLogs.$inferSelect;
-export type InsertErrorLog = typeof errorLogs.$inferInsert;
-
-// Relations
 export const userRelations = relations(users, ({ many }) => ({
   requestsCreated: many(purchaseRequests),
   approvalsGiven: many(approvals),
@@ -213,19 +199,28 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
   }),
 }));
 
-// Validation Schemas
+// ============= Basic Type Definitions =============
+export type User = InferModel<typeof users>;
+export type SubPurpose = InferModel<typeof subPurposes>;
+export type PurchaseRequest = InferModel<typeof purchaseRequests>;
+export type Approval = InferModel<typeof approvals>;
+export type FileAttachment = InferModel<typeof fileAttachments>;
+export type NotificationType = InferModel<typeof notifications>;
+export type CompanyBranding = InferModel<typeof companyBranding>;
+export type AccountRequest = InferModel<typeof accountRequests>;
+export type ErrorLog = typeof errorLogs.$inferSelect;
+export type InsertErrorLog = typeof errorLogs.$inferInsert;
+export type LoginCredentials = z.infer<typeof loginSchema>;
+export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+export type SelectNotification = typeof notifications.$inferSelect;
+export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;
+
+// ============= Validation Schemas =============
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
-});
-
-export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
-  headerStyle: z.enum(["modern", "classic", "minimal"]),
-  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid hex color"),
-  logoUrl: z.string().optional(),
-  footerText: z.string().optional(),
 });
 
 export const insertUserSchema = createInsertSchema(users, {
@@ -235,61 +230,27 @@ export const insertUserSchema = createInsertSchema(users, {
   contact_number: z.string()
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
-// Account Request Schema
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
   contact_number: z.string()
-    .trim()
-    .min(1, "Contact number is required")
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   purpose: z.string()
-    .trim()
-    .min(1, "Purpose is required")
-    .min(3, "Purpose must be at least 3 characters"),
-  department: z.string()
-    .min(1, "Department is required")
-    .refine((val) => mandatoryDepartments.includes(val as any), "Invalid department"),
+    .min(3, "Purpose must be at least 3 characters")
+    .max(200, "Purpose cannot exceed 200 characters"),
+  department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
 });
 
-export const insertNotificationSchema = createInsertSchema(notifications);
-export const selectNotificationSchema = createSelectSchema(notifications);
-
-// Types from schemas
-export type LoginCredentials = z.infer<typeof loginSchema>;
-export type InsertNotification = typeof notifications.$inferInsert;
-export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
-export const selectUserSchema = createSelectSchema(users);
-export type InsertUser = typeof users.$inferInsert;
-export type SelectUser = typeof users.$inferSelect;
-export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
-  name: z.string().min(1, "Name is required"),
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
-  isFrozen: z.boolean().optional(),
-  validFrom: z.string()
-    .refine((val) => !val || !isNaN(Date.parse(val)), {
-      message: "Invalid date format"
-    })
-    .transform((val) => val ? new Date(val).toISOString() : undefined)
-    .optional(),
-  validTo: z.string()
-    .refine((val) => !val || !isNaN(Date.parse(val)), {
-      message: "Invalid date format"
-    })
-    .transform((val) => val ? new Date(val).toISOString() : undefined)
-    .optional(),
-});
-export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   title: z.string()
     .min(1, "Title is required")
@@ -319,29 +280,20 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     .min(1, "Contact person is required")
     .max(100, "Contact person name cannot exceed 100 characters"),
   contact_number: z.string()
-    .min(1, "Contact number is required")
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol")
-    .transform((val) => (val || "").trim()),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   accountNumber: z.string()
     .min(1, "Account number is required")
     .max(50, "Account number cannot exceed 50 characters")
     .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
   purpose: z.string()
     .min(1, "Purpose is required")
-    .max(200, "Purpose cannot exceed 200 characters")
-    .transform((val) => (val || "").trim()),
-  purposeType: z.enum(["event", "project", "mall", "business_growth"], {
-    errorMap: () => ({ message: "Please select a valid purpose type" })
-  }),
+    .max(200, "Purpose cannot exceed 200 characters"),
+  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   subPurposeId: z.number().optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"], {
-    errorMap: () => ({ message: "Please select a valid priority level" })
-  }),
-  currency: z.enum(["QAR", "USD", "CNY"], {
-    errorMap: () => ({ message: "Please select a valid currency" })
-  }),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  currency: z.enum(["QAR", "USD", "CNY"]),
   totalEstimatedCost: z.coerce
     .number()
     .min(0, "Total cost cannot be negative")
@@ -350,12 +302,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     .number()
     .min(0, "Freight amount cannot be negative")
     .max(999999999, "Freight amount is too large"),
-  status: z.enum(
-    ["draft", "pending", "approved", "rejected", "changes_requested"],
-    {
-      errorMap: () => ({ message: "Invalid request status" })
-    }
-  ),
+  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().int().min(0).optional(),
   requestNumber: z.string().optional(),
@@ -365,15 +312,41 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priorityRecommendations: z.array(z.string()).optional(),
 });
 
-export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
-export const insertApprovalSchema = createInsertSchema(approvals);
-export const selectApprovalSchema = createSelectSchema(approvals);
-export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
-export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
+export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
+  departmentId: z.string().min(1, "Department is required"),
+  approverId: z.number().int().positive("Invalid approver ID"),
+  isMandatory: z.boolean().default(false),
+  level: z.number().int().min(1).max(5),
+});
+
+// ============= Create Select Schemas =============
+export const selectUserSchema = createSelectSchema(users);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
+export const selectNotificationSchema = createSelectSchema(notifications);
+export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
+export const selectApprovalSchema = createSelectSchema(approvals);
+export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers);
+
+// Using createSelectSchema for error logs with proper typing
+export const selectErrorLogSchema = createSelectSchema(errorLogs);
 
 
-// Department Constants
+// ============= Error log schemas =============
+export const insertErrorLogSchema = z.object({
+  message: z.string().min(1, "Message is required"),
+  code: z.string().optional(),
+  severity: z.enum(["critical", "error", "warning", "info"]),
+  path: z.string().optional(),
+  userId: z.number().optional(),
+  details: z.record(z.unknown()).optional(),
+  aiAnalysis: z.record(z.unknown()).optional(),
+});
+
+
+
+// ============= Department Constants =============
 export const mandatoryDepartments = [
   "Business",
   "Management",
@@ -400,16 +373,3 @@ export const mandatoryDepartments = [
 ] as const;
 
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
-
-export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
-
-
-export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
-  departmentId: z.string().min(1, "Department is required"),
-  approverId: z.number().int().positive("Invalid approver ID"),
-  isMandatory: z.boolean().default(false),
-  level: z.number().int().min(1).max(5),
-});
-
-export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers);
-export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;

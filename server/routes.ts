@@ -11,6 +11,7 @@ import {
   approvals,
   purchaseApprovers,
   errorLogs,
+  insertErrorLogSchema,
   type PurchaseApprover,
   insertPurchaseRequestSchema
 } from "@db/schema";
@@ -33,49 +34,13 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Update session handling middleware
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
-      console.log(`[${req.id}] Session expired, attempting to regenerate`);
-
-      // Ensure session exists before regeneration
-      if (!req.session) {
-        console.error(`[${req.id}] Invalid session state`);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Invalid session state',
-          code: 'SESSION_ERROR'
-        });
-      }
-
-      req.session.regenerate((regenerateErr) => {
-        if (regenerateErr) {
-          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
-          return res.status(500).json({
-            status: 'error',
-            message: 'Session recovery failed',
-            code: 'SESSION_ERROR'
-          });
-        }
-
-        console.log(`[${req.id}] Session regenerated successfully`);
-        // Ensure response hasn't been sent before continuing
-        if (!res.headersSent) {
-          next();
-        }
-      });
-    } else {
-      next(err);
-    }
-  });
-
   // Enhanced error handling middleware
   app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
     try {
       console.log(`[${req.id}] Error occurred:`, err);
       const error = await handleError(err);
 
-      // Ensure proper error logging with string serialization
+      // Ensure proper error logging with JSON serialization
       try {
         const errorLogData = {
           message: error.message,
@@ -83,18 +48,25 @@ export function registerRoutes(app: Express): Server {
           severity: error.severity || 'error',
           path: req.path,
           userId: req.user?.id,
-          details: error.details ? JSON.stringify(error.details) : null,
-          aiAnalysis: error.details?.aiAnalysis ? JSON.stringify(error.details.aiAnalysis) : null
+          details: error.details || null,
+          aiAnalysis: error.details?.aiAnalysis || null
         };
 
-        await db.insert(errorLogs).values(errorLogData);
-        console.log(`[${req.id}] Error logged to database`);
+        // Validate error log data
+        const validatedData = insertErrorLogSchema.safeParse(errorLogData);
+        if (!validatedData.success) {
+          console.error(`[${req.id}] Error log validation failed:`, validatedData.error);
+          // Continue without logging if validation fails
+        } else {
+          await db.insert(errorLogs).values(validatedData.data);
+          console.log(`[${req.id}] Error logged to database`);
+        }
       } catch (logError) {
         console.error(`[${req.id}] Failed to log error:`, logError);
       }
 
       // Ensure valid status code
-      const status = error.status && error.status >= 100 && error.status < 600 ? error.status : 500;
+      const status = (error.status >= 100 && error.status < 600) ? error.status : 500;
 
       // Ensure response hasn't been sent
       if (!res.headersSent) {
@@ -118,6 +90,44 @@ export function registerRoutes(app: Express): Server {
           severity: 'critical'
         });
       }
+    }
+  });
+
+  // Update session handling middleware
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
+      console.log(`[${req.id}] Session expired, attempting to regenerate`);
+
+      // Ensure session exists before regeneration
+      if (!req.session) {
+        console.error(`[${req.id}] Invalid session state`);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Invalid session state',
+          code: 'SESSION_ERROR'
+        });
+      }
+
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error(`[${req.id}] Failed to regenerate session:`, regenerateErr);
+          if (!res.headersSent) {
+            res.status(500).json({
+              status: 'error',
+              message: 'Session recovery failed',
+              code: 'SESSION_ERROR'
+            });
+          }
+          return;
+        }
+
+        console.log(`[${req.id}] Session regenerated successfully`);
+        if (!res.headersSent) {
+          next();
+        }
+      });
+    } else {
+      next(err);
     }
   });
 
@@ -955,14 +965,13 @@ export function registerRoutes(app: Express): Server {
         severityDistribution,
         recentErrors: recentErrors.map(error => ({
           ...error,
-          details: error.details ? JSON.parse(error.details as string) : null,
-          aiAnalysis: error.aiAnalysis ? JSON.parse(error.aiAnalysis as string) : null
+          details: error.details,
+          aiAnalysis: error.aiAnalysis
         }))
       });
     } catch (error) {
       console.error('Error fetching error analytics:', error);
-      next(error);
-    }
+      next(error);    }
   });
 
   app.post("/api/analytics/errors", async (req: Request,res: Response, next: NextFunction) => {
