@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import CompanyBrandingForm from "@/components/CompanyBrandingForm";
 import {
   Card,
@@ -61,7 +62,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type {
@@ -76,6 +77,7 @@ import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 
 export default function AdminPanel() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("users");
@@ -314,6 +316,15 @@ export default function AdminPanel() {
 
   return (
     <div className="container mx-auto py-8">
+      <Button
+        variant="ghost"
+        className="mb-4 hover:bg-[#7156a2]/10 transition-colors interactive-bounce"
+        onClick={() => setLocation("/")}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Dashboard
+      </Button>
+
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users">User Management</TabsTrigger>

@@ -50,25 +50,45 @@ app.use((req, res, next) => {
 
 async function initializeServer() {
   try {
-    // Test database connection first
+    // Test database connection first with retries
     log("Testing database connection...");
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      throw new Error("Failed to establish database connection");
+    let isConnected = false;
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (!isConnected && retries < maxRetries) {
+      try {
+        isConnected = await testConnection();
+        if (isConnected) {
+          log("Database connection established successfully");
+          break;
+        }
+      } catch (err) {
+        retries++;
+        if (retries < maxRetries) {
+          log(`Database connection attempt ${retries} failed, retrying in ${retries * 1000}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retries * 1000));
+        } else {
+          throw new Error("Failed to establish database connection after multiple attempts");
+        }
+      }
     }
-    log("Database connection established successfully");
 
     // Initialize Anthropic client (non-blocking)
-    const anthropicClient = initializeAnthropicClient();
+    const anthropicClient = await initializeAnthropicClient();
     if (!anthropicClient) {
       log("Warning: Anthropic client initialization failed. Some features may be limited.");
+    } else {
+      log("Anthropic client initialized successfully");
     }
 
     // Set up authentication
     await setupAuth(app);
+    log("Authentication setup completed");
 
     // Set up routes
     const server = await registerRoutes(app);
+    log("Routes registered successfully");
 
     // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -81,8 +101,10 @@ async function initializeServer() {
     // Setup vite in development or serve static files in production
     if (app.get("env") === "development") {
       await setupVite(app, server);
+      log("Vite development server initialized");
     } else {
       serveStatic(app);
+      log("Static files serving configured");
     }
 
     // Start the server

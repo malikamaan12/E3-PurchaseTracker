@@ -2,13 +2,28 @@ import Anthropic from '@anthropic-ai/sdk';
 
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 let anthropicClient: Anthropic | null = null;
+let initializationAttempts = 0;
+const MAX_RETRIES = 3;
 
-export function initializeAnthropicClient() {
+export async function initializeAnthropicClient(): Promise<Anthropic | null> {
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
       console.warn("ANTHROPIC_API_KEY not set. AI-powered analysis will be disabled.");
       return null;
     }
+
+    // Don't retry if we already have a client
+    if (anthropicClient) {
+      return anthropicClient;
+    }
+
+    // Retry logic for transient failures
+    if (initializationAttempts >= MAX_RETRIES) {
+      console.error(`Failed to initialize Anthropic client after ${MAX_RETRIES} attempts`);
+      return null;
+    }
+
+    initializationAttempts++;
 
     anthropicClient = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,11 +32,19 @@ export function initializeAnthropicClient() {
     return anthropicClient;
   } catch (error) {
     console.error("Failed to initialize Anthropic client:", error);
+
+    // If we haven't exceeded retries, try again after a delay
+    if (initializationAttempts < MAX_RETRIES) {
+      console.log(`Retrying initialization (attempt ${initializationAttempts + 1}/${MAX_RETRIES})...`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * initializationAttempts)); // Exponential backoff
+      return initializeAnthropicClient();
+    }
+
     return null;
   }
 }
 
-export function getAnthropicClient(): Anthropic | null {
+export async function getAnthropicClient(): Promise<Anthropic | null> {
   if (!anthropicClient) {
     return initializeAnthropicClient();
   }
@@ -29,9 +52,9 @@ export function getAnthropicClient(): Anthropic | null {
 }
 
 export async function analyzeError(error: Error | string | unknown, context: string): Promise<string> {
-  const client = getAnthropicClient();
+  const client = await getAnthropicClient();
   if (!client) {
-    return `Error occurred in ${context}. Please check application logs for details.`;
+    return `Error occurred in ${context}. AI analysis unavailable - check application logs for details.`;
   }
 
   try {
@@ -60,27 +83,24 @@ export async function analyzeError(error: Error | string | unknown, context: str
 
     const content = response.content[0];
     if (!content || content.type !== 'text') {
-      return `Error occurred in ${context}. Please check application logs for details.`;
+      return `Error occurred in ${context}. Unable to analyze - unexpected response format.`;
     }
     return content.text;
   } catch (analysisError) {
     console.error("Error analyzing with Anthropic:", analysisError);
-    return `Error occurred in ${context}. Please check application logs for details.`;
+    return `Error occurred in ${context}. Analysis failed - check application logs for details.`;
   }
 }
 
-interface AnalysisOptions {
-  maxTokens?: number;
-  temperature?: number;
-}
-
-export async function analyzePurchaseRequest(request: any): Promise<{
+interface AnalysisResult {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   reason: string;
   score: number;
   recommendations?: string[];
-}> {
-  const client = getAnthropicClient();
+}
+
+export async function analyzePurchaseRequest(request: any): Promise<AnalysisResult> {
+  const client = await getAnthropicClient();
   if (!client) {
     return {
       priority: 'medium',
@@ -122,12 +142,15 @@ export async function analyzePurchaseRequest(request: any): Promise<{
   }
 }
 
-export async function analyzeUIComponent(componentCode: string, errorDescription: string): Promise<{
+export async function analyzeUIComponent(
+  componentCode: string, 
+  errorDescription: string
+): Promise<{
   issues: string[];
   recommendations: string[];
   fixedCode?: string;
 }> {
-  const client = getAnthropicClient();
+  const client = await getAnthropicClient();
   if (!client) {
     return {
       issues: ['AI analysis unavailable'],
