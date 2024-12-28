@@ -191,7 +191,7 @@ export function registerRoutes(app: Express): Server {
 
       const { username, password, email, department, role, contactNumber } = result.data;
 
-      // Check if username already exists in users or account requests
+      // Check if username already exists in users
       const [existingUser] = await db
         .select()
         .from(users)
@@ -199,9 +199,11 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (existingUser) {
+        console.log('Username already exists:', username);
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // Check if there's a pending request
       const [existingRequest] = await db
         .select()
         .from(accountRequests)
@@ -209,13 +211,15 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (existingRequest) {
+        console.log('Pending request exists for:', username);
         return res.status(400).json({ message: "An account request with this username is already pending" });
       }
 
-      // Hash the password before storing
+      // Hash password
       const hashedPassword = await hash(password, 10);
 
-      // Create the account request
+      // Create account request
+      console.log('Creating account request for:', username);
       const [newRequest] = await db
         .insert(accountRequests)
         .values({
@@ -229,13 +233,12 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      // Create notification for admins about new account request
+      // Notify admins
       const admins = await db
         .select()
         .from(users)
         .where(eq(users.role, 'admin'));
 
-      // Notify all admins about the new account request
       for (const admin of admins) {
         await createNotification({
           userId: admin.id,
@@ -245,6 +248,7 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
+      console.log('Account request created successfully:', newRequest.username);
       res.status(201).json({
         message: "Account request submitted successfully",
         request: {
@@ -254,6 +258,7 @@ export function registerRoutes(app: Express): Server {
           status: newRequest.status
         }
       });
+
     } catch (error) {
       console.error('Account request error:', error);
       next(error);
