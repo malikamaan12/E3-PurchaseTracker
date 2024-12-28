@@ -159,16 +159,22 @@ export default function RequestCard({
   const totalCost = itemsTotal + freightAmount;
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
-    if (!user?.department) return;
+    if (!user?.department) {
+      toast({
+        title: "Error",
+        description: "User department is required for approval",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       await createApproval({
         requestId: request.id,
         approverId: user.id,
-        department: user.department as MandatoryDepartment,
+        department: user.department,
         status,
         comments,
-        isMandatory: mandatoryDepartments.includes(user.department as MandatoryDepartment)
       });
 
       if (user.department === "Finance" && status === "approved") {
