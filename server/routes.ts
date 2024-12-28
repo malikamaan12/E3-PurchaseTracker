@@ -39,14 +39,24 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Enhanced sub-purposes endpoint with proper query building
+  // Enhanced sub-purposes endpoint with proper query building and error handling
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
       debug(req, 'Fetching sub-purposes', { purposeType });
 
       let query = db
-        .select()
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purposeType: subPurposes.purposeType,
+          description: subPurposes.description,
+          isFrozen: subPurposes.isFrozen,
+          validFrom: subPurposes.validFrom,
+          validTo: subPurposes.validTo,
+          createdAt: subPurposes.createdAt,
+          updatedAt: subPurposes.updatedAt,
+        })
         .from(subPurposes);
 
       if (purposeType) {
@@ -54,7 +64,6 @@ export function registerRoutes(app: Express): Server {
       }
 
       const allSubPurposes = await query.orderBy(desc(subPurposes.createdAt));
-
       debug(req, `Found ${allSubPurposes.length} sub-purposes`);
       res.json(allSubPurposes);
     } catch (error) {
@@ -75,9 +84,11 @@ export function registerRoutes(app: Express): Server {
       // Parse dates if they exist
       const requestData = {
         ...req.body,
-        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : undefined,
-        validTo: req.body.validTo ? new Date(req.body.validTo) : undefined
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
+        validTo: req.body.validTo ? new Date(req.body.validTo) : null,
       };
+
+      debug(req, 'Parsed request data:', requestData);
 
       const validationResult = insertSubPurposeSchema.safeParse(requestData);
 
@@ -93,7 +104,7 @@ export function registerRoutes(app: Express): Server {
       const insertData = {
         ...validationResult.data,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
 
       debug(req, 'Inserting sub-purpose with data:', insertData);
@@ -407,46 +418,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
-  // app.post("/api/admin/approvers", async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-  //       throw new AppError('Admin access required', 403);
-  //     }
-  //
-  //     const { departmentId, approverId, isMandatory, level } = req.body;
-  //
-  //     // Check if approver exists and is active
-  //     const [approver] = await db
-  //       .select()
-  //       .from(users)
-  //       .where(and(
-  //         eq(users.id, approverId),
-  //         eq(users.isActive, true)
-  //       ))
-  //       .limit(1);
-  //
-  //     if (!approver) {
-  //       throw new AppError('Approver not found or inactive', 404);
-  //     }
-  //
-  //     // Create new approver assignment
-  //     const [newApprover] = await db
-  //       .insert(purchaseApprovers)
-  //       .values({
-  //         departmentId,
-  //         approverId,
-  //         isMandatory,
-  //         level,
-  //       })
-  //       .returning();
-  //
-  //     res.json(newApprover);
-  //   } catch (error) {
-  //     console.error('Error creating approver assignment:', error);
-  //     next(error);
-  //   }
-  // });
 
   app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {

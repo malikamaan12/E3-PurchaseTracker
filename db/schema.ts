@@ -55,7 +55,7 @@ export const errorLogs = pgTable("error_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Sub-purposes table definition
+// Sub-purposes table definition with proper columns
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -245,11 +245,9 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   description: z.string().optional(),
-  validFrom: z.date().optional().nullable(),
-  validTo: z.date().optional().nullable(),
+  validFrom: z.coerce.date().optional().nullable(),
+  validTo: z.coerce.date().optional().nullable(),
   isFrozen: z.boolean().default(false),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
