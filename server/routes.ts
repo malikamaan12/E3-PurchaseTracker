@@ -57,7 +57,7 @@ export function registerRoutes(app: Express): Server {
           aiAnalysis: error.details?.aiAnalysis || {}
         };
 
-        // Validate error log data
+        // Validate error log data before inserting
         const validatedData = insertErrorLogSchema.safeParse(errorLogData);
         if (!validatedData.success) {
           debug(req, 'Error log validation failed:', validatedData.error);
@@ -74,8 +74,8 @@ export function registerRoutes(app: Express): Server {
         ? error.status 
         : 500;
 
-      // Ensure response hasn't been sent
-      if (!res.headersSent) {
+      // Ensure response hasn't been sent and headers haven't been written
+      if (!res.headersSent && !res.finished) {
         res.status(status).json({
           status: 'error',
           message: error.message,
@@ -87,8 +87,8 @@ export function registerRoutes(app: Express): Server {
     } catch (handlingError) {
       debug(req, 'Error in error handling middleware:', handlingError);
 
-      // Ensure response hasn't been sent
-      if (!res.headersSent) {
+      // Final fallback if everything else fails
+      if (!res.headersSent && !res.finished) {
         res.status(500).json({
           status: 'error',
           message: 'Internal Server Error',
@@ -437,16 +437,27 @@ export function registerRoutes(app: Express): Server {
       const { purposeType } = req.query;
       debug(req, 'Fetching sub-purposes', { purposeType });
 
-      const query = db
-        .select()
+      // Start with a base query
+      const baseQuery = db
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purposeType: subPurposes.purposeType,
+          description: subPurposes.description,
+          isFrozen: subPurposes.isFrozen,
+          validFrom: subPurposes.validFrom,
+          validTo: subPurposes.validTo,
+          createdAt: subPurposes.createdAt,
+          updatedAt: subPurposes.updatedAt,
+        })
         .from(subPurposes)
-        .orderBy(subPurposes.createdAt);
+        .orderBy(desc(subPurposes.createdAt));
 
-      if (purposeType) {
-        query.where(eq(subPurposes.purposeType, purposeType as string));
-      }
+      const finalQuery = purposeType 
+        ? baseQuery.where(eq(subPurposes.purposeType, purposeType as string))
+        : baseQuery;
 
-      const allSubPurposes = await query;
+      const allSubPurposes = await finalQuery;
       debug(req, `Found ${allSubPurposes.length} sub-purposes`);
       res.json(allSubPurposes);
     } catch (error) {
@@ -473,13 +484,17 @@ export function registerRoutes(app: Express): Server {
 
       // Create new sub-purpose with proper timestamp handling
       const now = new Date();
+      const insertData = {
+        ...validationResult.data,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      debug(req, 'Inserting sub-purpose with data:', insertData);
+
       const [newSubPurpose] = await db
         .insert(subPurposes)
-        .values({
-          ...validationResult.data,
-          createdAt: now,
-          updatedAt: now
-        })
+        .values(insertData)
         .returning();
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
