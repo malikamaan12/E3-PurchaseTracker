@@ -22,38 +22,25 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Validate request data
-      const validationResult = insertPurchaseRequestSchema.safeParse(req.body);
+      const validationResult = insertPurchaseRequestSchema.safeParse({
+        ...req.body,
+        status: 'pending',
+        requesterId: req.user!.id,
+        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      });
+
       if (!validationResult.success) {
+        console.error('Validation errors:', validationResult.error.errors);
         return res.status(400).json({
           message: 'Validation failed',
           errors: validationResult.error.errors
         });
       }
 
-      // Check if subPurpose exists if provided
-      if (validationResult.data.subPurposeId) {
-        const [subPurpose] = await db
-          .select()
-          .from(subPurposes)
-          .where(eq(subPurposes.id, validationResult.data.subPurposeId))
-          .limit(1);
-
-        if (!subPurpose) {
-          return res.status(400).json({ message: 'Invalid subPurpose' });
-        }
-      }
-
-      const requestData = {
-        ...validationResult.data,
-        requesterId: req.user!.id,
-        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        status: 'pending'
-      };
-
       // Create new purchase request
       const [newRequest] = await db
         .insert(purchaseRequests)
-        .values(requestData)
+        .values(validationResult.data)
         .returning();
 
       if (!newRequest) {
@@ -64,12 +51,6 @@ export function registerRoutes(app: Express): Server {
       res.status(201).json(newRequest);
     } catch (error) {
       console.error('Error creating purchase request:', error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          message: 'Validation failed',
-          errors: error.errors
-        });
-      }
       next(new AppError('Failed to create purchase request', 500));
     }
   });

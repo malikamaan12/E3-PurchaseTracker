@@ -266,9 +266,10 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   contact_number: z.string()
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol")
+    .transform((val) => val.trim()),
   accountNumber: z.string().min(1, "Account number is required"),
-  purpose: z.string().min(1, "Purpose is required"),
+  purpose: z.string().min(1, "Purpose is required").transform((val) => val.trim()),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
@@ -282,7 +283,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priorityScore: z.number().optional(),
   priorityReason: z.string().optional(),
   priorityRecommendations: z.array(z.string()).optional(),
-  subPurposeId: z.number().optional(),
+  subPurposeId: z.number().optional()
 });
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 export const insertApprovalSchema = createInsertSchema(approvals);
