@@ -279,7 +279,9 @@ export const mandatoryDepartments = [
   "Legal",
   "Customer Service",
   "Supply Chain",
-  "Quality Assurance"
+  "Quality Assurance",
+  "Logistics",
+  "Admin"
 ] as const;
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
 
