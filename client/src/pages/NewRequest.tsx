@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { PurchaseRequest } from "@db/schema";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
+import DepartmentSelect from "@/components/DepartmentSelect";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -61,6 +62,7 @@ export default function NewRequest() {
   const [freightAmount, setFreightAmount] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
 
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -72,7 +74,7 @@ export default function NewRequest() {
       contactPerson: "",
       contactNumber: "",
       accountNumber: "",
-      purpose: "", // Added purpose field
+      purpose: "", 
       purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
@@ -80,10 +82,10 @@ export default function NewRequest() {
       status: "draft",
       totalEstimatedCost: 0,
       freightAmount: 0,
+      additionalApprovers: [], // Added for departments
     },
   });
 
-  // Reset sub-purpose when purpose type changes
   useEffect(() => {
     form.setValue("subPurposeId", undefined);
   }, [form.watch("purposeType")]);
@@ -228,6 +230,11 @@ export default function NewRequest() {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleDepartmentChange = (departments: string[]) => {
+    setSelectedDepartments(departments);
+    form.setValue('additionalApprovers', departments);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -249,7 +256,6 @@ export default function NewRequest() {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
-                {/* Purpose Type and Sub-purpose Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Purpose Selection</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -554,11 +560,15 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <DepartmentSelect
-                  label="Additional Approvers"
-                  onChange={() => {}}
-                  multiple
-                />
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Approvers</h3>
+                  <DepartmentSelect
+                    label="Select Departments"
+                    onChange={handleDepartmentChange}
+                    value={selectedDepartments}
+                    multiple
+                  />
+                </div>
 
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
