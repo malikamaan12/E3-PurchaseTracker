@@ -240,14 +240,16 @@ export const insertUserSchema = createInsertSchema(users, {
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
-// Sub-purpose validation schema with proper exports
+// Sub-purpose validation schema with proper exports and date handling
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   description: z.string().optional(),
-  validFrom: z.date().optional(),
-  validTo: z.date().optional(),
+  validFrom: z.date().optional().nullable(),
+  validTo: z.date().optional().nullable(),
   isFrozen: z.boolean().default(false),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
