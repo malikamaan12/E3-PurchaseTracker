@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import {
@@ -10,41 +10,69 @@ import {
   fileAttachments,
   insertSubPurposeSchema,
   companyBranding,
-  accountRequests,
-  insertAccountRequestSchema,
   insertUserSchema,
 } from "@db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { format } from 'date-fns';
+import { AppError, handleError } from './utils/errors';
+import { analyzePurchaseRequestPriority } from './utils/anthropic';
 import { mandatoryDepartments, canUserApprove } from './utils/auth';
-import { hashPassword } from './utils/hash';
 import { Parser } from 'json2csv';
 import * as XLSX from 'xlsx';
-import { AppError, handleError } from './utils/errors';
-import { analyzePurchaseRequestPriority, type PriorityAnalysisResult } from './utils/anthropic';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     const uploadDir = 'uploads';
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   }
 });
 
-const upload = multer({ 
+const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
+    return cb(new Error('Only image files are allowed!'));
+  }
+  cb(null, true);
+};
+
+const upload = multer({
   storage,
+  fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 5 // Maximum 5 files per request
+  }
+});
+
+// Logo upload specific configuration
+const logoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const uploadDir = 'uploads/logos';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `company-logo-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const logoUpload = multer({
+  storage: logoStorage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit for logos
+    files: 1 // Only one logo at a time
   }
 });
 
@@ -65,7 +93,7 @@ async function createNotification(
         message,
         type,
         requestId,
-        link: requestId ? `/requests/${requestId}` : null,
+        link: requestId ? `/requests/${requestId}` : undefined,
         isRead: false,
         createdAt: new Date(),
       })
@@ -109,27 +137,73 @@ function cleanupUploads() {
   });
 }
 
-// Priority analysis function
-async function analyzePurchaseRequestPriority(request: any): Promise<{
-  priority: string;
-  score: number;
-  reason: string;
-  recommendations: string;
-}> {
-  return {
-    priority: 'high',
-    score: 0.8,
-    reason: 'High cost items',
-    recommendations: 'Consider alternatives'
-  };
-}
-
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
   // Register route handlers
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Company branding routes
+  app.post("/api/company/branding", logoUpload.single('logo'), async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (req.user!.role !== "admin") {
+      return res.status(403).json({ error: "Only admin can update company branding" });
+    }
+
+    try {
+      const file = req.file;
+      if (!file) {
+        throw new AppError('No logo file provided', 400);
+      }
+
+      // Delete existing branding record if it exists
+      await db.delete(companyBranding);
+
+      const [branding] = await db.insert(companyBranding)
+        .values({
+          companyName: req.body.companyName || 'Default Company Name',
+          primaryColor: req.body.primaryColor || '#191160',
+          secondaryColor: req.body.secondaryColor || '#35bbba',
+          accentColor: req.body.accentColor || '#7156a2',
+          logoUrl: file.path,
+          headerStyle: req.body.headerStyle || 'modern',
+          footerText: req.body.footerText || '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      res.json(branding);
+    } catch (error) {
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (e) {
+          console.error(`Failed to delete uploaded file ${req.file.path}:`, e);
+        }
+      }
+      next(error);
+    }
+  });
+
+  // Error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('Error:', err);
+    const error = handleError(err);
+    const status = error.status || 500;
+    const message = error.message || "Internal Server Error";
+
+    res.status(status).json({
+      status: 'error',
+      message,
+      severity: error.status >= 500 ? 'error' : 'warning',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
   });
 
   app.post("/api/requests/:id/approvals", async (req, res) => {
@@ -272,7 +346,7 @@ export function registerRoutes(app: Express): Server {
           requestNumber,
           requesterId: req.user!.id,
           status: requestData.status || "draft",
-          items: requestData.items 
+          items: requestData.items
         })
         .returning();
 
@@ -362,8 +436,8 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       const hasAccess = request.requesterId === user.id ||
-                        user.role === 'admin' ||
-                        mandatoryDepartments.includes(user.department);
+        user.role === 'admin' ||
+        mandatoryDepartments.includes(user.department);
 
       if (!hasAccess) {
         return res.status(403).json({ error: "Not authorized to access this request" });
@@ -406,8 +480,8 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       const hasAccess = request.requesterId === user.id ||
-                        user.role === 'admin' ||
-                        mandatoryDepartments.includes(user.department);
+        user.role === 'admin' ||
+        mandatoryDepartments.includes(user.department);
 
       if (!hasAccess) {
         return res.status(403).json({ error: "Not authorized to access this file" });
@@ -802,6 +876,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update the analyze-priority endpoint
   app.post("/api/requests/:id/analyze-priority", async (req, res, next) => {
     try {
       if (!req.isAuthenticated()) {
@@ -809,8 +884,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const requestId = parseInt(req.params.id);
-      const [request] = await db
-        .select()
+      const [request] = await db.select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
         .limit(1);
@@ -841,10 +915,9 @@ export function registerRoutes(app: Express): Server {
       });
 
       // Update request with priority analysis
-      const [updatedRequest] = await db
-        .update(purchaseRequests)
+      const [updatedRequest] = await db.update(purchaseRequests)
         .set({
-          priority: priorityAnalysis.priority,
+          priority: priorityAnalysis.priority as string,
           priorityScore: priorityAnalysis.score,
           priorityReason: priorityAnalysis.reason,
           priorityRecommendations: priorityAnalysis.recommendations,
@@ -852,6 +925,10 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(purchaseRequests.id, requestId))
         .returning();
+
+      if (!updatedRequest) {
+        throw new AppError('Failed to update request with priority analysis');
+      }
 
       await createNotification(
         request.requesterId,
@@ -949,7 +1026,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     if (req.user!.role !== "admin") {
-      return res.status(403).json({ error: "Only admin can manage sub-purposes" });
+      return res.status(403).json({ error: "Only admin can manage subpurposes" });
     }
 
     try {
@@ -980,7 +1057,7 @@ export function registerRoutes(app: Express): Server {
 
   app.put("/api/admin/sub-purposes/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
-      return res.status(401json({ error: "Not authenticated" });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     if (req.user!.role !== "admin") {
@@ -999,9 +1076,11 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      const [updatedPurpose] = await db
-        .update(subPurposes)
-        .set(result.data)
+      const [updatedPurpose] = await db.update(subPurposes)
+        .set({
+          ...result.data,
+          updatedAt: new Date()
+        })
         .where(eq(subPurposes.id, parseInt(req.params.id)))
         .returning();
 
@@ -1249,7 +1328,7 @@ export function registerRoutes(app: Express): Server {
         }
       } else if (request.status === 'rejected') {
         await createNotification(
-          0, 
+          0,
           `Account Request Rejected`,
           `Account request for ${request.username} was rejected`,
           'account_rejected'
@@ -1408,140 +1487,16 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/branding", logoUpload.single('logo'), async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
+  // Remove duplicate company branding route
 
-    if (req.user!.role !== "admin") {
-      return res.status(403).json({ error: "Only admin can update branding" });
-    }
-
-    try {
-      let logoData;
-      let logoMimeType;
-
-      if (req.file) {
-        const fileData = await fs.promises.readFile(req.file.path);
-        logoData = fileData.toString('base64');
-        logoMimeType = req.file.mimetype;
-
-        await fs.promises.unlink(req.file.path);
-      }
-
-      await db.delete(companyBranding);
-
-      const [branding] = await db.insert(companyBranding)
-        .values({
-          companyName: req.body.companyName,
-          headerStyle: req.body.headerStyle || "modern",
-          primaryColor: req.body.primaryColor || "#71569E",
-          secondaryColor: req.body.secondaryColor || "#F0F0FA",
-          accentColor: req.body.accentColor || "#191160",
-          logo: logoData,
-          logoMimeType: logoMimeType,
-          footerText: req.body.footerText
-        })
-        .returning();
-
-      res.json(branding);
-    } catch (error: any) {
-      console.error("Error updating branding:", error);
-      res.status(500).json({
-        error: "Failed to update branding",
-        message: error.message
-      });
-    }
-  });
-
-  app.use((err: any, _req: Express.Request, res: Express.Response, _next: Express.NextFunction) => {
-    const error = handleError(err);
-
-    const response = {
-      status: 'error',
-      message: error.message,
-      code: error.status,
-    };
-
-    // Add extra details in development
-    if (process.env.NODE_ENV === 'development') {
-      response.stack = error.stack;
-    }
-
-    res.status(error.status).json(response);
-  });
-
+  // Add 404 handler for API routes
   app.use('/api/*', (req, res) => {
-    console.error(`API endpoint not found: ${req.method} ${req.path}`);
-    res.status(404).json({
-      error: true,
-      message: `API endpoint not found: ${req.method} ${req.path}`
+    res.status(404).json({ 
+      status: 'error',
+      message: `Cannot ${req.method} ${req.path}`,
+      severity: 'warning'
     });
   });
 
   return httpServer;
-}
-
-async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
-  try {
-    const [user] = await db.select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user) {
-      return false;
-    }
-
-    const [request] = await db.select()
-      .from(purchaseRequests)
-      .where(eq(purchaseRequests.id, requestId))
-      .limit(1);
-
-    if (!request) {
-      return false;
-    }
-
-    const isSpecialRole = mandatoryDepartments.includes(user.department);
-
-    if (!isSpecialRole && request.requesterId === userId) {
-      return false;
-    }
-
-    const [existingApproval] = await db.select()
-      .from(approvals)
-      .where(
-        and(
-          eq(approvals.requestId, requestId),
-          eq(approvals.approverId, userId)
-        )
-      )
-      .limit(1);
-
-    if (existingApproval) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error in canUserApprove:", error);
-    return false;
-  }
-}
-
-const mandatoryDepartments = ["CEO Office", "Director", "Finance"];
-
-function cleanupUploads2() {
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (fs.existsSync(uploadDir)) {
-    try {
-      const files = fs.readdirSync(uploadDir);
-      for (const file of files) {
-        fs.unlinkSync(path.join(uploadDir, file));
-      }
-      console.log('Cleaned up uploads directory');
-    } catch (error) {
-      console.error('Error cleaning uploads directory:', error);
-    }
-  }
 }

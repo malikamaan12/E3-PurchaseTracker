@@ -1,6 +1,6 @@
 import { db } from "@db";
 import { users, approvals, purchaseRequests } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const mandatoryDepartments = ["Finance", "CEO Office", "Director"];
 
@@ -31,8 +31,10 @@ export async function canUserApprove(userId: number, requestId: number): Promise
       // Check if they haven't already approved
       const [existingApproval] = await db.select()
         .from(approvals)
-        .where(eq(approvals.approverId, userId))
-        .where(eq(approvals.requestId, requestId))
+        .where(and(
+          eq(approvals.approverId, userId),
+          eq(approvals.requestId, requestId)
+        ))
         .limit(1);
 
       return !existingApproval;

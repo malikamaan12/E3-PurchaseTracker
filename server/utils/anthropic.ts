@@ -19,7 +19,7 @@ export interface PriorityAnalysisResult {
   recommendations: string;
 }
 
-export async function analyzePurchaseRequestPriority(request: {
+export interface PurchaseRequestInput {
   title: string;
   description: string;
   purpose?: string;
@@ -30,7 +30,9 @@ export async function analyzePurchaseRequestPriority(request: {
     quantity: number;
     estimatedCost: number;
   }>;
-}): Promise<PriorityAnalysisResult> {
+}
+
+export async function analyzePurchaseRequestPriority(request: PurchaseRequestInput): Promise<PriorityAnalysisResult> {
   try {
     const prompt = `Analyze this purchase request and determine its priority level. Consider:
 - Title: ${request.title}
@@ -52,7 +54,13 @@ Provide a JSON response with:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const response = JSON.parse(message.content[0].text);
+    // Handle the response content correctly for Claude-3 API
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
+    }
+
+    const response = JSON.parse(content.text);
 
     // Validate response format
     if (!response.priority || !response.score || !response.reason || !response.recommendations) {

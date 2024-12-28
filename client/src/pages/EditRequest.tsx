@@ -60,21 +60,16 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const { data: request, isLoading } = getRequest(parseInt(params.id));
 
   // Initialize state with empty values
-  const [items, setItems] = useState<RequestItem[]>([{ 
-    name: "", 
-    quantity: 1, 
-    estimatedCost: 0,
-    description: "" 
-  }]);
+  const [items, setItems] = useState<RequestItem[]>([]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
 
-  // Form initialization with default values
+  // Form initialization with empty default values
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
       description: "",
-      items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
+      items: [],
       companyName: "",
       contactPerson: "",
       contactNumber: "",
