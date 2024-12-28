@@ -20,6 +20,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Lock, Power, Trash2, Loader2 } from "lucide-react";
@@ -31,9 +46,45 @@ export default function UserManagement() {
   const queryClient = useQueryClient();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
+  });
+
+  // Role update mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      const res = await fetch(`/api/admin/users/${userId}/update-role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "Success",
+        description: "User role updated successfully",
+      });
+      setIsRoleDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Mutation for toggling user activation
@@ -148,7 +199,18 @@ export default function UserManagement() {
               <TableCell>{user.username}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>{user.department}</TableCell>
-              <TableCell>{user.role}</TableCell>
+              <TableCell>
+                <Badge className={cn(
+                  "bg-slate-100 text-slate-800",
+                  {
+                    "bg-blue-100 text-blue-800": user.role === "admin",
+                    "bg-purple-100 text-purple-800": user.role === "approver",
+                    "bg-green-100 text-green-800": user.role === "user",
+                  }
+                )}>
+                  {user.role}
+                </Badge>
+              </TableCell>
               <TableCell>
                 <Badge className={cn(
                   user.isActive 
@@ -163,6 +225,10 @@ export default function UserManagement() {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setIsRoleDialogOpen(true);
+                    }}
                     className="flex items-center"
                   >
                     <Shield className="h-4 w-4 mr-1" />
@@ -215,6 +281,55 @@ export default function UserManagement() {
           ))}
         </TableBody>
       </Table>
+
+      {/* Role Change Dialog */}
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Select a new role for {selectedUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUser && (
+            <div className="space-y-4">
+              <div>
+                <Select
+                  onValueChange={(value) => {
+                    updateRoleMutation.mutate({
+                      userId: selectedUser.id,
+                      role: value
+                    });
+                  }}
+                  defaultValue={selectedUser.role}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select new role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="approver">Approver</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsRoleDialogOpen(false);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
