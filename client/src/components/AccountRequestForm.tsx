@@ -5,8 +5,16 @@ import type { InsertAccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { insertAccountRequestSchema } from "@db/schema";
+import { mandatoryDepartments } from "@db/schema";
 
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -120,11 +128,21 @@ export default function AccountRequestForm() {
 
       <div>
         <Label htmlFor="department">Department</Label>
-        <Input
-          id="department"
-          {...form.register("department")}
-          className="mt-1"
-        />
+        <Select
+          onValueChange={(value) => form.setValue("department", value)}
+          defaultValue={form.getValues("department")}
+        >
+          <SelectTrigger id="department" className="mt-1">
+            <SelectValue placeholder="Select department" />
+          </SelectTrigger>
+          <SelectContent>
+            {mandatoryDepartments.map((dept) => (
+              <SelectItem key={dept} value={dept}>
+                {dept}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {form.formState.errors.department && (
           <p className="text-sm text-red-500 mt-1">
             {form.formState.errors.department.message}
