@@ -929,7 +929,11 @@ export function registerRoutes(app: Express): Server {
         trends: errorTrends,
         commonErrors,
         severityDistribution,
-        recentErrors,
+        recentErrors: recentErrors.map(error => ({
+          ...error,
+          details: error.details ? JSON.parse(error.details as string) : null,
+          aiAnalysis: error.aiAnalysis ? JSON.parse(error.aiAnalysis as string) : null
+        }))
       });
     } catch (error) {
       console.error('Error fetching error analytics:', error);
@@ -937,7 +941,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add endpoint to log errors
   app.post("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { message, code, severity, path, details, aiAnalysis } = req.body;
@@ -970,7 +973,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add 404 handler for API routes
   app.use('/api/*', (req: Request, res: Response) => {
-    res.status.status(404).json({
+    res.status(404).json({
       status: 'error',
       message: `Cannot ${req.method} ${req.path}`,
       severity: 'warning',
