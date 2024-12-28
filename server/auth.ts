@@ -24,6 +24,8 @@ declare global {
 }
 
 export async function setupAuth(app: Express) {
+  console.log('Setting up authentication...');
+
   // Configure session
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
@@ -50,6 +52,8 @@ export async function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+
+  console.log('Configuring LocalStrategy...');
 
   // Configure LocalStrategy with improved error handling
   passport.use(
@@ -126,90 +130,20 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Registration endpoint
-  app.post("/api/auth/register", async (req, res, next) => {
-    try {
-      console.log('Registration request received:', { username: req.body.username });
-      const result = insertUserSchema.safeParse(req.body);
-
-      if (!result.success) {
-        console.log('Registration validation failed:', result.error.issues);
-        return res.status(400).json({ 
-          message: 'Invalid input', 
-          errors: result.error.issues 
-        });
-      }
-
-      const { username, password, email, department, role, contactNumber } = result.data;
-
-      // Check if user already exists
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
-
-      if (existingUser) {
-        console.log('Username already exists:', username);
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      // Hash the password
-      const hashedPassword = await hash(password, 10);
-
-      // Create the new user
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          username,
-          password: hashedPassword,
-          email,
-          department,
-          role: role || 'user',
-          contactNumber,
-        })
-        .returning();
-
-      // Create sanitized user object (without password)
-      const sanitizedUser: Express.User = {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        department: newUser.department,
-        role: newUser.role,
-        contactNumber: newUser.contactNumber
-      };
-
-      // Log the user in after registration
-      req.login(sanitizedUser, (err) => {
-        if (err) {
-          console.error('Auto-login after registration failed:', err);
-          return next(err);
-        }
-        console.log('Registration and auto-login successful:', { userId: newUser.id });
-        return res.status(201).json({
-          message: "Registration successful",
-          user: sanitizedUser
-        });
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      next(new AppError('Registration failed', 500));
-    }
-  });
-
-  // Test user creation with proper error handling
+  // Create test user after setting up auth
   try {
+    console.log('Creating test user...');
     await createTestUser();
+    console.log('Test user created successfully');
   } catch (error) {
-    console.error('Failed to create test user:', error);
+    console.error('Error creating test user:', error);
   }
 }
 
 // Create or update test user with proper error handling
 export async function createTestUser() {
   try {
-    console.log('Creating/updating test user');
+    console.log('Attempting to create/update test user');
     const hashedPassword = await hash('admin123', 10);
 
     const [existingUser] = await db
@@ -219,7 +153,7 @@ export async function createTestUser() {
       .limit(1);
 
     if (existingUser) {
-      // Update existing user's password
+      console.log('Updating existing admin user');
       const [updatedUser] = await db
         .update(users)
         .set({
@@ -232,14 +166,16 @@ export async function createTestUser() {
         .where(eq(users.id, existingUser.id))
         .returning();
 
-      console.log('Test user updated:', {
+      console.log('Admin user updated successfully:', {
         id: updatedUser.id,
-        username: updatedUser.username
+        username: updatedUser.username,
+        role: updatedUser.role
       });
+
       return updatedUser;
     }
 
-    // Create new test user
+    console.log('Creating new admin user');
     const [newUser] = await db
       .insert(users)
       .values({
@@ -252,10 +188,12 @@ export async function createTestUser() {
       })
       .returning();
 
-    console.log('Test user created:', {
+    console.log('New admin user created successfully:', {
       id: newUser.id,
-      username: newUser.username
+      username: newUser.username,
+      role: newUser.role
     });
+
     return newUser;
   } catch (error) {
     console.error('Failed to create/update test user:', error);
