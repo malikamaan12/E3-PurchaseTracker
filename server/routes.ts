@@ -25,6 +25,14 @@ async function createNotification(
   requestId?: number
 ) {
   try {
+    console.log('Creating notification:', {
+      userId,
+      title,
+      message,
+      type,
+      requestId
+    });
+
     const [notification] = await db
       .insert(notifications)
       .values({
@@ -34,8 +42,12 @@ async function createNotification(
         type,
         requestId,
         link: requestId ? `/requests/${requestId}` : null,
+        isRead: false,
+        createdAt: new Date(),
       })
       .returning();
+
+    console.log('Notification created:', notification);
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
