@@ -11,7 +11,7 @@ import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './uti
 import { logoUpload, attachmentUpload, handleUploadError } from './utils/middleware';
 import passport from 'passport';
 import { hash } from 'bcrypt';
-import { insertAccountRequestSchema } from './validation/accountRequest';
+import { insertAccountRequestSchema } from "@db/schema"; // Corrected import path
 import { mandatoryDepartments } from './utils/auth';
 
 // Authorization middleware
@@ -179,12 +179,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('Processing account request:', req.body);
-      const validationResult = insertAccountRequestSchema.safeParse({
-        ...req.body,
-        contact_number: req.body.contactNumber, // Map the incoming field
-        role: req.body.role || 'user',
-        status: 'pending'
-      });
+      const validationResult = insertAccountRequestSchema.safeParse(req.body);
 
       if (!validationResult.success) {
         console.error('Validation failed:', validationResult.error.issues);
@@ -194,21 +189,9 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      const { username, password, email, contact_number, department, role } = validationResult.data;
+      const { username, password, email, contactNumber, department, role } = validationResult.data;
 
-      // Check if username already exists in users
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
-
-      if (existingUser) {
-        console.log('Username already exists:', username);
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      // Check if there's a pending request
+      // Check if username already exists in account requests
       const [existingRequest] = await db
         .select()
         .from(accountRequests)
@@ -216,7 +199,7 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (existingRequest) {
-        console.log('Pending request exists for:', username);
+        console.log('Account request exists for:', username);
         return res.status(400).json({ message: "An account request with this username is already pending" });
       }
 
@@ -231,27 +214,12 @@ export function registerRoutes(app: Express): Server {
           username,
           password: hashedPassword,
           email,
-          contact_number,
+          contactNumber,
           department,
           role,
           status: 'pending',
         })
         .returning();
-
-      // Notify admins
-      const admins = await db
-        .select()
-        .from(users)
-        .where(eq(users.role, 'admin'));
-
-      for (const admin of admins) {
-        await createNotification({
-          userId: admin.id,
-          title: 'New Account Request',
-          message: `${username} has requested an account`,
-          type: 'account_request'
-        });
-      }
 
       console.log('Account request created successfully:', newRequest.username);
       res.status(201).json({

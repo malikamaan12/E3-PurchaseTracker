@@ -9,24 +9,25 @@ export const users = pgTable("users", {
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contact_number: text("contact_number").notNull(), // Updated column name
+  contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Account Requests Table - Using contactNumber to match form field
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contact_number: text("contact_number").notNull(),
+  contactNumber: text("contact_number").notNull(), // Changed to match form field
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const notifications = pgTable("notifications", {
@@ -65,7 +66,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   }>>().notNull(),
   companyName: text("company_name").notNull(),
   contactPerson: text("contact_person").notNull(),
-  contact_number: text("contact_number").notNull(), // Updated column name
+  contact_number: text("contact_number").notNull(),
   accountNumber: text("account_number").notNull(),
   purpose: text("purpose").notNull().default(""),
   purposeType: text("purpose_type").notNull(),
@@ -127,7 +128,7 @@ export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
 export type CompanyBranding = InferModel<typeof companyBranding>;
-export type AccountRequest = InferModel<typeof accountRequests>;
+export type AccountRequestModel = InferModel<typeof accountRequests>;
 
 // Relations
 export const userRelations = relations(users, ({ many }) => ({
@@ -197,19 +198,20 @@ export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contact_number: z.string().min(1, "Contact number is required"), // Updated column name
+  contact_number: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
-export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
+// Account Request Schema
+export const insertAccountRequestSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contact_number: z.string().min(1, "Contact number is required"),
+  contactNumber: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
-  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending")
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications);
@@ -243,7 +245,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   })).min(1, "At least one item is required"),
   companyName: z.string().min(1, "Company name is required"),
   contactPerson: z.string().min(1, "Contact person is required"),
-  contact_number: z.string().min(1, "Contact number is required"), // Updated column name
+  contact_number: z.string().min(1, "Contact number is required"),
   accountNumber: z.string().min(1, "Account number is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -265,7 +267,7 @@ export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 
 
-// Constants
+// Department Constants
 export const mandatoryDepartments = [
   "Business",
   "Management",
@@ -283,8 +285,6 @@ export const mandatoryDepartments = [
   "Information Technology",
   "HR"
 ] as const;
-export type MandatoryDepartment = typeof mandatoryDepartments[number];
 
-// Export type for use in components
+export type MandatoryDepartment = typeof mandatoryDepartments[number];
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
-export type AccountRequest = InferModel<typeof accountRequests>;

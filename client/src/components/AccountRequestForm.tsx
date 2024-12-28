@@ -13,8 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { insertAccountRequestSchema } from "@db/schema";
-import { mandatoryDepartments } from "@db/schema";
+import { insertAccountRequestSchema, mandatoryDepartments } from "@db/schema";
 
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,20 +29,16 @@ export default function AccountRequestForm() {
   const onSubmit = async (data: InsertAccountRequest) => {
     setIsLoading(true);
     try {
-      console.log("Submitting account request:", data);
       const response = await fetch("/api/auth/request-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          contactNumber: data.contact_number // Map to API expected format
-        }),
+        body: JSON.stringify(data),
         credentials: "include",
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit account request');
       }
 
       const result = await response.json();
@@ -51,7 +46,7 @@ export default function AccountRequestForm() {
 
       toast({
         title: "Success",
-        description: result.message,
+        description: "Your account request has been submitted successfully",
       });
       form.reset();
     } catch (error: any) {
@@ -113,15 +108,15 @@ export default function AccountRequestForm() {
       </div>
 
       <div>
-        <Label htmlFor="contact_number">Contact Number</Label>
+        <Label htmlFor="contactNumber">Contact Number</Label>
         <Input
-          id="contact_number"
-          {...form.register("contact_number")}
+          id="contactNumber"
+          {...form.register("contactNumber")}
           className="mt-1"
         />
-        {form.formState.errors.contact_number && (
+        {form.formState.errors.contactNumber && (
           <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.contact_number.message}
+            {form.formState.errors.contactNumber.message}
           </p>
         )}
       </div>
