@@ -7,7 +7,7 @@ import path from 'path';
 import session from 'express-session';
 import MemoryStore from 'memorystore';
 import passport from 'passport';
-import { configurePassport } from './utils/auth';
+import { configurePassport, createTestUser } from './utils/auth';
 import { AppError } from './utils/errors';
 
 // Validate required environment variables
@@ -25,11 +25,11 @@ if (missingEnvVars.length > 0) {
 // Initialize express app
 const app = express();
 
-// Basic middleware setup
+// Basic middleware setup with detailed logging
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Configure session store
+// Configure session store with detailed options
 const MemoryStoreSession = MemoryStore(session);
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -40,6 +40,7 @@ const sessionConfig = {
   }),
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 };
@@ -49,12 +50,25 @@ if (app.get('env') === 'production') {
   sessionConfig.cookie.secure = true;
 }
 
+console.log('Configuring session middleware with settings:', {
+  secure: sessionConfig.cookie.secure,
+  maxAge: sessionConfig.cookie.maxAge
+});
+
 app.use(session(sessionConfig));
 
-// Initialize passport authentication
+// Initialize passport authentication with detailed logging
+console.log('Initializing passport authentication');
 app.use(passport.initialize());
 app.use(passport.session());
-configurePassport(passport);
+
+// Configure passport strategies
+configurePassport(passport).then(() => {
+  console.log('Passport configuration completed');
+}).catch(error => {
+  console.error('Failed to configure passport:', error);
+  process.exit(1);
+});
 
 // Set default content type for API routes
 app.use('/api', (req, res, next) => {
@@ -68,7 +82,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// Request logging middleware
+// Request logging middleware with detailed information
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -122,6 +136,15 @@ async function initializeServer() {
           throw new Error("Failed to establish database connection after multiple attempts");
         }
       }
+    }
+
+    // Create test user after database connection is established
+    try {
+      await createTestUser();
+      log("Test user created/updated successfully");
+    } catch (error) {
+      console.error("Failed to create test user:", error);
+      // Continue execution even if test user creation fails
     }
 
     // Set up routes

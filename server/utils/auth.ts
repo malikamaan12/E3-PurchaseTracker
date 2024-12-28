@@ -7,19 +7,40 @@ import { Strategy as LocalStrategy } from "passport-local";
 
 export const mandatoryDepartments = ["Finance", "CEO Office", "Director"];
 
+// Extend Express.User interface
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      username: string;
+      department: string;
+      role: string;
+      email: string;
+      contactNumber: string;
+    }
+  }
+}
+
 export async function configurePassport(passport: passport.Authenticator) {
   // Configure LocalStrategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log('LocalStrategy: Attempting authentication for username:', username);
+        console.log('LocalStrategy: Authentication attempt:', { username });
 
-        // Find user in database
-        const [user] = await db
+        // Find user in database with detailed logging
+        const userResult = await db
           .select()
           .from(users)
           .where(eq(users.username, username))
           .limit(1);
+
+        console.log('LocalStrategy: Database query result:', {
+          found: userResult.length > 0,
+          username
+        });
+
+        const [user] = userResult;
 
         if (!user) {
           console.log('LocalStrategy: User not found:', username);
@@ -28,29 +49,44 @@ export async function configurePassport(passport: passport.Authenticator) {
 
         console.log('LocalStrategy: User found, verifying password');
 
-        // Verify password
-        const isValidPassword = await compare(password, user.password);
+        // Verify password with detailed logging
+        let isValidPassword = false;
+        try {
+          isValidPassword = await compare(password, user.password);
+          console.log('LocalStrategy: Password verification result:', { 
+            username,
+            isValid: isValidPassword 
+          });
+        } catch (error) {
+          console.error('LocalStrategy: Password comparison error:', error);
+          return done(error);
+        }
 
         if (!isValidPassword) {
           console.log('LocalStrategy: Invalid password for user:', username);
           return done(null, false, { message: 'Invalid username or password' });
         }
 
-        console.log('LocalStrategy: Password verified successfully');
+        console.log('LocalStrategy: Authentication successful for user:', {
+          id: user.id,
+          username: user.username,
+          department: user.department,
+          role: user.role
+        });
 
         // Create sanitized user object (without password)
-        const sanitizedUser = {
+        const sanitizedUser: Express.User = {
           id: user.id,
           username: user.username,
           department: user.department,
           role: user.role,
           email: user.email,
-          contactNumber: user.contact_number
+          contactNumber: user.contactNumber
         };
 
         return done(null, sanitizedUser);
       } catch (error) {
-        console.error('LocalStrategy: Authentication error:', error);
+        console.error('LocalStrategy: Unexpected error during authentication:', error);
         return done(error);
       }
     })
@@ -58,7 +94,10 @@ export async function configurePassport(passport: passport.Authenticator) {
 
   // User serialization for session
   passport.serializeUser((user: Express.User, done) => {
-    console.log('Serializing user:', user.id);
+    console.log('Serializing user:', {
+      id: user.id,
+      username: user.username
+    });
     done(null, user.id);
   });
 
@@ -74,7 +113,7 @@ export async function configurePassport(passport: passport.Authenticator) {
           department: users.department,
           role: users.role,
           email: users.email,
-          contact_number: users.contact_number
+          contactNumber: users.contactNumber
         })
         .from(users)
         .where(eq(users.id, id))
@@ -85,7 +124,11 @@ export async function configurePassport(passport: passport.Authenticator) {
         return done(null, false);
       }
 
-      console.log('User deserialized successfully:', user.username);
+      console.log('User deserialized successfully:', {
+        id: user.id,
+        username: user.username
+      });
+
       done(null, user);
     } catch (error) {
       console.error('Deserialization error:', error);
@@ -108,18 +151,21 @@ export async function createTestUser() {
         department: 'CEO Office',
         role: 'admin',
         email: 'testadmin@example.com',
-        contact_number: '123456789'
+        contactNumber: '123456789'
       })
       .onConflictDoUpdate({
         target: users.username,
         set: {
           password: hashedPassword,
-          contact_number: '123456789'
+          contactNumber: '123456789'
         }
       })
       .returning();
 
-    console.log('Test user created/updated successfully');
+    console.log('Test user created/updated successfully:', {
+      id: user.id,
+      username: user.username
+    });
     return user;
   } catch (error) {
     console.error('Failed to create test user:', error);
@@ -138,7 +184,6 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function canUserApprove(userId: number, requestId: number): Promise<boolean> {
   try {
-    // Get user details with error handling
     const [user] = await db.select()
       .from(users)
       .where(eq(users.id, userId))
@@ -149,7 +194,6 @@ export async function canUserApprove(userId: number, requestId: number): Promise
       return false;
     }
 
-    // Check if user is admin or from mandatory departments
     if (user.role === 'admin' || mandatoryDepartments.includes(user.department)) {
       return true;
     }
