@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests } from "@db/schema"; // Added import for purchaseRequests
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -68,19 +68,27 @@ app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: Nex
       console.log('Attempting to delete user:', userId);
 
       try {
-        // Delete user's notifications first
-        await db
-          .delete(notifications)
-          .where(eq(notifications.userId, userId));
+        // Delete associated purchase requests first
+        await db.transaction(async (tx) => {
+          // Delete purchase requests associated with the user
+          await tx
+            .delete(purchaseRequests)
+            .where(eq(purchaseRequests.requesterId, userId));
 
-        // Delete the user
-        await db
-          .delete(users)
-          .where(eq(users.id, userId));
+          // Delete user's notifications
+          await tx
+            .delete(notifications)
+            .where(eq(notifications.userId, userId));
+
+          // Finally delete the user
+          await tx
+            .delete(users)
+            .where(eq(users.id, userId));
+        });
 
         console.log('Successfully deleted user:', userId);
         res.json({ message: 'User deleted successfully' });
-      } catch (deleteError) {
+      } catch (deleteError: any) {
         console.error('Error during delete operation:', deleteError);
         throw new AppError('Failed to delete user: ' + deleteError.message, 500);
       }
