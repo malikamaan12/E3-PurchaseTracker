@@ -5,7 +5,6 @@ import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -13,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import RequestCard from "@/components/RequestCard";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
 import { Loader2 } from "lucide-react";
@@ -51,11 +49,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateRequest } from "@/services/requests";
+import type { PurchaseRequest, User, Approval } from "@db/schema";
 
+// Define interface for request data with proper types
+interface RequestData extends PurchaseRequest {
+  requester: User;
+  approvals: Approval[];
+}
 
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const { requests, isLoading, error } = usePurchaseRequests();
+  const { requests, isLoading, error } = usePurchaseRequests<RequestData[]>();
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -74,10 +78,12 @@ export default function Dashboard() {
 
   // Check if user is in special role (can see all requests)
   const isSpecialRole = useMemo(() => {
-    return user?.role === "admin" ||
-           user?.department === "CEO Office" ||
-           user?.department === "Director" ||
-           user?.department === "Finance";
+    return (
+      user?.role === "admin" ||
+      user?.department === "CEO Office" ||
+      user?.department === "Director" ||
+      user?.department === "Finance"
+    );
   }, [user?.department, user?.role]);
 
   // Check if user is admin
@@ -85,16 +91,19 @@ export default function Dashboard() {
     return user?.role === "admin";
   }, [user?.role]);
 
-  // Get pending approvals
+  // Get pending approvals with proper type safety
   const pendingApprovals = useMemo(() => {
     if (!user || !requests) return [];
 
-    return requests.filter((request) => {
+    return requests.filter((request: RequestData) => {
       // Only include pending requests
       if (request.status !== "pending") return false;
 
       // Admin and special roles can approve any request
-      if (isAdmin || ["CEO Office", "Director", "Finance"].includes(user.department)) {
+      if (
+        isAdmin ||
+        ["CEO Office", "Director", "Finance"].includes(user.department)
+      ) {
         return true;
       }
 
@@ -103,7 +112,7 @@ export default function Dashboard() {
 
       // Check if this department hasn't approved yet
       const departmentApproval = request.approvals?.find(
-        (a) => a.department === user.department
+        (a: Approval) => a.department === user.department
       );
 
       return !departmentApproval || departmentApproval.status === "pending";
@@ -116,57 +125,87 @@ export default function Dashboard() {
   }, [pendingApprovals.length]);
 
   const departments = useMemo(() => {
-    const deptSet = new Set(requests?.map((r) => r.requester.department) || []);
+    if (!requests) return [];
+    const deptSet = new Set<string>();
+    requests.forEach((r: RequestData) => {
+      if (r.requester.department) {
+        deptSet.add(r.requester.department);
+      }
+    });
     return Array.from(deptSet);
   }, [requests]);
 
   const purposeTypes = useMemo(() => {
-    const typeSet = new Set(requests?.map((r) => r.purposeType) || []);
+    if (!requests) return [];
+    const typeSet = new Set<string>();
+    requests.forEach((r: RequestData) => {
+      if (r.purposeType) {
+        typeSet.add(r.purposeType);
+      }
+    });
     return Array.from(typeSet);
   }, [requests]);
 
   const priorities = ["low", "medium", "high", "urgent"];
 
-  const filterRequests = (requestList: any[]) => {
-    return requestList.filter((r) => {
-      const matchesDepartment = departmentFilter === "all" || r.requester.department === departmentFilter;
-      const matchesPurposeType = purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
-      const matchesPriority = priorityFilter === "all" || r.priority === priorityFilter;
-      const matchesSearch = !searchQuery ||
-                            r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
+  const filterRequests = (requestList: RequestData[]) => {
+    return requestList.filter((r: RequestData) => {
+      const matchesDepartment =
+        departmentFilter === "all" || r.requester.department === departmentFilter;
+      const matchesPurposeType =
+        purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
+      const matchesPriority =
+        priorityFilter === "all" || r.priority === priorityFilter;
+      const matchesSearch =
+        !searchQuery ||
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
 
-      return matchesDepartment && matchesPurposeType && matchesPriority && matchesSearch;
+      return (
+        matchesDepartment &&
+        matchesPurposeType &&
+        matchesPriority &&
+        matchesSearch
+      );
     });
   };
 
   const myDrafts = filterRequests(
-    requests?.filter((r) => r.requesterId === user?.id && r.status === "draft") || []
+    requests?.filter(
+      (r: RequestData) =>
+        r.requesterId === user?.id && r.status === "draft"
+    ) || []
   );
 
   const mySubmittedRequests = filterRequests(
-    requests?.filter((r) => r.requesterId === user?.id && r.status !== "draft") || []
+    requests?.filter(
+      (r: RequestData) => r.requesterId === user?.id && r.status !== "draft"
+    ) || []
   );
 
   const pendingRequests = filterRequests(
-    requests?.filter((r) => {
+    requests?.filter((r: RequestData) => {
       if (r.status !== "pending") return false;
-      const departmentApproval = r.approvals.find((a) => a.department === user?.department);
+      const departmentApproval = r.approvals.find(
+        (a: Approval) => a.department === user?.department
+      );
       return !departmentApproval || departmentApproval.status === "pending";
     }) || []
   );
 
   const approvedRequests = filterRequests(
-    requests?.filter((r) => r.status === "approved") || []
+    requests?.filter((r: RequestData) => r.status === "approved") || []
   );
 
   const rejectedRequests = filterRequests(
-    requests?.filter((r) => r.status === "rejected") || []
+    requests?.filter((r: RequestData) => r.status === "rejected") || []
   );
 
   const changesRequestedRequests = filterRequests(
-    requests?.filter((r) => r.status === "changes_requested") || []
+    requests?.filter(
+      (r: RequestData) => r.status === "changes_requested"
+    ) || []
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -200,9 +239,9 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'QAR'
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "QAR",
     }).format(Number(amount));
   };
 
@@ -210,8 +249,8 @@ export default function Dashboard() {
   const deleteRequest = async (requestId: string) => {
     try {
       const response = await fetch(`/api/requests/${requestId}`, {
-        method: 'DELETE',
-        credentials: 'include',
+        method: "DELETE",
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -219,7 +258,7 @@ export default function Dashboard() {
       }
 
       // Invalidate requests cache to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['/api/requests'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
 
       toast({
         title: "Success",
@@ -238,7 +277,7 @@ export default function Dashboard() {
     try {
       await updateRequest({
         id: requestId,
-        data: { status: "pending" }
+        data: { status: "pending" },
       });
 
       toast({
@@ -258,7 +297,10 @@ export default function Dashboard() {
     }
   };
 
-  const renderRequestsTable = (requests: any[], showApproval: boolean = false) => {
+  const renderRequestsTable = (
+    requests: RequestData[],
+    showApproval: boolean = false
+  ) => {
     return (
       <Table>
         <TableHeader>
@@ -274,16 +316,19 @@ export default function Dashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map((request) => {
-            const canSubmitDraft = request.status === "draft" &&
-                                  request.requesterId === user?.id &&
-                                  request.title &&
-                                  request.description &&
-                                  request.items?.length > 0;
+          {requests.map((request: RequestData) => {
+            const canSubmitDraft =
+              request.status === "draft" &&
+              request.requesterId === user?.id &&
+              request.title &&
+              request.description &&
+              request.items?.length > 0;
 
             return (
               <TableRow key={request.id}>
-                <TableCell className="font-medium">{request.requestNumber}</TableCell>
+                <TableCell className="font-medium">
+                  {request.requestNumber}
+                </TableCell>
                 <TableCell>{request.title}</TableCell>
                 <TableCell>
                   <Badge
@@ -302,9 +347,13 @@ export default function Dashboard() {
                     {request.status.toUpperCase().replace("_", " ")}
                   </Badge>
                 </TableCell>
-                <TableCell className="capitalize">{request.priority}</TableCell>
+                <TableCell className="capitalize">
+                  {request.priority}
+                </TableCell>
                 <TableCell>{request.requester?.department}</TableCell>
-                <TableCell>{format(new Date(request.createdAt), "MMM d, yyyy")}</TableCell>
+                <TableCell>
+                  {format(new Date(request.createdAt), "MMM d, yyyy")}
+                </TableCell>
                 <TableCell>
                   {formatCurrency(request.totalEstimatedCost || 0)}
                 </TableCell>
@@ -317,12 +366,16 @@ export default function Dashboard() {
                     >
                       View
                     </Button>
-                    {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
+                    {(isAdmin ||
+                      (request.status === "draft" &&
+                        request.requesterId === user?.id)) && (
                       <>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                          onClick={() =>
+                            setLocation(`/requests/${request.id}/edit`)
+                          }
                           className="text-blue-600 hover:text-blue-700"
                         >
                           Edit
@@ -341,14 +394,17 @@ export default function Dashboard() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Request</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete this request? This action cannot be undone.
+                                Are you sure you want to delete this request? This
+                                action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 className="bg-red-600 hover:bg-red-700"
-                                onClick={() => deleteRequest(request.id.toString())}
+                                onClick={() =>
+                                  deleteRequest(request.id.toString())
+                                }
                               >
                                 Delete
                               </AlertDialogAction>
@@ -367,16 +423,19 @@ export default function Dashboard() {
                         Submit Draft
                       </Button>
                     )}
-                    {showApproval && request.status === "pending" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/requests/${request.id}`)}
-                        className="text-yellow-600 hover:text-yellow-700"
-                      >
-                        Review
-                      </Button>
-                    )}
+                    {showApproval &&
+                      request.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setLocation(`/requests/${request.id}`)
+                          }
+                          className="text-yellow-600 hover:text-yellow-700"
+                        >
+                          Review
+                        </Button>
+                      )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -389,17 +448,20 @@ export default function Dashboard() {
 
   // Add new filter for draft requests ready to submit
   const draftRequestsReadyToSubmit = filterRequests(
-    requests?.filter((r) =>
-      r.requesterId === user?.id &&
-      r.status === "draft" &&
-      r.title &&
-      r.description &&
-      r.items?.length > 0
+    requests?.filter(
+      (r: RequestData) =>
+        r.requesterId === user?.id &&
+        r.status === "draft" &&
+        r.title &&
+        r.description &&
+        r.items?.length > 0
     ) || []
   );
 
   // Update the handleNotificationClick function
-  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
+  const handleNotificationClick = (
+    notification: { id: number; link: string | null }
+  ) => {
     if (notification.link) {
       // Navigate to the notification link
       setLocation(notification.link);
@@ -412,7 +474,9 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Purchase Management System</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Purchase Management System
+              </h1>
               <p className="text-sm text-gray-600">
                 Welcome, {user?.username} ({user?.department})
               </p>
@@ -432,7 +496,9 @@ export default function Dashboard() {
                   New Request
                 </Button>
               </Link>
-              <NotificationsDropdown onNotificationClick={handleNotificationClick} />
+              <NotificationsDropdown
+                onNotificationClick={handleNotificationClick}
+              />
               <DashboardPreferences
                 preferences={preferences}
                 onUpdate={updatePreferences}
@@ -459,7 +525,10 @@ export default function Dashboard() {
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
               </div>
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <Select
+                value={departmentFilter}
+                onValueChange={setDepartmentFilter}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by Department" />
                 </SelectTrigger>
@@ -472,7 +541,10 @@ export default function Dashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={purposeTypeFilter} onValueChange={setPurposeTypeFilter}>
+              <Select
+                value={purposeTypeFilter}
+                onValueChange={setPurposeTypeFilter}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by Purpose" />
                 </SelectTrigger>
@@ -569,7 +641,9 @@ export default function Dashboard() {
               {myDrafts.length > 0 && (
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Draft Requests</h3>
+                    <h3 className="text-lg font-medium mb-4">
+                      Draft Requests
+                    </h3>
                     <div className="overflow-x-auto">
                       {renderRequestsTable(myDrafts, false)}
                     </div>
@@ -579,7 +653,9 @@ export default function Dashboard() {
 
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-medium mb-4">Submitted Requests</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    Submitted Requests
+                  </h3>
                   {isLoading ? (
                     <div className="flex justify-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -601,7 +677,9 @@ export default function Dashboard() {
           <TabsContent value="drafts-to-submit">
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-medium mb-4">Draft Requests Ready to Submit</h3>
+                <h3 className="text-lg font-medium mb-4">
+                  Draft Requests Ready to Submit
+                </h3>
                 {isLoading ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -635,7 +713,10 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
-                        {renderRequestsTable(filterRequests(requests || []), true)}
+                        {renderRequestsTable(
+                          filterRequests(requests || []),
+                          true
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -645,7 +726,9 @@ export default function Dashboard() {
               <TabsContent value="pending">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Pending Requests</h3>
+                    <h3 className="text-lg font-medium mb-4">
+                      Pending Requests
+                    </h3>
                     {isLoading ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -666,7 +749,9 @@ export default function Dashboard() {
               <TabsContent value="approved">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Approved Requests</h3>
+                    <h3 className="text-lg font-medium mb-4">
+                      Approved Requests
+                    </h3>
                     {isLoading ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -687,7 +772,9 @@ export default function Dashboard() {
               <TabsContent value="rejected">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Rejected Requests</h3>
+                    <h3 className="text-lg font-medium mb-4">
+                      Rejected Requests
+                    </h3>
                     {isLoading ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -708,7 +795,9 @@ export default function Dashboard() {
               <TabsContent value="changes">
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Changes Requested</h3>
+                    <h3 className="text-lg font-medium mb-4">
+                      Changes Requested
+                    </h3>
                     {isLoading ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-border" />

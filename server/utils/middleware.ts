@@ -2,6 +2,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { AppError } from './errors';
+import type { Request } from 'express';
 
 // Configure multer for file uploads
 export const createStorage = (uploadDir: string) => {
@@ -19,11 +20,20 @@ export const createStorage = (uploadDir: string) => {
   });
 };
 
-const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedTypes = /jpeg|jpg|png|gif/i;
+
+  // Check file type
   if (!file.originalname.match(allowedTypes)) {
     return cb(new AppError('Only image files (jpg, jpeg, png, gif) are allowed!', 400, 'warning'));
   }
+
+  // Check file size before upload
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (parseInt((_req.headers['content-length'] || '0')) > maxSize) {
+    return cb(new AppError('File size exceeds 5MB limit!', 400, 'warning'));
+  }
+
   cb(null, true);
 };
 
@@ -45,3 +55,20 @@ export const attachmentUpload = multer({
     files: 5 // Maximum 5 files at a time
   }
 }).array('attachments', 5);
+
+// Error handling middleware for file uploads
+export const handleUploadError = (err: any, _req: Request, next: Function) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      next(new AppError('File size limit exceeded', 400, 'warning'));
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      next(new AppError('Too many files', 400, 'warning'));
+    } else {
+      next(new AppError(`File upload error: ${err.message}`, 400, 'error'));
+    }
+  } else if (err) {
+    next(err);
+  } else {
+    next();
+  }
+};

@@ -28,6 +28,53 @@ export function registerRoutes(app: Express): Server {
     res.json({ status: "ok" });
   });
 
+  // Sub-purposes endpoints
+  app.post("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      const { name, purposeType, validFrom, validTo } = req.body;
+
+      // Validate input
+      if (!name || !purposeType) {
+        throw new AppError('Name and purpose type are required', 400, 'warning');
+      }
+
+      // Create new sub-purpose
+      const [newSubPurpose] = await db.insert(subPurposes)
+        .values({
+          name,
+          purposeType,
+          validFrom: validFrom ? new Date(validFrom) : null,
+          validTo: validTo ? new Date(validTo) : null,
+          isFrozen: false,
+        })
+        .returning();
+
+      res.status(201).json(newSubPurpose);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401, 'error');
+      }
+
+      const allSubPurposes = await db.query.subPurposes.findMany({
+        orderBy: [subPurposes.name]
+      });
+
+      res.json(allSubPurposes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Purchase requests endpoints
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {

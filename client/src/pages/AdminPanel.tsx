@@ -67,14 +67,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type {
   SubPurpose,
-  NewSubPurpose,
   AccountRequest,
   User,
 } from "@db/schema";
-import { insertSubPurposeSchema, insertUserSchema } from "@db/schema";
+import { insertSubPurposeSchema } from "@db/schema";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
+import * as z from 'zod';
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -99,8 +99,8 @@ export default function AdminPanel() {
 
   // Sub-purpose management
   const createSubPurpose = useMutation({
-    mutationFn: async (data: NewSubPurpose) => {
-      const res = await fetch("/api/admin/sub-purposes", {
+    mutationFn: async (data: z.infer<typeof insertSubPurposeSchema>) => {
+      const res = await fetch("/api/sub-purposes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -291,7 +291,7 @@ export default function AdminPanel() {
     },
   });
 
-  const purposeForm = useForm<NewSubPurpose>({
+  const purposeForm = useForm<z.infer<typeof insertSubPurposeSchema>>({
     resolver: zodResolver(insertSubPurposeSchema),
     defaultValues: {
       name: "",
@@ -303,7 +303,7 @@ export default function AdminPanel() {
   });
 
   const userForm = useForm({
-    resolver: zodResolver(insertUserSchema.partial()),
+    resolver: zodResolver(insertSubPurposeSchema.partial()),
     defaultValues: {
       username: "",
       password: "",
