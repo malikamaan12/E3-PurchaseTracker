@@ -118,12 +118,23 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Account request is not pending' });
       }
 
-      // Create new user
+      // Check if username already exists in users table
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, accountRequest.username))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+
+      // Create new user with the same hashed password from account request
       const [newUser] = await db
         .insert(users)
         .values({
           username: accountRequest.username,
-          password: accountRequest.password, // Password is already hashed
+          password: accountRequest.password, // Password is already properly hashed
           email: accountRequest.email,
           contact_number: accountRequest.contact_number,
           department: accountRequest.department,
