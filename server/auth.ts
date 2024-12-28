@@ -3,53 +3,10 @@ import { IVerifyOptions, Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+import { compare, hash } from "bcrypt";
 import { users, insertUserSchema, loginSchema } from "@db/schema";
-import { db, testConnection } from "@db";
+import { db } from "@db";
 import { eq } from "drizzle-orm";
-
-const scryptAsync = promisify(scrypt);
-const crypto = {
-  hash: async (password: string) => {
-    const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    return `${buf.toString("hex")}.${salt}`;
-  },
-  compare: async (suppliedPassword: string, storedPassword: string) => {
-    const [hashedPassword, salt] = storedPassword.split(".");
-    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-    const suppliedPasswordBuf = (await scryptAsync(
-      suppliedPassword,
-      salt,
-      64
-    )) as Buffer;
-    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
-  },
-};
-
-// Standard error analysis function
-function getAuthErrorMessage(error: Error, context: string): string {
-  const baseMessage = "Authentication failed";
-
-  // Common error patterns
-  if (error.message.includes("duplicate key")) {
-    return "This username is already taken";
-  }
-  if (error.message.includes("database")) {
-    return "Unable to access user data. Please try again later";
-  }
-  if (context === "Login authentication" && error.message.includes("password")) {
-    return "Invalid username or password";
-  }
-
-  console.error(`Auth error in ${context}:`, {
-    message: error.message,
-    stack: error.stack
-  });
-
-  return `${baseMessage}. Please try again later`;
-}
 
 // extend express user object with our schema
 declare global {
@@ -57,7 +14,7 @@ declare global {
     interface User {
       id: number;
       username: string;
-      email: string;
+      email?: string;
       password: string;
       contactNumber?: string;
       department?: string;
@@ -67,12 +24,7 @@ declare global {
 }
 
 export async function setupAuth(app: Express) {
-  // Test database connection before setting up auth
-  const isConnected = await testConnection();
-  if (!isConnected) {
-    throw new Error("Failed to connect to database during auth setup");
-  }
-
+  // Configure session
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
     secret: process.env.REPL_ID || "purchase-management-secret",
@@ -80,6 +32,7 @@ export async function setupAuth(app: Express) {
     saveUninitialized: false,
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
     },
     store: new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
@@ -89,8 +42,8 @@ export async function setupAuth(app: Express) {
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
     sessionSettings.cookie = {
+      ...sessionSettings.cookie,
       secure: true,
-      maxAge: 24 * 60 * 60 * 1000,
     };
   }
 
@@ -98,13 +51,11 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Configure LocalStrategy with improved error handling
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const isDbConnected = await testConnection();
-        if (!isDbConnected) {
-          throw new Error("Database connection not available");
-        }
+        console.log('Attempting authentication for user:', username);
 
         const [user] = await db
           .select()
@@ -113,37 +64,33 @@ export async function setupAuth(app: Express) {
           .limit(1);
 
         if (!user) {
-          return done(null, false, { message: "Incorrect username." });
+          console.log('User not found:', username);
+          return done(null, false, { message: "Invalid username or password" });
         }
 
-        const isMatch = await crypto.compare(password, user.password);
+        const isMatch = await compare(password, user.password);
         if (!isMatch) {
-          return done(null, false, { message: "Incorrect password." });
+          console.log('Invalid password for user:', username);
+          return done(null, false, { message: "Invalid username or password" });
         }
 
+        console.log('Authentication successful for user:', username);
         return done(null, user);
       } catch (err: any) {
-        const errorMessage = getAuthErrorMessage(err, "Login attempt");
-        console.error("Login error:", {
-          message: err.message,
-          stack: err.stack
-        });
+        console.error('Authentication error:', err);
         return done(err);
       }
     })
   );
 
   passport.serializeUser((user, done) => {
+    console.log('Serializing user:', user.id);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      const isDbConnected = await testConnection();
-      if (!isDbConnected) {
-        throw new Error("Database connection not available");
-      }
-
+      console.log('Deserializing user:', id);
       const [user] = await db
         .select()
         .from(users)
@@ -151,93 +98,59 @@ export async function setupAuth(app: Express) {
         .limit(1);
 
       if (!user) {
-        return done(new Error("User not found"));
+        console.log('User not found during deserialization:', id);
+        return done(null, false);
       }
 
       done(null, user);
-    } catch (err: any) {
-      const errorMessage = getAuthErrorMessage(err, "Session restoration");
-      console.error("Session restoration error:", {
-        message: err.message,
-        stack: err.stack
-      });
+    } catch (err) {
+      console.error('Deserialization error:', err);
       done(err);
     }
   });
 
-  app.post("/api/login", async (req, res, next) => {
+  // Authentication routes with enhanced error handling
+  app.post("/api/login", (req, res, next) => {
     try {
-      const result = loginSchema.safeParse(req.body);
-      if (!result.success) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid input",
-            details: result.error.issues.map(i => i.message)
-          });
+      console.log('Login request received:', { username: req.body.username });
+
+      if (!req.body.username || !req.body.password) {
+        console.log('Login failed: Missing credentials');
+        return res.status(400).json({ message: 'Username and password are required' });
       }
 
-      passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
-        try {
-          if (err) {
-            const errorMessage = getAuthErrorMessage(err, "Login authentication");
-            console.error("Authentication error:", {
-              message: err.message,
-              stack: err.stack
-            });
-            return res.status(500).json({
-              error: "Authentication failed",
-              message: errorMessage
-            });
-          }
-
-          if (!user) {
-            return res.status(401).json({
-              error: "Login failed",
-              message: info.message || "Invalid credentials"
-            });
-          }
-
-          req.logIn(user, (loginErr) => {
-            if (loginErr) {
-              const errorMessage = getAuthErrorMessage(loginErr, "Login session creation");
-              console.error("Login session error:", {
-                message: loginErr.message,
-                stack: loginErr.stack
-              });
-              return res.status(500).json({
-                error: "Login session failed",
-                message: errorMessage
-              });
-            }
-
-            return res.json({
-              message: "Login successful",
-              user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                contactNumber: user.contactNumber,
-                department: user.department,
-                role: user.role,
-              },
-            });
-          });
-        } catch (authError: any) {
-          const errorMessage = getAuthErrorMessage(authError, "Login process");
-          console.error("Login process error:", {
-            message: authError.message,
-            stack: authError.stack
-          });
-          next(authError);
+      passport.authenticate('local', (err: any, user: any, info: any) => {
+        if (err) {
+          console.error('Authentication error:', err);
+          return next(err);
         }
+
+        if (!user) {
+          console.log('Login failed:', info?.message);
+          return res.status(401).json({ message: info?.message || 'Invalid username or password' });
+        }
+
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            console.error('Login session error:', loginErr);
+            return next(loginErr);
+          }
+
+          console.log('Login successful:', { userId: user.id, username: user.username });
+          return res.json({ 
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              department: user.department,
+              role: user.role,
+              contactNumber: user.contactNumber
+            }
+          });
+        });
       })(req, res, next);
-    } catch (error: any) {
-      const errorMessage = getAuthErrorMessage(error, "Login request processing");
-      console.error("Login request error:", {
-        message: error.message,
-        stack: error.stack
-      });
+    } catch (error) {
+      console.error('Unexpected login error:', error);
       next(error);
     }
   });
@@ -246,16 +159,15 @@ export async function setupAuth(app: Express) {
     try {
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid input",
-            details: result.error.issues.map(i => i.message)
-          });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: result.error.issues.map(i => i.message)
+        });
       }
 
-      const { username, password, email, contactNumber, department, role } = result.data;
+      const { username, password, email, department, role, contactNumber } = result.data;
 
+      // Check if user exists
       const [existingUser] = await db
         .select()
         .from(users)
@@ -269,17 +181,19 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      const hashedPassword = await crypto.hash(password);
+      // Hash password
+      const hashedPassword = await hash(password, 10);
 
+      // Create user
       const [newUser] = await db
         .insert(users)
         .values({
           username,
           password: hashedPassword,
           email,
-          contactNumber,
           department,
           role: role || "user",
+          contactNumber
         })
         .returning();
 
@@ -293,30 +207,29 @@ export async function setupAuth(app: Express) {
             id: newUser.id,
             username: newUser.username,
             email: newUser.email,
-            contactNumber: newUser.contactNumber,
             department: newUser.department,
             role: newUser.role,
+            contactNumber: newUser.contactNumber
           },
         });
       });
     } catch (error: any) {
-      const errorMessage = getAuthErrorMessage(error, "Registration");
-      console.error("Registration error:", {
-        message: error.message,
-        stack: error.stack
-      });
+      console.error('Registration error:', error);
       next(error);
     }
   });
 
   app.post("/api/logout", (req, res) => {
+    const username = req.user?.username;
     req.logout((err) => {
       if (err) {
+        console.error('Logout error:', err);
         return res.status(500).json({
           error: "Logout failed",
           message: "Failed to end session"
         });
       }
+      console.log('Logout successful:', username);
       res.json({ message: "Logout successful" });
     });
   });
@@ -328,9 +241,9 @@ export async function setupAuth(app: Express) {
         id: user.id,
         username: user.username,
         email: user.email,
-        contactNumber: user.contactNumber,
         department: user.department,
         role: user.role,
+        contactNumber: user.contactNumber,
       });
     }
     res.status(401).json({
@@ -338,4 +251,61 @@ export async function setupAuth(app: Express) {
       message: "Please log in to access this resource"
     });
   });
+}
+
+// Create or update test user
+export async function createTestUser() {
+  try {
+    console.log('Creating/updating test user');
+    const testUserData = {
+      username: 'admin',
+      password: await hash('admin123', 10),
+      email: 'admin@example.com',
+      department: 'IT',
+      role: 'admin',
+      contactNumber: '123-456-7890'
+    };
+
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, testUserData.username))
+      .limit(1);
+
+    if (existingUser) {
+      // Update existing user
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          password: testUserData.password,
+          email: testUserData.email,
+          department: testUserData.department,
+          role: testUserData.role,
+          contactNumber: testUserData.contactNumber
+        })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+
+      console.log('Test user updated:', {
+        id: updatedUser.id,
+        username: updatedUser.username
+      });
+      return updatedUser;
+    } else {
+      // Create new user
+      const [newUser] = await db
+        .insert(users)
+        .values(testUserData)
+        .returning();
+
+      console.log('Test user created:', {
+        id: newUser.id,
+        username: newUser.username
+      });
+      return newUser;
+    }
+  } catch (error) {
+    console.error('Failed to create/update test user:', error);
+    throw error;
+  }
 }
