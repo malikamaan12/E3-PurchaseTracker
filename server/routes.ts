@@ -107,8 +107,16 @@ export function registerRoutes(app: Express): Server {
           updatedAt: purchaseRequests.updatedAt,
           purposeType: purchaseRequests.purposeType,
           priority: purchaseRequests.priority,
+          requester: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+            role: users.role
+          }
         })
         .from(purchaseRequests)
+        .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
         .where(eq(purchaseRequests.requesterId, req.user!.id))
         .orderBy(desc(purchaseRequests.createdAt));
 
