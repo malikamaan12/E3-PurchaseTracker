@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests, subPurposes } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -12,6 +12,79 @@ export function registerRoutes(app: Express): Server {
 
   // Setup authentication routes and middleware
   setupAuth(app);
+
+  // Sub-purposes management endpoints
+  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const allSubPurposes = await db
+        .select()
+        .from(subPurposes)
+        .orderBy(subPurposes.createdAt);
+
+      res.json(allSubPurposes);
+    } catch (error) {
+      console.error('Error fetching sub-purposes:', error);
+      next(new AppError('Failed to fetch sub-purposes', 500));
+    }
+  });
+
+  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { name, purposeType, validFrom, validTo } = req.body;
+
+      // Create new sub-purpose
+      const [newSubPurpose] = await db
+        .insert(subPurposes)
+        .values({
+          name,
+          purposeType,
+          validFrom: validFrom ? new Date(validFrom) : null,
+          validTo: validTo ? new Date(validTo) : null,
+          isFrozen: false
+        })
+        .returning();
+
+      res.json(newSubPurpose);
+    } catch (error) {
+      console.error('Error creating sub-purpose:', error);
+      next(new AppError('Failed to create sub-purpose', 500));
+    }
+  });
+
+  app.post("/api/admin/sub-purposes/:id/toggle-freeze", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const subPurposeId = parseInt(req.params.id);
+      const { isFrozen } = req.body;
+
+      // Update sub-purpose freeze status
+      const [updatedSubPurpose] = await db
+        .update(subPurposes)
+        .set({ isFrozen })
+        .where(eq(subPurposes.id, subPurposeId))
+        .returning();
+
+      if (!updatedSubPurpose) {
+        return res.status(404).json({ message: 'Sub-purpose not found' });
+      }
+
+      res.json(updatedSubPurpose);
+    } catch (error) {
+      console.error('Error updating sub-purpose:', error);
+      next(new AppError('Failed to update sub-purpose', 500));
+    }
+  });
 
   // User management routes
   app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
@@ -122,6 +195,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Delete user endpoint
   app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
@@ -146,22 +220,28 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: 'User not found' });
       }
 
+      // Check if user has associated purchase requests
+      const [purchaseRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.requesterId, userId))
+        .limit(1);
+
+      if (purchaseRequest) {
+        return res.status(400).json({ 
+          message: 'Cannot delete user with associated purchase requests. Please deactivate the user instead.' 
+        });
+      }
+
       console.log('Attempting to delete user:', userId);
 
       try {
-        // Delete associated purchase requests first
+        // Delete user's notifications and then the user
         await db.transaction(async (tx) => {
-          // Delete purchase requests associated with the user
-          await tx
-            .delete(purchaseRequests)
-            .where(eq(purchaseRequests.requesterId, userId));
-
-          // Delete user's notifications
           await tx
             .delete(notifications)
             .where(eq(notifications.userId, userId));
 
-          // Finally delete the user
           await tx
             .delete(users)
             .where(eq(users.id, userId));
@@ -313,7 +393,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Username already exists' });
       }
 
-      // Create new user with the same hashed password from account request
+      // Create new user
       const [newUser] = await db
         .insert(users)
         .values({
