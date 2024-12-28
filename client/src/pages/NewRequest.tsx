@@ -72,9 +72,9 @@ export default function NewRequest() {
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
       companyName: "",
       contactPerson: "",
-      contactNumber: "",
+      contact_number: "", // Changed from contactNumber to contact_number
       accountNumber: "",
-      purpose: "", 
+      purpose: "",
       purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
@@ -82,7 +82,7 @@ export default function NewRequest() {
       status: "draft",
       totalEstimatedCost: 0,
       freightAmount: 0,
-      additionalApprovers: [], // Added for departments
+      additionalApprovers: [],
     },
   });
 
@@ -286,6 +286,23 @@ export default function NewRequest() {
 
                     <FormField
                       control={form.control}
+                      name="purpose"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Purpose</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter purpose"
+                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="subPurposeId"
                       render={({ field }) => (
                         <FormItem>
@@ -297,6 +314,30 @@ export default function NewRequest() {
                               onChange={field.onChange}
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#191160]">Priority</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {priorities.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -523,7 +564,7 @@ export default function NewRequest() {
 
                     <FormField
                       control={form.control}
-                      name="contactNumber"
+                      name="contact_number"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Contact Number</FormLabel>
