@@ -41,6 +41,42 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const userId = parseInt(req.params.id);
+
+      // Prevent self-deletion
+      if (userId === req.user.id) {
+        return res.status(400).json({ message: 'Cannot delete your own account' });
+      }
+
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Delete user
+      await db
+        .delete(users)
+        .where(eq(users.id, userId));
+
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      next(new AppError('Failed to delete user', 500));
+    }
+  });
+
   // Update user role endpoint
   app.put("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -194,7 +230,7 @@ export function registerRoutes(app: Express): Server {
         .set({ status: 'approved' })
         .where(eq(accountRequests.id, requestId));
 
-      res.json({ 
+      res.json({
         message: 'Account request approved',
         user: {
           id: newUser.id,
