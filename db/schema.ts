@@ -59,13 +59,12 @@ export const errorLogs = pgTable("error_logs", {
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  purposeType: text("purpose_type").notNull(),
-  description: text("description"),
-  isFrozen: boolean("is_frozen").notNull().default(false),
-  validFrom: timestamp("valid_from"),
-  validTo: timestamp("valid_to"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  purpose_type: text("purpose_type").notNull(),
+  is_frozen: boolean("is_frozen").notNull().default(false),
+  valid_from: timestamp("valid_from"),
+  valid_to: timestamp("valid_to"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const purchaseRequests = pgTable("purchase_requests", {
@@ -243,11 +242,10 @@ export const insertUserSchema = createInsertSchema(users, {
 // Sub-purpose validation schema with proper exports and date handling
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
-  purposeType: z.enum(["event", "project", "mall", "business_growth"]),
-  description: z.string().optional(),
-  validFrom: z.coerce.date().optional().nullable(),
-  validTo: z.coerce.date().optional().nullable(),
-  isFrozen: z.boolean().default(false),
+  purpose_type: z.enum(["event", "project", "mall", "business_growth"]),
+  is_frozen: z.boolean().default(false),
+  valid_from: z.coerce.date().optional().nullable(),
+  valid_to: z.coerce.date().optional().nullable(),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {

@@ -40,106 +40,112 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Enhanced sub-purposes endpoint with proper query building and error handling
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { purposeType } = req.query;
-      debug(req, 'Fetching sub-purposes', { purposeType });
+app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { purposeType } = req.query;
+    debug(req, 'Fetching sub-purposes', { purposeType });
 
-      let query = db
-        .select({
-          id: subPurposes.id,
-          name: subPurposes.name,
-          purposeType: subPurposes.purposeType,
-          description: subPurposes.description,
-          isFrozen: subPurposes.isFrozen,
-          validFrom: subPurposes.validFrom,
-          validTo: subPurposes.validTo,
-          createdAt: subPurposes.createdAt,
-          updatedAt: subPurposes.updatedAt,
-        })
-        .from(subPurposes);
+    let query = db
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purposeType: subPurposes.purpose_type,
+        isFrozen: subPurposes.is_frozen,
+        validFrom: subPurposes.valid_from,
+        validTo: subPurposes.valid_to,
+        createdAt: subPurposes.created_at,
+        updatedAt: subPurposes.updated_at,
+      })
+      .from(subPurposes);
 
-      if (purposeType) {
-        query = query.where(eq(subPurposes.purposeType, purposeType as string));
-      }
-
-      const allSubPurposes = await query.orderBy(desc(subPurposes.createdAt));
-      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
-      res.json(allSubPurposes);
-    } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
-      next(new DatabaseError('Failed to fetch sub-purposes'));
+    if (purposeType) {
+      query = query.where(eq(subPurposes.purpose_type, purposeType as string));
     }
-  });
 
-  // Enhanced sub-purpose creation endpoint with proper date handling
-  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
+    const allSubPurposes = await query.orderBy(desc(subPurposes.created_at));
+    debug(req, `Found ${allSubPurposes.length} sub-purposes`);
+    res.json(allSubPurposes);
+  } catch (error) {
+    debug(req, 'Error fetching sub-purposes:', error);
+    next(new DatabaseError('Failed to fetch sub-purposes'));
+  }
+});
 
-      debug(req, 'Creating new sub-purpose', req.body);
+// Enhanced sub-purpose creation endpoint with proper date handling
+app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+      throw new AuthorizationError('Admin access required');
+    }
 
-      // Parse dates if they exist
-      const requestData = {
-        ...req.body,
-        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
-        validTo: req.body.validTo ? new Date(req.body.validTo) : null,
-      };
+    debug(req, 'Creating new sub-purpose', req.body);
 
-      debug(req, 'Parsed request data:', requestData);
+    // Parse dates and transform field names to match database schema
+    const requestData = {
+      name: req.body.name,
+      purpose_type: req.body.purposeType,
+      is_frozen: req.body.isFrozen || false,
+      valid_from: req.body.validFrom ? new Date(req.body.validFrom) : null,
+      valid_to: req.body.validTo ? new Date(req.body.validTo) : null,
+    };
 
-      const validationResult = insertSubPurposeSchema.safeParse(requestData);
+    debug(req, 'Parsed request data:', requestData);
 
-      if (!validationResult.success) {
-        debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid sub-purpose data', {
-          errors: validationResult.error.errors
-        });
-      }
+    const validationResult = insertSubPurposeSchema.safeParse(requestData);
 
-      // Create new sub-purpose with proper timestamp handling
-      const now = new Date();
-      const insertData = {
+    if (!validationResult.success) {
+      debug(req, 'Validation failed:', validationResult.error);
+      throw new ValidationError('Invalid sub-purpose data', {
+        errors: validationResult.error.errors
+      });
+    }
+
+    // Insert with timestamps
+    const [newSubPurpose] = await db
+      .insert(subPurposes)
+      .values({
         ...validationResult.data,
-        createdAt: now,
-        updatedAt: now,
-      };
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+      .returning();
 
-      debug(req, 'Inserting sub-purpose with data:', insertData);
+    debug(req, 'Successfully created sub-purpose:', newSubPurpose);
+    res.status(201).json(newSubPurpose);
+  } catch (error) {
+    debug(req, 'Error creating sub-purpose:', error);
+    next(error);
+  }
+});
 
-      const [newSubPurpose] = await db
-        .insert(subPurposes)
-        .values(insertData)
-        .returning();
-
-      debug(req, 'Successfully created sub-purpose:', newSubPurpose);
-      res.status(201).json(newSubPurpose);
-    } catch (error) {
-      debug(req, 'Error creating sub-purpose:', error);
-      next(error);
+// Admin route for sub-purposes
+app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+      throw new AuthorizationError('Admin access required');
     }
-  });
 
-  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
-      }
+    const allSubPurposes = await db
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purposeType: subPurposes.purpose_type,
+        isFrozen: subPurposes.is_frozen,
+        validFrom: subPurposes.valid_from,
+        validTo: subPurposes.valid_to,
+        createdAt: subPurposes.created_at,
+        updatedAt: subPurposes.updated_at,
+      })
+      .from(subPurposes)
+      .orderBy(desc(subPurposes.created_at));
 
-      const allSubPurposes = await db
-        .select()
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.createdAt));
-
-      console.log('Successfully fetched sub-purposes:', allSubPurposes.length);
-      res.json(allSubPurposes);
-    } catch (error) {
-      console.error('Error fetching sub-purposes:', error);
-      next(error);
-    }
-  });
+    debug(req, `Found ${allSubPurposes.length} sub-purposes`);
+    res.json(allSubPurposes);
+  } catch (error) {
+    debug(req, 'Error fetching sub-purposes:', error);
+    next(error);
+  }
+});
 
   // Enhanced approvers endpoint with proper query building
   app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
