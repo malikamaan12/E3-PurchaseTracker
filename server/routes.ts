@@ -14,6 +14,24 @@ export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
   // Sub-purposes management endpoints
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { purposeType } = req.query;
+
+      let query = db.select().from(subPurposes);
+
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purposeType, purposeType as string));
+      }
+
+      const allSubPurposes = await query.orderBy(subPurposes.createdAt);
+      res.json(allSubPurposes);
+    } catch (error) {
+      console.error('Error fetching sub-purposes:', error);
+      next(new AppError('Failed to fetch sub-purposes', 500));
+    }
+  });
+
   app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
@@ -228,8 +246,8 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (purchaseRequest) {
-        return res.status(400).json({ 
-          message: 'Cannot delete user with associated purchase requests. Please deactivate the user instead.' 
+        return res.status(400).json({
+          message: 'Cannot delete user with associated purchase requests. Please deactivate the user instead.'
         });
       }
 
