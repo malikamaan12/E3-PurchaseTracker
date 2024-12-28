@@ -15,6 +15,9 @@ export const queryClient = new QueryClient({
 
             // If response is not ok, throw the error data
             if (!res.ok) {
+              if (res.status === 404) {
+                throw new Error(`API endpoint not found: ${queryKey[0]}`);
+              }
               throw new Error(data.message || `${res.status}: ${res.statusText}`);
             }
 
@@ -49,7 +52,7 @@ export const queryClient = new QueryClient({
       refetchOnMount: false,
       refetchOnReconnect: false,
       retry: (failureCount, error) => {
-        // Only retry on network errors or 5xx errors
+        // Only retry on network errors or 5xx errors, not on 404s
         if (error instanceof Error && (
           error.message.includes('Failed to fetch') || 
           error.message.includes('Server Error')
