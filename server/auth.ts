@@ -4,9 +4,10 @@ import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { compare, hash } from "bcrypt";
-import { users } from "@db/schema";
+import { users, insertUserSchema } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { AppError } from "./utils/errors";
 
 // Extend Express.User interface
 declare global {
@@ -124,9 +125,88 @@ export async function setupAuth(app: Express) {
       done(err);
     }
   });
+
+  // Registration endpoint
+  app.post("/api/auth/register", async (req, res, next) => {
+    try {
+      console.log('Registration request received:', { username: req.body.username });
+      const result = insertUserSchema.safeParse(req.body);
+
+      if (!result.success) {
+        console.log('Registration validation failed:', result.error.issues);
+        return res.status(400).json({ 
+          message: 'Invalid input', 
+          errors: result.error.issues 
+        });
+      }
+
+      const { username, password, email, department, role, contactNumber } = result.data;
+
+      // Check if user already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1);
+
+      if (existingUser) {
+        console.log('Username already exists:', username);
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Hash the password
+      const hashedPassword = await hash(password, 10);
+
+      // Create the new user
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          username,
+          password: hashedPassword,
+          email,
+          department,
+          role: role || 'user',
+          contactNumber,
+        })
+        .returning();
+
+      // Create sanitized user object (without password)
+      const sanitizedUser: Express.User = {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        department: newUser.department,
+        role: newUser.role,
+        contactNumber: newUser.contactNumber
+      };
+
+      // Log the user in after registration
+      req.login(sanitizedUser, (err) => {
+        if (err) {
+          console.error('Auto-login after registration failed:', err);
+          return next(err);
+        }
+        console.log('Registration and auto-login successful:', { userId: newUser.id });
+        return res.status(201).json({
+          message: "Registration successful",
+          user: sanitizedUser
+        });
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      next(new AppError('Registration failed', 500));
+    }
+  });
+
+  // Test user creation with proper error handling
+  try {
+    await createTestUser();
+  } catch (error) {
+    console.error('Failed to create test user:', error);
+  }
 }
 
-// Create or update test user with proper password hashing
+// Create or update test user with proper error handling
 export async function createTestUser() {
   try {
     console.log('Creating/updating test user');
@@ -139,7 +219,7 @@ export async function createTestUser() {
       .limit(1);
 
     if (existingUser) {
-      // Update existing user
+      // Update existing user's password
       const [updatedUser] = await db
         .update(users)
         .set({
@@ -157,26 +237,26 @@ export async function createTestUser() {
         username: updatedUser.username
       });
       return updatedUser;
-    } else {
-      // Create new user
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          username: 'admin',
-          password: hashedPassword,
-          email: 'admin@example.com',
-          department: 'IT',
-          role: 'admin',
-          contactNumber: '123-456-7890'
-        })
-        .returning();
-
-      console.log('Test user created:', {
-        id: newUser.id,
-        username: newUser.username
-      });
-      return newUser;
     }
+
+    // Create new test user
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        username: 'admin',
+        password: hashedPassword,
+        email: 'admin@example.com',
+        department: 'IT',
+        role: 'admin',
+        contactNumber: '123-456-7890'
+      })
+      .returning();
+
+    console.log('Test user created:', {
+      id: newUser.id,
+      username: newUser.username
+    });
+    return newUser;
   } catch (error) {
     console.error('Failed to create/update test user:', error);
     throw error;
