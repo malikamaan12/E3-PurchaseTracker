@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

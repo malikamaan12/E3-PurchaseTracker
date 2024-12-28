@@ -62,6 +62,12 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Check if user account is active
+        if (!user.isActive) {
+          console.log('Account is inactive:', username);
+          return done(null, false, { message: "Account is inactive. Please contact an administrator." });
+        }
+
         const isMatch = await compare(password, user.password);
         if (!isMatch) {
           console.log('Invalid password for user:', username);

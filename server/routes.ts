@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests } from "@db/schema"; // Added import for purchaseRequests
+import { users, notifications, accountRequests, purchaseRequests } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -28,6 +28,7 @@ export function registerRoutes(app: Express): Server {
           email: users.email,
           department: users.department,
           role: users.role,
+          isActive: users.isActive,
           contact_number: users.contact_number,
           created_at: users.createdAt,
           updated_at: users.updatedAt
@@ -41,7 +42,87 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+  // Toggle user activation status
+  app.post("/api/admin/users/:id/toggle-activation", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const userId = parseInt(req.params.id);
+      const { isActive } = req.body;
+
+      if (userId === req.user.id) {
+        return res.status(400).json({ message: 'Cannot modify your own account status' });
+      }
+
+      // Update user's active status
+      const [updatedUser] = await db
+        .update(users)
+        .set({ isActive })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          isActive: updatedUser.isActive
+        }
+      });
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      next(new AppError('Failed to update user status', 500));
+    }
+  });
+
+  // Reset user password
+  app.post("/api/admin/users/:id/reset-password", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const userId = parseInt(req.params.id);
+      const { password } = req.body;
+
+      if (!password || password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+
+      // Hash the new password
+      const hashedPassword = await hash(password, 10);
+
+      // Update user's password
+      const [updatedUser] = await db
+        .update(users)
+        .set({ password: hashedPassword })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        message: 'Password reset successfully',
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username
+        }
+      });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      next(new AppError('Failed to reset password', 500));
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });

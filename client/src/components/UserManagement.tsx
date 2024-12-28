@@ -26,7 +26,21 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Lock, Power, Shield } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+
 
 interface User {
   id: number;
@@ -34,6 +48,7 @@ interface User {
   email: string;
   department: string;
   role: string;
+  isActive: boolean;
   contact_number: string;
   created_at: string;
   updated_at: string;
@@ -58,6 +73,8 @@ export default function UserManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: users, isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
@@ -195,6 +212,73 @@ export default function UserManagement() {
     },
   });
 
+  const toggleActivationMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: number; isActive: boolean }) => {
+      const response = await fetch(`/api/admin/users/${userId}/toggle-activation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isActive }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Success",
+        description: "User status updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Password reset successfully",
+      });
+      setIsPasswordDialogOpen(false);
+      setNewPassword("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoadingUsers || isLoadingRequests) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -202,6 +286,22 @@ export default function UserManagement() {
       </div>
     );
   }
+
+  const handlePasswordReset = (user: User) => {
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    resetPasswordMutation.mutate({
+      userId: user.id,
+      password: newPassword,
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -258,6 +358,7 @@ export default function UserManagement() {
               <TableHead>Email</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Actions</TableHead>
@@ -270,6 +371,11 @@ export default function UserManagement() {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{user.department}</TableCell>
                 <TableCell>{user.role}</TableCell>
+                <TableCell>
+                  <Badge variant={user.isActive ? "success" : "destructive"}>
+                    {user.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
                 <TableCell>{user.contact_number}</TableCell>
                 <TableCell>{format(new Date(user.created_at), 'PPpp')}</TableCell>
                 <TableCell>
@@ -282,7 +388,31 @@ export default function UserManagement() {
                         setIsRoleDialogOpen(true);
                       }}
                     >
-                      Change Role
+                      <Shield className="h-4 w-4 mr-1" />
+                      Role
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsPasswordDialogOpen(true);
+                      }}
+                    >
+                      <Lock className="h-4 w-4 mr-1" />
+                      Password
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={user.isActive ? "destructive" : "default"}
+                      onClick={() => {
+                        toggleActivationMutation.mutate({
+                          userId: user.id,
+                          isActive: !user.isActive
+                        });
+                      }}
+                    >
+                      <Power className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -440,6 +570,52 @@ export default function UserManagement() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter a new password for {selectedUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPasswordDialogOpen(false);
+                  setNewPassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => selectedUser && handlePasswordReset(selectedUser)}
+                disabled={resetPasswordMutation.isPending || newPassword.length < 6}
+              >
+                {resetPasswordMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Reset Password'
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
