@@ -609,6 +609,129 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+
+  // Add new route handlers after account requests management section and before error analytics endpoints
+  app.post("/api/admin/users/:id/toggle-activation", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const userId = parseInt(req.params.id);
+      const { isActive } = req.body;
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Update user status
+      const [updatedUser] = await db
+        .update(users)
+        .set({ isActive: isActive })
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json({
+        message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
+        user: updatedUser
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/admin/users/:id/check-deletion", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const userId = parseInt(req.params.id);
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Check if user has any associated purchase requests
+      const [purchaseRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.requesterId, userId))
+        .limit(1);
+
+      const canDelete = !purchaseRequest;
+      const reason = purchaseRequest 
+        ? 'Cannot delete user with associated purchase requests. Please deactivate instead.' 
+        : null;
+
+      res.json({ canDelete, reason });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const userId = parseInt(req.params.id);
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Check if user can be deleted
+      const [purchaseRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.requesterId, userId))
+        .limit(1);
+
+      if (purchaseRequest) {
+        throw new AppError(
+          'Cannot delete user with associated purchase requests. Please deactivate instead.',
+          400
+        );
+      }
+
+      // Delete user
+      const [deletedUser] = await db
+        .delete(users)
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json({
+        message: 'User deleted successfully',
+        user: deletedUser
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Error analytics endpoints
   app.get("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
     try {

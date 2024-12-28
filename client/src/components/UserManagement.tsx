@@ -119,6 +119,53 @@ export default function UserManagement() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      // First check if user can be deleted
+      const checkResponse = await fetch(`/api/admin/users/${userId}/check-deletion`, {
+        credentials: "include",
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error(await checkResponse.text());
+      }
+
+      const { canDelete, reason } = await checkResponse.json();
+
+      if (!canDelete) {
+        throw new Error(reason || "Cannot delete this user. Try deactivating instead.");
+      }
+
+      // If user can be deleted, proceed with deletion
+      const deleteResponse = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error(await deleteResponse.text());
+      }
+
+      return deleteResponse.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
       const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
@@ -141,54 +188,6 @@ export default function UserManagement() {
       });
       setIsPasswordDialogOpen(false);
       setNewPassword("");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (userId: number) => {
-      // First check if user can be deleted
-      const checkResponse = await fetch(`/api/admin/users/${userId}/check-deletion`, {
-        credentials: "include",
-      });
-
-      if (!checkResponse.ok) {
-        const error = await checkResponse.text();
-        throw new Error(error || "Failed to check if user can be deleted");
-      }
-
-      const { canDelete, reason } = await checkResponse.json();
-
-      if (!canDelete) {
-        throw new Error(reason || "Cannot delete this user. Try deactivating instead.");
-      }
-
-      // If user can be deleted, proceed with deletion
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-      setIsDeleteDialogOpen(false);
-      setUserToDelete(null);
     },
     onError: (error: Error) => {
       toast({
@@ -287,12 +286,17 @@ export default function UserManagement() {
                         isActive: !user.isActive
                       });
                     }}
+                    disabled={toggleActivationMutation.isPending}
                     className={cn(
                       "flex items-center",
                       user.isActive ? "hover:bg-red-100 hover:text-red-800" : "hover:bg-green-100 hover:text-green-800"
                     )}
                   >
-                    <Power className="h-4 w-4 mr-1" />
+                    {toggleActivationMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Power className="h-4 w-4 mr-1" />
+                    )}
                     {user.isActive ? "Deactivate" : "Activate"}
                   </Button>
                   <Button
@@ -388,7 +392,7 @@ export default function UserManagement() {
                 disabled={resetPasswordMutation.isPending || newPassword.length < 6}
               >
                 {resetPasswordMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
                 ) : (
                   'Reset Password'
                 )}
@@ -430,7 +434,7 @@ export default function UserManagement() {
                   disabled={deleteMutation.isPending}
                 >
                   {deleteMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : (
                     'Delete'
                   )}
