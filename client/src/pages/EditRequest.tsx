@@ -55,15 +55,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const { updateRequest, getRequest } = usePurchaseRequests();
   const { toast } = useToast();
-
-  // Use getRequest hook to fetch request data
-  const { data: request, isLoading } = getRequest(parseInt(params.id));
-
-  // Initialize state with empty values
   const [items, setItems] = useState<RequestItem[]>([]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
 
-  // Form initialization with empty default values
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
@@ -72,8 +66,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       items: [],
       companyName: "",
       contactPerson: "",
-      contactNumber: "",
+      contact_number: "", 
       accountNumber: "",
+      purpose: "", 
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
@@ -84,12 +79,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     },
   });
 
-  // Effect to populate form data when request is loaded
+  const { data: request, isLoading } = getRequest(parseInt(params.id));
+
   useEffect(() => {
     if (request) {
-      console.log("Loading request data:", request);
-
-      // Parse and format items array
       const formattedItems = (request.items || []).map(item => ({
         name: item?.name || "",
         quantity: Number(item?.quantity) || 1,
@@ -97,7 +90,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         description: item?.description || ""
       }));
 
-      // Ensure we have at least one item
       if (formattedItems.length === 0) {
         formattedItems.push({ 
           name: "", 
@@ -110,15 +102,15 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       setItems(formattedItems);
       setFreightAmount(Number(request.freightAmount) || 0);
 
-      // Reset form with request data
       form.reset({
         title: request.title || "",
         description: request.description || "",
         items: formattedItems,
         companyName: request.companyName || "",
         contactPerson: request.contactPerson || "",
-        contactNumber: request.contactNumber || "",
+        contact_number: request.contact_number || "", 
         accountNumber: request.accountNumber || "",
+        purpose: request.purpose || "", 
         purposeType: request.purposeType || "event",
         subPurposeId: request.subPurposeId,
         priority: request.priority || "medium",
@@ -126,11 +118,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         status: request.status || "draft",
         totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
         freightAmount: request.freightAmount?.toString() || "0",
-      });
-
-      console.log("Form data loaded:", {
-        items: formattedItems,
-        freightAmount: Number(request.freightAmount) || 0
       });
     }
   }, [request, form]);
@@ -151,8 +138,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     if (items.length > 1) {
       const newItems = items.filter((_, i) => i !== index);
       setItems(newItems);
-
-      // Update form values to match the new items state
       form.setValue('items', newItems);
     }
   };
@@ -164,8 +149,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       [field]: field === "name" || field === "description" ? value : Number(value),
     };
     setItems(newItems);
-
-    // Update form values to match the new items state
     form.setValue('items', newItems);
   };
 
@@ -181,6 +164,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
+        contact_number: values.contact_number?.trim(), 
+        purpose: values.purpose?.trim(), 
       };
 
       await updateRequest({
@@ -208,7 +193,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const handleSubmit = async (status: "draft" | "pending") => {
     try {
-      // Validate form data
       const isValid = await form.trigger();
       if (!isValid) {
         toast({
@@ -220,7 +204,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
 
-      // Set status and submit
       const currentValues = form.getValues();
       await onSubmit({
         ...currentValues,
@@ -274,7 +257,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
-                {/* Basic Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
@@ -283,6 +265,23 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[#191160]">Request Title</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="purpose"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[#191160]">Purpose</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -312,7 +311,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   />
                 </div>
 
-                {/* Purpose Type and Priority Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Request Type</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -385,7 +383,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   </div>
                 </div>
 
-                {/* Items Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
@@ -527,7 +524,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                   </div>
                 </div>
 
-                {/* Vendor Information Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -569,7 +565,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
                     <FormField
                       control={form.control}
-                      name="contactNumber"
+                      name="contact_number"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Contact Number</FormLabel>
@@ -577,7 +573,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                             <Input
                               {...field}
                               type="tel"
-                              placeholder="Enter contact number"
                               className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                             />
                           </FormControl>

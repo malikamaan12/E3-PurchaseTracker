@@ -274,11 +274,12 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     .min(1, "Purpose is required")
     .transform((val) => (val || "").trim()),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
+  subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
-  totalEstimatedCost: z.number().min(0, "Total estimated cost must be non-negative").or(z.string().transform(Number)),
-  freightAmount: z.number().min(0, "Freight amount must be non-negative").or(z.string().transform(Number)),
-  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]).optional(),
+  totalEstimatedCost: z.coerce.number().min(0, "Total cost must be non-negative"),
+  freightAmount: z.coerce.number().min(0, "Freight amount must be non-negative"),
+  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().optional(),
   requestNumber: z.string().optional(),
@@ -286,7 +287,6 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priorityScore: z.number().optional(),
   priorityReason: z.string().optional(),
   priorityRecommendations: z.array(z.string()).optional(),
-  subPurposeId: z.number().optional()
 });
 
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
