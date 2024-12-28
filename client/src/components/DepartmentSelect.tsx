@@ -17,27 +17,34 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { mandatoryDepartments } from "@db/schema";
 
-// Filter out mandatory departments since they are automatically added
-const departments = [
+// Using all departments from the schema
+const allDepartments = [
+  "Business",
+  "Management",
+  "Operation",
+  "Support",
+  "Finance",
+  "Director",
+  "CEO Office",
+  "Sales",
+  "Marketing",
+  "Business Growth",
   "Branding",
   "Logistics",
-  "Mall Activation",
-  "IT",
+  "Mall Activations",
+  "Information Technology",
   "HR",
-  "Mall Management",
-  "Operations",
-  "Marketing",
-  "Sales",
-  "Finance",
-  "Legal",
-  "Administration",
   "Procurement",
-  "Customer Service",
-  "Business Development",
-  "Project Management",
+  "Legal",
+  "Research and Development",
   "Quality Assurance",
-  "Research and Development"
-].filter(dept => !mandatoryDepartments.includes(dept as any));
+  "Customer Service",
+  "Project Management",
+  "Administration"
+];
+
+// Filter out mandatory departments for selection
+const departments = allDepartments.filter(dept => !mandatoryDepartments.includes(dept as any));
 
 interface DepartmentSelectProps {
   label: string;
