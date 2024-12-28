@@ -41,6 +41,52 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update user role endpoint
+  app.put("/api/admin/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+
+      if (!['user', 'approver', 'admin'].includes(role)) {
+        return res.status(400).json({ message: 'Invalid role' });
+      }
+
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Update user role
+      const [updatedUser] = await db
+        .update(users)
+        .set({ role })
+        .where(eq(users.id, userId))
+        .returning();
+
+      res.json({
+        message: 'User role updated successfully',
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          role: updatedUser.role
+        }
+      });
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      next(new AppError('Failed to update user role', 500));
+    }
+  });
+
   // Notification endpoints
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
