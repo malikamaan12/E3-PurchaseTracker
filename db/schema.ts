@@ -199,7 +199,10 @@ export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contact_number: z.string().min(1, "Contact number is required"),
+  contact_number: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
@@ -209,7 +212,10 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contact_number: z.string().min(1, "Contact number is required"),
+  contact_number: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
   department: z.string().refine(
     (val) => mandatoryDepartments.includes(val as any),
     "Invalid department"
@@ -304,3 +310,24 @@ export const mandatoryDepartments = [
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
 
 export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
+
+
+export const purchaseApprovers = pgTable("purchase_approvers", {
+  id: serial("id").primaryKey(),
+  departmentId: text("department").notNull(),
+  approverId: integer("approver_id").notNull().references(() => users.id),
+  isMandatory: boolean("is_mandatory").notNull().default(false),
+  level: integer("level").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
+  departmentId: z.string().min(1, "Department is required"),
+  approverId: z.number().int().positive("Invalid approver ID"),
+  isMandatory: z.boolean().default(false),
+  level: z.number().int().min(1).max(5),
+});
+
+export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers);
+export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;

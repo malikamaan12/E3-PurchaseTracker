@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, notifications, accountRequests, purchaseRequests, subPurposes } from "@db/schema";
+import { users, notifications, accountRequests, purchaseRequests, subPurposes, purchaseApprovers } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from './utils/errors';
 import { hash } from 'bcrypt';
@@ -467,6 +467,109 @@ export function registerRoutes(app: Express): Server {
       res.json({ message: 'Account request rejected' });
     } catch (error) {
       next(new AppError('Failed to reject account request', 500));
+    }
+  });
+
+  // Add 404 handler for API routes
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({
+      status: 'error',
+      message: `Cannot ${req.method} ${req.path}`,
+      severity: 'warning',
+      code: 'NOT_FOUND'
+    });
+  });
+
+  // Approver management endpoints
+  app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { department } = req.query;
+
+      let query = db
+        .select({
+          id: purchaseApprovers.id,
+          departmentId: purchaseApprovers.departmentId,
+          approverId: purchaseApprovers.approverId,
+          isMandatory: purchaseApprovers.isMandatory,
+          level: purchaseApprovers.level,
+          approver: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+          },
+        })
+        .from(purchaseApprovers)
+        .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
+        .where(users.isActive.equals(true));
+
+      if (department) {
+        query = query.where(eq(purchaseApprovers.departmentId, department as string));
+      }
+
+      const approvers = await query.orderBy(purchaseApprovers.level);
+      res.json(approvers);
+    } catch (error) {
+      console.error('Error fetching approvers:', error);
+      next(new AppError('Failed to fetch approvers', 500));
+    }
+  });
+
+  app.post("/api/admin/approvers", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { departmentId, approverId, isMandatory, level } = req.body;
+
+      // Check if approver exists and is active
+      const [approver] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, approverId))
+        .where(eq(users.isActive, true))
+        .limit(1);
+
+      if (!approver) {
+        return res.status(404).json({ message: 'Approver not found or inactive' });
+      }
+
+      // Create new approver assignment
+      const [newApprover] = await db
+        .insert(purchaseApprovers)
+        .values({
+          departmentId,
+          approverId,
+          isMandatory,
+          level,
+        })
+        .returning();
+
+      res.json(newApprover);
+    } catch (error) {
+      console.error('Error creating approver assignment:', error);
+      next(new AppError('Failed to create approver assignment', 500));
+    }
+  });
+
+  app.delete("/api/admin/approvers/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const approverId = parseInt(req.params.id);
+
+      // Delete approver assignment
+      await db
+        .delete(purchaseApprovers)
+        .where(eq(purchaseApprovers.id, approverId));
+
+      res.json({ message: 'Approver assignment deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting approver assignment:', error);
+      next(new AppError('Failed to delete approver assignment', 500));
     }
   });
 
