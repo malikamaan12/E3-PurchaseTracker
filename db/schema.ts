@@ -9,7 +9,7 @@ export const users = pgTable("users", {
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(),
+  contact_number: text("contact_number").notNull(), // Updated column name
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -21,12 +21,12 @@ export const accountRequests = pgTable("account_requests", {
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").notNull(),
-  contactNumber: text("contact_number").notNull(),
+  contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
   status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const notifications = pgTable("notifications", {
@@ -65,7 +65,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   }>>().notNull(),
   companyName: text("company_name").notNull(),
   contactPerson: text("contact_person").notNull(),
-  contactNumber: text("contact_number").notNull(),
+  contact_number: text("contact_number").notNull(), // Updated column name
   accountNumber: text("account_number").notNull(),
   purpose: text("purpose").notNull().default(""),
   purposeType: text("purpose_type").notNull(),
@@ -197,16 +197,18 @@ export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contactNumber: z.string().min(1, "Contact number is required"),
+  contact_number: z.string().min(1, "Contact number is required"), // Updated column name
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
-  role: z.enum(["user", "approver", "admin"]).default("user"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
-  contactNumber: z.string().min(1, "Contact number is required"),
+  contact_number: z.string().min(1, "Contact number is required"),
   department: z.string().min(1, "Department is required"),
+  role: z.enum(["user", "approver", "admin"]).default("user"),
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
 });
 
@@ -241,7 +243,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   })).min(1, "At least one item is required"),
   companyName: z.string().min(1, "Company name is required"),
   contactPerson: z.string().min(1, "Contact person is required"),
-  contactNumber: z.string().min(1, "Contact number is required"),
+  contact_number: z.string().min(1, "Contact number is required"), // Updated column name
   accountNumber: z.string().min(1, "Account number is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -262,6 +264,10 @@ export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
 export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 
+
+// Export type for use in components
+export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
+export type AccountRequest = InferModel<typeof accountRequests>;
 
 // Constants
 export const mandatoryDepartments = ["CEO Office", "Finance", "Director"] as const;

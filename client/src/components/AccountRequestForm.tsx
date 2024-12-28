@@ -5,13 +5,6 @@ import type { InsertAccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { insertAccountRequestSchema } from "@db/schema";
 
@@ -22,6 +15,7 @@ export default function AccountRequestForm() {
     resolver: zodResolver(insertAccountRequestSchema),
     defaultValues: {
       role: "user",
+      status: "pending"
     }
   });
 
@@ -32,7 +26,10 @@ export default function AccountRequestForm() {
       const response = await fetch("/api/auth/request-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          contactNumber: data.contact_number // Map to API expected format
+        }),
         credentials: "include",
       });
 
@@ -108,15 +105,15 @@ export default function AccountRequestForm() {
       </div>
 
       <div>
-        <Label htmlFor="contactNumber">Contact Number</Label>
+        <Label htmlFor="contact_number">Contact Number</Label>
         <Input
-          id="contactNumber"
-          {...form.register("contactNumber")}
+          id="contact_number"
+          {...form.register("contact_number")}
           className="mt-1"
         />
-        {form.formState.errors.contactNumber && (
+        {form.formState.errors.contact_number && (
           <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.contactNumber.message}
+            {form.formState.errors.contact_number.message}
           </p>
         )}
       </div>

@@ -179,17 +179,22 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('Processing account request:', req.body);
-      const result = insertAccountRequestSchema.safeParse(req.body);
+      const validationResult = insertAccountRequestSchema.safeParse({
+        ...req.body,
+        contact_number: req.body.contactNumber, // Map the incoming field
+        role: req.body.role || 'user',
+        status: 'pending'
+      });
 
-      if (!result.success) {
-        console.error('Validation failed:', result.error.issues);
+      if (!validationResult.success) {
+        console.error('Validation failed:', validationResult.error.issues);
         return res.status(400).json({
           message: 'Invalid input',
-          errors: result.error.issues
+          errors: validationResult.error.issues
         });
       }
 
-      const { username, password, email, department, role, contactNumber } = result.data;
+      const { username, password, email, contact_number, department, role } = validationResult.data;
 
       // Check if username already exists in users
       const [existingUser] = await db
@@ -226,10 +231,10 @@ export function registerRoutes(app: Express): Server {
           username,
           password: hashedPassword,
           email,
+          contact_number,
           department,
-          role: role || 'user',
-          contactNumber,
-          status: 'pending'
+          role,
+          status: 'pending',
         })
         .returning();
 
