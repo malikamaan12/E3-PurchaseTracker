@@ -375,6 +375,46 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      // Get all admin users
+      const admins = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.role, 'admin'),
+          eq(users.isActive, true)
+        ));
+
+      // Get all approvers
+      const approvers = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.role, 'approver'),
+          eq(users.isActive, true)
+        ));
+
+      // Create notifications for admins and approvers
+      const createNotifications = async () => {
+        const notificationPromises = [...admins, ...approvers].map(user => 
+          db.insert(notifications).values({
+            userId: user.id,
+            title: 'New Account Request',
+            message: `New account request from ${newRequest.username} for ${newRequest.department} department`,
+            type: 'account_request',
+            isRead: false,
+            link: '/admin/account-requests',
+            createdAt: new Date()
+          })
+        );
+
+        await Promise.all(notificationPromises);
+      };
+
+      // Send notifications asynchronously
+      createNotifications().catch(error => {
+        console.error('Error creating notifications:', error);
+      });
+
       debug(req, 'Account request created:', newRequest.id);
       res.status(201).json({
         message: 'Account request submitted successfully',
@@ -992,6 +1032,59 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get notifications endpoint
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user!.id))
+        .orderBy(desc(notifications.createdAt));
+
+      res.json(userNotifications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Mark notification as read endpoint
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+
+      // Verify notification belongs to user
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, req.user!.id)
+        ))
+        .limit(1);
+
+      if (!notification) {
+        throw new AppError('Notification not found', 404);
+      }
+
+      // Update notification
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, notificationId));
+
+      res.json({ message: 'Notification marked as read' });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Create and return the HTTP server
   const httpServer = createServer(app);
