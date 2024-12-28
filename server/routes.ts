@@ -137,12 +137,13 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Approver management endpoints
+  // Add enhanced error handling for database queries
   app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { department } = req.query;
+      debug(req, 'Fetching approvers', { department });
 
-      const approvers = await db
+      const query = db
         .select({
           id: purchaseApprovers.id,
           departmentId: purchaseApprovers.departmentId,
@@ -158,14 +159,18 @@ export function registerRoutes(app: Express): Server {
         })
         .from(purchaseApprovers)
         .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
-        .where(eq(users.isActive, true))
-        .where(department ? eq(purchaseApprovers.departmentId, department as string) : undefined)
-        .orderBy(purchaseApprovers.level);
+        .where(eq(users.isActive, true));
 
+      if (department) {
+        query.where(eq(purchaseApprovers.departmentId, department as string));
+      }
+
+      const approvers = await query.orderBy(purchaseApprovers.level);
+      debug(req, `Found ${approvers.length} approvers`);
       res.json(approvers);
     } catch (error) {
-      console.error('Error fetching approvers:', error);
-      next(new AppError('Failed to fetch approvers', 500));
+      debug(req, 'Error fetching approvers:', error);
+      next(new DatabaseError('Failed to fetch approvers'));
     }
   });
 
@@ -379,76 +384,13 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Purchase Request endpoints
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Creating new purchase request', req.body);
-
-      // Ensure required fields are present and properly formatted
-      const requestData = {
-        ...req.body,
-        status: 'pending',
-        requesterId: req.user!.id,
-        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      };
-
-      debug(req, 'Validating request data');
-      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-      if (!validationResult.success) {
-        debug(req, 'Validation failed', validationResult.error);
-        throw new ValidationError('Invalid request data', {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Validate numeric fields
-      const { totalEstimatedCost, freightAmount, items } = validationResult.data;
-
-      // Ensure costs are valid integers
-      if (!Number.isInteger(totalEstimatedCost) || !Number.isInteger(freightAmount)) {
-        throw new ValidationError('Cost values must be whole numbers');
-      }
-
-      // Validate items costs are integers
-      for (const item of items) {
-        if (!Number.isInteger(item.estimatedCost)) {
-          throw new ValidationError('Item costs must be whole numbers');
-        }
-      }
-
-      debug(req, 'Creating purchase request', validationResult.data);
-
-      // Create new purchase request
-      const [newRequest] = await db
-        .insert(purchaseRequests)
-        .values(validationResult.data)
-        .returning();
-
-      if (!newRequest) {
-        throw new DatabaseError('Failed to create purchase request');
-      }
-
-      debug(req, 'Successfully created purchase request', newRequest);
-      res.status(201).json(newRequest);
-    } catch (error) {
-      debug(req, 'Error creating purchase request:', error);
-      next(error);
-    }
-  });
-
-  // Sub-purposes management endpoints with enhanced logging
+  // Enhanced sub-purposes endpoint
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
       debug(req, 'Fetching sub-purposes', { purposeType });
 
-      // Start with a base query
-      const baseQuery = db
+      const query = db
         .select({
           id: subPurposes.id,
           name: subPurposes.name,
@@ -460,14 +402,13 @@ export function registerRoutes(app: Express): Server {
           createdAt: subPurposes.createdAt,
           updatedAt: subPurposes.updatedAt,
         })
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.createdAt));
+        .from(subPurposes);
 
-      const finalQuery = purposeType 
-        ? baseQuery.where(eq(subPurposes.purposeType, purposeType as string))
-        : baseQuery;
+      if (purposeType) {
+        query.where(eq(subPurposes.purposeType, purposeType as string));
+      }
 
-      const allSubPurposes = await finalQuery;
+      const allSubPurposes = await query.orderBy(desc(subPurposes.createdAt));
       debug(req, `Found ${allSubPurposes.length} sub-purposes`);
       res.json(allSubPurposes);
     } catch (error) {
@@ -789,6 +730,68 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Enhanced purchase request endpoint
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Creating new purchase request', req.body);
+
+      const requestData = {
+        ...req.body,
+        status: 'pending',
+        requesterId: req.user!.id,
+        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      };
+
+      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+
+      if (!validationResult.success) {
+        debug(req, 'Validation failed', validationResult.error);
+        throw new ValidationError('Invalid request data', {
+          errors: validationResult.error.format()
+        });
+      }
+
+      const data = validationResult.data;
+
+      // Validate numeric fields
+      if (!Number.isInteger(data.totalEstimatedCost) || !Number.isInteger(data.freightAmount)) {
+        throw new ValidationError('Cost values must be whole numbers');
+      }
+
+      // Validate items costs
+      data.items.forEach((item, index) => {
+        if (!Number.isInteger(item.estimatedCost)) {
+          throw new ValidationError(`Item ${index + 1} cost must be a whole number`);
+        }
+        if (!Number.isInteger(item.quantity)) {
+          throw new ValidationError(`Item ${index + 1} quantity must be a whole number`);
+        }
+      });
+
+      debug(req, 'Creating purchase request', data);
+
+      const [newRequest] = await db
+        .insert(purchaseRequests)
+        .values(data)
+        .returning();
+
+      if (!newRequest) {
+        throw new DatabaseError('Failed to create purchase request');
+      }
+
+      debug(req, 'Successfully created purchase request', newRequest);
+      res.status(201).json(newRequest);
+    } catch (error) {
+      debug(req, 'Error creating purchase request:', error);
+      next(error);
+    }
+  });
+
+
   // Notification endpoints
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -977,7 +980,6 @@ export function registerRoutes(app: Express): Server {
         .groupBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`, errorLogs.severity)
         .orderBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`);
 
-      
       // Get most common errors
       const commonErrors = await db
         .select({
