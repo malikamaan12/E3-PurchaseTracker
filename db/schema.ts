@@ -213,13 +213,18 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email format"),
   contact_number: z.string()
+    .trim()
+    .min(1, "Contact number is required")
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format. Use only numbers, spaces, hyphens, or + symbol"),
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   department: z.string().refine(
     (val) => mandatoryDepartments.includes(val as any),
     "Invalid department"
   ),
+  purpose: z.string()
+    .trim()
+    .min(1, "Purpose is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
   status: z.enum(["pending", "approved", "rejected"]).default("pending")
 });
@@ -295,7 +300,6 @@ export const selectApprovalSchema = createSelectSchema(approvals);
 export const insertFileAttachmentSchema = createInsertSchema(fileAttachments);
 export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
-
 
 
 // Department Constants

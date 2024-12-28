@@ -3,8 +3,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InsertAccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,24 +29,32 @@ export default function AccountRequestForm() {
     resolver: zodResolver(insertAccountRequestSchema),
     defaultValues: {
       role: "user",
-      status: "pending"
-    }
+      status: "pending",
+      contact_number: "",
+      purpose: "",
+    },
+    mode: "onBlur",
   });
 
   const onSubmit = async (data: InsertAccountRequest) => {
     setIsLoading(true);
     try {
+      const formData = {
+        ...data,
+        contact_number: data.contact_number.trim(),
+        purpose: data.purpose?.trim() || "",
+      };
+
       const response = await fetch("/api/auth/request-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
         credentials: "include",
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to submit account request');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit account request');
       }
 
       toast({
@@ -60,92 +75,107 @@ export default function AccountRequestForm() {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="username">Username</Label>
-        <Input
-          id="username"
-          {...form.register("username")}
-          className="mt-1"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {form.formState.errors.username && (
-          <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.username.message}
-          </p>
-        )}
-      </div>
 
-      <div>
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          {...form.register("password")}
-          className="mt-1"
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {form.formState.errors.password && (
-          <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.password.message}
-          </p>
-        )}
-      </div>
 
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          {...form.register("email")}
-          className="mt-1"
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {form.formState.errors.email && (
-          <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.email.message}
-          </p>
-        )}
-      </div>
 
-      <div>
-        <Label htmlFor="contact_number">Contact Number</Label>
-        <Input
-          id="contact_number"
-          {...form.register("contact_number")}
-          className="mt-1"
+        <FormField
+          control={form.control}
+          name="contact_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Contact Number</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Enter contact number" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {form.formState.errors.contact_number && (
-          <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.contact_number.message}
-          </p>
-        )}
-      </div>
 
-      <div>
-        <Label htmlFor="department">Department</Label>
-        <Select
-          onValueChange={(value) => form.setValue("department", value)}
-          defaultValue={form.getValues("department")}
-        >
-          <SelectTrigger id="department" className="mt-1">
-            <SelectValue placeholder="Select department" />
-          </SelectTrigger>
-          <SelectContent>
-            {mandatoryDepartments.map((dept) => (
-              <SelectItem key={dept} value={dept}>
-                {dept}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {form.formState.errors.department && (
-          <p className="text-sm text-red-500 mt-1">
-            {form.formState.errors.department.message}
-          </p>
-        )}
-      </div>
+        <FormField
+          control={form.control}
+          name="purpose"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Purpose</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Enter purpose" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      <Button type="submit" disabled={isLoading} className="w-full">
-        {isLoading ? "Submitting..." : "Request Account"}
-      </Button>
-    </form>
+        <FormField
+          control={form.control}
+          name="department"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Department</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {mandatoryDepartments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={isLoading} className="w-full">
+          {isLoading ? "Submitting..." : "Request Account"}
+        </Button>
+      </form>
+    </Form>
   );
 }
