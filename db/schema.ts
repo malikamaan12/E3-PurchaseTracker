@@ -229,10 +229,21 @@ export const selectUserSchema = createSelectSchema(users);
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
+  name: z.string().min(1, "Name is required"),
   purposeType: z.enum(["event", "project", "mall", "business_growth"]),
   isFrozen: z.boolean().optional(),
-  validFrom: z.string().datetime().optional(),
-  validTo: z.string().datetime().optional(),
+  validFrom: z.string()
+    .refine((val) => !val || !isNaN(Date.parse(val)), {
+      message: "Invalid date format"
+    })
+    .transform((val) => val ? new Date(val).toISOString() : undefined)
+    .optional(),
+  validTo: z.string()
+    .refine((val) => !val || !isNaN(Date.parse(val)), {
+      message: "Invalid date format"
+    })
+    .transform((val) => val ? new Date(val).toISOString() : undefined)
+    .optional(),
 });
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {

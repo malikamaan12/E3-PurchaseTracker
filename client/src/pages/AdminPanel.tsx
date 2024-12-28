@@ -96,6 +96,8 @@ export default function AdminPanel() {
       name: "",
       purposeType: "event",
       isFrozen: false,
+      validFrom: undefined,
+      validTo: undefined,
     },
   });
 
@@ -432,7 +434,15 @@ export default function AdminPanel() {
                   </DialogHeader>
 
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit((data) => createSubPurpose.mutate(data))} className="space-y-4">
+                    <form onSubmit={form.handleSubmit((data) => {
+                      // Format dates properly before submission
+                      const formattedData = {
+                        ...data,
+                        validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : undefined,
+                        validTo: data.validTo ? new Date(data.validTo).toISOString() : undefined,
+                      };
+                      createSubPurpose.mutate(formattedData);
+                    })} className="space-y-4">
                       <FormField
                         control={form.control}
                         name="name"
@@ -481,7 +491,17 @@ export default function AdminPanel() {
                           <FormItem>
                             <FormLabel>Valid From</FormLabel>
                             <FormControl>
-                              <Input type="datetime-local" {...field} />
+                              <Input 
+                                type="datetime-local" 
+                                {...field} 
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const date = e.target.value;
+                                  if (!date || !isNaN(Date.parse(date))) {
+                                    field.onChange(date);
+                                  }
+                                }}
+                              />
                             </FormControl>
                             <FormDescription>
                               Optional: Set when this sub-purpose becomes valid
@@ -498,7 +518,17 @@ export default function AdminPanel() {
                           <FormItem>
                             <FormLabel>Valid To</FormLabel>
                             <FormControl>
-                              <Input type="datetime-local" {...field} />
+                              <Input 
+                                type="datetime-local" 
+                                {...field} 
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const date = e.target.value;
+                                  if (!date || !isNaN(Date.parse(date))) {
+                                    field.onChange(date);
+                                  }
+                                }}
+                              />
                             </FormControl>
                             <FormDescription>
                               Optional: Set when this sub-purpose expires
@@ -512,7 +542,10 @@ export default function AdminPanel() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setIsSubPurposeDialogOpen(false)}
+                          onClick={() => {
+                            setIsSubPurposeDialogOpen(false);
+                            form.reset();
+                          }}
                         >
                           Cancel
                         </Button>
