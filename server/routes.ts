@@ -46,9 +46,21 @@ app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunct
     debug(req, 'Fetching sub-purposes', { purposeType });
 
     let query = db
-      .select()
-      .from(subPurposes)
-      .where(purposeType ? eq(subPurposes.purpose_type, purposeType as string) : undefined);
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purpose_type: subPurposes.purpose_type,
+        is_frozen: subPurposes.is_frozen,
+        valid_from: subPurposes.valid_from,
+        valid_to: subPurposes.valid_to,
+        created_at: subPurposes.created_at,
+        updated_at: subPurposes.updated_at
+      })
+      .from(subPurposes);
+
+    if (purposeType) {
+      query = query.where(eq(subPurposes.purpose_type, purposeType as string));
+    }
 
     const allSubPurposes = await query.orderBy(desc(subPurposes.created_at));
     debug(req, `Found ${allSubPurposes.length} sub-purposes`);
@@ -121,7 +133,16 @@ app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: Nex
     }
 
     const allSubPurposes = await db
-      .select()
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purpose_type: subPurposes.purpose_type,
+        is_frozen: subPurposes.is_frozen,
+        valid_from: subPurposes.valid_from,
+        valid_to: subPurposes.valid_to,
+        created_at: subPurposes.created_at,
+        updated_at: subPurposes.updated_at
+      })
       .from(subPurposes)
       .orderBy(desc(subPurposes.created_at));
 
