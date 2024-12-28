@@ -1,7 +1,7 @@
 import { db } from "@db";
 import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { compare } from "bcrypt";
+import { compare, hash } from "bcrypt";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 
@@ -21,7 +21,7 @@ export function configurePassport(passport: passport.Authenticator) {
         return done(null, false, { message: 'Invalid username or password' });
       }
 
-      // Verify password
+      // Verify password using bcrypt
       const isValid = await compare(password, user.password);
       if (!isValid) {
         return done(null, false, { message: 'Invalid username or password' });
@@ -29,6 +29,7 @@ export function configurePassport(passport: passport.Authenticator) {
 
       return done(null, user);
     } catch (error) {
+      console.error('Authentication error:', error);
       return done(error);
     }
   }));
@@ -51,9 +52,14 @@ export function configurePassport(passport: passport.Authenticator) {
 
       done(null, user);
     } catch (error) {
+      console.error('Session deserialization error:', error);
       done(error);
     }
   });
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return hash(password, 10);
 }
 
 export async function canUserApprove(userId: number, requestId: number): Promise<boolean> {

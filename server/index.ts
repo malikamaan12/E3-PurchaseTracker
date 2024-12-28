@@ -31,7 +31,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Configure session store
 const MemoryStoreSession = MemoryStore(session);
-app.use(session({
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
@@ -42,7 +42,14 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+};
+
+if (app.get('env') === 'production') {
+  app.set('trust proxy', 1);
+  sessionConfig.cookie.secure = true;
+}
+
+app.use(session(sessionConfig));
 
 // Initialize passport authentication
 app.use(passport.initialize());
@@ -61,7 +68,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// Logging middleware
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -121,7 +128,7 @@ async function initializeServer() {
     const server = registerRoutes(app);
     log("Routes registered successfully");
 
-    // Global error handler with improved JSON responses
+    // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Server error:', {
         message: err.message,
@@ -129,7 +136,6 @@ async function initializeServer() {
         status: err.status || err.statusCode || 500
       });
 
-      // Ensure content type is set to application/json
       res.type('application/json');
 
       const status = err.status || err.statusCode || 500;

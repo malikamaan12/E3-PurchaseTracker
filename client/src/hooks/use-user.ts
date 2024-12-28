@@ -35,7 +35,7 @@ async function handleRequest(
 }
 
 async function fetchUser(): Promise<User | null> {
-  const response = await fetch('/api/user', {
+  const response = await fetch('/api/auth/user', {
     credentials: 'include'
   });
 
@@ -61,36 +61,38 @@ export function useUser() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (userData: LoginCredentials) => handleRequest('/api/login', 'POST', userData),
+    mutationFn: (userData: LoginCredentials) => handleRequest('/api/auth/login', 'POST', userData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      visualizeError({
-        message: "Logged in successfully",
-        severity: "info",
-        code: "AUTH_SUCCESS"
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
       });
     },
-    onError: (error) => {
-      visualizeError(createErrorContext(error, 'error', {
-        code: 'AUTH_ERROR'
-      }));
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log in",
+        variant: "destructive",
+      });
     },
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => handleRequest('/api/logout', 'POST'),
+    mutationFn: () => handleRequest('/api/auth/logout', 'POST'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      visualizeError({
-        message: "Logged out successfully",
-        severity: "info",
-        code: "AUTH_SUCCESS"
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
       });
     },
-    onError: (error) => {
-      visualizeError(createErrorContext(error, 'error', {
-        code: 'AUTH_ERROR'
-      }));
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log out",
+        variant: "destructive",
+      });
     },
   });
 

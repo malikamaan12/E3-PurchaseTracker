@@ -9,28 +9,66 @@ import { AppError, handleError } from './utils/errors';
 import { createNotification, cleanupUploads } from './utils/notifications';
 import { analyzePurchaseRequestPriority, type PurchaseRequestInput } from './utils/anthropic';
 import { logoUpload, attachmentUpload, handleUploadError } from './utils/middleware';
-import session from 'express-session';
 import passport from 'passport';
-import { configurePassport } from './utils/auth';
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 
-  // Configure session middleware
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-  }));
+  // Authentication routes with enhanced error handling
+  app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.body.username || !req.body.password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+      }
 
-  // Initialize passport
-  app.use(passport.initialize());
-  app.use(passport.session());
-  configurePassport(passport);
+      passport.authenticate('local', (err: any, user: any, info: any) => {
+        if (err) {
+          console.error('Authentication error:', err);
+          return next(err);
+        }
+        if (!user) {
+          return res.status(401).json({ message: info.message || 'Authentication failed' });
+        }
+        req.logIn(user, (err) => {
+          if (err) {
+            console.error('Login error:', err);
+            return next(err);
+          }
+          res.json({ user });
+        });
+      })(req, res, next);
+    } catch (error) {
+      console.error('Unexpected login error:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/auth/logout", (req: Request, res: Response, next: NextFunction) => {
+    try {
+      req.logout((err) => {
+        if (err) {
+          console.error('Logout error:', err);
+          return next(err);
+        }
+        res.json({ message: 'Logged out successfully' });
+      });
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      next(error);
+    }
+  });
+
+  app.get("/api/auth/user", (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      res.json(req.user);
+    } catch (error) {
+      console.error('User fetch error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 
   // Add request logging middleware
   app.use((req, res, next) => {
@@ -40,26 +78,6 @@ export function registerRoutes(app: Express): Server {
       console.log(`${req.method} ${req.path} ${res.statusCode} - ${duration}ms`);
     });
     next();
-  });
-
-  // Authentication routes
-  app.post("/api/auth/login", (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate('local', (err: any, user: any, info: any) => {
-      if (err) return next(err);
-      if (!user) {
-        return res.status(401).json({ message: info.message || 'Authentication failed' });
-      }
-      req.logIn(user, (err) => {
-        if (err) return next(err);
-        res.json({ user });
-      });
-    })(req, res, next);
-  });
-
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.logout(() => {
-      res.json({ message: 'Logged out successfully' });
-    });
   });
 
   // Basic health check
