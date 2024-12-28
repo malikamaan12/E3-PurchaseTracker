@@ -83,7 +83,6 @@ export const purchaseRequests = pgTable("purchase_requests", {
   contactPerson: text("contact_person").notNull(),
   contact_number: text("contact_number").notNull(),
   accountNumber: text("account_number").notNull(),
-  purpose: text("purpose").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
@@ -304,9 +303,6 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     .min(1, "Account number is required")
     .max(50, "Account number cannot exceed 50 characters")
     .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
-  purpose: z.string()
-    .min(1, "Purpose is required")
-    .max(200, "Purpose cannot exceed 200 characters"),
   purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
     required_error: "Purpose type is required",
     invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"

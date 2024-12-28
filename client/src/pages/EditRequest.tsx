@@ -66,16 +66,15 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       items: [],
       companyName: "",
       contactPerson: "",
-      contact_number: "", 
+      contact_number: "",
       accountNumber: "",
-      purpose: "", 
       purposeType: "event",
       subPurposeId: undefined,
       priority: "medium",
       currency: "QAR",
       status: "draft",
-      totalEstimatedCost: "0",
-      freightAmount: "0",
+      totalEstimatedCost: 0,
+      freightAmount: 0,
     },
   });
 
@@ -110,7 +109,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         contactPerson: request.contactPerson || "",
         contact_number: request.contact_number || "", 
         accountNumber: request.accountNumber || "",
-        purpose: request.purpose || "", 
         purposeType: request.purposeType || "event",
         subPurposeId: request.subPurposeId,
         priority: request.priority || "medium",
@@ -165,7 +163,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         freightAmount: freightAmount.toString(),
         totalEstimatedCost: calculateTotalCost().toString(),
         contact_number: values.contact_number?.trim(), 
-        purpose: values.purpose?.trim(), 
       };
 
       await updateRequest({
@@ -278,23 +275,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
                   <FormField
                     control={form.control}
-                    name="purpose"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Purpose</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
@@ -327,10 +307,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="event">Event</SelectItem>
-                              <SelectItem value="project">Project</SelectItem>
-                              <SelectItem value="mall">Mall</SelectItem>
-                              <SelectItem value="business_growth">Business Growth</SelectItem>
+                              <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
+                              <SelectItem value="PROJECT">Project</SelectItem>
+                              <SelectItem value="MALL">Mall</SelectItem>
+                              <SelectItem value="BUSINESS GROWTH">Business Growth</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
