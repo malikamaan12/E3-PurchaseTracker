@@ -18,7 +18,7 @@ declare global {
       email: string;
       department: string;
       role: string;
-      contactNumber: string;
+      contact_number: string;
     }
   }
 }
@@ -55,7 +55,7 @@ export async function setupAuth(app: Express) {
 
   console.log('Configuring LocalStrategy...');
 
-  // Configure LocalStrategy with improved error handling
+  // Configure LocalStrategy with improved error handling and proper field names
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
@@ -78,14 +78,14 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        // Create sanitized user object (without password)
+        // Create sanitized user object (without password) with correct field names
         const sanitizedUser: Express.User = {
           id: user.id,
           username: user.username,
           email: user.email,
           department: user.department,
           role: user.role,
-          contactNumber: user.contactNumber
+          contact_number: user.contact_number
         };
 
         console.log('Authentication successful for user:', username);
@@ -105,6 +105,8 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       console.log('Deserializing user:', id);
+
+      // Use explicit field selection to match Express.User interface
       const [user] = await db
         .select({
           id: users.id,
@@ -112,7 +114,7 @@ export async function setupAuth(app: Express) {
           email: users.email,
           department: users.department,
           role: users.role,
-          contactNumber: users.contactNumber
+          contact_number: users.contact_number
         })
         .from(users)
         .where(eq(users.id, id))
@@ -140,7 +142,7 @@ export async function setupAuth(app: Express) {
   }
 }
 
-// Create or update test user with proper error handling
+// Create or update test user with proper error handling and field names
 export async function createTestUser() {
   try {
     console.log('Attempting to create/update test user');
@@ -161,7 +163,7 @@ export async function createTestUser() {
           email: 'admin@example.com',
           department: 'IT',
           role: 'admin',
-          contactNumber: '123-456-7890'
+          contact_number: '123-456-7890'
         })
         .where(eq(users.id, existingUser.id))
         .returning();
@@ -184,7 +186,7 @@ export async function createTestUser() {
         email: 'admin@example.com',
         department: 'IT',
         role: 'admin',
-        contactNumber: '123-456-7890'
+        contact_number: '123-456-7890'
       })
       .returning();
 

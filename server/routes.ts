@@ -72,7 +72,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: 'Username and password are required' });
       }
 
-      passport.authenticate('local', (err: any, user: Express.User | false, info: any) => {
+      passport.authenticate('local', async (err: any, user: Express.User | false, info: any) => {
         if (err) {
           console.error('Authentication error:', err);
           return next(err);
@@ -96,7 +96,7 @@ export function registerRoutes(app: Express): Server {
               email: user.email,
               department: user.department,
               role: user.role,
-              contactNumber: user.contactNumber
+              contact_number: user.contact_number
             }
           });
         });
@@ -117,17 +117,108 @@ export function registerRoutes(app: Express): Server {
     });
   });
 
-  app.get("/api/auth/user", (req: Request, res: Response) => {
+  app.get("/api/auth/user", async (req: Request, res: Response) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
-      res.json(req.user);
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.user!.id)
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        department: user.department,
+        role: user.role,
+        contact_number: user.contact_number
+      });
     } catch (error) {
       console.error('User fetch error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Account request endpoint with enhanced error handling
+  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      console.log('Processing account request:', req.body);
+      const validationResult = insertAccountRequestSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        console.error('Validation failed:', validationResult.error.issues);
+        return res.status(400).json({
+          message: 'Invalid input',
+          errors: validationResult.error.issues
+        });
+      }
+
+      const { username, password, email, contactNumber, department, role } = validationResult.data;
+
+      // Check if username already exists in users table
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if username already exists in account requests
+      const [existingRequest] = await db
+        .select()
+        .from(accountRequests)
+        .where(eq(accountRequests.username, username))
+        .limit(1);
+
+      if (existingRequest) {
+        console.log('Account request exists for:', username);
+        return res.status(400).json({ message: "An account request with this username is already pending" });
+      }
+
+      // Hash password
+      const hashedPassword = await hash(password, 10);
+
+      // Create account request
+      console.log('Creating account request for:', username);
+      const [newRequest] = await db
+        .insert(accountRequests)
+        .values({
+          username,
+          password: hashedPassword,
+          email,
+          contact_number: contactNumber,
+          department,
+          role,
+          status: 'pending',
+        })
+        .returning();
+
+      console.log('Account request created successfully:', newRequest.username);
+      res.status(201).json({
+        message: "Account request submitted successfully",
+        request: {
+          username: newRequest.username,
+          email: newRequest.email,
+          department: newRequest.department,
+          status: newRequest.status
+        }
+      });
+
+    } catch (error) {
+      console.error('Account request error:', error);
+      next(error);
+    }
+  });
+
 
   // Add request logging middleware
   app.use((req, res, next) => {
@@ -175,68 +266,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account request endpoint with enhanced error handling
-  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      console.log('Processing account request:', req.body);
-      const validationResult = insertAccountRequestSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        console.error('Validation failed:', validationResult.error.issues);
-        return res.status(400).json({
-          message: 'Invalid input',
-          errors: validationResult.error.issues
-        });
-      }
-
-      const { username, password, email, contactNumber, department, role } = validationResult.data;
-
-      // Check if username already exists in account requests
-      const [existingRequest] = await db
-        .select()
-        .from(accountRequests)
-        .where(eq(accountRequests.username, username))
-        .limit(1);
-
-      if (existingRequest) {
-        console.log('Account request exists for:', username);
-        return res.status(400).json({ message: "An account request with this username is already pending" });
-      }
-
-      // Hash password
-      const hashedPassword = await hash(password, 10);
-
-      // Create account request
-      console.log('Creating account request for:', username);
-      const [newRequest] = await db
-        .insert(accountRequests)
-        .values({
-          username,
-          password: hashedPassword,
-          email,
-          contactNumber,
-          department,
-          role,
-          status: 'pending',
-        })
-        .returning();
-
-      console.log('Account request created successfully:', newRequest.username);
-      res.status(201).json({
-        message: "Account request submitted successfully",
-        request: {
-          username: newRequest.username,
-          email: newRequest.email,
-          department: newRequest.department,
-          status: newRequest.status
-        }
-      });
-
-    } catch (error) {
-      console.error('Account request error:', error);
-      next(error);
-    }
-  });
 
   // Purchase requests endpoints with file upload
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
@@ -448,6 +477,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
 
   // Error handling middleware
