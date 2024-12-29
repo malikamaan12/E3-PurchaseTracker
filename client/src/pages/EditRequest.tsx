@@ -58,6 +58,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const [items, setItems] = useState<RequestItem[]>([]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
 
+  const { data: request, isLoading } = useRequest(parseInt(params.id));
+
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
@@ -77,8 +79,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       freightAmount: 0,
     },
   });
-
-  const { data: request, isLoading } = useRequest(parseInt(params.id));
 
   useEffect(() => {
     if (request) {
@@ -102,20 +102,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       setFreightAmount(Number(request.freightAmount) || 0);
 
       form.reset({
-        title: request.title || "",
-        description: request.description || "",
+        ...request,
         items: formattedItems,
-        companyName: request.companyName || "",
-        contactPerson: request.contactPerson || "",
-        contact_number: request.contact_number || "", 
-        accountNumber: request.accountNumber || "",
-        purposeType: request.purposeType || "event",
-        subPurposeId: request.subPurposeId,
-        priority: request.priority || "medium",
-        currency: request.currency || "QAR",
-        status: request.status || "draft",
-        totalEstimatedCost: request.totalEstimatedCost?.toString() || "0",
-        freightAmount: request.freightAmount?.toString() || "0",
+        totalEstimatedCost: Number(request.totalEstimatedCost),
+        freightAmount: Number(request.freightAmount),
       });
     }
   }, [request, form]);
