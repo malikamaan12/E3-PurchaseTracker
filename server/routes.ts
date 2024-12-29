@@ -166,18 +166,30 @@ export function registerRoutes(app: Express): Server {
           createdAt: subPurposes.created_at,
           updatedAt: subPurposes.updated_at
         })
-        .from(subPurposes);
+        .from(subPurposes)
+        .orderBy(desc(subPurposes.created_at));
 
       if (purposeType) {
         query = query.where(eq(subPurposes.purpose_type, purposeType as string));
       }
 
-      const allSubPurposes = await query.orderBy(desc(subPurposes.created_at));
-      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
-      res.json(allSubPurposes);
+      const results = await query;
+
+      // Transform the dates into proper format or null
+      const formattedResults = results.map(sp => ({
+        ...sp,
+        validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
+        validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
+        purposeType: sp.purposeType || 'Unknown', // Ensure purposeType is never undefined
+        createdAt: new Date(sp.createdAt).toISOString(),
+        updatedAt: new Date(sp.updatedAt).toISOString()
+      }));
+
+      debug(req, `Found ${formattedResults.length} sub-purposes`);
+      res.json(formattedResults);
     } catch (error) {
       debug(req, 'Error fetching sub-purposes:', error);
-      next(new DatabaseError('Failed to fetch sub-purposes'));
+      next(error);
     }
   });
 
@@ -187,7 +199,7 @@ export function registerRoutes(app: Express): Server {
     res.json(purposeTypes);
   });
 
-  // Enhanced sub-purpose creation endpoint with proper date handling and field mapping
+  // Enhanced sub-purpose creation endpoint
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
@@ -196,41 +208,38 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Creating new sub-purpose - Raw request body:', req.body);
 
-      // Transform frontend field names to match database schema
-      const requestData = {
-        name: req.body.name,
-        purpose_type: req.body.purposeType || req.body.purpose_type, // Accept both formats
-        is_frozen: req.body.isFrozen || req.body.is_frozen || false,
-        valid_from: req.body.validFrom || req.body.valid_from ? new Date(req.body.validFrom || req.body.valid_from) : null,
-        valid_to: req.body.validTo || req.body.valid_to ? new Date(req.body.validTo || req.body.valid_to) : null,
-      };
+      const validPurposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
+      const purposeType = req.body.purposeType || req.body.purpose_type;
 
-      debug(req, 'Transformed request data:', requestData);
-
-      // Validate the purpose_type is one of the allowed values
-      if (!["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"].includes(requestData.purpose_type)) {
+      if (!purposeType || !validPurposeTypes.includes(purposeType)) {
         throw new ValidationError('Invalid purpose type', {
           details: {
-            allowed: ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"],
-            received: requestData.purpose_type
+            allowed: validPurposeTypes,
+            received: purposeType
           }
         });
       }
 
-      const validationResult = insertSubPurposeSchema.safeParse(requestData);
+      // Parse and validate dates
+      const validFrom = req.body.validFrom || req.body.valid_from;
+      const validTo = req.body.validTo || req.body.valid_to;
 
-      if (!validationResult.success) {
-        debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid sub-purpose data', {
-          errors: validationResult.error.errors
-        });
-      }
+      const requestData = {
+        name: req.body.name,
+        purpose_type: purposeType,
+        is_frozen: req.body.isFrozen || req.body.is_frozen || false,
+        valid_from: validFrom ? new Date(validFrom) : null,
+        valid_to: validTo ? new Date(validTo) : null,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
 
-      debug(req, 'Validation successful, inserting sub-purpose');
+      debug(req, 'Transformed request data:', requestData);
 
+      // Validate the data
       const [newSubPurpose] = await db
         .insert(subPurposes)
-        .values(validationResult.data)
+        .values(requestData)
         .returning();
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
@@ -980,11 +989,10 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       debug(req, 'Error fetching branding settings:', error);
       next(error);
-    }
-  });
+    }  });
 
   // Update company branding settings
-  app.post("/api/branding", async (req: Request, res: ResponseNextFunction) => {
+  app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AuthorizationError('Admin access required');
