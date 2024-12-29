@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface ApprovalFlowProps {
-  approvals: (Approval & { approver: User })[];
+  approvals: (Approval & { approver?: User })[];  // Make approver optional
   requestId: number;
   requesterId: number;
   status: string;
@@ -135,7 +135,7 @@ export default function ApprovalFlow({
       acc.push(curr);
     }
     return acc;
-  }, [] as (Approval & { approver: User })[]);
+  }, [] as (Approval & { approver?: User })[]);
 
   // Sort approvals: mandatory first, then by status (pending first)
   const sortedApprovals = uniqueApprovals.sort((a, b) => {
@@ -166,7 +166,8 @@ export default function ApprovalFlow({
                       )}
                     </div>
                     <p className="text-sm text-gray-500">
-                      {approval.approver.username}
+                      {/* Add conditional rendering for approver username */}
+                      {approval.approver?.username || 'Unknown Approver'}
                     </p>
                   </div>
                 </div>
