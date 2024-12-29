@@ -982,8 +982,7 @@ export function registerRoutes(app: Express): Server {
           startDate.setHours(now.getHours() - 24);
           break;
         case '7d':
-          startDate.setDate(now.getDate() - 7);
-          break;
+          startDate.setDate(now.getDate() - 7);          break;
         case '30d':
           startDate.setDate(now.getDate() - 30);
           break;
@@ -1265,22 +1264,14 @@ export function registerRoutes(app: Express): Server {
     try {
       debug(req, 'Updating company branding settings');
 
-      const {
-        companyName,
-        headerStyle,
-        primaryColor,
-        secondaryColor,
-        accentColor,
-        footerText
-      } = req.body;
+      // Check if any branding settings exist
+      const [existingBranding] = await db
+        .select()
+        .from(companyBranding)
+        .limit(1);
 
-      // Validate required fields
-      if (!companyName) {
-        throw new ValidationError('Company name is required');
-      }
-
-      let logoData = null;
-      let logoMimeType = null;
+      let logoData = existingBranding?.logo;
+      let logoMimeType = existingBranding?.logoMimeType;
 
       // Handle logo file if uploaded
       if (req.file) {
@@ -1302,38 +1293,39 @@ export function registerRoutes(app: Express): Server {
         await fs.promises.unlink(req.file.path);
       }
 
-      // Update or insert branding settings
-      const [settings] = await db
-        .insert(companyBranding)
-        .values({
-          companyName,
-          headerStyle: headerStyle || 'modern',
-          primaryColor: primaryColor || '#71569E',
-          secondaryColor: secondaryColor || '#F0F0FA',
-          accentColor: accentColor || '#191160',
-          footerText,
-          logo: logoData,
-          logoMimeType,
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: companyBranding.id,
-          set: {
-            companyName,
-            headerStyle: headerStyle || 'modern',
-            primaryColor: primaryColor || '#71569E',
-            secondaryColor: secondaryColor || '#F0F0FA',
-            accentColor: accentColor || '#191160',
-            footerText,
-            logo: logoData,
-            logoMimeType,
-            updatedAt: new Date()
-          }
-        })
-        .returning();
+      const brandingData = {
+        companyName: req.body.companyName,
+        headerStyle: req.body.headerStyle || 'modern',
+        primaryColor: req.body.primaryColor || '#71569E',
+        secondaryColor: req.body.secondaryColor || '#F0F0FA',
+        accentColor: req.body.accentColor || '#191160',
+        footerText: req.body.footerText,
+        logo: logoData,
+        logoMimeType,
+        updatedAt: new Date()
+      };
+
+      let result;
+      if (existingBranding) {
+        // Update existing record
+        [result] = await db
+          .update(companyBranding)
+          .set(brandingData)
+          .where(eq(companyBranding.id, existingBranding.id))
+          .returning();
+      } else {
+        // Insert new record
+        [result] = await db
+          .insert(companyBranding)
+          .values({
+            ...brandingData,
+            createdAt: new Date()
+          })
+          .returning();
+      }
 
       debug(req, 'Successfully updated branding settings');
-      res.status(200).json(settings);
+      res.status(200).json(result);
     } catch (error) {
       debug(req, 'Error updating branding settings:', error);
       next(error);
