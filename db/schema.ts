@@ -206,7 +206,16 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
 
 // ============= Basic Type Definitions =============
 export type User = InferModel<typeof users>;
-export type SubPurpose = typeof subPurposes.$inferSelect;
+export type SubPurpose = {
+  id: number;
+  name: string;
+  purpose_type: string;
+  is_frozen: boolean;
+  valid_from: Date | null;
+  valid_to: Date | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
@@ -252,6 +261,8 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   is_frozen: z.boolean().default(false),
   valid_from: z.coerce.date().optional().nullable(),
   valid_to: z.coerce.date().optional().nullable(),
+  created_at: z.coerce.date().optional(),
+  updated_at: z.coerce.date().optional()
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {

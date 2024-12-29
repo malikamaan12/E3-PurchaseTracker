@@ -264,6 +264,17 @@ export default function AdminPanel() {
     },
   });
 
+  // Update the form submission handler
+  const handleSubmit = form.handleSubmit((data) => {
+    // Format dates properly before submission
+    const formattedData = {
+      ...data,
+      valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : null,
+      valid_to: data.valid_to ? new Date(data.valid_to).toISOString() : null,
+    };
+    createSubPurpose.mutate(formattedData);
+  });
+
   return (
     <div className="container mx-auto py-8">
       <Button
@@ -457,24 +468,32 @@ export default function AdminPanel() {
                     {subPurposes.map((subPurpose) => (
                       <TableRow key={subPurpose.id}>
                         <TableCell>{subPurpose.name}</TableCell>
-                        <TableCell>{subPurpose.purposeType}</TableCell>
+                        <TableCell>{subPurpose.purpose_type}</TableCell>
                         <TableCell>
                           <Badge className={cn(
-                            subPurpose.isFrozen
+                            subPurpose.is_frozen
                               ? "bg-red-100 text-red-800"
                               : "bg-green-100 text-green-800"
                           )}>
-                            {subPurpose.isFrozen ? "Frozen" : "Active"}
+                            {subPurpose.is_frozen ? "Frozen" : "Active"}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {subPurpose.validFrom
-                            ? new Date(subPurpose.validFrom).toLocaleDateString()
+                          {subPurpose.valid_from
+                            ? new Date(subPurpose.valid_from).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })
                             : "N/A"}
                         </TableCell>
                         <TableCell>
-                          {subPurpose.validTo
-                            ? new Date(subPurpose.validTo).toLocaleDateString()
+                          {subPurpose.valid_to
+                            ? new Date(subPurpose.valid_to).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })
                             : "N/A"}
                         </TableCell>
                         <TableCell>
@@ -484,17 +503,17 @@ export default function AdminPanel() {
                             onClick={() =>
                               toggleSubPurposeFreeze.mutate({
                                 id: subPurpose.id,
-                                isFrozen: !subPurpose.isFrozen,
+                                isFrozen: !subPurpose.is_frozen,
                               })
                             }
                             className={cn(
                               "flex items-center",
-                              subPurpose.isFrozen
+                              subPurpose.is_frozen
                                 ? "text-green-500 hover:text-green-700"
                                 : "text-red-500 hover:text-red-700"
                             )}
                           >
-                            {subPurpose.isFrozen ? "Unfreeze" : "Freeze"}
+                            {subPurpose.is_frozen ? "Unfreeze" : "Freeze"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -514,15 +533,7 @@ export default function AdminPanel() {
                   </DialogHeader>
 
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit((data) => {
-                      // Format dates properly before submission
-                      const formattedData = {
-                        ...data,
-                        valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : undefined,
-                        valid_to: data.valid_to ? new Date(data.valid_to).toISOString() : undefined,
-                      };
-                      createSubPurpose.mutate(formattedData);
-                    })} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                       <FormField
                         control={form.control}
                         name="name"
