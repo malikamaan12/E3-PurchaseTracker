@@ -16,7 +16,8 @@ import {
   insertErrorLogSchema,
   type PurchaseApprover,
   insertPurchaseRequestSchema,
-  insertSubPurposeSchema
+  insertSubPurposeSchema,
+  companyBranding
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -24,6 +25,7 @@ import { hash } from 'bcrypt';
 import { setupAuth } from './auth';
 import { z } from 'zod';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -1235,6 +1237,105 @@ export function registerRoutes(app: Express): Server {
 
       res.json({ message: 'Notification marked as read' });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get company branding settings
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Fetching company branding settings');
+
+      const [settings] = await db
+        .select()
+        .from(companyBranding)
+        .orderBy(desc(companyBranding.updatedAt))
+        .limit(1);
+
+      debug(req, 'Found branding settings:', settings);
+      res.json(settings || {});
+    } catch (error) {
+      debug(req, 'Error fetching branding settings:', error);
+      next(error);
+    }
+  });
+
+  // Update company branding settings
+  app.post("/api/branding", upload.single('logo'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Updating company branding settings');
+
+      const {
+        companyName,
+        headerStyle,
+        primaryColor,
+        secondaryColor,
+        accentColor,
+        footerText
+      } = req.body;
+
+      // Validate required fields
+      if (!companyName) {
+        throw new ValidationError('Company name is required');
+      }
+
+      let logoData = null;
+      let logoMimeType = null;
+
+      // Handle logo file if uploaded
+      if (req.file) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+        if (!allowedTypes.includes(req.file.mimetype)) {
+          throw new ValidationError('Invalid file type. Only JPEG, PNG and SVG files are allowed.');
+        }
+
+        if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
+          throw new ValidationError('Logo file size must be less than 5MB');
+        }
+
+        // Read file and convert to base64
+        const fileBuffer = await fs.promises.readFile(req.file.path);
+        logoData = fileBuffer.toString('base64');
+        logoMimeType = req.file.mimetype;
+
+        // Clean up uploaded file
+        await fs.promises.unlink(req.file.path);
+      }
+
+      // Update or insert branding settings
+      const [settings] = await db
+        .insert(companyBranding)
+        .values({
+          companyName,
+          headerStyle: headerStyle || 'modern',
+          primaryColor: primaryColor || '#71569E',
+          secondaryColor: secondaryColor || '#F0F0FA',
+          accentColor: accentColor || '#191160',
+          footerText,
+          logo: logoData,
+          logoMimeType,
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: companyBranding.id,
+          set: {
+            companyName,
+            headerStyle: headerStyle || 'modern',
+            primaryColor: primaryColor || '#71569E',
+            secondaryColor: secondaryColor || '#F0F0FA',
+            accentColor: accentColor || '#191160',
+            footerText,
+            logo: logoData,
+            logoMimeType,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+
+      debug(req, 'Successfully updated branding settings');
+      res.status(200).json(settings);
+    } catch (error) {
+      debug(req, 'Error updating branding settings:', error);
       next(error);
     }
   });
