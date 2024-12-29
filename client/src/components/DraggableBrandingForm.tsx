@@ -9,6 +9,17 @@ import { Loader2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import BrandingPreview from "./BrandingPreview";
 
+interface BrandingData {
+  companyName?: string;
+  logo?: string;
+  logoMimeType?: string;
+  headerStyle?: "modern" | "classic" | "minimal";
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  footerText?: string;
+}
+
 type ColorSwatch = {
   id: string;
   color: string;
@@ -44,22 +55,37 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
   const [logoMimeType, setLogoMimeType] = useState<string | null>(null);
   const [colorSwatches, setColorSwatches] = useState<ColorSwatch[]>(defaultColors);
   const [selectedStyle, setSelectedStyle] = useState<StyleOption>(styleOptions[0]);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BrandingData>({
     companyName: "",
-    headerStyle: "modern" as "modern" | "classic" | "minimal",
+    headerStyle: "modern",
     primaryColor: "#71569E",
     secondaryColor: "#F0F0FA",
     accentColor: "#191160",
     footerText: "",
   });
 
-  const { data: branding, isLoading } = useQuery({
+  const { data: branding, isLoading } = useQuery<BrandingData>({
     queryKey: ["/api/branding"],
+    onSuccess: (data) => {
+      if (data) {
+        setFormData({
+          companyName: data.companyName || "",
+          headerStyle: data.headerStyle || "modern",
+          primaryColor: data.primaryColor || "#71569E",
+          secondaryColor: data.secondaryColor || "#F0F0FA",
+          accentColor: data.accentColor || "#191160",
+          footerText: data.footerText || "",
+        });
+        if (data.logo) {
+          setLogoPreview(data.logo);
+          setLogoMimeType(data.logoMimeType || "image/png");
+        }
+      }
+    },
   });
 
   const updateBranding = useMutation({
     mutationFn: async (formData: FormData) => {
-      console.log("Submitting form data:", Object.fromEntries(formData));
       const response = await fetch("/api/branding", {
         method: "POST",
         body: formData,
@@ -68,7 +94,6 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error response:", errorText);
         throw new Error(errorText || 'Failed to update branding');
       }
 
@@ -82,7 +107,6 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       onSuccess?.();
     },
     onError: (error: Error) => {
-      console.error("Mutation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update branding settings",
@@ -99,7 +123,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       const [reorderedItem] = items.splice(result.source.index, 1);
       items.splice(result.destination.index, 0, reorderedItem);
       setColorSwatches(items);
-      
+
       // Update form data with new color order
       const newFormData = {
         ...formData,
@@ -158,9 +182,24 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    updateBranding.mutate(formData);
+    const formDataToSend = new FormData();
+
+    // Add all form fields to FormData
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        formDataToSend.append(key, value.toString());
+      }
+    });
+
+    // Add logo if changed
+    if (logoPreview) {
+      formDataToSend.append('logo', logoPreview);
+      if (logoMimeType) {
+        formDataToSend.append('logoMimeType', logoMimeType);
+      }
+    }
+
+    updateBranding.mutate(formDataToSend);
   };
 
   if (isLoading) {
@@ -184,7 +223,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
                 <Label>Company Name *</Label>
                 <Input
                   name="companyName"
-                  defaultValue={branding?.companyName}
+                  value={formData.companyName}
                   placeholder="Enter company name"
                   required
                   onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
@@ -319,7 +358,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
                 <Label>Footer Text</Label>
                 <Input
                   name="footerText"
-                  defaultValue={branding?.footerText}
+                  value={formData.footerText}
                   placeholder="Enter custom footer text"
                   onChange={(e) => setFormData(prev => ({ ...prev, footerText: e.target.value }))}
                 />

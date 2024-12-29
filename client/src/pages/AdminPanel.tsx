@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import CompanyBrandingForm from "@/components/CompanyBrandingForm";
+import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
 import {
   Card,
@@ -641,17 +641,17 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
-        {/* Branding Tab */}
+        {/* Branding Tab - Updated with DraggableBrandingForm */}
         <TabsContent value="branding">
           <Card>
             <CardHeader>
               <CardTitle>Company Branding</CardTitle>
               <CardDescription>
-                Customize company branding, logo, and PDF templates
+                Customize your company branding with an intuitive drag and drop interface
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CompanyBrandingForm />
+              <DraggableBrandingForm />
             </CardContent>
           </Card>
         </TabsContent>
