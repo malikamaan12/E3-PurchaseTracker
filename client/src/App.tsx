@@ -8,7 +8,7 @@ import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
-import { NotFound } from "./components/NotFound";
+import { NotFound } from "@/components/NotFound";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -32,7 +32,6 @@ function App() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/new-request" component={NewRequest} />
-      {/* Ensure the request ID parameter is handled properly */}
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
       {/* Add admin routes with proper access control */}

@@ -22,6 +22,18 @@ const isRetryableError = (error: unknown): boolean => {
   return false;
 };
 
+// Add logging for debugging purposes
+const logQueryError = (error: unknown, url: string) => {
+  console.error('Query error:', {
+    url,
+    error: error instanceof Error ? {
+      message: error.message,
+      stack: error.stack
+    } : String(error),
+    timestamp: new Date().toISOString()
+  });
+};
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -32,6 +44,7 @@ export const queryClient = new QueryClient({
         }
 
         try {
+          console.log(`[Query] Fetching: ${url}`);
           const res = await fetch(url, {
             credentials: "include",
             headers: {
@@ -42,10 +55,16 @@ export const queryClient = new QueryClient({
 
           if (!res.ok) {
             const errorData = await res.json().catch(() => null);
+            console.log(`[Query] Error response:`, { status: res.status, errorData });
 
             // Handle 404 errors specifically for request routes
-            if (res.status === 404 && url.includes('/api/requests/')) {
-              throw new Error('Request not found');
+            if (res.status === 404) {
+              if (url.includes('/api/requests/')) {
+                throw new Error('Request not found');
+              }
+              if (url.includes('/api/notifications/')) {
+                throw new Error('Notification not found');
+              }
             }
 
             const errorMessage = errorData?.message || `${res.status}: ${res.statusText}`;
@@ -59,12 +78,10 @@ export const queryClient = new QueryClient({
           }
 
           const data = await res.json();
+          console.log(`[Query] Success:`, { url, dataShape: Object.keys(data) });
           return data;
         } catch (error) {
-          console.error('Query error:', {
-            url,
-            error: error instanceof Error ? error.message : String(error)
-          });
+          logQueryError(error, url);
 
           // Show user-friendly error message
           toast({
@@ -88,6 +105,7 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       onError: (error) => {
+        logQueryError(error, 'mutation');
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "An error occurred",
@@ -101,14 +119,17 @@ export const queryClient = new QueryClient({
 // Cache invalidation helper
 export const invalidateQueries = async (queryKey: string | string[]) => {
   const keys = Array.isArray(queryKey) ? queryKey : [queryKey];
+  console.log('[Cache] Invalidating queries:', keys);
   await Promise.all(
     keys.map(key => queryClient.invalidateQueries({ queryKey: [key] }))
   );
 };
 
 export const prefetchQuery = async (queryKey: string | string[]) => {
+  const keys = Array.isArray(queryKey) ? queryKey : [queryKey];
+  console.log('[Cache] Prefetching queries:', keys);
   await queryClient.prefetchQuery({
-    queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
+    queryKey: keys,
     staleTime: 30 * 1000,
   });
 };
@@ -116,12 +137,14 @@ export const prefetchQuery = async (queryKey: string | string[]) => {
 // Helper to handle API errors consistently
 export const handleQueryError = (error: unknown) => {
   if (error instanceof Error) {
+    console.error('[Error Handler]', error);
     toast({
       title: "Error",
       description: error.message,
       variant: "destructive",
     });
   } else {
+    console.error('[Error Handler] Unknown error:', error);
     toast({
       title: "Error",
       description: "An unexpected error occurred",
