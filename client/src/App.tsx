@@ -8,6 +8,7 @@ import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
+import BrandingPage from "./pages/BrandingPage";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -33,25 +34,26 @@ function App() {
       <Route path="/new-request" component={NewRequest} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
+      <Route path="/notifications" component={Dashboard} />
+      <Route path="/notifications/:id" component={Dashboard} />
       {user.role === "admin" && (
         <>
           <Route path="/admin" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
+          <Route path="/admin/branding" component={BrandingPage} />
         </>
       )}
-      <Route component={NotFound} />
+      <Route>
+        {() => (
+          <div className="flex items-center justify-center min-h-screen p-4 bg-background">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
+              <p className="text-muted-foreground">Page not found</p>
+            </div>
+          </div>
+        )}
+      </Route>
     </Switch>
-  );
-}
-
-function NotFound() {
-  return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
-        <p className="text-muted-foreground">Page not found</p>
-      </div>
-    </div>
   );
 }
 
