@@ -3,13 +3,13 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import multer from "multer";
 import path from "path";
-import { 
-  users, 
-  notifications, 
-  accountRequests, 
+import {
+  users,
+  notifications,
+  accountRequests,
   purchaseRequests,
   subPurposes,
-  insertAccountRequestSchema, 
+  insertAccountRequestSchema,
   approvals,
   purchaseApprovers,
   errorLogs,
@@ -26,6 +26,12 @@ import { setupAuth } from './auth';
 import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import { Anthropic } from '@anthropic-ai/sdk';
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -44,7 +50,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
@@ -403,7 +409,7 @@ export function registerRoutes(app: Express): Server {
 
       // Create notifications for admins and approvers
       const createNotifications = async () => {
-        const notificationPromises = [...admins, ...approvers].map(user => 
+        const notificationPromises = [...admins, ...approvers].map(user =>
           db.insert(notifications).values({
             userId: user.id,
             title: 'New Account Request',
@@ -521,7 +527,7 @@ export function registerRoutes(app: Express): Server {
       const requestId = parseInt(req.params.requestId);
       const { status, comments, department } = req.body;
 
-      debug(req, 'Creating approval with data:', { 
+      debug(req, 'Creating approval with data:', {
         requestId,
         status,
         comments,
@@ -538,9 +544,9 @@ export function registerRoutes(app: Express): Server {
 
       // Validate department matches user's department
       if (department !== req.user?.department) {
-        debug(req, 'Department mismatch:', { 
-          providedDepartment: department, 
-          userDepartment: req.user?.department 
+        debug(req, 'Department mismatch:', {
+          providedDepartment: department,
+          userDepartment: req.user?.department
         });
         throw new ValidationError('Department must match user department');
       }
@@ -594,7 +600,7 @@ export function registerRoutes(app: Express): Server {
       if (req.user?.department === "Finance" && status === "approved") {
         await db
           .update(purchaseRequests)
-          .set({ 
+          .set({
             isLocked: true,
             status: "approved",
             updatedAt: new Date()
@@ -605,7 +611,7 @@ export function registerRoutes(app: Express): Server {
       } else if (status === "rejected") {
         await db
           .update(purchaseRequests)
-          .set({ 
+          .set({
             status: "rejected",
             updatedAt: new Date()
           })
@@ -615,7 +621,7 @@ export function registerRoutes(app: Express): Server {
       } else if (status === "changes_requested") {
         await db
           .update(purchaseRequests)
-          .set({ 
+          .set({
             status: "changes_requested",
             isLocked: false,
             updatedAt: new Date()
@@ -789,7 +795,7 @@ export function registerRoutes(app: Express): Server {
       // Update user password
       const [updatedUser] = await db
         .update(users)
-        .set({ 
+        .set({
           password: hashedPassword,
           updatedAt: new Date()
         })
@@ -914,8 +920,8 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       const canDelete = !purchaseRequest;
-      const reason = purchaseRequest 
-        ? 'Cannot delete user with associated purchase requests. Please deactivate instead.' 
+      const reason = purchaseRequest
+        ? 'Cannot delete user with associated purchase requests. Please deactivate instead.'
         : null;
 
       res.json({ canDelete, reason });
@@ -1088,7 +1094,8 @@ export function registerRoutes(app: Express): Server {
           startDate.setHours(now.getHours() - 24);
           break;
         case '7d':
-          startDate.setDate(now.getDate() - 7);          break;
+          startDate.setDate(now.getDate() - 7);
+          break;
         case '30d':
           startDate.setDate(now.getDate() - 30);
           break;
@@ -1133,7 +1140,7 @@ export function registerRoutes(app: Express): Server {
         .groupBy(errorLogs.severity)
         .orderBy(errorLogs.severity);
 
-            // Get recent errors with AI analysis
+      // Get recent errors with AI analysis
       const recentErrors = await db
         .select()
         .from(errorLogs)
@@ -1159,10 +1166,11 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       debug(req, 'Error fetching error analytics:', error);
-      next(error);    }
+      next(error);
+    }
   });
 
-  app.post("/api/analytics/errors", async (req: Request,res: Response, next: NextFunction) => {
+  app.post("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { message, code, severity, path, details, aiAnalysis } = req.body;
 
@@ -1346,7 +1354,59 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Rest of your routes...
+  // Add mood board generation endpoint
+  app.post("/api/branding/generate-mood-board", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
+
+      if (!companyName || !primaryColor) {
+        throw new ValidationError('Company name and primary color are required');
+      }
+
+      const prompt = `Create a brand mood board for a company named "${companyName}". 
+        The brand colors are:
+        - Primary: ${primaryColor}
+        - Secondary: ${secondaryColor || 'not specified'}
+        - Accent: ${accentColor || 'not specified'}
+
+        Generate a mood board that reflects the company's brand identity, incorporating these colors
+        and creating a cohesive visual theme. The mood board should include elements that represent
+        the brand's personality and values.`;
+
+      const message = await anthropic.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 4096,
+        messages: [{
+          role: "user",
+          content: prompt
+        }],
+      });
+
+      const suggestions = message.content[0].text;
+
+      res.json({
+        success: true,
+        suggestions,
+        moodBoard: {
+          companyName,
+          colors: {
+            primary: primaryColor,
+            secondary: secondaryColor,
+            accent: accentColor
+          },
+          timestamp: new Date().toISOString()
+        }
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Create and return the HTTP server
   const httpServer = createServer(app);
   return httpServer;

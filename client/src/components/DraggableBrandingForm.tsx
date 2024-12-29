@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import BrandingPreview from "./BrandingPreview";
+import BrandMoodBoardGenerator from "./BrandMoodBoardGenerator"; // Import the new component
 
 interface BrandingData {
   companyName?: string;
@@ -240,7 +241,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
                       className="h-16 w-16 object-contain"
                     />
                   )}
-                  <div 
+                  <div
                     className="border-2 border-dashed border-gray-300 rounded-lg p-4 w-full hover:border-primary cursor-pointer"
                     onClick={() => document.getElementById('logo-input')?.click()}
                   >
@@ -380,16 +381,25 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       </DragDropContext>
 
       {/* Preview Panel */}
-      <BrandingPreview
-        logo={logoPreview || branding?.logo || null}
-        logoMimeType={logoMimeType || branding?.logoMimeType}
-        headerStyle={formData.headerStyle}
-        companyName={formData.companyName || branding?.companyName || "Company Name"}
-        primaryColor={formData.primaryColor}
-        secondaryColor={formData.secondaryColor}
-        accentColor={formData.accentColor}
-        footerText={formData.footerText || branding?.footerText}
-      />
+      <div className="space-y-6">
+        <BrandingPreview
+          logo={logoPreview || branding?.logo || null}
+          logoMimeType={logoMimeType || branding?.logoMimeType}
+          headerStyle={formData.headerStyle}
+          companyName={formData.companyName || branding?.companyName || "Company Name"}
+          primaryColor={formData.primaryColor}
+          secondaryColor={formData.secondaryColor}
+          accentColor={formData.accentColor}
+          footerText={formData.footerText || branding?.footerText}
+        />
+
+        <BrandMoodBoardGenerator
+          companyName={formData.companyName}
+          primaryColor={formData.primaryColor}
+          secondaryColor={formData.secondaryColor}
+          accentColor={formData.accentColor}
+        />
+      </div>
     </div>
   );
 }
