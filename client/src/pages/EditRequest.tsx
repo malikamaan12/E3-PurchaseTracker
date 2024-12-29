@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useRequest } from "@/hooks/use-request";
 import {
   Form,
   FormControl,
@@ -28,6 +28,7 @@ import {
   insertPurchaseRequestSchema,
   type PurchaseRequest
 } from "@db/schema";
+import { updateRequest } from "@/services/requests";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 
@@ -53,7 +54,6 @@ const priorities = [
 
 export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
-  const { updateRequest, getRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState<RequestItem[]>([]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
@@ -78,7 +78,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     },
   });
 
-  const { data: request, isLoading } = getRequest(parseInt(params.id));
+  const { data: request, isLoading } = useRequest(parseInt(params.id));
 
   useEffect(() => {
     if (request) {
