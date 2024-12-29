@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Search, ChevronRight } from "lucide-react";
 import type { ErrorSeverity } from "@/lib/errorUtils";
+import ErrorProgressTracker from "./ErrorProgressTracker";
 
 interface ErrorCode {
   code: string;
@@ -74,6 +75,7 @@ const severityColors = {
 export default function ErrorLookupGuide() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedError, setSelectedError] = useState<ErrorCode | null>(null);
+  const [resolutionStage, setResolutionStage] = useState(1);
 
   const filteredErrors = commonErrorCodes.filter(error =>
     error.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,10 +83,26 @@ export default function ErrorLookupGuide() {
     error.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Auto advance stages for demo purposes
+  const handleErrorSelect = (error: ErrorCode) => {
+    setSelectedError(error);
+    setResolutionStage(1);
+    // Simulate progress through stages
+    const interval = setInterval(() => {
+      setResolutionStage(stage => {
+        if (stage >= 4) {
+          clearInterval(interval);
+          return stage;
+        }
+        return stage + 1;
+      });
+    }, 2000);
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Error Code Lookup Guide</h1>
-      
+
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
         <Input
@@ -104,7 +122,7 @@ export default function ErrorLookupGuide() {
               className={`cursor-pointer transition-all hover:shadow-md ${
                 selectedError?.code === error.code ? 'ring-2 ring-primary' : ''
               }`}
-              onClick={() => setSelectedError(error)}
+              onClick={() => handleErrorSelect(error)}
             >
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between">
@@ -122,47 +140,55 @@ export default function ErrorLookupGuide() {
         </div>
 
         {selectedError ? (
-          <Card className="h-fit">
-            <CardHeader className="p-4">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className={`h-5 w-5 ${severityColors[selectedError.severity].split(" ")[0]}`} />
-                <div>
-                  <CardTitle className="text-lg">{selectedError.title}</CardTitle>
-                  <CardDescription className="font-mono">{selectedError.code}</CardDescription>
+          <div className="space-y-6">
+            <Card className="h-fit">
+              <CardHeader className="p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className={`h-5 w-5 ${severityColors[selectedError.severity].split(" ")[0]}`} />
+                  <div>
+                    <CardTitle className="text-lg">{selectedError.title}</CardTitle>
+                    <CardDescription className="font-mono">{selectedError.code}</CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-sm text-gray-600">{selectedError.description}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-2">Possible Causes</h3>
-                <ul className="space-y-2">
-                  {selectedError.possibleCauses.map((cause, index) => (
-                    <li key={index} className="text-sm text-gray-600 flex items-start">
-                      <ChevronRight className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                      {cause}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Description</h3>
+                  <p className="text-sm text-gray-600">{selectedError.description}</p>
+                </div>
 
-              <div>
-                <h3 className="font-semibold mb-2">Solutions</h3>
-                <ul className="space-y-2">
-                  {selectedError.solutions.map((solution, index) => (
-                    <li key={index} className="text-sm text-gray-600 flex items-start">
-                      <ChevronRight className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                      {solution}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+                <div>
+                  <h3 className="font-semibold mb-2">Possible Causes</h3>
+                  <ul className="space-y-2">
+                    {selectedError.possibleCauses.map((cause, index) => (
+                      <li key={index} className="text-sm text-gray-600 flex items-start">
+                        <ChevronRight className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                        {cause}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Solutions</h3>
+                  <ul className="space-y-2">
+                    {selectedError.solutions.map((solution, index) => (
+                      <li key={index} className="text-sm text-gray-600 flex items-start">
+                        <ChevronRight className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                        {solution}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <ErrorProgressTracker
+              errorCode={selectedError.code}
+              severity={selectedError.severity}
+              currentStage={resolutionStage}
+            />
+          </div>
         ) : (
           <Card className="h-fit">
             <CardContent className="p-8 text-center text-gray-500">
