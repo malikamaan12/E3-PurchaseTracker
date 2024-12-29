@@ -68,6 +68,19 @@ const debug = (req: Request, message: string, data?: any) => {
   console.log(`[${req.id}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 };
 
+async function createNotification(userId: number, title: string, message: string, type: string, linkId: number) {
+    await db.insert(notifications).values({
+        userId,
+        title,
+        message,
+        type,
+        isRead: false,
+        link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`, //Added conditional link generation
+        createdAt: new Date()
+    });
+}
+
+
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
   setupAuth(app);
@@ -542,18 +555,13 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Missing required fields: requestId, status, and department are required');
       }
 
-      // Validate department matches user's department
-      if (department !== req.user?.department) {
-        debug(req, 'Department mismatch:', {
-          providedDepartment: department,
-          userDepartment: req.user?.department
-        });
-        throw new ValidationError('Department must match user department');
-      }
-
-      // Check if request exists
+      // Check if request exists and get requester info
       const [request] = await db
-        .select()
+        .select({
+          id: purchaseRequests.id,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title
+        })
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
         .limit(1);
@@ -561,24 +569,6 @@ export function registerRoutes(app: Express): Server {
       if (!request) {
         throw new AppError('Request not found', 404);
       }
-
-      // Check for existing approval from same department
-      const [existingApproval] = await db
-        .select()
-        .from(approvals)
-        .where(
-          and(
-            eq(approvals.requestId, requestId),
-            eq(approvals.department, department)
-          )
-        )
-        .limit(1);
-
-      if (existingApproval) {
-        throw new ValidationError('Department has already approved/rejected this request');
-      }
-
-      debug(req, 'Creating approval record');
 
       // Create the approval record
       const [approval] = await db
@@ -594,43 +584,39 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      debug(req, 'Approval created:', approval);
+      // Create notification for the requester
+      await createNotification(
+        request.requesterId,
+        `Request ${status}`,
+        `Your request "${request.title}" has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
+        'request',
+        requestId
+      );
 
-      // Handle request status updates based on approval
-      if (req.user?.department === "Finance" && status === "approved") {
-        await db
-          .update(purchaseRequests)
-          .set({
-            isLocked: true,
-            status: "approved",
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
+      // Update request status
+      let requestStatus = status;
+      let isLocked = false;
 
-        debug(req, 'Request locked and approved by Finance');
+      if (department === "Finance" && status === "approved") {
+        isLocked = true;
+        requestStatus = "approved";
       } else if (status === "rejected") {
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: "rejected",
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-        debug(req, 'Request rejected');
+        requestStatus = "rejected";
       } else if (status === "changes_requested") {
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: "changes_requested",
-            isLocked: false,
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-        debug(req, 'Changes requested for request');
+        requestStatus = "changes_requested";
+        isLocked = false;
       }
 
+      await db
+        .update(purchaseRequests)
+        .set({
+          status: requestStatus,
+          isLocked,
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseRequests.id, requestId));
+
+      debug(req, 'Approval created and notification sent:', approval);
       res.status(201).json(approval);
     } catch (error) {
       debug(req, 'Error creating approval:', error);
@@ -998,7 +984,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update company branding settings
-  app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/branding", async (req: Request, res: ResponseNextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AuthorizationError('Admin access required');
