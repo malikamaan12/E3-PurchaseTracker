@@ -149,6 +149,57 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add PUT endpoint for updating requests
+  app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      debug(req, 'Updating request:', { requestId, updateData });
+
+      // Verify the request exists and belongs to the user
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(and(
+          eq(purchaseRequests.id, requestId),
+          eq(purchaseRequests.requesterId, req.user!.id)
+        ))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found or unauthorized', 404);
+      }
+
+      // Prevent updates to locked requests unless it's a status update from an approver
+      if (existingRequest.isLocked && 
+          updateData.status !== 'changes_requested' && 
+          req.user!.role !== 'approver') {
+        throw new AppError('Request is locked', 403);
+      }
+
+      // Update the request
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      debug(req, 'Request updated successfully:', updatedRequest);
+      res.json(updatedRequest);
+    } catch (error) {
+      debug(req, 'Error updating request:', error);
+      next(error);
+    }
+  });
+
   // Enhanced sub-purposes endpoint with proper query building and error handling
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -632,6 +683,7 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+
 
 
   // Account requests management
