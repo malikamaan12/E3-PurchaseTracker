@@ -32,6 +32,13 @@ const severityIcons = {
   info: 'ℹ️'
 } as const;
 
+const severityAnimations = {
+  critical: 'error-bounce-in error-critical',
+  error: 'error-shake',
+  warning: 'error-fade-slide error-warning',
+  info: 'error-fade-slide error-info'
+} as const;
+
 const severityDurations = {
   critical: 10000, // 10 seconds
   error: 7000,     // 7 seconds
@@ -73,12 +80,12 @@ export function visualizeError(context: ErrorContext): void {
     }
   }
 
-  // Show toast notification with appropriate styling
+  // Show toast notification with appropriate styling and animation
   toast({
     title: `${severityIcons[severity]} ${code || severity.toUpperCase()}`,
     description,
     variant: severity === 'critical' ? 'destructive' : 'default',
-    className: `${severityColors[severity]} border-l-4 whitespace-pre-wrap`,
+    className: `${severityColors[severity]} ${severityAnimations[severity]} border-l-4 whitespace-pre-wrap`,
     duration: severityDurations[severity],
   });
 }
