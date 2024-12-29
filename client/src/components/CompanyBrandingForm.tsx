@@ -37,6 +37,7 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
 
   const updateBranding = useMutation({
     mutationFn: async (formData: FormData) => {
+      console.log("Submitting form data:", Object.fromEntries(formData));
       const response = await fetch("/api/branding", {
         method: "POST",
         body: formData,
@@ -44,7 +45,9 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(errorText || 'Failed to update branding');
       }
 
       return response.json();
@@ -57,9 +60,10 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
       onSuccess?.();
     },
     onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update branding settings",
         variant: "destructive",
       });
     },
@@ -67,7 +71,15 @@ export default function CompanyBrandingForm({ onSuccess }: CompanyBrandingFormPr
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    // Log form data for debugging
+    console.log("Form data before submission:");
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+
     updateBranding.mutate(formData);
   };
 
