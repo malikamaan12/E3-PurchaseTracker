@@ -8,6 +8,7 @@ import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
+import { NotFound } from "./components/NotFound";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -31,27 +32,20 @@ function App() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/new-request" component={NewRequest} />
+      {/* Ensure the request ID parameter is handled properly */}
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
+      {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
         <>
           <Route path="/admin" component={AdminPanel} />
+          <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
         </>
       )}
+      {/* 404 route handler */}
       <Route component={NotFound} />
     </Switch>
-  );
-}
-
-function NotFound() {
-  return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
-        <p className="text-muted-foreground">Page not found</p>
-      </div>
-    </div>
   );
 }
 

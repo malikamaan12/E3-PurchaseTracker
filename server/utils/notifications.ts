@@ -2,6 +2,14 @@ import { db } from "@db";
 import { notifications } from "@db/schema";
 import { AppError } from "./errors";
 
+// Define valid notification types and their route patterns
+const NOTIFICATION_ROUTES = {
+  request: (id: number) => `/requests/${id}`,
+  account_request: () => '/admin/account-requests',
+  system: () => '/',
+  default: () => '/'
+} as const;
+
 export async function createNotification(
   userId: number,
   title: string,
@@ -10,6 +18,19 @@ export async function createNotification(
   requestId?: number
 ) {
   try {
+    // Determine the correct link based on notification type
+    let link: string | null = null;
+
+    if (type === 'request' && requestId) {
+      link = NOTIFICATION_ROUTES.request(requestId);
+    } else if (type === 'account_request') {
+      link = NOTIFICATION_ROUTES.account_request();
+    } else if (type === 'system') {
+      link = NOTIFICATION_ROUTES.system();
+    } else {
+      link = NOTIFICATION_ROUTES.default();
+    }
+
     const [notification] = await db
       .insert(notifications)
       .values({
@@ -18,7 +39,7 @@ export async function createNotification(
         message,
         type,
         requestId,
-        link: requestId ? `/requests/${requestId}` : null,
+        link,
         isRead: false,
         createdAt: new Date(),
       })
@@ -35,7 +56,7 @@ export async function cleanupUploads() {
   const uploadDir = 'uploads';
   const fs = await import('fs');
   const path = await import('path');
-  
+
   if (!fs.existsSync(uploadDir)) return;
 
   fs.readdir(uploadDir, (err, files) => {
