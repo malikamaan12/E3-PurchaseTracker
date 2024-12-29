@@ -414,7 +414,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         <div className="w-24">
                           <Input
                             type="number"
-                            min="1"
+                            step="0.01"
+                            min="0.01"
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", e.target.value)}
@@ -424,8 +425,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         <div className="w-32">
                           <Input
                             type="number"
-                            min="0"
                             step="0.01"
+                            min="0.01"
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) => updateItem(index, "estimatedCost", e.target.value)}
