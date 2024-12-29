@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import multer from "multer";
 import path from "path";
+import { setupAuth } from "./auth";
 import {
   users,
   notifications,
@@ -22,7 +23,6 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
 import { hash } from 'bcrypt';
-import { setupAuth } from './auth';
 import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -998,305 +998,57 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update company branding settings
-  app.post("/api/branding", upload.single('logo'), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Updating company branding settings', { body: req.body, file: req.file });
-
-      // Check if any branding settings exist
-      const [existingBranding] = await db
-        .select()
-        .from(companyBranding)
-        .limit(1);
-
-      let logoData = existingBranding?.logo;
-      let logoMimeType = existingBranding?.logoMimeType;
-
-      // Handle logo file if uploaded
-      if (req.file) {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-        if (!allowedTypes.includes(req.file.mimetype)) {
-          throw new ValidationError('Invalid file type. Only JPEG, PNG and SVG files are allowed.');
-        }
-
-        if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
-          throw new ValidationError('Logo file size must be less than 5MB');
-        }
-
-        // Read file and convert to base64
-        const fileBuffer = await fs.promises.readFile(req.file.path);
-        logoData = fileBuffer.toString('base64');
-        logoMimeType = req.file.mimetype;
-
-        // Clean up uploaded file
-        await fs.promises.unlink(req.file.path);
-      }
-
-      const brandingData = {
-        companyName: req.body.companyName,
-        headerStyle: req.body.headerStyle || 'modern',
-        primaryColor: req.body.primaryColor || '#71569E',
-        secondaryColor: req.body.secondaryColor || '#F0F0FA',
-        accentColor: req.body.accentColor || '#191160',
-        footerText: req.body.footerText,
-        logo: logoData,
-        logoMimeType,
-        updatedAt: new Date()
-      };
-
-      debug(req, 'Branding data to save:', brandingData);
-
-      let result;
-      if (existingBranding) {
-        // Update existing record
-        [result] = await db
-          .update(companyBranding)
-          .set(brandingData)
-          .where(eq(companyBranding.id, existingBranding.id))
-          .returning();
-      } else {
-        // Insert new record
-        [result] = await db
-          .insert(companyBranding)
-          .values({
-            ...brandingData,
-            createdAt: new Date()
-          })
-          .returning();
-      }
-
-      debug(req, 'Successfully updated branding settings:', result);
-      res.status(200).json(result);
-    } catch (error) {
-      debug(req, 'Error updating branding settings:', error);
-      // Clean up uploaded file if exists and error occurred
-      if (req.file?.path) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) console.error('Error deleting file:', err);
-        });
-      }
-      next(error);
-    }
-  });
-
-  // Error analytics endpoints
-  app.get("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
+        throw new AuthorizationError('Admin access required');
       }
 
-      const timeRange = req.query.range as string || '7d';
-      const now = new Date();
-      let startDate = new Date();
+      debug(req, 'Updating branding settings:', req.body);
 
-      switch (timeRange) {
-        case '24h':
-          startDate.setHours(now.getHours() - 24);
-          break;
-        case '7d':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case '30d':
-          startDate.setDate(now.getDate() - 30);
-          break;
-        default:
-          startDate.setDate(now.getDate() - 7);
-      }
-
-      // Get error trends
-      const errorTrends = await db
-        .select({
-          date: sql<string>`DATE_TRUNC('day', ${errorLogs.createdAt}::timestamp)::text`,
-          severity: errorLogs.severity,
-          count: sql<number>`COUNT(*)::integer`,
-        })
-        .from(errorLogs)
-        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
-        .groupBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`, errorLogs.severity)
-        .orderBy(sql`DATE_TRUNC('day', ${errorLogs.createdAt})`);
-
-      // Get most common errors
-      const commonErrors = await db
-        .select({
-          code: errorLogs.code,
-          message: errorLogs.message,
-          count: sql<number>`COUNT(*)::integer`,
-          severity: errorLogs.severity,
-        })
-        .from(errorLogs)
-        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
-        .groupBy(errorLogs.code, errorLogs.message, errorLogs.severity)
-        .orderBy(sql<number>`COUNT(*)::integer DESC`)
-        .limit(10);
-
-      // Get error distribution by severity
-      const severityDistribution = await db
-        .select({
-          severity: errorLogs.severity,
-          count: sql<number>`COUNT(*)::integer`,
-        })
-        .from(errorLogs)
-        .where(sql`${errorLogs.createdAt} >= ${startDate}`)
-        .groupBy(errorLogs.severity)
-        .orderBy(errorLogs.severity);
-
-      // Get recent errors with AI analysis
-      const recentErrors = await db
-        .select()
-        .from(errorLogs)
-        .orderBy(desc(errorLogs.createdAt))
-        .limit(20);
-
-      debug(req, 'Successfully fetched error analytics:', {
-        trendsCount: errorTrends.length,
-        commonErrorsCount: commonErrors.length,
-        distributionCount: severityDistribution.length,
-        recentErrorsCount: recentErrors.length,
-      });
-
-      res.json({
-        trends: errorTrends,
-        commonErrors,
-        severityDistribution,
-        recentErrors: recentErrors.map(error => ({
-          ...error,
-          details: error.details,
-          aiAnalysis: error.aiAnalysis
-        }))
-      });
-    } catch (error) {
-      debug(req, 'Error fetching error analytics:', error);
-      next(error);
-    }
-  });
-
-  app.post("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { message, code, severity, path, details, aiAnalysis } = req.body;
-
-      const [errorLog] = await db
-        .insert(errorLogs)
+      // Update or create branding settings
+      const [updatedSettings] = await db
+        .insert(companyBranding)
         .values({
-          message,
-          code,
-          severity,
-          path,
-          userId: req.user?.id,
-          details,
-          aiAnalysis,
+          companyName: req.body.companyName,
+          logo: req.body.logo,
+          logoMimeType: req.body.logoMimeType,
+          headerImage: req.body.headerImage,
+          headerImageMimeType: req.body.headerImageMimeType,
+          footerImage: req.body.footerImage,
+          footerImageMimeType: req.body.footerImageMimeType,
+          headerStyle: req.body.headerStyle,
+          primaryColor: req.body.primaryColor,
+          secondaryColor: req.body.secondaryColor,
+          accentColor: req.body.accentColor,
+          footerText: req.body.footerText,
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: companyBranding.id,
+          set: {
+            companyName: req.body.companyName,
+            logo: req.body.logo,
+            logoMimeType: req.body.logoMimeType,
+            headerImage: req.body.headerImage,
+            headerImageMimeType: req.body.headerImageMimeType,
+            footerImage: req.body.footerImage,
+            footerImageMimeType: req.body.footerImageMimeType,
+            headerStyle: req.body.headerStyle,
+            primaryColor: req.body.primaryColor,
+            secondaryColor: req.body.secondaryColor,
+            accentColor: req.body.accentColor,
+            footerText: req.body.footerText,
+            updatedAt: new Date()
+          }
         })
         .returning();
 
-      debug(req, 'Successfully logged error:', {
-        id: errorLog.id,
-        message: errorLog.message,
-        severity: errorLog.severity,
-      });
-
-      res.status(201).json(errorLog);
+      debug(req, 'Updated branding settings:', updatedSettings);
+      res.json(updatedSettings);
     } catch (error) {
-      debug(req, 'Error logging error:', error);
+      debug(req, 'Error updating branding settings:', error);
       next(error);
-    }
-  });
-
-  // Add 404 handler for API routes
-  app.use('/api/*', (req: Request, res: Response) => {
-    res.status(404).json({
-      status: 'error',
-      message: `Cannot ${req.method} ${req.path}`,
-      severity: 'warning',
-      code: 'NOT_FOUND'
-    });
-  });
-
-  // Error handling middleware
-  app.use(async (err: unknown, req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Error occurred:', err);
-      const error = await handleError(err);
-
-      // Ensure proper error logging
-      try {
-        const errorLogData = {
-          message: error.message,
-          code: error.code || 'UNKNOWN_ERROR',
-          severity: error.severity || 'error',
-          path: req.path,
-          userId: req.user?.id,
-          details: error.details || {},
-          aiAnalysis: error.details?.aiAnalysis || {}
-        };
-
-        const validatedData = insertErrorLogSchema.safeParse(errorLogData);
-        if (!validatedData.success) {
-          debug(req, 'Error log validation failed:', validatedData.error);
-        } else {
-          await db.insert(errorLogs).values(validatedData.data);
-          debug(req, 'Error logged to database');
-        }
-      } catch (logError) {
-        debug(req, 'Failed to log error:', logError);
-      }
-
-      if (!res.headersSent) {
-        res.status(error.status).json({
-          status: 'error',
-          message: error.message,
-          code: error.code || 'INTERNAL_ERROR',
-          severity: error.severity || 'error',
-          ...(error.details && { details: error.details })
-        });
-      }
-    } catch (handlingError) {
-      debug(req, 'Error in error handling middleware:', handlingError);
-
-      if (!res.headersSent) {
-        res.status(500).json({
-          status: 'error',
-          message: 'Internal Server Error',
-          code: 'INTERNAL_ERROR',
-          severity: 'critical'
-        });
-      }
-    }
-  });
-
-  // Update session handling middleware
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    if (err.name === 'SessionExpiredError' || err.code === 'ESESSIONEXPIRED') {
-      debug(req, `Session expired, attempting to regenerate`);
-
-      // Ensure session exists before regeneration
-      if (!req.session) {
-        debug(req, `Invalid session state`);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Invalid session state',
-          code: 'SESSION_ERROR'
-        });
-      }
-
-      req.session.regenerate((regenerateErr) => {
-        if (regenerateErr) {
-          debug(req, `Failed to regenerate session:`, regenerateErr);
-          if (!res.headersSent) {
-            res.status(500).json({
-              status: 'error',
-              message: 'Session recovery failed',
-              code: 'SESSION_ERROR'
-            });
-          }
-          return;
-        }
-
-        debug(req, `Session regenerated successfully`);
-        if (!res.headersSent) {
-          next();
-        }
-      });
-    } else {
-      next(err);
     }
   });
 

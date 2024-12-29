@@ -38,6 +38,25 @@ async function fetchBranding() {
   }
 }
 
+// Function to add image to PDF
+function addImageToPDF(doc: jsPDF, imageData: string, x: number, y: number, width: number, height: number) {
+  try {
+    if (imageData) {
+      doc.addImage(
+        `data:image/png;base64,${imageData}`,
+        'PNG',
+        x,
+        y,
+        width,
+        height
+      );
+    }
+  } catch (error) {
+    logError(error, 'addImageToPDF');
+    console.warn('Failed to add image to PDF');
+  }
+}
+
 export async function generateRequestPDF(
   request: PurchaseRequestWithRelations,
   templateConfig: Partial<TemplateConfig> = {}
@@ -62,11 +81,15 @@ export async function generateRequestPDF(
         name: branding.companyName || defaultBranding.name,
         logo: branding.logo,
         logoMimeType: branding.logoMimeType || 'image/png',
+        headerImage: branding.headerImage,
+        headerImageMimeType: branding.headerImageMimeType || 'image/png',
+        footerImage: branding.footerImage,
+        footerImageMimeType: branding.footerImageMimeType || 'image/png',
         primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
         secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
         accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
         headerStyle: branding.headerStyle || 'modern',
-        footerText: 'Confidential - For Internal Use Only'
+        footerText: branding.footerText || 'Confidential - For Internal Use Only'
       } : defaultBranding,
       layout: 'bento',
       showLogo: !!branding?.logo,
@@ -82,9 +105,13 @@ export async function generateRequestPDF(
     const margin = 15;
     const maxWidth = pageWidth - (margin * 2);
 
-    // Apply header with company branding
-    const headerHeight = applyHeaderStyle(doc, config, pageWidth);
-    console.log('Header applied at height:', headerHeight);
+    // Apply header with custom image if available
+    if (config.branding.headerImage) {
+      addImageToPDF(doc, config.branding.headerImage, 0, 0, pageWidth, config.headerHeight);
+    } else {
+      const headerHeight = applyHeaderStyle(doc, config, pageWidth);
+      console.log('Header applied at height:', headerHeight);
+    }
 
     // Helper function for creating tiles with enhanced styling
     const addTile = (title: string, content: string[], y: number, height: number) => {
@@ -117,7 +144,7 @@ export async function generateRequestPDF(
       }
     };
 
-    let yPos = headerHeight + 10;
+    let yPos = config.branding.headerImage ? config.headerHeight + 10 :  (applyHeaderStyle(doc, config, pageWidth) + 10);
 
     // Request Info Tile
     const requestInfo = [
@@ -282,8 +309,19 @@ export async function generateRequestPDF(
       addTile('Attached Files', attachmentsList, yPos, 35);
     }
 
-    // Apply footer with branding
-    applyFooterStyle(doc, config, pageWidth, pageHeight);
+    // Apply footer with custom image if available
+    if (config.branding.footerImage) {
+      addImageToPDF(
+        doc,
+        config.branding.footerImage,
+        0,
+        pageHeight - config.footerHeight,
+        pageWidth,
+        config.footerHeight
+      );
+    } else {
+      applyFooterStyle(doc, config, pageWidth, pageHeight);
+    }
 
     console.log('PDF generation completed successfully');
     return doc;

@@ -6,20 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import BrandingPreview from "./BrandingPreview";
-import BrandMoodBoardGenerator from "./BrandMoodBoardGenerator"; // Import the new component
+import BrandMoodBoardGenerator from "./BrandMoodBoardGenerator";
+import type { CompanyBranding } from "@db/schema";
 
-interface BrandingData {
-  companyName?: string;
-  logo?: string;
-  logoMimeType?: string;
-  headerStyle?: "modern" | "classic" | "minimal";
-  primaryColor?: string;
-  secondaryColor?: string;
-  accentColor?: string;
-  footerText?: string;
-}
+interface BrandingData extends CompanyBranding {}
 
 type ColorSwatch = {
   id: string;
@@ -54,6 +46,10 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
   const { toast } = useToast();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoMimeType, setLogoMimeType] = useState<string | null>(null);
+  const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(null);
+  const [headerImageMimeType, setHeaderImageMimeType] = useState<string | null>(null);
+  const [footerImagePreview, setFooterImagePreview] = useState<string | null>(null);
+  const [footerImageMimeType, setFooterImageMimeType] = useState<string | null>(null);
   const [colorSwatches, setColorSwatches] = useState<ColorSwatch[]>(defaultColors);
   const [selectedStyle, setSelectedStyle] = useState<StyleOption>(styleOptions[0]);
   const [formData, setFormData] = useState<BrandingData>({
@@ -65,7 +61,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
     footerText: "",
   });
 
-  const { data: branding, isLoading } = useQuery<BrandingData>({
+  const { data: branding } = useQuery<BrandingData>({
     queryKey: ["/api/branding"],
     onSuccess: (data) => {
       if (data) {
@@ -76,10 +72,23 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
           secondaryColor: data.secondaryColor || "#F0F0FA",
           accentColor: data.accentColor || "#191160",
           footerText: data.footerText || "",
+          headerImage: data.headerImage,
+          headerImageMimeType: data.headerImageMimeType,
+          footerImage: data.footerImage,
+          footerImageMimeType: data.footerImageMimeType,
         });
+
         if (data.logo) {
           setLogoPreview(data.logo);
           setLogoMimeType(data.logoMimeType || "image/png");
+        }
+        if (data.headerImage) {
+          setHeaderImagePreview(data.headerImage);
+          setHeaderImageMimeType(data.headerImageMimeType || "image/png");
+        }
+        if (data.footerImage) {
+          setFooterImagePreview(data.footerImage);
+          setFooterImageMimeType(data.footerImageMimeType || "image/png");
         }
       }
     },
@@ -116,7 +125,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
     },
   });
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
     if (result.type === "COLOR_SWATCH") {
@@ -144,14 +153,17 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
     }
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'logo' | 'header' | 'footer'
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Error",
-          description: "Logo file size must be less than 5MB",
+          description: "Image file size must be less than 5MB",
           variant: "destructive",
         });
         e.target.value = '';
@@ -159,11 +171,11 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       }
 
       // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+      const allowedTypes = ['image/jpeg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Error",
-          description: "Only JPEG, PNG and SVG files are allowed",
+          description: "Only JPEG and PNG files are allowed",
           variant: "destructive",
         });
         e.target.value = '';
@@ -174,8 +186,21 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       reader.onloadend = () => {
         const result = reader.result as string;
         const base64Data = result.split(',')[1];
-        setLogoPreview(base64Data);
-        setLogoMimeType(file.type);
+
+        switch (type) {
+          case 'logo':
+            setLogoPreview(base64Data);
+            setLogoMimeType(file.type);
+            break;
+          case 'header':
+            setHeaderImagePreview(base64Data);
+            setHeaderImageMimeType(file.type);
+            break;
+          case 'footer':
+            setFooterImagePreview(base64Data);
+            setFooterImageMimeType(file.type);
+            break;
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -192,7 +217,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       }
     });
 
-    // Add logo if changed
+    // Add images if changed
     if (logoPreview) {
       formDataToSend.append('logo', logoPreview);
       if (logoMimeType) {
@@ -200,16 +225,22 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       }
     }
 
+    if (headerImagePreview) {
+      formDataToSend.append('headerImage', headerImagePreview);
+      if (headerImageMimeType) {
+        formDataToSend.append('headerImageMimeType', headerImageMimeType);
+      }
+    }
+
+    if (footerImagePreview) {
+      formDataToSend.append('footerImage', footerImagePreview);
+      if (footerImageMimeType) {
+        formDataToSend.append('footerImageMimeType', footerImageMimeType);
+      }
+    }
+
     updateBranding.mutate(formDataToSend);
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -232,7 +263,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
               </div>
 
               <div className="space-y-2">
-                <Label>Logo (Drag & Drop or Click to Upload)</Label>
+                <Label>Company Logo</Label>
                 <div className="flex items-center gap-4">
                   {(logoPreview || branding?.logo) && (
                     <img
@@ -249,12 +280,70 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
                       id="logo-input"
                       type="file"
                       name="logo"
-                      accept="image/jpeg,image/png,image/svg+xml"
-                      onChange={handleLogoChange}
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => handleImageUpload(e, 'logo')}
                       className="hidden"
                     />
                     <p className="text-center text-sm text-gray-500">
                       Drag and drop your logo here, or click to select
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>PDF Header Image</Label>
+                <div className="flex items-center gap-4">
+                  {(headerImagePreview || branding?.headerImage) && (
+                    <img
+                      src={`data:${headerImageMimeType || branding?.headerImageMimeType};base64,${headerImagePreview || branding?.headerImage}`}
+                      alt="Header Image"
+                      className="h-16 w-32 object-contain"
+                    />
+                  )}
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 w-full hover:border-primary cursor-pointer"
+                    onClick={() => document.getElementById('header-input')?.click()}
+                  >
+                    <Input
+                      id="header-input"
+                      type="file"
+                      name="headerImage"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => handleImageUpload(e, 'header')}
+                      className="hidden"
+                    />
+                    <p className="text-center text-sm text-gray-500">
+                      Upload PDF header image
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>PDF Footer Image</Label>
+                <div className="flex items-center gap-4">
+                  {(footerImagePreview || branding?.footerImage) && (
+                    <img
+                      src={`data:${footerImageMimeType || branding?.footerImageMimeType};base64,${footerImagePreview || branding?.footerImage}`}
+                      alt="Footer Image"
+                      className="h-16 w-32 object-contain"
+                    />
+                  )}
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 w-full hover:border-primary cursor-pointer"
+                    onClick={() => document.getElementById('footer-input')?.click()}
+                  >
+                    <Input
+                      id="footer-input"
+                      type="file"
+                      name="footerImage"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => handleImageUpload(e, 'footer')}
+                      className="hidden"
+                    />
+                    <p className="text-center text-sm text-gray-500">
+                      Upload PDF footer image
                     </p>
                   </div>
                 </div>
@@ -385,12 +474,16 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
         <BrandingPreview
           logo={logoPreview || branding?.logo || null}
           logoMimeType={logoMimeType || branding?.logoMimeType}
+          headerImage={headerImagePreview || branding?.headerImage || null}
+          headerImageMimeType={headerImageMimeType || branding?.headerImageMimeType}
+          footerImage={footerImagePreview || branding?.footerImage || null}
+          footerImageMimeType={footerImageMimeType || branding?.footerImageMimeType}
           headerStyle={formData.headerStyle}
-          companyName={formData.companyName || branding?.companyName || "Company Name"}
+          companyName={formData.companyName || "Company Name"}
           primaryColor={formData.primaryColor}
           secondaryColor={formData.secondaryColor}
           accentColor={formData.accentColor}
-          footerText={formData.footerText || branding?.footerText}
+          footerText={formData.footerText}
         />
 
         <BrandMoodBoardGenerator
