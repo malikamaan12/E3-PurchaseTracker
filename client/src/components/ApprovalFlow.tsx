@@ -33,7 +33,7 @@ export default function ApprovalFlow({
 
   // Check if user can approve this request
   const canApprove = useMemo(() => {
-    if (!user) return false;
+    if (!user?.department) return false;
 
     // Check if request is pending
     if (status !== "pending") return false;
@@ -52,20 +52,38 @@ export default function ApprovalFlow({
     return !departmentApproval || departmentApproval.status === "pending";
   }, [approvals, user, requesterId, status]);
 
-  const handleApproval = async (status: "approved" | "rejected") => {
-    if (!user || !canApprove) return;
+  const handleApproval = async (approvalStatus: "approved" | "rejected") => {
+    if (!user?.department || !canApprove) {
+      toast({
+        title: "Error",
+        description: "You don't have permission to approve this request",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
-      await createApproval({
+
+      // Create approval data with all required fields
+      const approvalData = {
         requestId,
-        status,
-        comments: comments.trim() || undefined,
-      });
+        status: approvalStatus,
+        department: user.department,
+        comments: comments.trim() || undefined
+      };
+
+      // Validate required fields
+      if (!approvalData.requestId || !approvalData.status || !approvalData.department) {
+        throw new Error("Missing required fields: requestId, status, and department are required");
+      }
+
+      console.log('Submitting approval with data:', approvalData);
+      await createApproval(approvalData);
 
       toast({
         title: "Success",
-        description: `Request ${status} successfully`,
+        description: `Request ${approvalStatus} successfully`,
       });
 
       setComments("");
@@ -73,7 +91,7 @@ export default function ApprovalFlow({
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to process approval",
         variant: "destructive",
       });
     } finally {
