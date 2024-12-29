@@ -8,6 +8,7 @@ import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
+import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import { NotFound } from "@/components/NotFound";
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
           <Route path="/admin" component={AdminPanel} />
           <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
+          <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
         </>
       )}
       {/* 404 route handler */}
