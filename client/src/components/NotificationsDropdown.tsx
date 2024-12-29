@@ -10,16 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
-import { useLocation } from "wouter";
 
 interface NotificationsDropdownProps {
-  onNotificationClick?: (notification: { id: number; link: string | null }) => void;
+  onNotificationClick: (notification: { id: number; link: string | null }) => void;
 }
 
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
-  const [, setLocation] = useLocation();
 
   // Refetch notifications when dropdown opens
   useEffect(() => {
@@ -38,19 +36,8 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       // Close dropdown first
       setOpen(false);
 
-      // Handle navigation
-      if (notification.link) {
-        // Ensure the link starts with a forward slash
-        const formattedLink = notification.link.startsWith('/') ? notification.link : `/${notification.link}`;
-
-        // Navigate using wouter's setLocation
-        setLocation(formattedLink);
-      }
-
-      // Call the provided click handler if it exists
-      if (onNotificationClick) {
-        onNotificationClick(notification);
-      }
+      // Call the provided click handler
+      onNotificationClick(notification);
     } catch (error) {
       console.error('Error handling notification click:', error);
     }
