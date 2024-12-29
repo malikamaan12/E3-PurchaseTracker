@@ -27,10 +27,16 @@ import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), 'uploads'));
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
@@ -42,11 +48,11 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/svg+xml'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, PNG, SVG and PDF files are allowed.'));
     }
   }
 });
@@ -966,6 +972,106 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get company branding settings
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Fetching company branding settings');
+
+      const [settings] = await db
+        .select()
+        .from(companyBranding)
+        .orderBy(desc(companyBranding.updatedAt))
+        .limit(1);
+
+      debug(req, 'Found branding settings:', settings);
+      res.json(settings || {});
+    } catch (error) {
+      debug(req, 'Error fetching branding settings:', error);
+      next(error);
+    }
+  });
+
+  // Update company branding settings
+  app.post("/api/branding", upload.single('logo'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Updating company branding settings', { body: req.body, file: req.file });
+
+      // Check if any branding settings exist
+      const [existingBranding] = await db
+        .select()
+        .from(companyBranding)
+        .limit(1);
+
+      let logoData = existingBranding?.logo;
+      let logoMimeType = existingBranding?.logoMimeType;
+
+      // Handle logo file if uploaded
+      if (req.file) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+        if (!allowedTypes.includes(req.file.mimetype)) {
+          throw new ValidationError('Invalid file type. Only JPEG, PNG and SVG files are allowed.');
+        }
+
+        if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
+          throw new ValidationError('Logo file size must be less than 5MB');
+        }
+
+        // Read file and convert to base64
+        const fileBuffer = await fs.promises.readFile(req.file.path);
+        logoData = fileBuffer.toString('base64');
+        logoMimeType = req.file.mimetype;
+
+        // Clean up uploaded file
+        await fs.promises.unlink(req.file.path);
+      }
+
+      const brandingData = {
+        companyName: req.body.companyName,
+        headerStyle: req.body.headerStyle || 'modern',
+        primaryColor: req.body.primaryColor || '#71569E',
+        secondaryColor: req.body.secondaryColor || '#F0F0FA',
+        accentColor: req.body.accentColor || '#191160',
+        footerText: req.body.footerText,
+        logo: logoData,
+        logoMimeType,
+        updatedAt: new Date()
+      };
+
+      debug(req, 'Branding data to save:', brandingData);
+
+      let result;
+      if (existingBranding) {
+        // Update existing record
+        [result] = await db
+          .update(companyBranding)
+          .set(brandingData)
+          .where(eq(companyBranding.id, existingBranding.id))
+          .returning();
+      } else {
+        // Insert new record
+        [result] = await db
+          .insert(companyBranding)
+          .values({
+            ...brandingData,
+            createdAt: new Date()
+          })
+          .returning();
+      }
+
+      debug(req, 'Successfully updated branding settings:', result);
+      res.status(200).json(result);
+    } catch (error) {
+      debug(req, 'Error updating branding settings:', error);
+      // Clean up uploaded file if exists and error occurred
+      if (req.file?.path) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
+      next(error);
+    }
+  });
+
   // Error analytics endpoints
   app.get("/api/analytics/errors", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1240,98 +1346,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get company branding settings
-  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Fetching company branding settings');
-
-      const [settings] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.updatedAt))
-        .limit(1);
-
-      debug(req, 'Found branding settings:', settings);
-      res.json(settings || {});
-    } catch (error) {
-      debug(req, 'Error fetching branding settings:', error);
-      next(error);
-    }
-  });
-
-  // Update company branding settings
-  app.post("/api/branding", upload.single('logo'), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Updating company branding settings');
-
-      // Check if any branding settings exist
-      const [existingBranding] = await db
-        .select()
-        .from(companyBranding)
-        .limit(1);
-
-      let logoData = existingBranding?.logo;
-      let logoMimeType = existingBranding?.logoMimeType;
-
-      // Handle logo file if uploaded
-      if (req.file) {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
-        if (!allowedTypes.includes(req.file.mimetype)) {
-          throw new ValidationError('Invalid file type. Only JPEG, PNG and SVG files are allowed.');
-        }
-
-        if (req.file.size > 5 * 1024 * 1024) { // 5MB limit
-          throw new ValidationError('Logo file size must be less than 5MB');
-        }
-
-        // Read file and convert to base64
-        const fileBuffer = await fs.promises.readFile(req.file.path);
-        logoData = fileBuffer.toString('base64');
-        logoMimeType = req.file.mimetype;
-
-        // Clean up uploaded file
-        await fs.promises.unlink(req.file.path);
-      }
-
-      const brandingData = {
-        companyName: req.body.companyName,
-        headerStyle: req.body.headerStyle || 'modern',
-        primaryColor: req.body.primaryColor || '#71569E',
-        secondaryColor: req.body.secondaryColor || '#F0F0FA',
-        accentColor: req.body.accentColor || '#191160',
-        footerText: req.body.footerText,
-        logo: logoData,
-        logoMimeType,
-        updatedAt: new Date()
-      };
-
-      let result;
-      if (existingBranding) {
-        // Update existing record
-        [result] = await db
-          .update(companyBranding)
-          .set(brandingData)
-          .where(eq(companyBranding.id, existingBranding.id))
-          .returning();
-      } else {
-        // Insert new record
-        [result] = await db
-          .insert(companyBranding)
-          .values({
-            ...brandingData,
-            createdAt: new Date()
-          })
-          .returning();
-      }
-
-      debug(req, 'Successfully updated branding settings');
-      res.status(200).json(result);
-    } catch (error) {
-      debug(req, 'Error updating branding settings:', error);
-      next(error);
-    }
-  });
-
+  // Rest of your routes...
   // Create and return the HTTP server
   const httpServer = createServer(app);
   return httpServer;
