@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { type InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -295,18 +296,9 @@ export const vendorToCategoriesRelations = relations(vendorToCategories, ({ one 
 }));
 
 
-// ============= Basic Type Definitions =============
+// ============= Type Definitions =============
 export type User = InferModel<typeof users>;
-export type SubPurpose = {
-  id: number;
-  name: string;
-  purpose_type: string;
-  is_frozen: boolean;
-  valid_from: Date | null;
-  valid_to: Date | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+export type SubPurpose = InferModel<typeof subPurposes>;
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
@@ -327,7 +319,6 @@ export type InsertVendor = typeof vendors.$inferInsert;
 export type VendorCategory = typeof vendorCategories.$inferSelect;
 export type VendorPerformance = typeof vendorPerformance.$inferSelect;
 export type VendorPayment = typeof vendorPayments.$inferSelect;
-
 
 
 // ============= Validation Schemas =============
@@ -389,11 +380,9 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
       .max(100, "Item name cannot exceed 100 characters"),
     quantity: z.number()
       .positive("Quantity must be greater than 0")
-      .multipleOf(0.01, "Quantity can have up to 2 decimal places")
       .max(999999.99, "Quantity is too large"),
     estimatedCost: z.number()
       .min(0, "Cost cannot be negative")
-      .multipleOf(0.01, "Cost can have up to 2 decimal places")
       .max(999999999.99, "Cost is too large"),
     description: z.string()
       .max(200, "Item description cannot exceed 200 characters")
@@ -408,11 +397,9 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
   totalEstimatedCost: z.number()
-    .multipleOf(0.01, "Total cost can have up to 2 decimal places")
     .min(0, "Total cost cannot be negative")
     .max(999999999.99, "Total cost is too large"),
   freightAmount: z.number()
-    .multipleOf(0.01, "Freight amount can have up to 2 decimal places")
     .min(0, "Freight amount cannot be negative")
     .max(999999999.99, "Freight amount is too large"),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
