@@ -2,6 +2,7 @@ import { db } from "@db";
 import { notifications } from "@db/schema";
 import { AppError } from "./errors";
 import { and, eq, desc, sql } from "drizzle-orm";
+import { analyzeNotificationError } from "./error-analysis";
 
 // Define valid notification types and their route patterns
 export const NOTIFICATION_ROUTES = {
@@ -56,7 +57,7 @@ export async function createNotification(
         requestId,
         link,
         isRead: false,
-        createdAt: new Date(),
+        createdAt: new Date()
       })
       .returning();
 
@@ -65,8 +66,15 @@ export async function createNotification(
 
     return notification;
   } catch (error) {
-    console.error('Error creating notification:', error);
-    throw new AppError('Failed to create notification', 500, 'error');
+    const analysis = await analyzeNotificationError(
+      error as Error, 
+      userId,
+      'createNotification',
+      'insert'
+    );
+
+    console.error('Error creating notification:', error, '\nAnalysis:', analysis);
+    throw new AppError('Failed to create notification', 500);
   }
 }
 
@@ -91,8 +99,15 @@ export async function getNotifications(userId: number, lastFetchTime?: Date) {
 
     return results;
   } catch (error) {
-    console.error('Error fetching notifications:', error);
-    throw new AppError('Failed to fetch notifications', 500, 'error');
+    const analysis = await analyzeNotificationError(
+      error as Error,
+      userId,
+      'getNotifications',
+      'select'
+    );
+
+    console.error('Error fetching notifications:', error, '\nAnalysis:', analysis);
+    throw new AppError('Failed to fetch notifications', 500);
   }
 }
 
@@ -101,7 +116,7 @@ export async function markNotificationAsRead(notificationId: number, userId: num
   try {
     const [updatedNotification] = await db
       .update(notifications)
-      .set({
+      .set({ 
         isRead: true,
         updatedAt: new Date()
       })
@@ -112,14 +127,22 @@ export async function markNotificationAsRead(notificationId: number, userId: num
       .returning();
 
     if (!updatedNotification) {
-      throw new AppError('Notification not found or access denied', 404, 'error');
+      throw new AppError('Notification not found or access denied', 404);
     }
 
     return updatedNotification;
   } catch (error) {
+    const analysis = await analyzeNotificationError(
+      error as Error,
+      userId,
+      'markNotificationAsRead',
+      'update'
+    );
+
+    console.error('Error marking notification as read:', error, '\nAnalysis:', analysis);
+
     if (error instanceof AppError) throw error;
-    console.error('Error marking notification as read:', error);
-    throw new AppError('Failed to mark notification as read', 500, 'error');
+    throw new AppError('Failed to mark notification as read', 500);
   }
 }
 
@@ -127,8 +150,8 @@ export async function markNotificationAsRead(notificationId: number, userId: num
 export async function getUnreadCount(userId: number) {
   try {
     const [result] = await db
-      .select({
-        count: notifications.id
+      .select({ 
+        count: sql<number>`count(*)` 
       })
       .from(notifications)
       .where(and(
@@ -138,8 +161,30 @@ export async function getUnreadCount(userId: number) {
 
     return result?.count || 0;
   } catch (error) {
-    console.error('Error getting unread count:', error);
-    throw new AppError('Failed to get unread notification count', 500, 'error');
+    const analysis = await analyzeNotificationError(
+      error as Error,
+      userId,
+      'getUnreadCount',
+      'count'
+    );
+
+    console.error('Error getting unread count:', error, '\nAnalysis:', analysis);
+    throw new AppError('Failed to get unread notification count', 500);
+  }
+}
+
+// Cleanup old notifications to prevent database bloat
+export async function cleanupOldNotifications(days: number = 30) {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    await db
+      .delete(notifications)
+      .where(sql`${notifications.createdAt} < ${cutoffDate}`);
+  } catch (error) {
+    console.error('Error cleaning up old notifications:', error);
+    // Don't throw here as this is a maintenance operation
   }
 }
 

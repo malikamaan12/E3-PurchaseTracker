@@ -1,5 +1,4 @@
 import { Anthropic } from '@anthropic-ai/sdk';
-import { debug } from '../routes';
 
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 const anthropic = new Anthropic({
@@ -85,9 +84,8 @@ export async function analyzeError(error: Error, context: any = {}) {
       }]
     });
 
-    const analysis = JSON.parse(message.content[0].text);
     return {
-      ...analysis,
+      analysis: message.content[0].text,
       timestamp: new Date().toISOString(),
       originalError: {
         message: error.message,
