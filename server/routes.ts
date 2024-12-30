@@ -3,53 +3,40 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import multer from "multer";
 import path from "path";
+import * as crypto from 'crypto';
 import { setupAuth } from "./auth";
 import {
   users,
   notifications,
-  accountRequests,
   purchaseRequests,
-  subPurposes,
-  insertAccountRequestSchema,
-  approvals,
-  purchaseApprovers,
-  errorLogs,
-  insertErrorLogSchema,
-  type PurchaseApprover,
   insertPurchaseRequestSchema,
-  insertSubPurposeSchema,
-  companyBranding,
-  vendors,
-  insertVendorSchema,
-  fileAttachments
+  fileAttachments,
+  errorLogs,
+  type ErrorLog
 } from "@db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
-import { hash } from 'bcrypt';
-import { z } from 'zod';
-import * as crypto from 'crypto';
-import * as fs from 'fs';
-import { Anthropic } from '@anthropic-ai/sdk';
+import { eq, and, desc } from "drizzle-orm";
+import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
-import { getNotifications, markNotificationAsRead } from "./utils/notifications";
+import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
+import fs from 'fs';
 
-// Initialize Anthropic client (moved here for better organization)
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Debug logging utility
+function debug(req: Request, message: string, data?: any) {
+  const reqId = (req as any).id || crypto.randomUUID();
+  console.log(`[${reqId}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 }
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+  destination: (_req, _file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    // Ensure uploads directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -58,33 +45,15 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/svg+xml'];
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, SVG and PDF files are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'));
     }
   }
-});
-
-// Debug logging utility
-const debug = (req: Request, message: string, data?: any) => {
-  console.log(`[${req.id}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
-};
-
-async function createNotification(userId: number, title: string, message: string, type: string, linkId: number) {
-  await db.insert(notifications).values({
-      userId,
-      title,
-      message,
-      type,
-      isRead: false,
-      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`,
-      createdAt: new Date()
-  });
-}
-
+}).array('files', 5); // Allow up to 5 files
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
@@ -92,9 +61,100 @@ export function registerRoutes(app: Express): Server {
 
   // Add request validation middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    req.id = crypto.randomUUID();
+    (req as any).id = crypto.randomUUID();
     debug(req, `${req.method} ${req.path} started`);
     next();
+  });
+
+  // Request submission endpoint with proper error handling
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      // Handle file upload with proper error handling
+      await new Promise((resolve, reject) => {
+        upload(req, res, (err) => {
+          if (err instanceof multer.MulterError) {
+            reject(new ValidationError(`File upload error: ${err.message}`));
+          } else if (err) {
+            reject(new ValidationError(err.message));
+          }
+          resolve(undefined);
+        });
+      });
+
+      // Parse the request data
+      let requestData;
+      try {
+        requestData = JSON.parse(req.body.data);
+        debug(req, 'Parsed request data:', requestData);
+      } catch (error) {
+        throw new ValidationError('Invalid request data format');
+      }
+
+      // Add requesterId from authenticated user
+      requestData.requesterId = req.user!.id;
+      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Validate request data
+      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid request data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Create purchase request
+      const [newRequest] = await db
+        .insert(purchaseRequests)
+        .values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      // Save file attachments if any
+      const files = (req.files as Express.Multer.File[]) || [];
+      if (files.length > 0) {
+        await db.insert(fileAttachments).values(
+          files.map(file => ({
+            requestId: newRequest.id,
+            fileName: file.filename,
+            fileType: file.mimetype,
+            fileSize: file.size,
+            fileUrl: file.path,
+          }))
+        );
+      }
+
+      debug(req, 'Successfully created purchase request:', newRequest);
+      res.status(201).json(newRequest);
+    } catch (error) {
+      debug(req, 'Error creating request:', error);
+
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          path: req.path,
+          userId: req.user?.id,
+          requestData: req.body
+        });
+
+        // Log unexpected errors with analysis
+        await db.insert(errorLogs).values({
+          message: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error',
+          userId: req.user?.id,
+          path: req.path,
+          aiAnalysis: analysis,
+          createdAt: new Date()
+        } as ErrorLog);
+      }
+
+      next(error);
+    }
   });
 
   // Add notifications routes
@@ -132,169 +192,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the POST /api/requests endpoint to include enhanced validation and error analysis
-  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Creating new purchase request', { body: req.body });
-
-      // Parse the JSON data from form data
-      let requestData;
-      try {
-        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
-        debug(req, 'Parsed request data:', requestData);
-      } catch (error) {
-        debug(req, 'Error parsing request data:', error);
-        throw new ValidationError('Invalid request data format');
-      }
-
-      // Add requesterId from authenticated user
-      requestData.requesterId = req.user!.id;
-
-      // Generate a unique request number
-      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-      // Enhanced validation
-      const validationErrors = [];
-
-      // Required fields validation
-      if (!requestData.title?.trim()) {
-        validationErrors.push('Title is required');
-      }
-      if (!requestData.description?.trim()) {
-        validationErrors.push('Description is required');
-      }
-      if (!requestData.vendorId) {
-        validationErrors.push('Vendor selection is required');
-      }
-      if (!requestData.items || requestData.items.length === 0) {
-        validationErrors.push('At least one item is required');
-      }
-      if (!requestData.purposeType) {
-        validationErrors.push('Purpose type is required');
-      }
-
-      // Data format validation
-      if (requestData.items?.some((item: any) => !item.name || !item.quantity || !item.estimatedCost)) {
-        validationErrors.push('Each item must have a name, quantity, and estimated cost');
-      }
-
-      if (validationErrors.length > 0) {
-        const error = new ValidationError('Validation failed', { errors: validationErrors });
-
-        // Analyze validation errors with Anthropic
-        const analysis = await analyzeError(error, {
-          requestData,
-          validationErrors,
-          userId: req.user!.id,
-          path: req.path
-        });
-
-        // Log error with AI analysis
-        await db.insert(errorLogs).values({
-          message: error.message,
-          severity: 'error',
-          userId: req.user!.id,
-          details: { validationErrors, requestData },
-          aiAnalysis: analysis,
-          path: req.path,
-          createdAt: new Date()
-        });
-
-        throw error;
-      }
-
-      // Validate vendor exists
-      const [vendor] = await db
-        .select()
-        .from(vendors)
-        .where(eq(vendors.id, requestData.vendorId))
-        .limit(1);
-
-      if (!vendor) {
-        throw new ValidationError('Selected vendor does not exist');
-      }
-
-      // Validate request data schema
-      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-      if (!validationResult.success) {
-        debug(req, 'Schema validation failed:', validationResult.error);
-        throw new ValidationError('Invalid request data', {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Handle file uploads
-      const files = (req.files as Express.Multer.File[]) || [];
-      const fileData = files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        mimetype: file.mimetype,
-        size: file.size
-      }));
-
-      debug(req, 'Creating purchase request with data:', {
-        ...validationResult.data,
-        files: fileData
-      });
-
-      // Create purchase request with file attachments
-      const [newRequest] = await db
-        .insert(purchaseRequests)
-        .values({
-          ...validationResult.data,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
-
-      // Save file attachments if any
-      if (files.length > 0) {
-        await db.insert(fileAttachments).values(
-          files.map(file => ({
-            requestId: newRequest.id,
-            fileName: file.filename,
-            fileType: file.mimetype,
-            fileSize: file.size,
-            fileUrl: file.path,
-          }))
-        );
-      }
-
-      debug(req, 'Successfully created purchase request:', newRequest);
-      res.status(201).json(newRequest);
-    } catch (error) {
-      debug(req, 'Error creating purchase request:', error);
-
-      // For unexpected errors, get AI analysis
-      if (!(error instanceof ValidationError)) {
-        const analysis = await analyzeError(error as Error, {
-          path: req.path,
-          userId: req.user?.id,
-          requestData: req.body
-        });
-
-        // Log unexpected errors with analysis
-        await db.insert(errorLogs).values({
-          message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',
-          userId: req.user?.id,
-          path: req.path,
-          aiAnalysis: analysis,
-          createdAt: new Date()
-        });
-      }
-
-      next(error);
-    }
-  });
-
-  // Add PUT endpoint for updating requests
+  // Update request endpoint with proper validation
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -304,9 +202,7 @@ export function registerRoutes(app: Express): Server {
       const requestId = parseInt(req.params.id);
       const updateData = req.body;
 
-      debug(req, 'Updating request:', { requestId, updateData });
-
-      // Verify the request exists and belongs to the user
+      // Verify request exists and belongs to user
       const [existingRequest] = await db
         .select()
         .from(purchaseRequests)
@@ -320,60 +216,14 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request not found or unauthorized', 404);
       }
 
-      // Prevent updates to locked requests unless it's a status update from an approver
+      // Prevent updates to locked requests
       if (existingRequest.isLocked &&
-          updateData.status !== 'changes_requested' &&
-          req.user!.role !== 'approver') {
+        updateData.status !== 'changes_requested' &&
+        req.user!.role !== 'approver') {
         throw new AppError('Request is locked', 403);
       }
 
-      // Enhanced validation for submissions
-      if (updateData.status === 'pending') {
-        const validationErrors = [];
-
-        if (!existingRequest.vendorId) {
-          validationErrors.push('Vendor selection is required before submitting');
-        }
-        if (!existingRequest.items || existingRequest.items.length === 0) {
-          validationErrors.push('At least one item is required');
-        }
-        if (!existingRequest.title?.trim()) {
-          validationErrors.push('Title is required');
-        }
-        if (!existingRequest.description?.trim()) {
-          validationErrors.push('Description is required');
-        }
-        if (!existingRequest.purposeType) {
-          validationErrors.push('Purpose type is required');
-        }
-
-        if (validationErrors.length > 0) {
-          const error = new ValidationError('Validation failed', { errors: validationErrors });
-
-          // Analyze validation errors
-          const analysis = await analyzeError(error, {
-            requestData: updateData,
-            validationErrors,
-            userId: req.user!.id,
-            requestId
-          });
-
-          // Log error with analysis
-          await db.insert(errorLogs).values({
-            message: error.message,
-            severity: 'error',
-            userId: req.user!.id,
-            details: { validationErrors },
-            aiAnalysis: analysis,
-            path: req.path,
-            createdAt: new Date()
-          });
-
-          throw error;
-        }
-      }
-
-      // Update the request with proper validation
+      // Update the request
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
@@ -383,55 +233,13 @@ export function registerRoutes(app: Express): Server {
         .where(eq(purchaseRequests.id, requestId))
         .returning();
 
-      // If transitioning to pending, create notification for approvers
-      if (updateData.status === 'pending') {
-        const approvers = await db
-          .select()
-          .from(users)
-          .where(and(
-            eq(users.role, 'approver'),
-            eq(users.isActive, true)
-          ));
-
-        await Promise.all(approvers.map(approver =>
-          createNotification(
-            approver.id,
-            'New Purchase Request',
-            `A new purchase request "${updatedRequest.title}" requires your approval`,
-            'request',
-            updatedRequest.id
-          )
-        ));
-      }
-
       debug(req, 'Request updated successfully:', updatedRequest);
       res.json(updatedRequest);
     } catch (error) {
       debug(req, 'Error updating request:', error);
-
-      // Analyze unexpected errors
-      if (!(error instanceof ValidationError)) {
-        const analysis = await analyzeError(error as Error, {
-          requestId: req.params.id,
-          userId: req.user?.id,
-          path: req.path
-        });
-
-        // Log unexpected errors with analysis
-        await db.insert(errorLogs).values({
-          message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',
-          userId: req.user?.id,
-          path: req.path,
-          aiAnalysis: analysis,
-          createdAt: new Date()
-        });
-      }
-
       next(error);
     }
   });
-
   // Enhanced sub-purposes endpoint with proper query building and error handling
   app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -486,7 +294,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       debug(req, 'Creating new sub-purpose - Raw request body:', req.body);
@@ -537,7 +345,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       debug(req, 'Fetching users');
@@ -569,7 +377,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       const allSubPurposes = await db
@@ -917,7 +725,6 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -985,7 +792,7 @@ export function registerRoutes(app: Express): Server {
 
       // Create new user
       const [newUser] = await db
-                .insert(users)
+        .insert(users)
         .values({
           username: accountRequest.username,
           password: accountRequest.password, // Password is already properly hashed
@@ -1163,7 +970,7 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedVendor);
     } catch (error) {
       debug(req, 'Error updating vendor:', error);
-      next(error);
+            next(error);
     }
   });
 
