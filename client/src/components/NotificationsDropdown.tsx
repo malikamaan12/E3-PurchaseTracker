@@ -10,7 +10,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
-import { useErrorHandler } from "@/services/error-logging";
 
 interface NotificationsDropdownProps {
   onNotificationClick: (notification: { id: number; link: string | null }) => void;
@@ -21,9 +20,8 @@ const POLLING_INTERVAL = 30000; // 30 seconds
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
-  const handleError = useErrorHandler();
 
-  // Setup polling with proper interval
+  // Setup polling with proper error handling
   useEffect(() => {
     let pollTimer: number | null = null;
 
@@ -31,17 +29,14 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       try {
         await refetch();
       } catch (error) {
-        handleError(error, { 
-          title: 'Failed to fetch notifications',
-          silent: !open // Only show error toast if dropdown is open
-        });
+        console.error('Failed to fetch notifications:', error);
+        // Error handling is now managed by useNotifications hook
       }
     };
 
     // Initial fetch when dropdown opens
     if (open) {
       pollNotifications();
-
       // Start polling
       pollTimer = window.setInterval(pollNotifications, POLLING_INTERVAL);
     }
@@ -51,7 +46,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         window.clearInterval(pollTimer);
       }
     };
-  }, [open, refetch, handleError]);
+  }, [open, refetch]);
 
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
@@ -66,11 +61,10 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       // Call the provided click handler
       onNotificationClick(notification);
     } catch (error) {
-      handleError(error, {
-        title: 'Failed to mark notification as read'
-      });
+      // Error handling is managed by useNotifications hook's markAsRead mutation
+      console.error('Error handling notification click:', error);
     }
-  }, [notifications, markAsRead, onNotificationClick, handleError]);
+  }, [notifications, markAsRead, onNotificationClick]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -89,6 +83,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
           )}
         </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent align="end" className="w-[380px]">
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <h4 className="font-medium">Notifications</h4>
@@ -98,6 +93,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
             </span>
           )}
         </div>
+
         <ScrollArea className="h-[400px]">
           {isLoading ? (
             <div className="space-y-4 p-4">
