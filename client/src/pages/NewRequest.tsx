@@ -193,8 +193,7 @@ export default function NewRequest() {
         return;
       }
 
-      // Prepare form data
-      const formData = new FormData();
+      // Prepare request data
       const requestData = {
         ...values,
         items: items.map(item => ({
@@ -211,6 +210,15 @@ export default function NewRequest() {
         updatedAt: new Date().toISOString()
       };
 
+      // Handle file attachments
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(requestData));
+
+      // Add files if any
+      files.forEach((file, index) => {
+        formData.append(`files[${index}]`, file);
+      });
+
       console.log('Submitting form data:', {
         requestData,
         filesCount: files.length
@@ -219,12 +227,14 @@ export default function NewRequest() {
       if (status === 'draft') {
         await saveDraftRequest({
           id: values.id || 0,
-          data: requestData
+          data: requestData,
+          formData
         });
       } else {
         await submitRequestForApproval({
           id: values.id || 0,
-          data: requestData
+          data: requestData,
+          formData
         });
       }
 

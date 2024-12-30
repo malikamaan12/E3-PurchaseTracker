@@ -12,6 +12,12 @@ interface ApprovalData {
   department: string;
 }
 
+interface MutationParams {
+  id: number;
+  data: Partial<PurchaseRequest>;
+  formData: FormData;
+}
+
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -48,21 +54,36 @@ export function usePurchaseRequests() {
 
   // Draft mutation with optimistic updates
   const draftMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+    mutationFn: async ({ id, data, formData }: MutationParams) => {
       console.log('Saving draft mutation:', { id, data });
-      return saveDraft(id, data);
+      return saveDraft(id, data, formData);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
       const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
+        if (id === 0) {
+          // For new drafts, add to the beginning of the list
+          const newRequest = {
+            ...data,
+            id: Date.now(), // Temporary ID
+            status: "draft",
+            isLocked: false,
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          };
+          return [newRequest, ...old];
+        }
+
+        // For existing drafts, update in place
         return old.map(request => 
           request.id === id 
             ? { 
                 ...request, 
                 ...data, 
                 status: "draft",
+                isLocked: false,
                 updatedAt: new Date().toISOString()
               }
             : request
@@ -99,15 +120,30 @@ export function usePurchaseRequests() {
 
   // Submit mutation with optimistic updates
   const submitMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+    mutationFn: async ({ id, data, formData }: MutationParams) => {
       console.log('Submitting request mutation:', { id, data });
-      return submitRequest(id, data);
+      return submitRequest(id, data, formData);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
       const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
+        if (id === 0) {
+          // For new requests, add to the beginning of the list
+          const newRequest = {
+            ...data,
+            id: Date.now(), // Temporary ID
+            status: "pending",
+            isLocked: true,
+            submittedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          };
+          return [newRequest, ...old];
+        }
+
+        // For existing requests, update in place
         return old.map(request => 
           request.id === id 
             ? { 

@@ -57,13 +57,13 @@ export async function updateRequest({
   }
 }
 
-export async function createRequest(data: FormData) {
+export async function createRequest(formData: FormData) {
   try {
-    console.log('Creating request with data:', Object.fromEntries(data.entries()));
+    console.log('Creating request with data:', Object.fromEntries(formData.entries()));
 
     const response = await fetch("/api/requests", {
       method: "POST",
-      body: data,
+      body: formData,
       credentials: "include",
     });
 
@@ -76,7 +76,7 @@ export async function createRequest(data: FormData) {
   }
 }
 
-export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
+export async function saveDraft(id: number, data: Partial<PurchaseRequest>, formData: FormData) {
   console.log('Saving draft:', { id, data });
   try {
     // Basic validation for draft - ensure at least one field has content
@@ -90,15 +90,27 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
       throw new Error('Draft must contain at least one field (title, description, items, or purpose)');
     }
 
-    const result = await updateRequest({
-      id,
-      data: { 
-        ...data, 
+    // For new drafts, create a new request
+    if (id === 0) {
+      return createRequest(formData);
+    }
+
+    // For existing drafts, update the request
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...data,
         status: "draft",
         isLocked: false,
         updatedAt: new Date().toISOString()
-      },
+      }),
+      credentials: "include",
     });
+
+    const result = await handleResponse(response, 'Failed to save draft');
     console.log('Draft saved successfully:', result);
     return result;
   } catch (error) {
@@ -107,7 +119,7 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   }
 }
 
-export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
+export async function submitRequest(id: number, data: Partial<PurchaseRequest>, formData: FormData) {
   console.log('Submitting request:', { id, data });
   try {
     // Validate all required fields for submission
@@ -122,7 +134,6 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
     if (!data.items || data.items.length === 0) {
       validationErrors.push('At least one item is required');
     } else {
-      // Validate each item
       data.items.forEach((item, index) => {
         if (!item.name?.trim()) {
           validationErrors.push(`Item ${index + 1}: Name is required`);
@@ -138,21 +149,36 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
     if (!data.purposeType) {
       validationErrors.push('Purpose type is required');
     }
+    if (!data.vendorId) {
+      validationErrors.push('Vendor selection is required');
+    }
 
     if (validationErrors.length > 0) {
       throw new Error(validationErrors.join('\n'));
     }
 
-    const result = await updateRequest({
-      id,
-      data: { 
-        ...data, 
+    // For new requests, create a new request
+    if (id === 0) {
+      return createRequest(formData);
+    }
+
+    // For existing requests, update the request
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...data,
         status: "pending",
         isLocked: true,
         submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      },
+      }),
+      credentials: "include",
     });
+
+    const result = await handleResponse(response, 'Failed to submit request');
     console.log('Request submitted successfully:', result);
     return result;
   } catch (error) {
