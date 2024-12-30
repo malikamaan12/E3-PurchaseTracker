@@ -60,7 +60,7 @@ interface RequestData {
   priority: string;
   purposeType: string;
   totalEstimatedCost: number;
-  items?: Array<{
+  items: Array<{
     name: string;
     quantity: number;
     estimatedCost: number;
@@ -160,7 +160,7 @@ export default function Dashboard() {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
 
-  const filterRequests = (requestList: RequestData[]) => {
+  const filterRequests = (requestList: RequestData[]): RequestData[] => {
     if (!Array.isArray(requestList)) return [];
 
     return requestList.filter((r) => {
@@ -188,15 +188,15 @@ export default function Dashboard() {
   };
 
   // Get all requests visible to the user based on their role
-  const visibleRequests = useMemo(() => {
+  const visibleRequests: RequestData[] = useMemo(() => {
     if (!Array.isArray(requests)) return [];
 
     if (isAdmin || isApprover || isSpecialRole) {
-      return requests;
+      return requests as RequestData[];
     }
 
     // Regular users can only see their own requests
-    return requests.filter((r: RequestData) => r?.requesterId === user?.id);
+    return (requests as RequestData[]).filter((r) => r?.requesterId === user?.id);
   }, [requests, isAdmin, isApprover, isSpecialRole, user?.id]);
 
   const myDrafts = filterRequests(
@@ -313,6 +313,14 @@ export default function Dashboard() {
     requests: RequestData[],
     showApproval: boolean = false
   ) => {
+    const canSubmitDraft = (request: RequestData) => {
+      return request.status === "draft" &&
+             request.requesterId === user?.id &&
+             request.title &&
+             request.description &&
+             Array.isArray(request.items) &&
+             request.items.length > 0;
+    };
     return (
       <Table>
         <TableHeader>
@@ -331,13 +339,14 @@ export default function Dashboard() {
           {requests.map((request) => {
             if (!request) return null;
 
-            const canSubmitDraft =
-              request.status === "draft" &&
-              request.requesterId === user?.id &&
-              request.title &&
-              request.description &&
-              request.items?.length > 0;
-
+            const canSubmitDraft = (request: RequestData) => {
+              return request.status === "draft" &&
+                     request.requesterId === user?.id &&
+                     request.title &&
+                     request.description &&
+                     Array.isArray(request.items) &&
+                     request.items.length > 0;
+            };
             return (
               <TableRow key={request.id}>
                 <TableCell className="font-medium">
@@ -429,7 +438,7 @@ export default function Dashboard() {
                         </AlertDialog>
                       </>
                     )}
-                    {canSubmitDraft && (
+                    {canSubmitDraft(request) && (
                       <Button
                         variant="default"
                         size="sm"
@@ -469,7 +478,8 @@ export default function Dashboard() {
         r?.status === "draft" &&
         r?.title &&
         r?.description &&
-        r?.items?.length > 0
+        Array.isArray(r?.items) &&
+        r?.items.length > 0
     )
   );
 
