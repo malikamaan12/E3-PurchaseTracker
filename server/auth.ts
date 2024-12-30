@@ -4,7 +4,7 @@ import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { compare, hash } from 'bcrypt';
-import { users, accountRequests } from "@db/schema";
+import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { AppError } from "./utils/errors";
@@ -47,6 +47,7 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Configure passport local strategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
@@ -76,7 +77,7 @@ export async function setupAuth(app: Express) {
         }
 
         // Create sanitized user object (without password)
-        const sanitizedUser: Express.User = {
+        const sanitizedUser = {
           id: user.id,
           username: user.username,
           email: user.email,
@@ -95,6 +96,7 @@ export async function setupAuth(app: Express) {
     })
   );
 
+  // Configure session serialization
   passport.serializeUser((user, done) => {
     console.log('Serializing user:', user.id);
     done(null, user.id);
@@ -104,7 +106,6 @@ export async function setupAuth(app: Express) {
     try {
       console.log('Deserializing user:', id);
 
-      // Use explicit field selection
       const [user] = await db
         .select({
           id: users.id,
@@ -131,7 +132,7 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Auth routes
+  // Setup auth routes
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate('local', (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
@@ -173,12 +174,12 @@ export async function setupAuth(app: Express) {
 
   // Create test admin user if it doesn't exist
   try {
-    const password = await hash('admin123', 10);
+    const hashedPassword = await hash('admin123', 10);
     await db
       .insert(users)
       .values({
         username: 'admin',
-        password,
+        password: hashedPassword,
         email: 'admin@example.com',
         department: 'IT',
         role: 'admin',
