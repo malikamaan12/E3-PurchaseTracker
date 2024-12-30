@@ -9,6 +9,7 @@ import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
 import ErrorLookupGuide from "./components/ErrorLookupGuide";
+import VendorManagement from "./pages/VendorManagement";
 import { NotFound } from "@/components/NotFound";
 
 function App() {
@@ -35,6 +36,8 @@ function App() {
       <Route path="/new-request" component={NewRequest} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
+      <Route path="/vendors/*" component={VendorManagement} />
+
       {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
         <>
@@ -44,6 +47,7 @@ function App() {
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
         </>
       )}
+
       {/* 404 route handler */}
       <Route component={NotFound} />
     </Switch>

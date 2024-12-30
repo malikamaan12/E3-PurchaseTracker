@@ -148,6 +148,73 @@ export const purchaseApprovers = pgTable("purchase_approvers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Vendor Management Tables
+export const vendors = pgTable("vendors", {
+  id: serial("id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  contactPerson: text("contact_person").notNull(),
+  phoneNumber: text("phone_number")
+    .notNull()
+    .check("phone_number_format", /^[+]?[\d\s-]+$/),
+  email: text("email").notNull(),
+  address: text("address").notNull(),
+  taxNumber: text("tax_number"),
+  registrationNumber: text("registration_number"),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  iban: text("iban").notNull(),
+  branchName: text("branch_name").notNull(),
+  rating: integer("rating").default(0),
+  status: text("status").notNull().default("active"),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorCategories = pgTable("vendor_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorToCategories = pgTable("vendor_to_categories", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  categoryId: integer("category_id").notNull().references(() => vendorCategories.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const vendorPerformance = pgTable("vendor_performance", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id),
+  qualityScore: integer("quality_score").notNull(),
+  deliveryScore: integer("delivery_score").notNull(),
+  communicationScore: integer("communication_score").notNull(),
+  costScore: integer("cost_score").notNull(),
+  comments: text("comments"),
+  reviewedBy: integer("reviewed_by").notNull().references(() => users.id),
+  reviewedAt: timestamp("reviewed_at").defaultNow(),
+});
+
+export const vendorPayments = pgTable("vendor_payments", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id),
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("QAR"),
+  status: text("status").notNull().default("pending"),
+  dueDate: timestamp("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  transactionReference: text("transaction_reference"),
+  remarks: text("remarks"),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // ============= Relations =============
 export const errorLogRelations = relations(errorLogs, ({ one }) => ({
   user: one(users, {
@@ -204,6 +271,29 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
   }),
 }));
 
+// Relations
+export const vendorRelations = relations(vendors, ({ many }) => ({
+  categories: many(vendorToCategories),
+  performance: many(vendorPerformance),
+  payments: many(vendorPayments),
+}));
+
+export const vendorCategoryRelations = relations(vendorCategories, ({ many }) => ({
+  vendors: many(vendorToCategories),
+}));
+
+export const vendorToCategoriesRelations = relations(vendorToCategories, ({ one }) => ({
+  vendor: one(vendors, {
+    fields: [vendorToCategories.vendorId],
+    references: [vendors.id],
+  }),
+  category: one(vendorCategories, {
+    fields: [vendorToCategories.categoryId],
+    references: [vendorCategories.id],
+  }),
+}));
+
+
 // ============= Basic Type Definitions =============
 export type User = InferModel<typeof users>;
 export type SubPurpose = {
@@ -231,6 +321,11 @@ export type InsertNotification = typeof notifications.$inferInsert;
 export type SelectNotification = typeof notifications.$inferSelect;
 export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;
 export type InsertSubPurpose = typeof subPurposes.$inferInsert;
+export type Vendor = typeof vendors.$inferSelect;
+export type InsertVendor = typeof vendors.$inferInsert;
+export type VendorCategory = typeof vendorCategories.$inferSelect;
+export type VendorPerformance = typeof vendorPerformance.$inferSelect;
+export type VendorPayment = typeof vendorPayments.$inferSelect;
 
 
 // ============= Validation Schemas =============
@@ -348,6 +443,52 @@ export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers
   level: z.number().int().min(1).max(5),
 });
 
+export const insertVendorSchema = createInsertSchema(vendors, {
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  phoneNumber: z.string()
+    .min(8, "Phone number must be at least 8 digits")
+    .max(15, "Phone number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid phone number format"),
+  email: z.string().email("Invalid email format"),
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  taxNumber: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
+  accountNumber: z.string()
+    .min(5, "Account number must be at least 5 characters")
+    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
+  iban: z.string()
+    .min(15, "IBAN must be at least 15 characters")
+    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
+  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
+  rating: z.number().min(0).max(5).optional(),
+  status: z.enum(["active", "blocked", "frozen"]).default("active"),
+  remarks: z.string().optional(),
+});
+
+export const insertVendorCategorySchema = createInsertSchema(vendorCategories, {
+  name: z.string().min(2, "Category name must be at least 2 characters"),
+  description: z.string().optional(),
+});
+
+export const insertVendorPerformanceSchema = createInsertSchema(vendorPerformance, {
+  qualityScore: z.number().min(1).max(5),
+  deliveryScore: z.number().min(1).max(5),
+  communicationScore: z.number().min(1).max(5),
+  costScore: z.number().min(1).max(5),
+  comments: z.string().optional(),
+});
+
+export const insertVendorPaymentSchema = createInsertSchema(vendorPayments, {
+  amount: z.number().positive("Amount must be greater than 0"),
+  currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
+  status: z.enum(["pending", "paid", "cancelled"]).default("pending"),
+  dueDate: z.coerce.date(),
+  transactionReference: z.string().optional(),
+  remarks: z.string().optional(),
+});
+
 // ============= Create Select Schemas =============
 export const selectUserSchema = createSelectSchema(users);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
@@ -362,6 +503,10 @@ export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers
 export const selectErrorLogSchema = createSelectSchema(errorLogs);
 
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
+export const selectVendorSchema = createSelectSchema(vendors);
+export const selectVendorCategorySchema = createSelectSchema(vendorCategories);
+export const selectVendorPerformanceSchema = createSelectSchema(vendorPerformance);
+export const selectVendorPaymentSchema = createSelectSchema(vendorPayments);
 
 // ============= Error log schemas =============
 export const insertErrorLogSchema = z.object({

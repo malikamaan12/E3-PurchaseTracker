@@ -18,7 +18,9 @@ import {
   type PurchaseApprover,
   insertPurchaseRequestSchema,
   insertSubPurposeSchema,
-  companyBranding
+  companyBranding,
+  vendors, // Add import for vendors table
+  insertVendorSchema // Add import for vendor schema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -135,7 +137,6 @@ export function registerRoutes(app: Express): Server {
         .insert(purchaseRequests)
         .values({
           ...validationResult.data,
-          attachments: fileData,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -176,8 +177,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Prevent updates to locked requests unless it's a status update from an approver
-      if (existingRequest.isLocked && 
-          updateData.status !== 'changes_requested' && 
+      if (existingRequest.isLocked &&
+          updateData.status !== 'changes_requested' &&
           req.user!.role !== 'approver') {
         throw new AppError('Request is locked', 403);
       }
@@ -811,6 +812,145 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add vendor management routes to the existing routes
+  app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Fetching vendors');
+
+      const allVendors = await db
+        .select({
+          id: vendors.id,
+          companyName: vendors.companyName,
+          contactPerson: vendors.contactPerson,
+          phoneNumber: vendors.phoneNumber,
+          email: vendors.email,
+          address: vendors.address,
+          taxNumber: vendors.taxNumber,
+          registrationNumber: vendors.registrationNumber,
+          bankName: vendors.bankName,
+          accountNumber: vendors.accountNumber,
+          iban: vendors.iban,
+          branchName: vendors.branchName,
+          rating: vendors.rating,
+          status: vendors.status,
+          remarks: vendors.remarks,
+          createdAt: vendors.createdAt,
+          updatedAt: vendors.updatedAt
+        })
+        .from(vendors)
+        .orderBy(desc(vendors.createdAt));
+
+      debug(req, `Found ${allVendors.length} vendors`);
+      res.json(allVendors);
+    } catch (error) {
+      debug(req, 'Error fetching vendors:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Creating new vendor:', req.body);
+
+      const validationResult = insertVendorSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid vendor data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      const [newVendor] = await db
+        .insert(vendors)
+        .values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      debug(req, 'Successfully created vendor:', newVendor);
+      res.status(201).json(newVendor);
+    } catch (error) {
+      debug(req, 'Error creating vendor:', error);
+      next(error);
+    }
+  });
+
+  app.put("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      debug(req, 'Updating vendor:', { vendorId, updateData });
+
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      if (!updatedVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      debug(req, 'Successfully updated vendor:', updatedVendor);
+      res.json(updatedVendor);
+    } catch (error) {
+      debug(req, 'Error updating vendor:', error);
+      next(error);
+    }
+  });
+
+  app.put("/api/vendors/:id/status", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!status || !['active', 'blocked', 'frozen'].includes(status)) {
+        throw new ValidationError('Invalid status');
+      }
+
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          status,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      if (!updatedVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      debug(req, 'Successfully updated vendor status:', updatedVendor);
+      res.json(updatedVendor);
+    } catch (error) {
+      debug(req, 'Error updating vendor status:', error);
+      next(error);
+    }
+  });
+
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1205,7 +1345,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Create and return the HTTP server
+  // Create and return the HTTP server after adding all routes
   const httpServer = createServer(app);
   return httpServer;
 }
