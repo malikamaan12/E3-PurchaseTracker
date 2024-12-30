@@ -112,10 +112,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (Number(item.quantity) * Number(item.estimatedCost)),
+      (sum, item) => sum + (parseFloat(item.quantity.toString()) * parseFloat(item.estimatedCost.toString())),
       0
     );
-    return itemsTotal + freightAmount;
+    return Number((itemsTotal + parseFloat(freightAmount.toString())).toFixed(2));
   };
 
   const addItem = () => {
@@ -146,13 +146,13 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         ...values,
         items: items.map(item => ({
           name: item.name,
-          quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost),
+          quantity: Number(parseFloat(item.quantity.toString()).toFixed(2)),
+          estimatedCost: Number(parseFloat(item.estimatedCost.toString()).toFixed(2)),
           description: item.description 
         })),
-        freightAmount: freightAmount.toString(),
-        totalEstimatedCost: calculateTotalCost().toString(),
-        contact_number: values.contact_number?.trim(), 
+        freightAmount: parseFloat(freightAmount.toString()).toFixed(2),
+        totalEstimatedCost: parseFloat(calculateTotalCost().toString()).toFixed(2),
+        contact_number: values.contact_number?.trim(),
       };
 
       await updateRequest({
