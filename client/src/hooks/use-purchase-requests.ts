@@ -49,23 +49,30 @@ export function usePurchaseRequests() {
   // Draft mutation with optimistic updates
   const draftMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      console.log('Saving draft mutation:', { id, data });
       return saveDraft(id, data);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData(["/api/requests"]);
+      const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
         return old.map(request => 
           request.id === id 
-            ? { ...request, ...data, status: "draft", updatedAt: new Date().toISOString() }
+            ? { 
+                ...request, 
+                ...data, 
+                status: "draft",
+                updatedAt: new Date().toISOString()
+              }
             : request
         );
       });
 
       return { previousRequests };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
+      console.log('Draft saved successfully:', result);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
@@ -73,6 +80,7 @@ export function usePurchaseRequests() {
       });
     },
     onError: async (error: Error, variables, context) => {
+      console.error('Error saving draft:', error);
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
@@ -92,23 +100,32 @@ export function usePurchaseRequests() {
   // Submit mutation with optimistic updates
   const submitMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      console.log('Submitting request mutation:', { id, data });
       return submitRequest(id, data);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData(["/api/requests"]);
+      const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
         return old.map(request => 
           request.id === id 
-            ? { ...request, ...data, status: "pending", submittedAt: new Date().toISOString() }
+            ? { 
+                ...request, 
+                ...data, 
+                status: "pending",
+                isLocked: true,
+                submittedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              }
             : request
         );
       });
 
       return { previousRequests };
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
+      console.log('Request submitted successfully:', result);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
@@ -116,6 +133,7 @@ export function usePurchaseRequests() {
       });
     },
     onError: async (error: Error, variables, context) => {
+      console.error('Error submitting request:', error);
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
