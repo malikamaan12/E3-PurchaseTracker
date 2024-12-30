@@ -78,6 +78,11 @@ export async function deleteRequest(id: number) {
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   console.log('Saving draft:', { id, data });
   try {
+    // Validate required fields for draft
+    if (!data.title?.trim()) {
+      throw new Error('Title is required even for drafts');
+    }
+
     const result = await updateRequest({
       id,
       data: { 
@@ -97,6 +102,17 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
   console.log('Submitting request:', { id, data });
   try {
+    // Validate required fields for submission
+    if (!data.title?.trim()) {
+      throw new Error('Title is required');
+    }
+    if (!data.description?.trim()) {
+      throw new Error('Description is required');
+    }
+    if (!data.items || data.items.length === 0) {
+      throw new Error('At least one item is required');
+    }
+
     const result = await updateRequest({
       id,
       data: { 
