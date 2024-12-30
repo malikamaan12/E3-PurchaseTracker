@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
-import { saveDraft, submitRequest, createRequest } from "@/services/requests";
+import { saveDraft, submitRequest } from "@/services/requests";
 import { useErrorHandler } from "@/services/error-logging";
 
 interface ApprovalData {
@@ -16,29 +16,19 @@ export function usePurchaseRequests() {
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
 
-  // Fetch all requests
+  // Fetch all requests with optimized fields
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
-    queryFn: async ({ queryKey }) => {
-      console.log('Fetching requests...');
-      const res = await fetch(queryKey[0], {
+    queryFn: async () => {
+      const res = await fetch("/api/requests", {
         credentials: 'include'
       });
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Failed to fetch requests: ${errorText}`);
+        throw new Error(await res.text());
       }
-      const data = await res.json();
-      console.log('Fetched requests:', data);
-      return data;
+      return res.json();
     },
-    retry: 1,
-    staleTime: 30000,
-    onError: async (error) => {
-      await handleError(error, {
-        title: "Error fetching requests"
-      });
-    }
+    staleTime: 30000 // Cache for 30 seconds
   });
 
   // Draft mutation
@@ -82,8 +72,6 @@ export function usePurchaseRequests() {
   // Create approval mutation
   const createApproval = useMutation({
     mutationFn: async (data: ApprovalData) => {
-      console.log('Creating approval with:', data);
-
       const res = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,7 +87,6 @@ export function usePurchaseRequests() {
       return res.json();
     },
     onSuccess: (_, variables) => {
-      console.log('Approval created successfully');
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",

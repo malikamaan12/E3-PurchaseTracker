@@ -14,12 +14,7 @@ export async function logError(error: Error | unknown, context?: Record<string, 
       message: error instanceof Error ? error.message : String(error),
       severity: 'error',
       path: window.location.pathname,
-      details: {
-        ...context,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        url: window.location.href
-      }
+      details: context
     };
 
     // Send error to server for logging
@@ -42,8 +37,19 @@ export async function logError(error: Error | unknown, context?: Record<string, 
   }
 }
 
-export function getErrorMessage(error: unknown): string {
+export function getFormattedErrorMessage(error: unknown): string {
   if (error instanceof Error) {
+    // Handle validation errors
+    if (error.message.includes('Validation failed')) {
+      try {
+        const errorData = JSON.parse(error.message);
+        if (Array.isArray(errorData.errors)) {
+          return errorData.errors.join('\n');
+        }
+      } catch (_) {
+        // If parsing fails, return original message
+      }
+    }
     return error.message;
   }
   if (typeof error === 'string') {
@@ -52,31 +58,17 @@ export function getErrorMessage(error: unknown): string {
   return 'An unexpected error occurred';
 }
 
-export function getReadableValidationError(error: unknown): string {
-  if (error instanceof Error) {
-    // Check for validation error patterns
-    const message = error.message;
-    if (message.includes('required')) {
-      return message.replace(/\[\w+\]/, '').trim();
-    }
-    if (message.includes('must be')) {
-      return message;
-    }
-  }
-  return getErrorMessage(error);
-}
-
 // Hook for centralized error handling with toast notifications
 export function useErrorHandler() {
   const { toast } = useToast();
 
   return async (error: unknown, context?: { title?: string; silent?: boolean }) => {
     const errorData = await logError(error);
-    
+
     if (!context?.silent) {
       toast({
         title: context?.title || 'Error',
-        description: getReadableValidationError(error),
+        description: getFormattedErrorMessage(error),
         variant: 'destructive',
       });
     }
