@@ -28,12 +28,23 @@ export async function updateRequest({
   try {
     console.log('Updating request:', { id, data });
 
+    // Validate required fields based on the operation
+    if (data.status === 'pending') {
+      if (!data.title?.trim()) throw new Error('Title is required');
+      if (!data.description?.trim()) throw new Error('Description is required');
+      if (!data.items?.length) throw new Error('At least one item is required');
+      if (!data.purposeType) throw new Error('Purpose type is required');
+    }
+
     const response = await fetch(`/api/requests/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        updatedAt: new Date().toISOString()
+      }),
       credentials: "include",
     });
 
@@ -68,9 +79,15 @@ export async function createRequest(data: FormData) {
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   console.log('Saving draft:', { id, data });
   try {
-    // Basic validation for draft - at least one field should be filled
-    if (!data.title?.trim() && !data.description?.trim() && (!data.items || data.items.length === 0)) {
-      throw new Error('Draft must contain at least one field (title, description, or items)');
+    // Basic validation for draft - ensure at least one field has content
+    const hasContent = 
+      data.title?.trim() || 
+      data.description?.trim() || 
+      (data.items && data.items.length > 0) ||
+      data.purposeType;
+
+    if (!hasContent) {
+      throw new Error('Draft must contain at least one field (title, description, items, or purpose)');
     }
 
     const result = await updateRequest({
@@ -93,7 +110,7 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
   console.log('Submitting request:', { id, data });
   try {
-    // Validate required fields for submission
+    // Validate all required fields for submission
     const validationErrors = [];
 
     if (!data.title?.trim()) {
@@ -104,13 +121,26 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
     }
     if (!data.items || data.items.length === 0) {
       validationErrors.push('At least one item is required');
+    } else {
+      // Validate each item
+      data.items.forEach((item, index) => {
+        if (!item.name?.trim()) {
+          validationErrors.push(`Item ${index + 1}: Name is required`);
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          validationErrors.push(`Item ${index + 1}: Valid quantity is required`);
+        }
+        if (!item.estimatedCost || item.estimatedCost <= 0) {
+          validationErrors.push(`Item ${index + 1}: Valid cost is required`);
+        }
+      });
     }
     if (!data.purposeType) {
       validationErrors.push('Purpose type is required');
     }
 
     if (validationErrors.length > 0) {
-      throw new Error(validationErrors.join(', '));
+      throw new Error(validationErrors.join('\n'));
     }
 
     const result = await updateRequest({

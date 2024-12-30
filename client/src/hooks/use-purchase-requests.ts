@@ -77,9 +77,14 @@ export function usePurchaseRequests() {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
 
+      toast({
+        title: "Error saving draft",
+        description: error.message || ERROR_MESSAGES.UPDATE_FAILED,
+        variant: "destructive"
+      });
+
       await handleError(error, {
         title: "Error saving draft",
-        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
       });
     }
   });
@@ -115,9 +120,14 @@ export function usePurchaseRequests() {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
 
+      toast({
+        title: "Error submitting request",
+        description: error.message || ERROR_MESSAGES.UPDATE_FAILED,
+        variant: "destructive"
+      });
+
       await handleError(error, {
         title: "Error submitting request",
-        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
       });
     }
   });
