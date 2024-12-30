@@ -29,13 +29,17 @@ export async function updateRequest({
   });
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to update request');
   }
 
   return response.json();
 }
 
 export async function createRequest(data: FormData) {
+  // Add console logging for debugging
+  console.log('Submitting request data:', Object.fromEntries(data.entries()));
+
   const response = await fetch("/api/requests", {
     method: "POST",
     body: data,
@@ -43,7 +47,9 @@ export async function createRequest(data: FormData) {
   });
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    const errorText = await response.text();
+    console.error('Request submission failed:', errorText);
+    throw new Error(errorText || 'Failed to create request');
   }
 
   return response.json();
@@ -56,13 +62,15 @@ export async function deleteRequest(id: number) {
   });
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to delete request');
   }
 
   return response.json();
 }
 
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
+  console.log('Saving draft:', { id, data });
   return updateRequest({
     id,
     data: { ...data, status: "draft" },
@@ -70,6 +78,7 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
 }
 
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
+  console.log('Submitting request:', { id, data });
   return updateRequest({
     id,
     data: { ...data, status: "pending" },

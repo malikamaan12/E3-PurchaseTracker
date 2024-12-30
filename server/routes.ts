@@ -104,7 +104,14 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Creating new purchase request', { body: req.body });
 
       // Parse the JSON data from form data
-      const requestData = JSON.parse(req.body.data);
+      let requestData;
+      try {
+        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+        debug(req, 'Parsed request data:', requestData);
+      } catch (error) {
+        debug(req, 'Error parsing request data:', error);
+        throw new ValidationError('Invalid request data format');
+      }
 
       // Add requesterId from authenticated user
       requestData.requesterId = req.user!.id;
@@ -131,6 +138,11 @@ export function registerRoutes(app: Express): Server {
         mimetype: file.mimetype,
         size: file.size
       }));
+
+      debug(req, 'Creating purchase request with data:', {
+        ...validationResult.data,
+        files: fileData
+      });
 
       // Create purchase request with file attachments
       const [newRequest] = await db
