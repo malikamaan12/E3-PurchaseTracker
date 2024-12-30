@@ -25,10 +25,12 @@ export default function AuthPage() {
     },
   });
 
-  const onTabChange = (value: "login" | "register") => {
-    setActiveTab(value);
-    if (value === "login") {
-      loginForm.reset();
+  const onTabChange = (value: string) => {
+    if (value === "login" || value === "register") {
+      setActiveTab(value);
+      if (value === "login") {
+        loginForm.reset();
+      }
     }
   };
 
