@@ -1,7 +1,10 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { setupWebSocketServer } from "./utils/websocket";
+import { setupAuth } from "./auth";
+import type { Request, Response, NextFunction } from "express";
 import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { db } from "@db";
-import { setupAuth } from "./auth";
 import { anthropic } from './utils/anthropic';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import {
@@ -19,7 +22,8 @@ import {
   insertAccountRequestSchema,
   approvals,
   accountRequests,
-  type PurchaseRequest
+  type PurchaseRequest,
+  insertErrorLogSchema
 } from "@db/schema";
 import multer from "multer";
 import path from "path";
@@ -54,15 +58,73 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 }).array('files', 5);
 
-export async function registerRoutes(app: Express): Promise<void> {
+export function registerRoutes(app: Express): Server {
+  // Create HTTP server first
+  const httpServer = createServer(app);
+
+  // Setup WebSocket server
+  setupWebSocketServer(httpServer);
+
   // Setup authentication routes and middleware
-  await setupAuth(app);
+  setupAuth(app);
 
   // Add request validation middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as any).id = crypto.randomUUID();
     debug(req, `${req.method} ${req.path} started`);
     next();
+  });
+
+  // Error logging endpoint with proper validation
+  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Logging error:', req.body);
+
+      const validationResult = insertErrorLogSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid error log data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Create error log
+      const [errorLog] = await db
+        .insert(errorLogs)
+        .values({
+          ...validationResult.data,
+          userId: req.user?.id,
+          createdAt: new Date()
+        })
+        .returning();
+
+      // If error is critical, notify admin users
+      if (validationResult.data.severity === 'critical') {
+        const admins = await db
+          .select()
+          .from(users)
+          .where(eq(users.role, 'admin'));
+
+        // Notify all admins
+        await Promise.all(admins.map(admin =>
+          createNotification(
+            admin.id,
+            'Critical Error Detected',
+            `A critical error occurred: ${validationResult.data.message}`,
+            'error_analytics'
+          )
+        ));
+      }
+
+      res.status(201).json(errorLog);
+    } catch (error) {
+      debug(req, 'Error logging error:', error);
+      next(error);
+    }
   });
 
   // Request submission endpoint with proper error handling
@@ -303,6 +365,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       next(error);
     }
   });
+
 
 
   // Account requests management
@@ -1011,72 +1074,5 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Add to the existing routes
-  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Logging error:', req.body);
-
-      const validationResult = insertErrorLogSchema.safeParse({
-        ...req.body,
-        userId: req.user?.id
-      });
-
-      if (!validationResult.success) {
-        debug(req, 'Error log validationfailed:', validationResult.error);
-        throw new ValidationError('Invalid error log data', {          errors: validationResult.error.errors
-        });
-      }
-
-      // Analyze error with Claude if API key is available
-      let aiAnalysis = null;
-      if (process.env.ANTHROPIC_API_KEY) {
-        try {
-          const anthropic = new Anthropic({
-            apiKey: process.env.ANTHROPIC_API_KEY,
-          });
-
-          const message = await anthropic.messages.create({
-            model: "claude-3-opus-20240229",
-            max_tokens: 1024,
-            messages: [{
-              role: "user",
-              content: `Analyze this error and suggest possible solutions:
-                Error Message: ${validationResult.data.message}
-                Error Code: ${validationResult.data.code || 'N/A'}
-                Path: ${validationResult.data.path || 'N/A'}
-                Details: ${JSON.stringify(validationResult.data.details || {}, null, 2)}
-              `
-            }]
-          });
-
-          aiAnalysis = {
-            analysis: message.content,
-            timestamp: new Date().toISOString()
-          };
-        } catch (aiError) {
-          console.error('AI Analysis failed:', aiError);
-        }
-      }
-
-      // Save error log with AI analysis
-      const [errorLog] = await db
-        .insert(errorLogs)
-        .values({
-          ...validationResult.data,
-          aiAnalysis,
-          createdAt: new Date()
-        })
-        .returning();
-
-      debug(req, 'Error logged successfully:', errorLog);
-      res.status(201).json(errorLog);
-    } catch (error) {
-      debug(req, 'Error logging error:', error);
-      next(error);
-    }
-  });
+  return httpServer;
 }

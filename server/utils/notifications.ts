@@ -1,52 +1,53 @@
 import { db } from "@db";
 import { notifications } from "@db/schema";
 import { AppError } from "./errors";
-import { and, eq, desc, sql } from "drizzle-orm";
-import { analyzeNotificationError } from "./error-analysis";
+import { eq, and, desc } from "drizzle-orm";
+import { getNotificationServer } from "./websocket";
+import { z } from "zod";
 
-// Define valid notification types and their route patterns
-export const NOTIFICATION_ROUTES = {
+// Define notification types schema
+const notificationTypeSchema = z.enum([
+  'request',
+  'account_request',
+  'system',
+  'error_analytics',
+]);
+
+type NotificationType = z.infer<typeof notificationTypeSchema>;
+
+// Define notification routes mapping
+const NOTIFICATION_ROUTES = {
   request: (id: number) => `/requests/${id}`,
   account_request: () => '/admin/account-requests',
   system: () => '/',
   error_analytics: () => '/admin/error-analytics',
-  default: () => '/'
 } as const;
 
-// Add logging to help track notification creation and routing
+// Enhanced logging for better debugging
 const logNotification = (action: string, data: any) => {
-  console.log(`[Notification ${action}]:`, JSON.stringify(data, null, 2));
+  console.log(`[Notification ${action}] ${new Date().toISOString()}:`, 
+    JSON.stringify(data, null, 2));
 };
 
 export async function createNotification(
   userId: number,
   title: string,
   message: string,
-  type: string,
+  type: NotificationType,
   requestId?: number
 ) {
   try {
-    // Determine the correct link based on notification type
-    let link: string | null = null;
+    // Validate notification type
+    notificationTypeSchema.parse(type);
 
-    // Log the incoming notification data
-    logNotification('create-params', { userId, title, message, type, requestId });
+    // Generate appropriate link based on type
+    const link = requestId && type === 'request' 
+      ? NOTIFICATION_ROUTES.request(requestId)
+      : NOTIFICATION_ROUTES[type]();
 
-    if (type === 'request' && requestId) {
-      link = NOTIFICATION_ROUTES.request(requestId);
-    } else if (type === 'account_request') {
-      link = NOTIFICATION_ROUTES.account_request();
-    } else if (type === 'system') {
-      link = NOTIFICATION_ROUTES.system();
-    } else if (type === 'error_analytics') {
-      link = NOTIFICATION_ROUTES.error_analytics();
-    } else {
-      link = NOTIFICATION_ROUTES.default();
-    }
+    logNotification('create-params', { userId, title, message, type, requestId, link });
 
-    // Log the resolved link
-    logNotification('resolved-link', { type, link, requestId });
-
+    // Create notification in database
     const [notification] = await db
       .insert(notifications)
       .values({
@@ -57,61 +58,76 @@ export async function createNotification(
         requestId,
         link,
         isRead: false,
-        createdAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
       .returning();
 
-    // Log the created notification
     logNotification('created', notification);
+
+    // Broadcast via WebSocket if available
+    const wsServer = getNotificationServer();
+    if (wsServer) {
+      wsServer.broadcastToUser(userId, notification);
+    }
 
     return notification;
   } catch (error) {
-    const analysis = await analyzeNotificationError(
-      error as Error, 
-      userId,
-      'createNotification',
-      'insert'
-    );
-
-    console.error('Error creating notification:', error, '\nAnalysis:', analysis);
+    console.error('Error creating notification:', error);
     throw new AppError('Failed to create notification', 500);
   }
 }
 
-// Get notifications with proper filtering and error handling
-export async function getNotifications(userId: number, lastFetchTime?: Date) {
+// Get notifications with proper filtering and pagination
+export async function getNotifications(
+  userId: number,
+  options: {
+    lastFetchTime?: Date;
+    limit?: number;
+    offset?: number;
+    unreadOnly?: boolean;
+  } = {}
+) {
   try {
-    let whereClause = eq(notifications.userId, userId);
+    const {
+      lastFetchTime,
+      limit = 50,
+      offset = 0,
+      unreadOnly = false
+    } = options;
+
+    let conditions = eq(notifications.userId, userId);
 
     if (lastFetchTime) {
-      whereClause = and(
-        whereClause,
-        sql`${notifications.createdAt} > ${lastFetchTime}`
+      conditions = and(
+        conditions,
+        eq(notifications.createdAt, lastFetchTime)
+      );
+    }
+
+    if (unreadOnly) {
+      conditions = and(
+        conditions,
+        eq(notifications.isRead, false)
       );
     }
 
     const results = await db
       .select()
       .from(notifications)
-      .where(whereClause)
+      .where(conditions)
       .orderBy(desc(notifications.createdAt))
-      .limit(50); // Limit to prevent excessive data transfer
+      .limit(limit)
+      .offset(offset);
 
     return results;
   } catch (error) {
-    const analysis = await analyzeNotificationError(
-      error as Error,
-      userId,
-      'getNotifications',
-      'select'
-    );
-
-    console.error('Error fetching notifications:', error, '\nAnalysis:', analysis);
+    console.error('Error fetching notifications:', error);
     throw new AppError('Failed to fetch notifications', 500);
   }
 }
 
-// Mark notification as read with proper error handling
+// Mark notification as read with ownership verification
 export async function markNotificationAsRead(notificationId: number, userId: number) {
   try {
     const [updatedNotification] = await db
@@ -132,22 +148,14 @@ export async function markNotificationAsRead(notificationId: number, userId: num
 
     return updatedNotification;
   } catch (error) {
-    const analysis = await analyzeNotificationError(
-      error as Error,
-      userId,
-      'markNotificationAsRead',
-      'update'
-    );
-
-    console.error('Error marking notification as read:', error, '\nAnalysis:', analysis);
-
+    console.error('Error marking notification as read:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Failed to mark notification as read', 500);
   }
 }
 
-// Get unread count with proper error handling
-export async function getUnreadCount(userId: number) {
+// Get unread notifications count
+export async function getUnreadCount(userId: number): Promise<number> {
   try {
     const [result] = await db
       .select({ 
@@ -161,19 +169,12 @@ export async function getUnreadCount(userId: number) {
 
     return result?.count || 0;
   } catch (error) {
-    const analysis = await analyzeNotificationError(
-      error as Error,
-      userId,
-      'getUnreadCount',
-      'count'
-    );
-
-    console.error('Error getting unread count:', error, '\nAnalysis:', analysis);
+    console.error('Error getting unread count:', error);
     throw new AppError('Failed to get unread notification count', 500);
   }
 }
 
-// Cleanup old notifications to prevent database bloat
+// Cleanup old notifications periodically
 export async function cleanupOldNotifications(days: number = 30) {
   try {
     const cutoffDate = new Date();
@@ -182,6 +183,8 @@ export async function cleanupOldNotifications(days: number = 30) {
     await db
       .delete(notifications)
       .where(sql`${notifications.createdAt} < ${cutoffDate}`);
+
+    console.log(`Cleaned up notifications older than ${days} days`);
   } catch (error) {
     console.error('Error cleaning up old notifications:', error);
     // Don't throw here as this is a maintenance operation
