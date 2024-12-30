@@ -18,45 +18,6 @@ async function handleResponse(response: Response, errorMessage: string) {
   return response.json();
 }
 
-export async function updateRequest({
-  id,
-  data,
-}: {
-  id: number;
-  data: Partial<PurchaseRequest>;
-}) {
-  try {
-    console.log('Updating request:', { id, data });
-
-    // Validate required fields based on the operation
-    if (data.status === 'pending') {
-      if (!data.title?.trim()) throw new Error('Title is required');
-      if (!data.description?.trim()) throw new Error('Description is required');
-      if (!data.items?.length) throw new Error('At least one item is required');
-      if (!data.purposeType) throw new Error('Purpose type is required');
-    }
-
-    const response = await fetch(`/api/requests/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...data,
-        updatedAt: new Date().toISOString()
-      }),
-      credentials: "include",
-    });
-
-    const result = await handleResponse(response, 'Failed to update request');
-    console.log('Request updated successfully:', result);
-    return result;
-  } catch (error) {
-    console.error('Update request error:', error);
-    throw error;
-  }
-}
-
 export async function createRequest(formData: FormData) {
   try {
     console.log('Creating request with data:', Object.fromEntries(formData.entries()));
@@ -149,9 +110,6 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>, 
     if (!data.purposeType) {
       validationErrors.push('Purpose type is required');
     }
-    if (!data.vendorId) {
-      validationErrors.push('Vendor selection is required');
-    }
 
     if (validationErrors.length > 0) {
       throw new Error(validationErrors.join('\n'));
@@ -183,6 +141,45 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>, 
     return result;
   } catch (error) {
     console.error('Error submitting request:', error);
+    throw error;
+  }
+}
+
+export async function updateRequest({
+  id,
+  data,
+}: {
+  id: number;
+  data: Partial<PurchaseRequest>;
+}) {
+  try {
+    console.log('Updating request:', { id, data });
+
+    // Validate required fields based on the operation
+    if (data.status === 'pending') {
+      if (!data.title?.trim()) throw new Error('Title is required');
+      if (!data.description?.trim()) throw new Error('Description is required');
+      if (!data.items?.length) throw new Error('At least one item is required');
+      if (!data.purposeType) throw new Error('Purpose type is required');
+    }
+
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...data,
+        updatedAt: new Date().toISOString()
+      }),
+      credentials: "include",
+    });
+
+    const result = await handleResponse(response, 'Failed to update request');
+    console.log('Request updated successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Update request error:', error);
     throw error;
   }
 }

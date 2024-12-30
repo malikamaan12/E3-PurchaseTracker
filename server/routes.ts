@@ -4,7 +4,6 @@ import { db } from "@db";
 import multer from "multer";
 import path from "path";
 import * as crypto from 'crypto';
-import { setupAuth } from "./auth";
 import {
   users,
   notifications,
@@ -15,15 +14,19 @@ import {
   type ErrorLog,
   vendors,
   companyBranding,
-  vendorCategories,
+  subPurposes,
   insertVendorSchema,
-  subPurposes
+  insertAccountRequestSchema,
+  approvals,
+  accountRequests,
+  type PurchaseRequest
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import fs from 'fs';
+import bcrypt from 'bcrypt';
 
 // Debug logging utility
 function debug(req: Request, message: string, data?: any) {
@@ -35,7 +38,6 @@ function debug(req: Request, message: string, data?: any) {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     const uploadDir = path.join(process.cwd(), 'uploads');
-    // Ensure uploads directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -50,15 +52,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'));
-    }
-  }
-}).array('files', 5); // Allow up to 5 files
+}).array('files', 5);
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes and middleware
@@ -81,30 +75,20 @@ export function registerRoutes(app: Express): Server {
       // Handle file upload with proper error handling
       await new Promise((resolve, reject) => {
         upload(req, res, (err) => {
-          if (err instanceof multer.MulterError) {
-            reject(new ValidationError(`File upload error: ${err.message}`));
-          } else if (err) {
-            reject(new ValidationError(err.message));
-          }
+          if (err) reject(new ValidationError(err.message));
           resolve(undefined);
         });
       });
 
-      // Parse the request data
-      let requestData;
-      try {
-        requestData = JSON.parse(req.body.data);
-        debug(req, 'Parsed request data:', requestData);
-      } catch (error) {
-        throw new ValidationError('Invalid request data format');
-      }
+      // Parse and validate request data
+      const requestData = {
+        ...JSON.parse(req.body.data),
+        requesterId: req.user!.id,
+        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      };
 
-      // Add requesterId from authenticated user
-      requestData.requesterId = req.user!.id;
-      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-      // Validate request data
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+
       if (!validationResult.success) {
         throw new ValidationError('Invalid request data', {
           errors: validationResult.error.errors
@@ -114,11 +98,7 @@ export function registerRoutes(app: Express): Server {
       // Create purchase request
       const [newRequest] = await db
         .insert(purchaseRequests)
-        .values({
-          ...validationResult.data,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+        .values(validationResult.data as PurchaseRequest)
         .returning();
 
       // Save file attachments if any
@@ -162,6 +142,73 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get user's requests with detailed information
+  app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Fetching requests for user:', req.user!.id);
+
+      const requests = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          items: purchaseRequests.items,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
+          requester: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+            role: users.role,
+            contact_number: users.contact_number
+          }
+        })
+        .from(purchaseRequests)
+        .innerJoin(users, eq(users.id, purchaseRequests.requesterId));
+
+      const requestsWithDetails = await Promise.all(
+        requests.map(async (request) => {
+          const requestApprovals = await db
+            .select()
+            .from(approvals)
+            .where(eq(approvals.requestId, request.id));
+
+          const vendor = request.vendorId ?
+            await db
+              .select()
+              .from(vendors)
+              .where(eq(vendors.id, request.vendorId))
+              .limit(1)
+              .then(rows => rows[0]) : null;
+
+          return {
+            ...request,
+            approvals: requestApprovals || [],
+            vendor: vendor
+          };
+        })
+      );
+
+      debug(req, 'Found requests:', requestsWithDetails.length);
+      return res.json(requestsWithDetails);
+    } catch (error) {
+      debug(req, 'Error fetching requests:', error);
+      next(error);
+    }
+  });
+
   // Add notifications routes
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -170,34 +217,37 @@ export function registerRoutes(app: Express): Server {
       }
 
       debug(req, 'Fetching notifications for user:', req.user!.id);
-      const notifications = await getNotifications(req.user!.id);
+      const userNotifications = await getNotifications(req.user!.id);
 
-      debug(req, `Found ${notifications.length} notifications`);
-      res.json(notifications);
+      debug(req, `Found ${userNotifications.length} notifications`);
+      res.json(userNotifications);
     } catch (error) {
       debug(req, 'Error fetching notifications:', error);
       next(error);
     }
   });
 
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+  // Add vendors route
+  app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const notificationId = parseInt(req.params.id);
-      debug(req, `Marking notification ${notificationId} as read`);
+      debug(req, 'Fetching vendors');
+      const allVendors = await db
+        .select()
+        .from(vendors)
+        .orderBy(desc(vendors.createdAt));
 
-      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
-      res.json(updatedNotification);
+      debug(req, `Found ${allVendors.length} vendors`);
+      res.json(allVendors);
     } catch (error) {
-      debug(req, 'Error marking notification as read:', error);
+      debug(req, 'Error fetching vendors:', error);
       next(error);
     }
   });
-
-  // Update request endpoint with proper validation
+  // Update request endpoint
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -242,6 +292,23 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedRequest);
     } catch (error) {
       debug(req, 'Error updating request:', error);
+      next(error);
+    }
+  });
+  // Add notifications routes
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+      debug(req, `Marking notification ${notificationId} as read`);
+
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      res.json(updatedNotification);
+    } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
       next(error);
     }
   });
@@ -498,7 +565,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash password and create request
-      const hashedPassword = await hash(validationResult.data.password, 10);
+      const hashedPassword = await bcrypt.hash(validationResult.data.password, 10);
       const [newRequest] = await db
         .insert(accountRequests)
         .values({
@@ -730,6 +797,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -905,7 +973,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+        throw new AppError('Not authenticated',401);
       }
 
       debug(req, 'Creating new vendor:', req.body);
@@ -1066,7 +1134,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash the new password
-      const hashedPassword = await hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
 
       // Update user password
       const [updatedUser] = await db
