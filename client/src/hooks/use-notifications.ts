@@ -22,7 +22,8 @@ export function useNotifications() {
     refetchInterval: NOTIFICATION_CONFIG.POLLING_INTERVAL,
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS,
     staleTime: NOTIFICATION_CONFIG.STALE_TIME,
-    cacheTime: NOTIFICATION_CONFIG.CACHE_TIME,
+    gcTime: NOTIFICATION_CONFIG.CACHE_TIME, // Updated from cacheTime to gcTime
+    refetchOnReconnect: true, // Add automatic refetch on reconnection
     onError: (error) => {
       console.error("Failed to fetch notifications:", error);
       toast({
@@ -32,6 +33,12 @@ export function useNotifications() {
           : ERROR_MESSAGES.FETCH_FAILED,
         variant: "destructive",
       });
+    },
+    select: (data) => {
+      // Transform and sort notifications before returning
+      return [...data].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     }
   });
 
@@ -52,7 +59,18 @@ export function useNotifications() {
 
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, notificationId) => {
+      // Optimistic update
+      queryClient.setQueryData<Notification[]>([API_ROUTES.NOTIFICATIONS], (oldData) => {
+        if (!oldData) return [];
+        return oldData.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, isRead: true }
+            : notification
+        );
+      });
+
+      // Then refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: [API_ROUTES.NOTIFICATIONS] });
     },
     onError: (error: NotificationError) => {
@@ -64,18 +82,14 @@ export function useNotifications() {
           : ERROR_MESSAGES.UPDATE_FAILED,
         variant: "destructive",
       });
-    }
+    },
+    retry: NOTIFICATION_CONFIG.MAX_RETRIES
   });
 
-  // Calculate unread count and sort notifications
-  const sortedNotifications = [...(notifications || [])].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
-  const unreadCount = sortedNotifications.filter((n) => !n.isRead).length;
+  const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
 
   return {
-    notifications: sortedNotifications,
+    notifications,
     unreadCount,
     isLoading,
     error,

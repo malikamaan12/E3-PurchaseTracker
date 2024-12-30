@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Bell, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
@@ -19,11 +19,10 @@ interface NotificationsDropdownProps {
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
+  const pollTimerRef = useRef<number | null>(null);
 
-  // Setup polling with proper error handling
+  // Setup polling with proper error handling and cleanup
   useEffect(() => {
-    let pollTimer: number | null = null;
-
     const pollNotifications = async () => {
       try {
         await refetch();
@@ -37,15 +36,29 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
     if (open) {
       pollNotifications();
       // Start polling
-      pollTimer = window.setInterval(pollNotifications, NOTIFICATION_CONFIG.POLLING_INTERVAL);
+      pollTimerRef.current = window.setInterval(
+        pollNotifications, 
+        NOTIFICATION_CONFIG.POLLING_INTERVAL
+      );
     }
 
+    // Cleanup function
     return () => {
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
     };
   }, [open, refetch]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
@@ -54,7 +67,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         await markAsRead(notification.id);
       }
 
-      // Close dropdown first
+      // Close dropdown first for better UX
       setOpen(false);
 
       // Call the provided click handler
