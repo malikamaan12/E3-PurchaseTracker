@@ -10,12 +10,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
+import { NOTIFICATION_CONFIG } from "../../../server/utils/config";
 
 interface NotificationsDropdownProps {
   onNotificationClick: (notification: { id: number; link: string | null }) => void;
 }
-
-const POLLING_INTERVAL = 30000; // 30 seconds
 
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
@@ -30,7 +29,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         await refetch();
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
-        // Error handling is now managed by useNotifications hook
+        // Error handling is managed by useNotifications hook
       }
     };
 
@@ -38,7 +37,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
     if (open) {
       pollNotifications();
       // Start polling
-      pollTimer = window.setInterval(pollNotifications, POLLING_INTERVAL);
+      pollTimer = window.setInterval(pollNotifications, NOTIFICATION_CONFIG.POLLING_INTERVAL);
     }
 
     return () => {

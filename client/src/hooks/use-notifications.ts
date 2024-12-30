@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Notification } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+import { NOTIFICATION_CONFIG, API_ROUTES, ERROR_MESSAGES } from "../../../server/utils/config";
 
 interface NotificationError extends Error {
   status?: number;
@@ -12,18 +13,23 @@ export function useNotifications() {
   const { toast } = useToast();
 
   const { data: notifications = [], isLoading, error } = useQuery<Notification[], NotificationError>({
-    queryKey: ["/api/notifications"],
-    retry: 3, // Retry failed requests up to 3 times
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
-    refetchOnWindowFocus: true, // Also refetch when window regains focus
+    queryKey: [API_ROUTES.NOTIFICATIONS],
+    retry: NOTIFICATION_CONFIG.MAX_RETRIES,
+    retryDelay: (attemptIndex) => Math.min(
+      NOTIFICATION_CONFIG.MIN_RETRY_DELAY * Math.pow(2, attemptIndex),
+      NOTIFICATION_CONFIG.MAX_RETRY_DELAY
+    ),
+    refetchInterval: NOTIFICATION_CONFIG.POLLING_INTERVAL,
+    refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS,
+    staleTime: NOTIFICATION_CONFIG.STALE_TIME,
+    cacheTime: NOTIFICATION_CONFIG.CACHE_TIME,
     onError: (error) => {
       console.error("Failed to fetch notifications:", error);
       toast({
         title: "Error Loading Notifications",
         description: error.status === 401 
-          ? "Please log in to view notifications" 
-          : "Unable to load notifications. Please try again.",
+          ? ERROR_MESSAGES.UNAUTHORIZED 
+          : ERROR_MESSAGES.FETCH_FAILED,
         variant: "destructive",
       });
     }
@@ -31,14 +37,14 @@ export function useNotifications() {
 
   const markAsRead = useMutation({
     mutationFn: async (notificationId: number) => {
-      const res = await fetch(`/api/notifications/${notificationId}/read`, {
+      const res = await fetch(API_ROUTES.MARK_READ(notificationId), {
         method: "PUT",
         credentials: "include",
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        const error = new Error(errorData.message || "Failed to mark notification as read") as NotificationError;
+        const error = new Error(errorData.message || ERROR_MESSAGES.UPDATE_FAILED) as NotificationError;
         error.status = res.status;
         error.details = errorData;
         throw error;
@@ -47,16 +53,15 @@ export function useNotifications() {
       return res.json();
     },
     onSuccess: () => {
-      // Invalidate and refetch notifications immediately
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: [API_ROUTES.NOTIFICATIONS] });
     },
     onError: (error: NotificationError) => {
       console.error("Failed to mark notification as read:", error);
       toast({
         title: "Error",
         description: error.status === 404 
-          ? "Notification not found or already processed"
-          : "Failed to update notification. Please try again.",
+          ? ERROR_MESSAGES.NOT_FOUND
+          : ERROR_MESSAGES.UPDATE_FAILED,
         variant: "destructive",
       });
     }
@@ -75,6 +80,6 @@ export function useNotifications() {
     isLoading,
     error,
     markAsRead: markAsRead.mutate,
-    refetch: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications"] })
+    refetch: () => queryClient.invalidateQueries({ queryKey: [API_ROUTES.NOTIFICATIONS] })
   };
 }
