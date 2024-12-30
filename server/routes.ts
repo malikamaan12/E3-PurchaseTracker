@@ -19,8 +19,8 @@ import {
   insertPurchaseRequestSchema,
   insertSubPurposeSchema,
   companyBranding,
-  vendors, // Add import for vendors table
-  insertVendorSchema // Add import for vendor schema
+  vendors,
+  insertVendorSchema
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -826,7 +826,7 @@ export function registerRoutes(app: Express): Server {
           id: vendors.id,
           companyName: vendors.companyName,
           contactPerson: vendors.contactPerson,
-          phoneNumber: vendors.phoneNumber,
+          contactNumber: vendors.contactNumber,
           email: vendors.email,
           address: vendors.address,
           taxNumber: vendors.taxNumber,
@@ -982,7 +982,7 @@ export function registerRoutes(app: Express): Server {
       // Update user password
       const [updatedUser] = await db
         .update(users)
-        .set({
+                .set({
           password: hashedPassword,
           updatedAt: new Date()
         })

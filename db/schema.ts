@@ -153,7 +153,7 @@ export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
   contactPerson: text("contact_person").notNull(),
-  phoneNumber: text("phone_number").notNull(),
+  contactNumber: text("contact_number").notNull(),
   email: text("email").notNull(),
   address: text("address").notNull(),
   taxNumber: text("tax_number"),
