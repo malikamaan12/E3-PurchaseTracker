@@ -291,12 +291,13 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
       .min(1, "Item name is required")
       .max(100, "Item name cannot exceed 100 characters"),
     quantity: z.number()
-      .int("Quantity must be a whole number")
-      .positive("Quantity must be a positive number")
-      .max(999999, "Quantity is too large"),
+      .positive("Quantity must be greater than 0")
+      .multipleOf(0.01, "Quantity can have up to 2 decimal places")
+      .max(999999.99, "Quantity is too large"),
     estimatedCost: z.number()
       .min(0, "Cost cannot be negative")
-      .max(999999999, "Cost is too large"),
+      .multipleOf(0.01, "Cost can have up to 2 decimal places")
+      .max(999999999.99, "Cost is too large"),
     description: z.string()
       .max(200, "Item description cannot exceed 200 characters")
       .optional()
@@ -323,13 +324,13 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),
   totalEstimatedCost: z.number()
-    .int("Total cost must be a whole number")
+    .multipleOf(0.01, "Total cost can have up to 2 decimal places")
     .min(0, "Total cost cannot be negative")
-    .max(999999999, "Total cost is too large"),
+    .max(999999999.99, "Total cost is too large"),
   freightAmount: z.number()
-    .int("Freight amount must be a whole number")
+    .multipleOf(0.01, "Freight amount can have up to 2 decimal places")
     .min(0, "Freight amount cannot be negative")
-    .max(999999999, "Freight amount is too large"),
+    .max(999999999.99, "Freight amount is too large"),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().int().min(0).optional(),

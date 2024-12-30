@@ -52,6 +52,11 @@ const priorities = [
   { label: "Urgent", value: "urgent" },
 ] as const;
 
+// Helper function to parse and format decimal numbers
+const formatDecimal = (value: number | string): number => {
+  return Number(Number(value).toFixed(2));
+};
+
 export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -70,7 +75,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       contactPerson: "",
       contact_number: "",
       accountNumber: "",
-      purposeType: "event",
+      purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
       currency: "QAR",
@@ -84,8 +89,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     if (request) {
       const formattedItems = (request.items || []).map(item => ({
         name: item?.name || "",
-        quantity: Number(item?.quantity) || 1,
-        estimatedCost: Number(item?.estimatedCost) || 0,
+        quantity: formatDecimal(item?.quantity || 0),
+        estimatedCost: formatDecimal(item?.estimatedCost || 0),
         description: item?.description || ""
       }));
 
@@ -99,23 +104,23 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       }
 
       setItems(formattedItems);
-      setFreightAmount(Number(request.freightAmount) || 0);
+      setFreightAmount(formatDecimal(request.freightAmount || 0));
 
       form.reset({
         ...request,
         items: formattedItems,
-        totalEstimatedCost: Number(request.totalEstimatedCost),
-        freightAmount: Number(request.freightAmount),
+        totalEstimatedCost: formatDecimal(request.totalEstimatedCost),
+        freightAmount: formatDecimal(request.freightAmount),
       });
     }
   }, [request, form]);
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (parseFloat(item.quantity.toString()) * parseFloat(item.estimatedCost.toString())),
+      (sum, item) => sum + (formatDecimal(item.quantity) * formatDecimal(item.estimatedCost)),
       0
     );
-    return Number((itemsTotal + parseFloat(freightAmount.toString())).toFixed(2));
+    return formatDecimal(itemsTotal + formatDecimal(freightAmount));
   };
 
   const addItem = () => {
@@ -134,7 +139,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
-      [field]: field === "name" || field === "description" ? value : Number(value),
+      [field]: field === "name" || field === "description" 
+        ? value 
+        : formatDecimal(value),
     };
     setItems(newItems);
     form.setValue('items', newItems);
@@ -146,12 +153,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         ...values,
         items: items.map(item => ({
           name: item.name,
-          quantity: Number(parseFloat(item.quantity.toString()).toFixed(2)),
-          estimatedCost: Number(parseFloat(item.estimatedCost.toString()).toFixed(2)),
+          quantity: formatDecimal(item.quantity),
+          estimatedCost: formatDecimal(item.estimatedCost),
           description: item.description 
         })),
-        freightAmount: parseFloat(freightAmount.toString()).toFixed(2),
-        totalEstimatedCost: parseFloat(calculateTotalCost().toString()).toFixed(2),
+        freightAmount: formatDecimal(freightAmount),
+        totalEstimatedCost: formatDecimal(calculateTotalCost()),
         contact_number: values.contact_number?.trim(),
       };
 
