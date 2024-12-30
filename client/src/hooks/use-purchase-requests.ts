@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
+import { saveDraft, submitRequest, createRequest, updateRequest } from "@/services/requests";
 
 interface ApprovalData {
   requestId: number;
@@ -12,34 +13,6 @@ interface ApprovalData {
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const handleApiError = async (res: Response) => {
-    const contentType = res.headers.get("content-type");
-    const isJson = contentType?.includes("application/json");
-    const resClone = res.clone();
-
-    try {
-      if (isJson || !contentType) {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.message || `${res.status}: ${res.statusText}`);
-        }
-        return data;
-      }
-
-      const text = await resClone.text();
-      if (!res.ok) {
-        throw new Error(text || `${res.status}: ${res.statusText}`);
-      }
-
-      return text;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('An unexpected error occurred');
-    }
-  };
 
   // Fetch all requests
   const { data: requests = [], isLoading, error } = useQuery({
@@ -69,6 +42,50 @@ export function usePurchaseRequests() {
     }
   });
 
+  // Draft mutation
+  const draftMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      return saveDraft(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Draft saved successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error saving draft:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save draft",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Submit mutation
+  const submitMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      return submitRequest(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Request submitted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error submitting request:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create approval mutation
   const createApproval = useMutation({
     mutationFn: async (data: ApprovalData) => {
@@ -86,7 +103,12 @@ export function usePurchaseRequests() {
         body: JSON.stringify(data),
       });
 
-      return handleApiError(res);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Failed to create approval: ${res.status}`);
+      }
+
+      return res.json();
     },
     onSuccess: (_, variables) => {
       console.log('Approval created successfully');
@@ -100,7 +122,7 @@ export function usePurchaseRequests() {
       console.error("Error creating approval:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create approval",
         variant: "destructive",
       });
     },
@@ -110,6 +132,8 @@ export function usePurchaseRequests() {
     requests,
     isLoading,
     error,
+    saveDraft: draftMutation.mutateAsync,
+    submitRequest: submitMutation.mutateAsync,
     createApproval: createApproval.mutateAsync,
   };
 }

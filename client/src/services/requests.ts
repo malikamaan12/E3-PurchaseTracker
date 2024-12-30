@@ -19,6 +19,8 @@ export async function updateRequest({
     freightAmount: data.freightAmount ? Number(Number(data.freightAmount).toFixed(2)) : undefined,
   };
 
+  console.log('Updating request:', { id, formattedData });
+
   const response = await fetch(`/api/requests/${id}`, {
     method: "PUT",
     headers: {
@@ -30,10 +32,13 @@ export async function updateRequest({
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Failed to update request:', errorText);
     throw new Error(errorText || 'Failed to update request');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('Request updated successfully:', result);
+  return result;
 }
 
 export async function createRequest(data: FormData) {
@@ -64,6 +69,7 @@ export async function createRequest(data: FormData) {
 }
 
 export async function deleteRequest(id: number) {
+  console.log('Deleting request:', id);
   const response = await fetch(`/api/requests/${id}`, {
     method: "DELETE",
     credentials: "include",
@@ -71,6 +77,7 @@ export async function deleteRequest(id: number) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Failed to delete request:', errorText);
     throw new Error(errorText || 'Failed to delete request');
   }
 
@@ -79,16 +86,34 @@ export async function deleteRequest(id: number) {
 
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   console.log('Saving draft:', { id, data });
-  return updateRequest({
-    id,
-    data: { ...data, status: "draft" },
-  });
+  try {
+    return await updateRequest({
+      id,
+      data: { 
+        ...data, 
+        status: "draft",
+        isLocked: false 
+      },
+    });
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    throw new Error('Failed to save draft: ' + (error instanceof Error ? error.message : String(error)));
+  }
 }
 
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
   console.log('Submitting request:', { id, data });
-  return updateRequest({
-    id,
-    data: { ...data, status: "pending" },
-  });
+  try {
+    return await updateRequest({
+      id,
+      data: { 
+        ...data, 
+        status: "pending",
+        isLocked: false
+      },
+    });
+  } catch (error) {
+    console.error('Error submitting request:', error);
+    throw new Error('Failed to submit request: ' + (error instanceof Error ? error.message : String(error)));
+  }
 }
