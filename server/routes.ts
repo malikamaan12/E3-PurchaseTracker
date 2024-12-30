@@ -1,7 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { AppError, ValidationError } from './utils/errors';
+import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { db } from "@db";
 import { setupAuth } from "./auth";
+import { anthropic } from './utils/anthropic';
+import { eq, and, desc, asc } from 'drizzle-orm';
 import {
   users,
   notifications,
@@ -19,12 +21,12 @@ import {
   accountRequests,
   type PurchaseRequest
 } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import * as crypto from 'crypto';
 import fs from 'fs';
 import bcrypt from 'bcrypt';
+import { createNotification } from './utils/notifications';
 
 // Debug logging utility
 function debug(req: Request, message: string, data?: any) {
@@ -478,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated',401);
+        throw new AppError('Not authenticated', 401);
       }
 
       debug(req, 'Creating new vendor:', req.body);
@@ -544,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         throw new AppError('Vendor not found', 404);
       }
 
-      debug(req,req, 'Successfully updated vendor:', updatedVendor);
+      debug(req, 'Successfully updated vendor:', updatedVendor);
       res.json(updatedVendor);
     } catch (error) {
       debug(req, 'Error updating vendor:', error);
@@ -843,7 +845,8 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       debug(req, 'Error fetching branding settings:', error);
       next(error);
-    }  });
+    }
+  });
 
   // Update company branding settings
   app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
@@ -861,9 +864,9 @@ export async function registerRoutes(app: Express): Promise<void> {
           companyName: req.body.companyName,
           logo: req.body.logo,
           logoMimeType: req.body.logoMimeType,
-          headerImage: req.body.headerImage,
+          headerImageUrl: req.body.headerImageUrl,
           headerImageMimeType: req.body.headerImageMimeType,
-          footerImage: req.body.footerImage,
+          footerImageUrl: req.body.footerImageUrl,
           footerImageMimeType: req.body.footerImageMimeType,
           headerStyle: req.body.headerStyle,
           primaryColor: req.body.primaryColor,
@@ -878,9 +881,9 @@ export async function registerRoutes(app: Express): Promise<void> {
             companyName: req.body.companyName,
             logo: req.body.logo,
             logoMimeType: req.body.logoMimeType,
-            headerImage: req.body.headerImage,
+            headerImageUrl: req.body.headerImageUrl,
             headerImageMimeType: req.body.headerImageMimeType,
-            footerImage: req.body.footerImage,
+            footerImageUrl: req.body.footerImageUrl,
             footerImageMimeType: req.body.footerImageMimeType,
             headerStyle: req.body.headerStyle,
             primaryColor: req.body.primaryColor,
@@ -978,7 +981,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         the brand's personality and values.`;
 
       const message = await anthropic.messages.create({
-        model: "claude-3-opus-20240229",
+        model: "claude-3-5-sonnet-20241022",
         max_tokens: 4096,
         messages: [{
           role: "user",
@@ -986,22 +989,23 @@ export async function registerRoutes(app: Express): Promise<void> {
         }],
       });
 
-      const suggestions = message.content[0].text;
+      const content = message.content[0];
+      if (content.type !== 'text') {
+        throw new AppError('Invalid response type from Anthropic API', 500);
+      }
 
       res.json({
         success: true,
-        suggestions,
+        suggestions: content.text,
         moodBoard: {
           companyName,
           colors: {
             primary: primaryColor,
             secondary: secondaryColor,
             accent: accentColor
-          },
-          timestamp: new Date().toISOString()
+          }
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -1022,9 +1026,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
 
       if (!validationResult.success) {
-        debug(req, 'Error log validation failed:', validationResult.error);
-        throw new ValidationError('Invalid error log data', {
-          errors: validationResult.error.errors
+        debug(req, 'Error log validationfailed:', validationResult.error);
+        throw new ValidationError('Invalid error log data', {          errors: validationResult.error.errors
         });
       }
 
