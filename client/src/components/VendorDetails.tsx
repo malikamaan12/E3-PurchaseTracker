@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Edit, Lock, Unlock } from "lucide-react";
+import { AlertCircle, Edit, Lock, Unlock, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ interface VendorDetailsProps {
 
 export function VendorDetails({ vendor, open, onOpenChange, onEdit }: VendorDetailsProps) {
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<"active" | "blocked" | "frozen" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,6 +68,36 @@ export function VendorDetails({ vendor, open, onOpenChange, onEdit }: VendorDeta
     },
   });
 
+  const deleteVendor = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/vendors/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Success",
+        description: "Vendor deleted successfully",
+      });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete vendor",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case "active":
@@ -89,6 +120,14 @@ export function VendorDetails({ vendor, open, onOpenChange, onEdit }: VendorDeta
     if (pendingStatus) {
       updateVendorStatus.mutate({ id: vendor.id, status: pendingStatus });
     }
+  };
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    deleteVendor.mutate(vendor.id);
   };
 
   return (
@@ -172,10 +211,16 @@ export function VendorDetails({ vendor, open, onOpenChange, onEdit }: VendorDeta
                 </Button>
               )}
             </div>
-            <Button onClick={onEdit}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Details
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="destructive" onClick={handleDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Vendor
+              </Button>
+              <Button onClick={onEdit}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Details
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -193,6 +238,23 @@ export function VendorDetails({ vendor, open, onOpenChange, onEdit }: VendorDeta
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmStatusChange}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this vendor? This action cannot be undone and will remove all vendor information from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

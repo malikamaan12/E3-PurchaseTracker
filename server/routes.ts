@@ -970,6 +970,33 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.delete("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const vendorId = parseInt(req.params.id);
+
+      debug(req, 'Deleting vendor:', vendorId);
+
+      const [deletedVendor] = await db
+        .delete(vendors)
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      if (!deletedVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      debug(req, 'Successfully deleted vendor:', deletedVendor);
+      res.json({ message: 'Vendor deleted successfully' });
+    } catch (error) {
+      debug(req, 'Error deleting vendor:', error);
+      next(error);
+    }
+  });
+
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
     try {
