@@ -21,7 +21,7 @@ import {
   companyBranding,
   vendors,
   insertVendorSchema,
-  fileAttachments // Added fileAttachments import
+  fileAttachments
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -78,7 +78,7 @@ async function createNotification(userId: number, title: string, message: string
       message,
       type,
       isRead: false,
-      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`, //Added conditional link generation
+      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`,
       createdAt: new Date()
   });
 }
@@ -220,7 +220,17 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request is locked', 403);
       }
 
-      // Update the request
+      // Validate required fields for status transitions
+      if (updateData.status === 'pending') {
+        if (!existingRequest.vendorId) {
+          throw new ValidationError('Vendor selection is required before submitting');
+        }
+        if (!existingRequest.items || existingRequest.items.length === 0) {
+          throw new ValidationError('At least one item is required');
+        }
+      }
+
+      // Update the request with proper validation
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
@@ -229,6 +239,29 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(purchaseRequests.id, requestId))
         .returning();
+
+      // If transitioning to pending, create notification for approvers
+      if (updateData.status === 'pending') {
+        // Get approvers for the department
+        const approvers = await db
+          .select()
+          .from(users)
+          .where(and(
+            eq(users.role, 'approver'),
+            eq(users.isActive, true)
+          ));
+
+        // Create notifications for approvers
+        await Promise.all(approvers.map(approver =>
+          createNotification(
+            approver.id,
+            'New Purchase Request',
+            `A new purchase request "${updatedRequest.title}" requires your approval`,
+            'request',
+            updatedRequest.id
+          )
+        ));
+      }
 
       debug(req, 'Request updated successfully:', updatedRequest);
       res.json(updatedRequest);
@@ -269,7 +302,7 @@ export function registerRoutes(app: Express): Server {
         ...sp,
         validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
         validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
-        purposeType: sp.purposeType || 'Unknown', // Ensure purposeType is never undefined
+        purposeType: sp.purposeType || 'Unknown',
         createdAt: new Date(sp.createdAt).toISOString(),
         updatedAt: new Date(sp.updatedAt).toISOString()
       }));
@@ -723,6 +756,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -951,7 +985,7 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Required fields missing');
       }
 
-      const [updatedVendor] = await db
+      const [updatedVendor] = awaitdb
         .update(vendors)
         .set({
           ...updateData,

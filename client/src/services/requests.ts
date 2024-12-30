@@ -7,45 +7,36 @@ export async function updateRequest({
   id: number;
   data: Partial<PurchaseRequest>;
 }) {
-  // Convert decimal values to proper format before sending
-  const formattedData = {
-    ...data,
-    items: data.items?.map(item => ({
-      ...item,
-      quantity: Number(Number(item.quantity).toFixed(2)),
-      estimatedCost: Number(Number(item.estimatedCost).toFixed(2)),
-    })),
-    totalEstimatedCost: data.totalEstimatedCost ? Number(Number(data.totalEstimatedCost).toFixed(2)) : undefined,
-    freightAmount: data.freightAmount ? Number(Number(data.freightAmount).toFixed(2)) : undefined,
-  };
+  try {
+    console.log('Updating request:', { id, data });
 
-  console.log('Updating request:', { id, formattedData });
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
 
-  const response = await fetch(`/api/requests/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(formattedData),
-    credentials: "include",
-  });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to update request:', errorText);
+      throw new Error(errorText || 'Failed to update request');
+    }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to update request:', errorText);
-    throw new Error(errorText || 'Failed to update request');
+    const result = await response.json();
+    console.log('Request updated successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Update request error:', error);
+    throw error;
   }
-
-  const result = await response.json();
-  console.log('Request updated successfully:', result);
-  return result;
 }
 
 export async function createRequest(data: FormData) {
   try {
-    // Add console logging for debugging
-    const formDataEntries = Object.fromEntries(data.entries());
-    console.log('Creating request with data:', formDataEntries);
+    console.log('Creating request with data:', Object.fromEntries(data.entries()));
 
     const response = await fetch("/api/requests", {
       method: "POST",
@@ -87,7 +78,7 @@ export async function deleteRequest(id: number) {
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   console.log('Saving draft:', { id, data });
   try {
-    return await updateRequest({
+    const result = await updateRequest({
       id,
       data: { 
         ...data, 
@@ -95,16 +86,18 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
         isLocked: false 
       },
     });
+    console.log('Draft saved successfully:', result);
+    return result;
   } catch (error) {
     console.error('Error saving draft:', error);
-    throw new Error('Failed to save draft: ' + (error instanceof Error ? error.message : String(error)));
+    throw error;
   }
 }
 
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
   console.log('Submitting request:', { id, data });
   try {
-    return await updateRequest({
+    const result = await updateRequest({
       id,
       data: { 
         ...data, 
@@ -112,8 +105,10 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
         isLocked: false
       },
     });
+    console.log('Request submitted successfully:', result);
+    return result;
   } catch (error) {
     console.error('Error submitting request:', error);
-    throw new Error('Failed to submit request: ' + (error instanceof Error ? error.message : String(error)));
+    throw error;
   }
 }
