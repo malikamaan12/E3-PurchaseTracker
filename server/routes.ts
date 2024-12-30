@@ -30,6 +30,7 @@ import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { Anthropic } from '@anthropic-ai/sdk';
+import { analyzeError } from './utils/error-analysis';
 
 // Initialize Anthropic client (moved here for better organization)
 const anthropic = new Anthropic({
@@ -220,13 +221,49 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request is locked', 403);
       }
 
-      // Validate required fields for status transitions
+      // Enhanced validation for submissions
       if (updateData.status === 'pending') {
+        const validationErrors = [];
+
         if (!existingRequest.vendorId) {
-          throw new ValidationError('Vendor selection is required before submitting');
+          validationErrors.push('Vendor selection is required before submitting');
         }
         if (!existingRequest.items || existingRequest.items.length === 0) {
-          throw new ValidationError('At least one item is required');
+          validationErrors.push('At least one item is required');
+        }
+        if (!existingRequest.title?.trim()) {
+          validationErrors.push('Title is required');
+        }
+        if (!existingRequest.description?.trim()) {
+          validationErrors.push('Description is required');
+        }
+        if (!existingRequest.purposeType) {
+          validationErrors.push('Purpose type is required');
+        }
+
+        if (validationErrors.length > 0) {
+          const error = new ValidationError('Validation failed', { errors: validationErrors });
+
+          // Analyze validation errors
+          const analysis = await analyzeError(error, {
+            requestData: updateData,
+            validationErrors,
+            userId: req.user!.id,
+            requestId
+          });
+
+          // Log error with analysis
+          await db.insert(errorLogs).values({
+            message: error.message,
+            severity: 'error',
+            userId: req.user!.id,
+            details: { validationErrors },
+            aiAnalysis: analysis,
+            path: req.path,
+            createdAt: new Date()
+          });
+
+          throw error;
         }
       }
 
@@ -242,7 +279,6 @@ export function registerRoutes(app: Express): Server {
 
       // If transitioning to pending, create notification for approvers
       if (updateData.status === 'pending') {
-        // Get approvers for the department
         const approvers = await db
           .select()
           .from(users)
@@ -251,7 +287,6 @@ export function registerRoutes(app: Express): Server {
             eq(users.isActive, true)
           ));
 
-        // Create notifications for approvers
         await Promise.all(approvers.map(approver =>
           createNotification(
             approver.id,
@@ -267,6 +302,26 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedRequest);
     } catch (error) {
       debug(req, 'Error updating request:', error);
+
+      // Analyze unexpected errors
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          requestId: req.params.id,
+          userId: req.user?.id,
+          path: req.path
+        });
+
+        // Log unexpected errors with analysis
+        await db.insert(errorLogs).values({
+          message: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error',
+          userId: req.user?.id,
+          path: req.path,
+          aiAnalysis: analysis,
+          createdAt: new Date()
+        });
+      }
+
       next(error);
     }
   });
