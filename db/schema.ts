@@ -70,6 +70,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
   requestNumber: text("request_number").unique().notNull(),
   requesterId: integer("requester_id").notNull().references(() => users.id),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
   items: text("items").$type<Array<{
@@ -78,10 +79,6 @@ export const purchaseRequests = pgTable("purchase_requests", {
     estimatedCost: number;
     description?: string;
   }>>().notNull(),
-  companyName: text("company_name").notNull(),
-  contactPerson: text("contact_person").notNull(),
-  contact_number: text("contact_number").notNull(),
-  accountNumber: text("account_number").notNull(),
   purposeType: text("purpose_type").notNull(),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
@@ -251,6 +248,10 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     references: [subPurposes.id],
   }),
   attachments: many(fileAttachments),
+  vendor: one(vendors, {
+    fields: [purchaseRequests.vendorId],
+    references: [vendors.id],
+  }),
 }));
 
 export const approvalRelations = relations(approvals, ({ one }) => ({
@@ -398,24 +399,11 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
       .max(200, "Item description cannot exceed 200 characters")
       .optional()
   })).min(1, "At least one item is required"),
-  companyName: z.string()
-    .min(1, "Company name is required")
-    .max(100, "Company name cannot exceed 100 characters"),
-  contactPerson: z.string()
-    .min(1, "Contact person is required")
-    .max(100, "Contact person name cannot exceed 100 characters"),
-  contact_number: z.string()
-    .min(8, "Contact number must be at least 8 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  accountNumber: z.string()
-    .min(1, "Account number is required")
-    .max(50, "Account number cannot exceed 50 characters")
-    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
   purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
     required_error: "Purpose type is required",
     invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
   }),
+  vendorId: z.number().int().positive("Vendor selection is required"),
   subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "CNY"]),

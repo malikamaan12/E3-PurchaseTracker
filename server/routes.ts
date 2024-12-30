@@ -20,7 +20,8 @@ import {
   insertSubPurposeSchema,
   companyBranding,
   vendors,
-  insertVendorSchema
+  insertVendorSchema,
+  fileAttachments // Added fileAttachments import
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
@@ -71,15 +72,15 @@ const debug = (req: Request, message: string, data?: any) => {
 };
 
 async function createNotification(userId: number, title: string, message: string, type: string, linkId: number) {
-    await db.insert(notifications).values({
-        userId,
-        title,
-        message,
-        type,
-        isRead: false,
-        link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`, //Added conditional link generation
-        createdAt: new Date()
-    });
+  await db.insert(notifications).values({
+      userId,
+      title,
+      message,
+      type,
+      isRead: false,
+      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`, //Added conditional link generation
+      createdAt: new Date()
+  });
 }
 
 
@@ -119,6 +120,17 @@ export function registerRoutes(app: Express): Server {
       // Generate a unique request number
       requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+      // Validate vendor exists
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, requestData.vendorId))
+        .limit(1);
+
+      if (!vendor) {
+        throw new ValidationError('Selected vendor does not exist');
+      }
+
       // Validate request data
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
@@ -153,6 +165,19 @@ export function registerRoutes(app: Express): Server {
           updatedAt: new Date()
         })
         .returning();
+
+      // Save file attachments if any
+      if (files.length > 0) {
+        await db.insert(fileAttachments).values(
+          files.map(file => ({
+            requestId: newRequest.id,
+            fileName: file.filename,
+            fileType: file.mimetype,
+            fileSize: file.size,
+            fileUrl: file.path,
+          }))
+        );
+      }
 
       debug(req, 'Successfully created purchase request:', newRequest);
       res.status(201).json(newRequest);

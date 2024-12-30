@@ -37,22 +37,30 @@ export async function updateRequest({
 }
 
 export async function createRequest(data: FormData) {
-  // Add console logging for debugging
-  console.log('Submitting request data:', Object.fromEntries(data.entries()));
+  try {
+    // Add console logging for debugging
+    const formDataEntries = Object.fromEntries(data.entries());
+    console.log('Creating request with data:', formDataEntries);
 
-  const response = await fetch("/api/requests", {
-    method: "POST",
-    body: data,
-    credentials: "include",
-  });
+    const response = await fetch("/api/requests", {
+      method: "POST",
+      body: data,
+      credentials: "include",
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Request submission failed:', errorText);
-    throw new Error(errorText || 'Failed to create request');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Request creation failed:', errorText);
+      throw new Error(errorText || 'Failed to create request');
+    }
+
+    const result = await response.json();
+    console.log('Request created successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in createRequest:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
 export async function deleteRequest(id: number) {
