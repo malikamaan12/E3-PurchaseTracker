@@ -52,9 +52,16 @@ const priorities = [
   { label: "Urgent", value: "urgent" },
 ] as const;
 
-// Helper function to parse and format decimal numbers
+// Helper function to parse and format decimal numbers with strict validation
 const formatDecimal = (value: number | string): number => {
-  return Number(Number(value).toFixed(2));
+  const parsed = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(parsed)) return 0;
+  return Number(parsed.toFixed(2));
+};
+
+// Helper to validate decimal input
+const validateDecimalInput = (value: string): boolean => {
+  return /^\d*\.?\d{0,2}$/.test(value);
 };
 
 export default function EditRequest({ params }: { params: { id: string } }) {
@@ -136,6 +143,13 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   };
 
   const updateItem = (index: number, field: string, value: string | number) => {
+    // Validate decimal input for quantity and estimatedCost
+    if ((field === 'quantity' || field === 'estimatedCost') && 
+        typeof value === 'string' && 
+        !validateDecimalInput(value)) {
+      return;
+    }
+
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],

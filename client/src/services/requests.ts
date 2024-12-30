@@ -7,12 +7,24 @@ export async function updateRequest({
   id: number;
   data: Partial<PurchaseRequest>;
 }) {
+  // Convert decimal values to proper format before sending
+  const formattedData = {
+    ...data,
+    items: data.items?.map(item => ({
+      ...item,
+      quantity: Number(Number(item.quantity).toFixed(2)),
+      estimatedCost: Number(Number(item.estimatedCost).toFixed(2)),
+    })),
+    totalEstimatedCost: data.totalEstimatedCost ? Number(Number(data.totalEstimatedCost).toFixed(2)) : undefined,
+    freightAmount: data.freightAmount ? Number(Number(data.freightAmount).toFixed(2)) : undefined,
+  };
+
   const response = await fetch(`/api/requests/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(formattedData),
     credentials: "include",
   });
 
