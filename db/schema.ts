@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -324,6 +324,7 @@ export type InsertVendor = typeof vendors.$inferInsert;
 export type VendorCategory = typeof vendorCategories.$inferSelect;
 export type VendorPerformance = typeof vendorPerformance.$inferSelect;
 export type VendorPayment = typeof vendorPayments.$inferSelect;
+
 
 
 // ============= Validation Schemas =============

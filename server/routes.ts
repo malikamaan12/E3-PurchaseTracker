@@ -833,7 +833,7 @@ export function registerRoutes(app: Express): Server {
           registrationNumber: vendors.registrationNumber,
           bankName: vendors.bankName,
           accountNumber: vendors.accountNumber,
-          iban: vendors.iban,
+          ibanNumber: vendors.ibanNumber,
           branchName: vendors.branchName,
           rating: vendors.rating,
           status: vendors.status,
@@ -844,8 +844,15 @@ export function registerRoutes(app: Express): Server {
         .from(vendors)
         .orderBy(desc(vendors.createdAt));
 
-      debug(req, `Found ${allVendors.length} vendors`);
-      res.json(allVendors);
+      // Ensure we return an empty array if no vendors found
+      const formattedVendors = allVendors.map(vendor => ({
+        ...vendor,
+        createdAt: vendor.createdAt ? new Date(vendor.createdAt).toISOString() : null,
+        updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt).toISOString() : null
+      }));
+
+      debug(req, `Found ${formattedVendors.length} vendors`);
+      res.json(formattedVendors);
     } catch (error) {
       debug(req, 'Error fetching vendors:', error);
       next(error);
