@@ -129,7 +129,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Create purchase request endpoint with proper error handling
+  // Create purchase request endpoint with proper error handling and draft support
   app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -139,7 +139,8 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Creating purchase request', {
         body: req.body,
         files: req.files?.length || 0,
-        user: req.user?.id
+        user: req.user?.id,
+        action: req.body.action // 'draft' or 'submit'
       });
 
       // Parse request data with enhanced error handling
@@ -155,9 +156,20 @@ export function registerRoutes(app: Express): Server {
       // Add required fields
       requestData.requesterId = req.user!.id;
       requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      requestData.status = req.body.action === 'draft' ? 'draft' : 'pending';
 
-      // Validate request data
-      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+      // For drafts, we'll do partial validation
+      let validationResult;
+      if (req.body.action === 'draft') {
+        // For drafts, only validate the required fields
+        validationResult = insertPurchaseRequestSchema
+          .partial()
+          .safeParse(requestData);
+      } else {
+        // For submission, do full validation
+        validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+      }
+
       if (!validationResult.success) {
         debug(req, 'Validation failed:', validationResult.error);
         throw new ValidationError('Invalid request data', {
@@ -185,16 +197,16 @@ export function registerRoutes(app: Express): Server {
             requestNumber: requestData.requestNumber,
             requesterId: requestData.requesterId,
             vendorId: requestData.vendorId,
-            title: requestData.title.trim(),
-            description: requestData.description.trim(),
-            items: requestData.items,
+            title: requestData.title?.trim() || '',
+            description: requestData.description?.trim() || '',
+            items: requestData.items || [],
             purposeType: requestData.purposeType,
             subPurposeId: requestData.subPurposeId,
             priority: requestData.priority || 'medium',
             currency: requestData.currency || 'QAR',
-            totalEstimatedCost: requestData.totalEstimatedCost,
+            totalEstimatedCost: requestData.totalEstimatedCost || 0,
             freightAmount: requestData.freightAmount || 0,
-            status: requestData.status || 'draft',
+            status: requestData.status,
             isLocked: false,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -214,14 +226,36 @@ export function registerRoutes(app: Express): Server {
               fileType: file.mimetype,
               fileSize: file.size,
               fileUrl: file.path,
+              uploadedAt: new Date()
             }))
           );
+        }
+
+        // If this is a submission (not a draft), create notifications for approvers
+        if (req.body.action !== 'draft') {
+          const approvers = await tx
+            .select()
+            .from(users)
+            .where(and(
+              eq(users.role, 'approver'),
+              eq(users.isActive, true)
+            ));
+
+          await Promise.all(approvers.map(approver =>
+            createNotification(
+              approver.id,
+              'New Purchase Request',
+              `A new purchase request "${newRequest.title}" requires your approval`,
+              'request',
+              newRequest.id
+            )
+          ));
         }
 
         return newRequest;
       });
 
-      debug(req, 'Purchase request created successfully', result);
+      debug(req, `Purchase request ${req.body.action === 'draft' ? 'draft saved' : 'submitted'} successfully`, result);
       res.status(201).json(result);
     } catch (error) {
       debug(req, 'Error creating purchase request', error);
@@ -244,41 +278,6 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      next(error);
-    }
-  });
-
-  // Add notifications routes
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Fetching notifications for user:', req.user!.id);
-      const notifications = await getNotifications(req.user!.id);
-
-      debug(req, `Found ${notifications.length} notifications`);
-      res.json(notifications);
-    } catch (error) {
-      debug(req, 'Error fetching notifications:', error);
-      next(error);
-    }
-  });
-
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const notificationId = parseInt(req.params.id);
-      debug(req, `Marking notification ${notificationId} as read`);
-
-      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
-      res.json(updatedNotification);
-    } catch (error) {
-      debug(req, 'Error marking notification as read:', error);
       next(error);
     }
   });
@@ -958,8 +957,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       if (accountRequest.status !== 'pending') {
-        throw new AppError('Account request is not pending', 400);
-      }
+        throw new AppError('Account request is not pending', 400);      }
 
       // Check if username already exists in users table
       const [existingUser] = await db
