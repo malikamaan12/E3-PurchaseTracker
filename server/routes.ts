@@ -14,7 +14,8 @@ import {
   errorLogs,
   subPurposes,
   accountRequests,
-  insertAccountRequestSchema
+  insertAccountRequestSchema,
+  companyBranding
 } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { AppError, ValidationError } from './utils/errors';
@@ -135,10 +136,21 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Creating purchase request', { body: req.body });
+      debug(req, 'Creating purchase request', { 
+        body: req.body,
+        files: req.files?.length || 0,
+        user: req.user?.id
+      });
 
-      // Parse request data
-      const requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+      // Parse request data with enhanced error handling
+      let requestData;
+      try {
+        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+        debug(req, 'Parsed request data:', requestData);
+      } catch (error) {
+        debug(req, 'Error parsing request data:', error);
+        throw new ValidationError('Invalid request data format');
+      }
 
       // Add required fields
       requestData.requesterId = req.user!.id;
@@ -147,6 +159,7 @@ export function registerRoutes(app: Express): Server {
       // Validate request data
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
       if (!validationResult.success) {
+        debug(req, 'Validation failed:', validationResult.error);
         throw new ValidationError('Invalid request data', {
           errors: validationResult.error.errors
         });
@@ -163,6 +176,8 @@ export function registerRoutes(app: Express): Server {
 
       // Start transaction
       const result = await db.transaction(async (tx) => {
+        debug(req, 'Starting transaction for request creation');
+
         // Create purchase request
         const [newRequest] = await tx
           .insert(purchaseRequests)
@@ -186,9 +201,12 @@ export function registerRoutes(app: Express): Server {
           })
           .returning();
 
+        debug(req, 'Request created:', newRequest);
+
         // Handle file attachments if any
         const files = (req.files as Express.Multer.File[]) || [];
         if (files.length > 0) {
+          debug(req, `Processing ${files.length} file attachments`);
           await tx.insert(fileAttachments).values(
             files.map(file => ({
               requestId: newRequest.id,
@@ -1659,6 +1677,34 @@ export function registerRoutes(app: Express): Server {
       res.status(201).json(errorLog);
     } catch (error) {
       debug(req, 'Error logging error:', error);
+      next(error);
+    }
+  });
+
+  // Add branding route handler
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Fetching company branding settings');
+
+      const [settings] = await db
+        .select()
+        .from(companyBranding)
+        .limit(1);
+
+      if (!settings) {
+        return res.json({
+          companyName: 'Default Company',
+          headerStyle: 'modern',
+          primaryColor: '#71569E',
+          secondaryColor: '#F0F0FA',
+          accentColor: '#191160',
+        });
+      }
+
+      debug(req, 'Found branding settings:', settings);
+      res.json(settings);
+    } catch (error) {
+      debug(req, 'Error fetching branding settings:', error);
       next(error);
     }
   });
