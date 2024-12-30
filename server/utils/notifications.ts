@@ -1,7 +1,7 @@
 import { db } from "@db";
 import { notifications } from "@db/schema";
 import { AppError } from "./errors";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 
 // Define valid notification types and their route patterns
 export const NOTIFICATION_ROUTES = {
@@ -73,21 +73,22 @@ export async function createNotification(
 // Get notifications with proper filtering and error handling
 export async function getNotifications(userId: number, lastFetchTime?: Date) {
   try {
-    const query = db.select()
+    let whereClause = eq(notifications.userId, userId);
+
+    if (lastFetchTime) {
+      whereClause = and(
+        whereClause,
+        sql`${notifications.createdAt} > ${lastFetchTime}`
+      );
+    }
+
+    const results = await db
+      .select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
+      .where(whereClause)
       .orderBy(desc(notifications.createdAt))
       .limit(50); // Limit to prevent excessive data transfer
 
-    // If lastFetchTime provided, only get newer notifications
-    if (lastFetchTime) {
-      query.where(and(
-        eq(notifications.userId, userId),
-        notifications.createdAt > lastFetchTime
-      ));
-    }
-
-    const results = await query;
     return results;
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -100,7 +101,7 @@ export async function markNotificationAsRead(notificationId: number, userId: num
   try {
     const [updatedNotification] = await db
       .update(notifications)
-      .set({ 
+      .set({
         isRead: true,
         updatedAt: new Date()
       })
@@ -126,8 +127,8 @@ export async function markNotificationAsRead(notificationId: number, userId: num
 export async function getUnreadCount(userId: number) {
   try {
     const [result] = await db
-      .select({ 
-        count: notifications.id 
+      .select({
+        count: notifications.id
       })
       .from(notifications)
       .where(and(

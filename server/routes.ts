@@ -31,6 +31,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { analyzeError } from './utils/error-analysis';
+import { getNotifications, markNotificationAsRead } from "./utils/notifications";
 
 // Initialize Anthropic client (moved here for better organization)
 const anthropic = new Anthropic({
@@ -96,167 +97,202 @@ export function registerRoutes(app: Express): Server {
     next();
   });
 
-  // Update the POST /api/requests endpoint to include enhanced validation and error analysis
-app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.isAuthenticated()) {
-      throw new AppError('Not authenticated', 401);
-    }
-
-    debug(req, 'Creating new purchase request', { body: req.body });
-
-    // Parse the JSON data from form data
-    let requestData;
+  // Add notifications routes
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
-      debug(req, 'Parsed request data:', requestData);
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Fetching notifications for user:', req.user!.id);
+      const notifications = await getNotifications(req.user!.id);
+
+      debug(req, `Found ${notifications.length} notifications`);
+      res.json(notifications);
     } catch (error) {
-      debug(req, 'Error parsing request data:', error);
-      throw new ValidationError('Invalid request data format');
+      debug(req, 'Error fetching notifications:', error);
+      next(error);
     }
+  });
 
-    // Add requesterId from authenticated user
-    requestData.requesterId = req.user!.id;
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
-    // Generate a unique request number
-    requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const notificationId = parseInt(req.params.id);
+      debug(req, `Marking notification ${notificationId} as read`);
 
-    // Enhanced validation
-    const validationErrors = [];
-
-    // Required fields validation
-    if (!requestData.title?.trim()) {
-      validationErrors.push('Title is required');
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      res.json(updatedNotification);
+    } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
+      next(error);
     }
-    if (!requestData.description?.trim()) {
-      validationErrors.push('Description is required');
-    }
-    if (!requestData.vendorId) {
-      validationErrors.push('Vendor selection is required');
-    }
-    if (!requestData.items || requestData.items.length === 0) {
-      validationErrors.push('At least one item is required');
-    }
-    if (!requestData.purposeType) {
-      validationErrors.push('Purpose type is required');
-    }
+  });
 
-    // Data format validation
-    if (requestData.items?.some((item: any) => !item.name || !item.quantity || !item.estimatedCost)) {
-      validationErrors.push('Each item must have a name, quantity, and estimated cost');
-    }
+  // Update the POST /api/requests endpoint to include enhanced validation and error analysis
+  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
-    if (validationErrors.length > 0) {
-      const error = new ValidationError('Validation failed', { errors: validationErrors });
+      debug(req, 'Creating new purchase request', { body: req.body });
 
-      // Analyze validation errors with Anthropic
-      const analysis = await analyzeError(error, {
-        requestData,
-        validationErrors,
-        userId: req.user!.id,
-        path: req.path
-      });
+      // Parse the JSON data from form data
+      let requestData;
+      try {
+        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+        debug(req, 'Parsed request data:', requestData);
+      } catch (error) {
+        debug(req, 'Error parsing request data:', error);
+        throw new ValidationError('Invalid request data format');
+      }
 
-      // Log error with AI analysis
-      await db.insert(errorLogs).values({
-        message: error.message,
-        severity: 'error',
-        userId: req.user!.id,
-        details: { validationErrors, requestData },
-        aiAnalysis: analysis,
-        path: req.path,
-        createdAt: new Date()
-      });
+      // Add requesterId from authenticated user
+      requestData.requesterId = req.user!.id;
 
-      throw error;
-    }
+      // Generate a unique request number
+      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Validate vendor exists
-    const [vendor] = await db
-      .select()
-      .from(vendors)
-      .where(eq(vendors.id, requestData.vendorId))
-      .limit(1);
+      // Enhanced validation
+      const validationErrors = [];
 
-    if (!vendor) {
-      throw new ValidationError('Selected vendor does not exist');
-    }
+      // Required fields validation
+      if (!requestData.title?.trim()) {
+        validationErrors.push('Title is required');
+      }
+      if (!requestData.description?.trim()) {
+        validationErrors.push('Description is required');
+      }
+      if (!requestData.vendorId) {
+        validationErrors.push('Vendor selection is required');
+      }
+      if (!requestData.items || requestData.items.length === 0) {
+        validationErrors.push('At least one item is required');
+      }
+      if (!requestData.purposeType) {
+        validationErrors.push('Purpose type is required');
+      }
 
-    // Validate request data schema
-    const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+      // Data format validation
+      if (requestData.items?.some((item: any) => !item.name || !item.quantity || !item.estimatedCost)) {
+        validationErrors.push('Each item must have a name, quantity, and estimated cost');
+      }
 
-    if (!validationResult.success) {
-      debug(req, 'Schema validation failed:', validationResult.error);
-      throw new ValidationError('Invalid request data', {
-        errors: validationResult.error.errors
-      });
-    }
+      if (validationErrors.length > 0) {
+        const error = new ValidationError('Validation failed', { errors: validationErrors });
 
-    // Handle file uploads
-    const files = (req.files as Express.Multer.File[]) || [];
-    const fileData = files.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      path: file.path,
-      mimetype: file.mimetype,
-      size: file.size
-    }));
+        // Analyze validation errors with Anthropic
+        const analysis = await analyzeError(error, {
+          requestData,
+          validationErrors,
+          userId: req.user!.id,
+          path: req.path
+        });
 
-    debug(req, 'Creating purchase request with data:', {
-      ...validationResult.data,
-      files: fileData
-    });
+        // Log error with AI analysis
+        await db.insert(errorLogs).values({
+          message: error.message,
+          severity: 'error',
+          userId: req.user!.id,
+          details: { validationErrors, requestData },
+          aiAnalysis: analysis,
+          path: req.path,
+          createdAt: new Date()
+        });
 
-    // Create purchase request with file attachments
-    const [newRequest] = await db
-      .insert(purchaseRequests)
-      .values({
+        throw error;
+      }
+
+      // Validate vendor exists
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, requestData.vendorId))
+        .limit(1);
+
+      if (!vendor) {
+        throw new ValidationError('Selected vendor does not exist');
+      }
+
+      // Validate request data schema
+      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+
+      if (!validationResult.success) {
+        debug(req, 'Schema validation failed:', validationResult.error);
+        throw new ValidationError('Invalid request data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Handle file uploads
+      const files = (req.files as Express.Multer.File[]) || [];
+      const fileData = files.map(file => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        path: file.path,
+        mimetype: file.mimetype,
+        size: file.size
+      }));
+
+      debug(req, 'Creating purchase request with data:', {
         ...validationResult.data,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .returning();
-
-    // Save file attachments if any
-    if (files.length > 0) {
-      await db.insert(fileAttachments).values(
-        files.map(file => ({
-          requestId: newRequest.id,
-          fileName: file.filename,
-          fileType: file.mimetype,
-          fileSize: file.size,
-          fileUrl: file.path,
-        }))
-      );
-    }
-
-    debug(req, 'Successfully created purchase request:', newRequest);
-    res.status(201).json(newRequest);
-  } catch (error) {
-    debug(req, 'Error creating purchase request:', error);
-
-    // For unexpected errors, get AI analysis
-    if (!(error instanceof ValidationError)) {
-      const analysis = await analyzeError(error as Error, {
-        path: req.path,
-        userId: req.user?.id,
-        requestData: req.body
+        files: fileData
       });
 
-      // Log unexpected errors with analysis
-      await db.insert(errorLogs).values({
-        message: error instanceof Error ? error.message : 'Unknown error',
-        severity: 'error',
-        userId: req.user?.id,
-        path: req.path,
-        aiAnalysis: analysis,
-        createdAt: new Date()
-      });
-    }
+      // Create purchase request with file attachments
+      const [newRequest] = await db
+        .insert(purchaseRequests)
+        .values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
 
-    next(error);
-  }
-});
+      // Save file attachments if any
+      if (files.length > 0) {
+        await db.insert(fileAttachments).values(
+          files.map(file => ({
+            requestId: newRequest.id,
+            fileName: file.filename,
+            fileType: file.mimetype,
+            fileSize: file.size,
+            fileUrl: file.path,
+          }))
+        );
+      }
+
+      debug(req, 'Successfully created purchase request:', newRequest);
+      res.status(201).json(newRequest);
+    } catch (error) {
+      debug(req, 'Error creating purchase request:', error);
+
+      // For unexpected errors, get AI analysis
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          path: req.path,
+          userId: req.user?.id,
+          requestData: req.body
+        });
+
+        // Log unexpected errors with analysis
+        await db.insert(errorLogs).values({
+          message: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error',
+          userId: req.user?.id,
+          path: req.path,
+          aiAnalysis: analysis,
+          createdAt: new Date()
+        });
+      }
+
+      next(error);
+    }
+  });
 
   // Add PUT endpoint for updating requests
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
@@ -949,7 +985,7 @@ app.post("/api/requests", upload.array('files'), async (req: Request, res: Respo
 
       // Create new user
       const [newUser] = await db
-        .insert(users)
+                .insert(users)
         .values({
           username: accountRequest.username,
           password: accountRequest.password, // Password is already properly hashed
