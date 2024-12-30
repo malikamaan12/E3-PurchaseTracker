@@ -899,6 +899,43 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.patch("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      debug(req, 'Updating vendor:', { vendorId, updateData });
+
+      // Validate update data
+      if (!updateData.companyName || !updateData.email || !updateData.contactPerson) {
+        throw new ValidationError('Required fields missing');
+      }
+
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      if (!updatedVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      debug(req, 'Successfully updated vendor:', updatedVendor);
+      res.json(updatedVendor);
+    } catch (error) {
+      debug(req, 'Error updating vendor:', error);
+      next(error);
+    }
+  });
+
   app.patch("/api/vendors/:id/status", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
