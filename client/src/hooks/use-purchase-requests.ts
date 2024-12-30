@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
-import { saveDraft, submitRequest, createRequest, updateRequest } from "@/services/requests";
+import { saveDraft, submitRequest, createRequest } from "@/services/requests";
+import { useErrorHandler } from "@/services/error-logging";
 
 interface ApprovalData {
   requestId: number;
@@ -13,6 +14,7 @@ interface ApprovalData {
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const handleError = useErrorHandler();
 
   // Fetch all requests
   const { data: requests = [], isLoading, error } = useQuery({
@@ -32,12 +34,9 @@ export function usePurchaseRequests() {
     },
     retry: 1,
     staleTime: 30000,
-    onError: (error) => {
-      console.error("Error fetching requests:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fetch requests",
-        variant: "destructive",
+    onError: async (error) => {
+      await handleError(error, {
+        title: "Error fetching requests"
       });
     }
   });
@@ -54,12 +53,9 @@ export function usePurchaseRequests() {
         description: "Draft saved successfully",
       });
     },
-    onError: (error: Error) => {
-      console.error("Error saving draft:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save draft",
-        variant: "destructive",
+    onError: async (error: Error) => {
+      await handleError(error, {
+        title: "Error saving draft"
       });
     },
   });
@@ -76,12 +72,9 @@ export function usePurchaseRequests() {
         description: "Request submitted successfully",
       });
     },
-    onError: (error: Error) => {
-      console.error("Error submitting request:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit request",
-        variant: "destructive",
+    onError: async (error: Error) => {
+      await handleError(error, {
+        title: "Error submitting request"
       });
     },
   });
@@ -89,11 +82,6 @@ export function usePurchaseRequests() {
   // Create approval mutation
   const createApproval = useMutation({
     mutationFn: async (data: ApprovalData) => {
-      // Validate required fields
-      if (!data.requestId || !data.status || !data.department) {
-        throw new Error('Missing required fields: requestId, status, and department are required');
-      }
-
       console.log('Creating approval with:', data);
 
       const res = await fetch(`/api/requests/${data.requestId}/approvals`, {
@@ -118,12 +106,9 @@ export function usePurchaseRequests() {
         description: `Request ${variables.status} successfully`,
       });
     },
-    onError: (error: Error) => {
-      console.error("Error creating approval:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create approval",
-        variant: "destructive",
+    onError: async (error: Error) => {
+      await handleError(error, {
+        title: "Error creating approval"
       });
     },
   });

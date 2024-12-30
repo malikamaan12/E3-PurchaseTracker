@@ -31,7 +31,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { Anthropic } from '@anthropic-ai/sdk';
 
-// Initialize Anthropic client
+// Initialize Anthropic client (moved here for better organization)
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -985,7 +985,7 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Required fields missing');
       }
 
-      const [updatedVendor] = awaitdb
+      const [updatedVendor] = await db
         .update(vendors)
         .set({
           ...updateData,
@@ -1457,6 +1457,76 @@ export function registerRoutes(app: Express): Server {
       });
 
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add to the existing routes
+  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Logging error:', req.body);
+
+      const validationResult = insertErrorLogSchema.safeParse({
+        ...req.body,
+        userId: req.user?.id
+      });
+
+      if (!validationResult.success) {
+        debug(req, 'Error log validation failed:', validationResult.error);
+        throw new ValidationError('Invalid error log data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Analyze error with Claude if API key is available
+      let aiAnalysis = null;
+      if (process.env.ANTHROPIC_API_KEY) {
+        try {
+          const anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY,
+          });
+
+          const message = await anthropic.messages.create({
+            model: "claude-3-opus-20240229",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: `Analyze this error and suggest possible solutions:
+                Error Message: ${validationResult.data.message}
+                Error Code: ${validationResult.data.code || 'N/A'}
+                Path: ${validationResult.data.path || 'N/A'}
+                Details: ${JSON.stringify(validationResult.data.details || {}, null, 2)}
+              `
+            }]
+          });
+
+          aiAnalysis = {
+            analysis: message.content,
+            timestamp: new Date().toISOString()
+          };
+        } catch (aiError) {
+          console.error('AI Analysis failed:', aiError);
+        }
+      }
+
+      // Save error log with AI analysis
+      const [errorLog] = await db
+        .insert(errorLogs)
+        .values({
+          ...validationResult.data,
+          aiAnalysis,
+          createdAt: new Date()
+        })
+        .returning();
+
+      debug(req, 'Error logged successfully:', errorLog);
+      res.status(201).json(errorLog);
+    } catch (error) {
+      debug(req, 'Error logging error:', error);
       next(error);
     }
   });
