@@ -12,11 +12,15 @@ import {
   insertPurchaseRequestSchema,
   vendors,
   errorLogs,
+  subPurposes,
+  accountRequests,
+  insertAccountRequestSchema
 } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
+import { hash } from 'bcrypt';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -50,6 +54,79 @@ const debug = (req: Request, message: string, data?: any) => {
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Enhanced sub-purposes endpoint with proper query building and error handling
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes', { purposeType });
+
+      let query = db.select().from(subPurposes);
+
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
+      }
+
+      const results = await query.orderBy(desc(subPurposes.created_at));
+
+      // Transform the dates into proper format or null
+      const formattedResults = results.map(sp => ({
+        ...sp,
+        validFrom: sp.valid_from ? new Date(sp.valid_from).toISOString() : null,
+        validTo: sp.valid_to ? new Date(sp.valid_to).toISOString() : null,
+        purposeType: sp.purpose_type || 'Unknown',
+        createdAt: sp.created_at ? new Date(sp.created_at).toISOString() : null,
+        updatedAt: sp.updated_at ? new Date(sp.updated_at).toISOString() : null
+      }));
+
+      debug(req, `Found ${formattedResults.length} sub-purposes`);
+      res.json(formattedResults);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
+
+  // Admin route for sub-purposes
+  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const allSubPurposes = await db
+        .select()
+        .from(subPurposes)
+        .orderBy(desc(subPurposes.created_at));
+
+      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
+      res.json(allSubPurposes);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
+
+  // Account requests management
+  app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      debug(req, 'Fetching account requests...');
+      const accountRequestsResult = await db
+        .select()
+        .from(accountRequests)
+        .orderBy(desc(accountRequests.createdAt));
+
+      debug(req, `Found ${accountRequestsResult.length} account requests`);
+      res.json(accountRequestsResult);
+    } catch (error) {
+      debug(req, 'Error fetching account requests:', error);
+      next(error);
+    }
+  });
 
   // Create purchase request endpoint with proper error handling
   app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
@@ -381,7 +458,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       debug(req, 'Creating new sub-purpose - Raw request body:', req.body);
@@ -432,7 +509,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       debug(req, 'Fetching users');
@@ -464,7 +541,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       const allSubPurposes = await db
