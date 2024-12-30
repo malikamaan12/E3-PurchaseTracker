@@ -40,14 +40,7 @@ export default function VendorManagement() {
   const { data: vendors = [], isLoading, error } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
     retry: false,
-    staleTime: 5000,
-    onError: (err: Error) => {
-      toast({
-        title: "Error",
-        description: err.message || "Failed to load vendors",
-        variant: "destructive",
-      });
-    }
+    staleTime: 5000
   });
 
   const addVendorMutation = useMutation({
@@ -58,6 +51,7 @@ export default function VendorManagement() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -96,16 +90,15 @@ export default function VendorManagement() {
     }
   };
 
-  const filteredVendors = vendors.filter((vendor: Vendor) => {
-    if (!vendor.companyName || !vendor.contactPerson) return false;
+  const filteredVendors = vendors?.filter((vendor: Vendor) => {
     const matchesSearch = 
       vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || vendor.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+  }) ?? [];
 
-  if (error instanceof Error) {
+  if (error) {
     return (
       <div className="container mx-auto py-8">
         <Card>
