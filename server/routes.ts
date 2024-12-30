@@ -11,10 +11,12 @@ import {
   fileAttachments,
   insertPurchaseRequestSchema,
   vendors,
+  errorLogs,
 } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
+import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -810,7 +812,6 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -878,7 +879,7 @@ export function registerRoutes(app: Express): Server {
 
       // Create new user
       const [newUser] = await db
-                .insert(users)
+        .insert(users)
         .values({
           username: accountRequest.username,
           password: accountRequest.password, // Password is already properly hashed
