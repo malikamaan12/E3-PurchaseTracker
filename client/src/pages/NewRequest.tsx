@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,30 @@ import DepartmentSelect from "@/components/DepartmentSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VendorForm } from "@/components/VendorForm";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const itemSchema = z.object({
+  name: z.string().min(1, "Item name is required"),
+  quantity: z.number().min(1, "Quantity must be at least 1"),
+  estimatedCost: z.number().min(0, "Cost cannot be negative"),
+  description: z.string().optional()
+});
+
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  purposeType: z.string(),
+  subPurposeId: z.number().optional(),
+  priority: z.string(),
+  currency: z.string(),
+  status: z.string(),
+  items: z.array(itemSchema).min(1, "At least one item is required"),
+  totalEstimatedCost: z.number(),
+  freightAmount: z.number(),
+  additionalApprovers: z.array(z.string())
+});
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -54,7 +77,6 @@ const purposeTypes = [
 
 export default function NewRequest() {
   const [, setLocation] = useLocation();
-  const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState([{
     name: "",
@@ -68,15 +90,22 @@ export default function NewRequest() {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<number | null>(null);
+  const [isValidatingForm, setIsValidatingForm] = useState(false);
 
-  // Fetch vendors
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  const { data: vendors = [], isError: isVendorError, error: vendorError } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
     staleTime: 30000,
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to load vendors. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const form = useForm<PurchaseRequest>({
-    resolver: zodResolver(insertPurchaseRequestSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -111,52 +140,103 @@ export default function NewRequest() {
     form.setValue("totalEstimatedCost", totalCost);
   }, [items, freightAmount, form]);
 
-  const onSubmit = async (values: PurchaseRequest) => {
+  const validateFormData = async () => {
+    setIsValidatingForm(true);
+    const validationErrors: string[] = [];
+
     if (!selectedVendor) {
-      toast({
-        title: "Error",
-        description: "Please select a vendor",
-        variant: "destructive",
-      });
-      return;
+      validationErrors.push("Please select a vendor");
     }
 
+    if (!form.getValues("title")?.trim()) {
+      validationErrors.push("Title is required");
+    }
+
+    if (!form.getValues("description")?.trim()) {
+      validationErrors.push("Description is required");
+    }
+
+    const formItems = form.getValues("items");
+    if (!formItems || formItems.length === 0) {
+      validationErrors.push("At least one item is required");
+    } else {
+      formItems.forEach((item, index) => {
+        if (!item.name?.trim()) {
+          validationErrors.push(`Item ${index + 1} name is required`);
+        }
+        if (item.quantity < 1) {
+          validationErrors.push(`Item ${index + 1} quantity must be at least 1`);
+        }
+        if (item.estimatedCost < 0) {
+          validationErrors.push(`Item ${index + 1} cost cannot be negative`);
+        }
+      });
+    }
+
+    setIsValidatingForm(false);
+    return validationErrors;
+  };
+
+  const onSubmit = async (values: PurchaseRequest) => {
     try {
       setIsSubmitting(true);
-      const formData = new FormData();
 
+      const validationErrors = await validateFormData();
+      if (validationErrors.length > 0) {
+        validationErrors.forEach(error => {
+          toast({
+            title: "Validation Error",
+            description: error,
+            variant: "destructive",
+          });
+        });
+        return;
+      }
+
+      const maxFileSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+      const invalidFiles = files.filter(file => {
+        if (file.size > maxFileSize) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} exceeds 10MB limit`,
+            variant: "destructive",
+          });
+          return true;
+        }
+        if (!allowedTypes.includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not an allowed file type`,
+            variant: "destructive",
+          });
+          return true;
+        }
+        return false;
+      });
+
+      if (invalidFiles.length > 0) {
+        return;
+      }
+
+      const formData = new FormData();
       const formattedData = {
         ...values,
         items: items.map(item => ({
-          name: item.name || '',
-          quantity: Number(item.quantity) || 0,
-          estimatedCost: Number(item.estimatedCost) || 0,
-          description: item.description || ''
+          name: item.name.trim(),
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost),
+          description: item.description?.trim() || ''
         })),
         freightAmount,
         totalEstimatedCost: calculateTotalCost(),
         vendorId: selectedVendor,
       };
 
-      console.log('Formatted request data:', formattedData);
-
-      if (!formattedData.items || formattedData.items.length === 0) {
-        throw new Error("At least one item is required");
-      }
-
-      if (formattedData.items.some(item => !item.name || item.name.trim() === '')) {
-        throw new Error("All items must have a name");
-      }
-
       formData.append('data', JSON.stringify(formattedData));
-
       files.forEach(file => {
         formData.append('files', file);
-      });
-
-      console.log('Submitting form data:', {
-        formattedData,
-        filesCount: files.length
       });
 
       const response = await fetch('/api/requests', {
@@ -167,12 +247,10 @@ export default function NewRequest() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Request submission failed:', errorText);
         throw new Error(errorText || "Failed to create request");
       }
 
       const result = await response.json();
-      console.log('Request created successfully:', result);
 
       toast({
         title: "Success",
@@ -184,7 +262,7 @@ export default function NewRequest() {
       console.error("Create request error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create request",
+        description: error.message || "Failed to create request. Please try again.",
         variant: "destructive",
         className: "animate-error",
       });
@@ -218,10 +296,10 @@ export default function NewRequest() {
     try {
       form.setValue("status", status);
       const isValid = await form.trigger();
+
       if (!isValid) {
         const errors = form.formState.errors;
-
-        const errorMessages = Object.entries(errors)
+        let errorMessages = Object.entries(errors)
           .map(([field, error]) => `${field}: ${error?.message}`)
           .join('\n');
 
@@ -230,7 +308,18 @@ export default function NewRequest() {
           description: errorMessages || "Please check all required fields",
           variant: "destructive",
         });
-        setIsSubmitting(false);
+        return;
+      }
+
+      const validationErrors = await validateFormData();
+      if (validationErrors.length > 0) {
+        validationErrors.forEach(error => {
+          toast({
+            title: "Validation Error",
+            description: error,
+            variant: "destructive",
+          });
+        });
         return;
       }
 
@@ -250,7 +339,30 @@ export default function NewRequest() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      const maxFileSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+      const validFiles = newFiles.filter(file => {
+        if (file.size > maxFileSize) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} exceeds 10MB limit`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!allowedTypes.includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `${file.name} is not an allowed file type`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+
+      setFiles(prev => [...prev, ...validFiles]);
     }
   };
 
@@ -315,7 +427,6 @@ export default function NewRequest() {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
-                {/* Purpose Selection */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Purpose Selection</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -364,7 +475,6 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                {/* Basic Information */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
@@ -402,7 +512,6 @@ export default function NewRequest() {
                   />
                 </div>
 
-                {/* Vendor Selection */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Vendor Information</h3>
@@ -436,7 +545,6 @@ export default function NewRequest() {
                   </Select>
                 </div>
 
-                {/* Items Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
@@ -578,7 +686,6 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                {/* Additional Approvers */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Approvers</h3>
                   <DepartmentSelect
@@ -589,7 +696,6 @@ export default function NewRequest() {
                   />
                 </div>
 
-                {/* Supporting Documents */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
 
@@ -648,7 +754,6 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                {/* Form Actions */}
                 <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6">
                   <Button
                     type="button"
@@ -688,7 +793,6 @@ export default function NewRequest() {
         </Card>
       </div>
 
-      {/* Add Vendor Dialog */}
       <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -697,6 +801,14 @@ export default function NewRequest() {
           <VendorForm onSubmit={handleAddVendor} isLimitedAccess={true} />
         </DialogContent>
       </Dialog>
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span>Processing request...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
