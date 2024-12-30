@@ -1,6 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { relations, type InferModel } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 // ============= Tables =============
@@ -49,8 +49,8 @@ export const errorLogs = pgTable("error_logs", {
   severity: text("severity").notNull(),
   path: text("path"),
   userId: integer("user_id").references(() => users.id),
-  details: json("details").$type<Record<string, unknown>>(),
-  aiAnalysis: json("ai_analysis").$type<Record<string, unknown>>(),
+  details: text("details").$type<Record<string, unknown>>(),
+  aiAnalysis: text("ai_analysis").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -72,7 +72,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   requesterId: integer("requester_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  items: json("items").$type<Array<{
+  items: text("items").$type<Array<{
     name: string;
     quantity: number;
     estimatedCost: number;
@@ -87,7 +87,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priority: text("priority").notNull().default("medium"),
   priorityScore: integer("priority_score"),
   priorityReason: text("priority_reason"),
-  priorityRecommendations: json("priority_recommendations").$type<string[]>(),
+  priorityRecommendations: text("priority_recommendations").$type<string[]>(),
   currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   freightAmount: integer("freight_amount").notNull().default(0),
@@ -160,7 +160,7 @@ export const vendors = pgTable("vendors", {
   registrationNumber: text("registration_number"),
   bankName: text("bank_name").notNull(),
   accountNumber: text("account_number").notNull(),
-  iban: text("iban").notNull(),
+  ibanNumber: text("iban_number").notNull(),
   branchName: text("branch_name").notNull(),
   rating: integer("rating").default(0),
   status: text("status").notNull().default("active"),
@@ -444,10 +444,10 @@ export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers
 export const insertVendorSchema = createInsertSchema(vendors, {
   companyName: z.string().min(2, "Company name must be at least 2 characters"),
   contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
-  phoneNumber: z.string()
-    .min(8, "Phone number must be at least 8 digits")
-    .max(15, "Phone number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid phone number format"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   email: z.string().email("Invalid email format"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   taxNumber: z.string().optional(),
@@ -456,13 +456,12 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   accountNumber: z.string()
     .min(5, "Account number must be at least 5 characters")
     .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
-  iban: z.string()
+  ibanNumber: z.string()
     .min(15, "IBAN must be at least 15 characters")
     .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
-  rating: z.number().min(0).max(5).optional(),
-  status: z.enum(["active", "blocked", "frozen"]).default("active"),
   remarks: z.string().optional(),
+  status: z.enum(["active", "blocked", "frozen"]).default("active"),
 });
 
 export const insertVendorCategorySchema = createInsertSchema(vendorCategories, {

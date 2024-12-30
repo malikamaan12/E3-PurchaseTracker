@@ -29,7 +29,7 @@ const vendorFormSchema = z.object({
   accountNumber: z.string()
     .min(5, "Account number must be at least 5 characters")
     .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
-  iban: z.string()
+  ibanNumber: z.string()
     .min(15, "IBAN must be at least 15 characters")
     .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
@@ -57,7 +57,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       registrationNumber: "",
       bankName: "",
       accountNumber: "",
-      iban: "",
+      ibanNumber: "",
       branchName: "",
       remarks: "",
     },
@@ -208,12 +208,12 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
 
           <FormField
             control={form.control}
-            name="iban"
+            name="ibanNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>IBAN*</FormLabel>
+                <FormLabel>IBAN Number*</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="Enter IBAN" />
+                  <Input {...field} placeholder="Enter IBAN number" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

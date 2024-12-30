@@ -982,7 +982,7 @@ export function registerRoutes(app: Express): Server {
       // Update user password
       const [updatedUser] = await db
         .update(users)
-                .set({
+        .set({
           password: hashedPassword,
           updatedAt: new Date()
         })
