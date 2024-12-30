@@ -1,12 +1,11 @@
 import type { PurchaseRequest } from "@db/schema";
-import { ERROR_MESSAGES } from "@/config/notification";
 
 interface RequestError extends Error {
   status?: number;
   code?: string;
 }
 
-export async function createRequest(data: FormData) {
+export async function createRequest(data: FormData): Promise<PurchaseRequest> {
   try {
     const response = await fetch("/api/requests", {
       method: "POST",
@@ -15,14 +14,21 @@ export async function createRequest(data: FormData) {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      const error = new Error(errorText || 'Failed to create request') as RequestError;
+      let errorMessage = 'Failed to create request';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+
+      const error = new Error(errorMessage) as RequestError;
       error.status = response.status;
       throw error;
     }
 
-    const result = await response.json();
-    return result;
+    return response.json();
   } catch (error) {
     console.error('Error in createRequest:', error);
     throw error;
@@ -35,7 +41,7 @@ export async function updateRequest({
 }: {
   id: number;
   data: Partial<PurchaseRequest>;
-}) {
+}): Promise<PurchaseRequest> {
   try {
     const response = await fetch(`/api/requests/${id}`, {
       method: "PUT",
@@ -47,26 +53,32 @@ export async function updateRequest({
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Failed to update request');
+      let errorMessage = 'Failed to update request';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
-    const result = await response.json();
-    return result;
+    return response.json();
   } catch (error) {
     console.error('Update request error:', error);
     throw error;
   }
 }
 
-export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
+export async function saveDraft(id: number, data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
   try {
     // Basic validation for draft
     if (!data.title && !data.description && (!data.items || data.items.length === 0)) {
       throw new Error('Draft must contain at least one field (title, description, or items)');
     }
 
-    const result = await updateRequest({
+    return await updateRequest({
       id,
       data: { 
         ...data, 
@@ -75,14 +87,13 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
         updatedAt: new Date().toISOString()
       },
     });
-    return result;
   } catch (error) {
     console.error('Error saving draft:', error);
     throw error;
   }
 }
 
-export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
+export async function submitRequest(id: number, data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
   try {
     // Validate required fields for submission
     const validationErrors = [];
@@ -90,7 +101,7 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
     if (!data.title?.trim()) {
       validationErrors.push('Title is required');
     }
-    if (!data.description?.trim()) {
+    if (!data.description?.trim() || data.description.length < 10) {
       validationErrors.push('Description must be at least 10 characters');
     }
     if (!data.items || data.items.length === 0) {
@@ -104,7 +115,7 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
       throw new Error(validationErrors.join(', '));
     }
 
-    const result = await updateRequest({
+    return await updateRequest({
       id,
       data: { 
         ...data, 
@@ -114,24 +125,28 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
         updatedAt: new Date().toISOString()
       },
     });
-    return result;
   } catch (error) {
     console.error('Error submitting request:', error);
     throw error;
   }
 }
 
-export async function deleteRequest(id: number) {
-  console.log('Deleting request:', id);
+export async function deleteRequest(id: number): Promise<void> {
   const response = await fetch(`/api/requests/${id}`, {
     method: "DELETE",
     credentials: "include",
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to delete request:', errorText);
-    throw new Error(errorText || 'Failed to delete request');
+    let errorMessage = 'Failed to delete request';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      const errorText = await response.text();
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();

@@ -7,49 +7,22 @@ import { setupAuth } from "./auth";
 import {
   users,
   notifications,
-  accountRequests,
   purchaseRequests,
-  subPurposes,
-  insertAccountRequestSchema,
-  approvals,
-  purchaseApprovers,
-  errorLogs,
-  insertErrorLogSchema,
-  type PurchaseApprover,
+  fileAttachments,
   insertPurchaseRequestSchema,
-  insertSubPurposeSchema,
-  companyBranding,
   vendors,
-  insertVendorSchema,
-  fileAttachments
 } from "@db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
-import { hash } from 'bcrypt';
-import { z } from 'zod';
-import * as crypto from 'crypto';
-import * as fs from 'fs';
-import { Anthropic } from '@anthropic-ai/sdk';
+import { eq } from "drizzle-orm";
+import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
-import { getNotifications, markNotificationAsRead } from "./utils/notifications";
-
-// Initialize Anthropic client (moved here for better organization)
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
+    const uploadsDir = path.join(process.cwd(), 'uploads');
     cb(null, uploadsDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -58,43 +31,124 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/svg+xml'];
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, SVG and PDF files are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'));
     }
   }
 });
 
 // Debug logging utility
 const debug = (req: Request, message: string, data?: any) => {
-  console.log(`[${req.id}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+  console.log(`[${req.method} ${req.path}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 };
 
-async function createNotification(userId: number, title: string, message: string, type: string, linkId: number) {
-  await db.insert(notifications).values({
-      userId,
-      title,
-      message,
-      type,
-      isRead: false,
-      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`,
-      createdAt: new Date()
-  });
-}
-
-
 export function registerRoutes(app: Express): Server {
-  // Setup authentication routes and middleware
   setupAuth(app);
 
-  // Add request validation middleware
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    req.id = crypto.randomUUID();
-    debug(req, `${req.method} ${req.path} started`);
-    next();
+  // Create purchase request endpoint with proper error handling
+  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Creating purchase request', { body: req.body });
+
+      // Parse request data
+      const requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+
+      // Add required fields
+      requestData.requesterId = req.user!.id;
+      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Validate request data
+      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid request data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Verify vendor exists
+      const vendor = await db.query.vendors.findFirst({
+        where: eq(vendors.id, requestData.vendorId)
+      });
+
+      if (!vendor) {
+        throw new ValidationError('Selected vendor does not exist');
+      }
+
+      // Start transaction
+      const result = await db.transaction(async (tx) => {
+        // Create purchase request
+        const [newRequest] = await tx
+          .insert(purchaseRequests)
+          .values({
+            requestNumber: requestData.requestNumber,
+            requesterId: requestData.requesterId,
+            vendorId: requestData.vendorId,
+            title: requestData.title.trim(),
+            description: requestData.description.trim(),
+            items: requestData.items,
+            purposeType: requestData.purposeType,
+            subPurposeId: requestData.subPurposeId,
+            priority: requestData.priority || 'medium',
+            currency: requestData.currency || 'QAR',
+            totalEstimatedCost: requestData.totalEstimatedCost,
+            freightAmount: requestData.freightAmount || 0,
+            status: requestData.status || 'draft',
+            isLocked: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+
+        // Handle file attachments if any
+        const files = (req.files as Express.Multer.File[]) || [];
+        if (files.length > 0) {
+          await tx.insert(fileAttachments).values(
+            files.map(file => ({
+              requestId: newRequest.id,
+              fileName: file.filename,
+              fileType: file.mimetype,
+              fileSize: file.size,
+              fileUrl: file.path,
+            }))
+          );
+        }
+
+        return newRequest;
+      });
+
+      debug(req, 'Purchase request created successfully', result);
+      res.status(201).json(result);
+    } catch (error) {
+      debug(req, 'Error creating purchase request', error);
+
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          path: req.path,
+          userId: req.user?.id,
+          requestData: req.body
+        });
+
+        // Log unexpected errors
+        await db.insert(errorLogs).values({
+          message: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error',
+          userId: req.user?.id,
+          path: req.path,
+          aiAnalysis: analysis,
+          createdAt: new Date()
+        });
+      }
+
+      next(error);
+    }
   });
 
   // Add notifications routes
@@ -132,169 +186,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the POST /api/requests endpoint to include enhanced validation and error analysis
-  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Creating new purchase request', { body: req.body });
-
-      // Parse the JSON data from form data
-      let requestData;
-      try {
-        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
-        debug(req, 'Parsed request data:', requestData);
-
-        // Add requesterId from authenticated user
-        requestData.requesterId = req.user!.id;
-
-        // Generate a unique request number
-        requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-        // Basic validation before schema validation
-        if (!requestData.title?.trim()) {
-          throw new ValidationError('Title is required');
-        }
-
-        if (!requestData.description?.trim()) {
-          throw new ValidationError('Description is required');
-        }
-
-        if (!requestData.vendorId) {
-          throw new ValidationError('Vendor selection is required');
-        }
-
-        if (!requestData.items || !Array.isArray(requestData.items) || requestData.items.length === 0) {
-          throw new ValidationError('At least one item is required');
-        }
-
-        // Items validation
-        requestData.items.forEach((item: any, index: number) => {
-          if (!item.name?.trim()) {
-            throw new ValidationError(`Item ${index + 1} name is required`);
-          }
-          if (typeof item.quantity !== 'number' || item.quantity <= 0) {
-            throw new ValidationError(`Item ${index + 1} must have a valid quantity`);
-          }
-          if (typeof item.estimatedCost !== 'number' || item.estimatedCost < 0) {
-            throw new ValidationError(`Item ${index + 1} must have a valid cost`);
-          }
-        });
-
-        // Validate request data schema
-        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-        if (!validationResult.success) {
-          debug(req, 'Schema validation failed:', validationResult.error);
-          throw new ValidationError('Invalid request data', {
-            errors: validationResult.error.errors
-          });
-        }
-
-        // Handle file uploads
-        const files = (req.files as Express.Multer.File[]) || [];
-        const fileData = files.map(file => ({
-          filename: file.filename,
-          originalName: file.originalname,
-          path: file.path,
-          mimetype: file.mimetype,
-          size: file.size
-        }));
-
-        debug(req, 'Creating purchase request with data:', {
-          ...validationResult.data,
-          files: fileData
-        });
-
-        // Create purchase request with file attachments
-        const [newRequest] = await db
-          .insert(purchaseRequests)
-          .values({
-            requestNumber: requestData.requestNumber,
-            requesterId: requestData.requesterId,
-            vendorId: requestData.vendorId,
-            title: requestData.title.trim(),
-            description: requestData.description.trim(),
-            items: requestData.items,
-            purposeType: requestData.purposeType,
-            subPurposeId: requestData.subPurposeId,
-            priority: requestData.priority,
-            currency: requestData.currency,
-            totalEstimatedCost: requestData.totalEstimatedCost,
-            freightAmount: requestData.freightAmount,
-            status: requestData.status || 'draft',
-            isLocked: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-
-        // Save file attachments if any
-        if (files.length > 0) {
-          await db.insert(fileAttachments).values(
-            files.map(file => ({
-              requestId: newRequest.id,
-              fileName: file.filename,
-              fileType: file.mimetype,
-              fileSize: file.size,
-              fileUrl: file.path,
-            }))
-          );
-        }
-
-        debug(req, 'Successfully created purchase request:', newRequest);
-        res.status(201).json(newRequest);
-      } catch (error) {
-        debug(req, 'Error creating purchase request:', error);
-
-        // For unexpected errors, get AI analysis
-        if (!(error instanceof ValidationError)) {
-          const analysis = await analyzeError(error as Error, {
-            path: req.path,
-            userId: req.user?.id,
-            requestData: req.body
-          });
-
-          // Log unexpected errors with analysis
-          await db.insert(errorLogs).values({
-            message: error instanceof Error ? error.message : 'Unknown error',
-            severity: 'error',
-            userId: req.user?.id,
-            path: req.path,
-            aiAnalysis: analysis,
-            createdAt: new Date()
-          });
-        }
-
-        next(error);
-      }
-    } catch (error) {
-      debug(req, 'Error creating purchase request:', error);
-
-      // For unexpected errors, get AI analysis
-      if (!(error instanceof ValidationError)) {
-        const analysis = await analyzeError(error as Error, {
-          path: req.path,
-          userId: req.user?.id,
-          requestData: req.body
-        });
-
-        // Log unexpected errors with analysis
-        await db.insert(errorLogs).values({
-          message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',
-          userId: req.user?.id,
-          path: req.path,
-          aiAnalysis: analysis,
-          createdAt: new Date()
-        });
-      }
-
-      next(error);
-    }
-  });
 
   // Add PUT endpoint for updating requests
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
