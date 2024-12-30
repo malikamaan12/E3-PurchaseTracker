@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +32,13 @@ import { updateRequest } from "@/services/requests";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 
+// Helper function to parse and format decimal numbers with strict validation
+const formatDecimal = (value: number | string): number => {
+  const parsed = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(parsed)) return 0;
+  return Number(parsed.toFixed(2));
+};
+
 interface RequestItem {
   name: string;
   quantity: number;
@@ -52,18 +59,6 @@ const priorities = [
   { label: "Urgent", value: "urgent" },
 ] as const;
 
-// Helper function to parse and format decimal numbers with strict validation
-const formatDecimal = (value: number | string): number => {
-  const parsed = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(parsed)) return 0;
-  return Number(parsed.toFixed(2));
-};
-
-// Helper to validate decimal input
-const validateDecimalInput = (value: string): boolean => {
-  return /^\d*\.?\d{0,2}$/.test(value);
-};
-
 export default function EditRequest({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -72,34 +67,42 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const { data: request, isLoading } = useRequest(parseInt(params.id));
 
+  // Memoize form configuration
+  const defaultValues = useMemo(() => ({
+    title: "",
+    description: "",
+    items: [],
+    companyName: "",
+    contactPerson: "",
+    contact_number: "",
+    accountNumber: "",
+    purposeType: "E3 EVENT",
+    subPurposeId: undefined,
+    priority: "medium",
+    currency: "QAR",
+    status: "draft",
+    totalEstimatedCost: 0,
+    freightAmount: 0,
+  }), []);
+
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      items: [],
-      companyName: "",
-      contactPerson: "",
-      contact_number: "",
-      accountNumber: "",
-      purposeType: "E3 EVENT",
-      subPurposeId: undefined,
-      priority: "medium",
-      currency: "QAR",
-      status: "draft",
-      totalEstimatedCost: 0,
-      freightAmount: 0,
-    },
+    defaultValues,
   });
+
+  // Memoize decimal input validation
+  const validateDecimalInput = useMemo(() => (value: string): boolean => {
+    return /^\d*\.?\d{0,2}$/.test(value);
+  }, []);
 
   useEffect(() => {
     if (request) {
-      const formattedItems = (request.items || []).map(item => ({
-        name: item?.name || "",
-        quantity: formatDecimal(item?.quantity || 0),
-        estimatedCost: formatDecimal(item?.estimatedCost || 0),
-        description: item?.description || ""
-      }));
+      const formattedItems = request.items?.map(item => ({
+        name: item.name || "",
+        quantity: formatDecimal(item.quantity || 0),
+        estimatedCost: formatDecimal(item.estimatedCost || 0),
+        description: item.description || ""
+      })) || [];
 
       if (formattedItems.length === 0) {
         formattedItems.push({ 
@@ -116,52 +119,54 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       form.reset({
         ...request,
         items: formattedItems,
-        totalEstimatedCost: formatDecimal(request.totalEstimatedCost),
-        freightAmount: formatDecimal(request.freightAmount),
+        totalEstimatedCost: formatDecimal(request.totalEstimatedCost || 0),
+        freightAmount: formatDecimal(request.freightAmount || 0),
       });
     }
   }, [request, form]);
 
-  const calculateTotalCost = () => {
+  // Memoize the total cost calculation
+  const totalCost = useMemo(() => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (formatDecimal(item.quantity) * formatDecimal(item.estimatedCost)),
       0
     );
     return formatDecimal(itemsTotal + formatDecimal(freightAmount));
-  };
+  }, [items, freightAmount]);
 
-  const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      const newItems = items.filter((_, i) => i !== index);
-      setItems(newItems);
-      form.setValue('items', newItems);
-    }
-  };
-
-  const updateItem = (index: number, field: string, value: string | number) => {
-    // Validate decimal input for quantity and estimatedCost
+  // Memoize item update handler
+  const updateItem = useCallback((index: number, field: string, value: string | number) => {
     if ((field === 'quantity' || field === 'estimatedCost') && 
         typeof value === 'string' && 
         !validateDecimalInput(value)) {
       return;
     }
 
-    const newItems = [...items];
-    newItems[index] = {
-      ...newItems[index],
-      [field]: field === "name" || field === "description" 
-        ? value 
-        : formatDecimal(value),
-    };
-    setItems(newItems);
-    form.setValue('items', newItems);
-  };
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      newItems[index] = {
+        ...newItems[index],
+        [field]: field === "name" || field === "description" 
+          ? value 
+          : formatDecimal(value),
+      };
+      return newItems;
+    });
+  }, [validateDecimalInput]);
 
-  const onSubmit = async (values: PurchaseRequest) => {
+  const addItem = useCallback(() => {
+    setItems(prev => [...prev, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
+  }, []);
+
+  const removeItem = useCallback((index: number) => {
+    if (items.length > 1) {
+      setItems(prev => prev.filter((_, i) => i !== index));
+      form.setValue('items', items.filter((_, i) => i !== index));
+    }
+  }, [items, form]);
+
+  // Memoize submit handler
+  const onSubmit = useCallback(async (values: PurchaseRequest) => {
     try {
       const submissionData = {
         ...values,
@@ -172,7 +177,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           description: item.description 
         })),
         freightAmount: formatDecimal(freightAmount),
-        totalEstimatedCost: formatDecimal(calculateTotalCost()),
+        totalEstimatedCost: totalCost,
         contact_number: values.contact_number?.trim(),
       };
 
@@ -197,9 +202,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  };
+  }, [items, freightAmount, totalCost, params.id, setLocation, toast]);
 
-  const handleSubmit = async (status: "draft" | "pending") => {
+  const handleSubmit = useCallback(async (status: "draft" | "pending") => {
     try {
       const isValid = await form.trigger();
       if (!isValid) {
@@ -226,7 +231,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  };
+  }, [form, onSubmit, toast]);
 
   if (isLoading) {
     return (
@@ -509,7 +514,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           Total Estimated Cost:
                         </span>
                         <span className="text-lg font-bold text-[#7156a2]">
-                          {form.watch("currency")} {calculateTotalCost().toFixed(2)}
+                          {form.watch("currency")} {totalCost.toFixed(2)}
                         </span>
                       </div>
                     </div>
