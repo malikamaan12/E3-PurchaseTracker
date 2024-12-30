@@ -28,25 +28,21 @@ export default function VendorManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked" | "frozen">("all");
   const { toast } = useToast();
 
-  const { data: vendors, isLoading, error } = useQuery<Vendor[]>({
+  const { data: vendors = [], isLoading, error } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load vendors",
-        variant: "destructive",
-      });
-    },
+    retry: false,
+    staleTime: 5000,
   });
 
-  const filteredVendors = vendors?.filter(vendor => {
-    const matchesSearch = vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredVendors = vendors.filter((vendor: Vendor) => {
+    const matchesSearch = 
+      vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || vendor.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case "active":
         return "default";
@@ -59,7 +55,13 @@ export default function VendorManagement() {
     }
   };
 
-  if (error) {
+  if (error instanceof Error) {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to load vendors",
+      variant: "destructive",
+    });
+
     return (
       <div className="container mx-auto py-8">
         <Card>
@@ -94,7 +96,10 @@ export default function VendorManagement() {
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <Select 
+              value={statusFilter} 
+              onValueChange={(value: "all" | "active" | "blocked" | "frozen") => setStatusFilter(value)}
+            >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -126,14 +131,14 @@ export default function VendorManagement() {
                       <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
-                ) : filteredVendors?.length === 0 ? (
+                ) : filteredVendors.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
                       No vendors found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredVendors?.map((vendor) => (
+                  filteredVendors.map((vendor: Vendor) => (
                     <TableRow key={vendor.id}>
                       <TableCell className="font-medium">{vendor.companyName}</TableCell>
                       <TableCell>{vendor.contactPerson}</TableCell>

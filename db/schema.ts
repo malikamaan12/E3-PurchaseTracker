@@ -153,9 +153,7 @@ export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
   contactPerson: text("contact_person").notNull(),
-  phoneNumber: text("phone_number")
-    .notNull()
-    .check("phone_number_format", /^[+]?[\d\s-]+$/),
+  phoneNumber: text("phone_number").notNull(),
   email: text("email").notNull(),
   address: text("address").notNull(),
   taxNumber: text("tax_number"),
