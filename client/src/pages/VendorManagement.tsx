@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,16 +17,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Search, Star } from "lucide-react";
 import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+import { VendorForm } from "@/components/VendorForm";
 
 export default function VendorManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked" | "frozen">("all");
+  const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: vendors = [], isLoading, error } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
@@ -39,6 +48,39 @@ export default function VendorManagement() {
         variant: "destructive",
       });
     }
+  });
+
+  const addVendorMutation = useMutation({
+    mutationFn: async (data: Omit<Vendor, "id" | "createdAt" | "updatedAt" | "rating">) => {
+      const response = await fetch("/api/vendors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setIsAddVendorOpen(false);
+      toast({
+        title: "Success",
+        description: "Vendor added successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add vendor",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
@@ -77,12 +119,19 @@ export default function VendorManagement() {
     );
   }
 
+  const handleAddVendor = async (data: any) => {
+    await addVendorMutation.mutateAsync({
+      ...data,
+      status: "active",
+    });
+  };
+
   return (
     <div className="container mx-auto py-8">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Vendor Management</CardTitle>
-          <Button>
+          <Button onClick={() => setIsAddVendorOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add New Vendor
           </Button>
@@ -169,6 +218,15 @@ export default function VendorManagement() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Add New Vendor</DialogTitle>
+          </DialogHeader>
+          <VendorForm onSubmit={handleAddVendor} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
