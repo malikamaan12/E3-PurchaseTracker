@@ -25,9 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PurchaseRequest } from "@db/schema";
+import type { PurchaseRequest, Vendor } from "@db/schema";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import DepartmentSelect from "@/components/DepartmentSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { VendorForm } from "@/components/VendorForm";
+import { useQuery } from "@tanstack/react-query";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -63,6 +66,14 @@ export default function NewRequest() {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<number | null>(null);
+
+  // Fetch vendors
+  const { data: vendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
+    staleTime: 30000,
+  });
 
   const form = useForm<PurchaseRequest>({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -70,10 +81,6 @@ export default function NewRequest() {
       title: "",
       description: "",
       items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
-      companyName: "",
-      contactPerson: "",
-      contact_number: "",
-      accountNumber: "",
       purposeType: "E3 EVENT",
       subPurposeId: undefined,
       priority: "medium",
@@ -105,6 +112,15 @@ export default function NewRequest() {
   }, [items, freightAmount, form]);
 
   const onSubmit = async (values: PurchaseRequest) => {
+    if (!selectedVendor) {
+      toast({
+        title: "Error",
+        description: "Please select a vendor",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const formData = new FormData();
@@ -119,6 +135,7 @@ export default function NewRequest() {
         })),
         freightAmount,
         totalEstimatedCost: calculateTotalCost(),
+        vendorId: selectedVendor,
       };
 
       if (!formattedData.items || formattedData.items.length === 0) {
@@ -234,6 +251,37 @@ export default function NewRequest() {
     form.setValue('additionalApprovers', departments);
   };
 
+  const handleAddVendor = async (data: any) => {
+    try {
+      const response = await fetch("/api/vendors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...data, status: "active" }),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const newVendor = await response.json();
+      setSelectedVendor(newVendor.id);
+      setIsAddVendorOpen(false);
+      toast({
+        title: "Success",
+        description: "Vendor added successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add vendor",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -255,6 +303,7 @@ export default function NewRequest() {
           <CardContent className="p-6">
             <Form {...form}>
               <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
+                {/* Purpose Selection */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Purpose Selection</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -303,6 +352,7 @@ export default function NewRequest() {
                   </div>
                 </div>
 
+                {/* Basic Information */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
                   <FormField
@@ -340,6 +390,41 @@ export default function NewRequest() {
                   />
                 </div>
 
+                {/* Vendor Selection */}
+                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-[#191160]">Vendor Information</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddVendorOpen(true)}
+                      className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Vendor
+                    </Button>
+                  </div>
+
+                  <Select
+                    value={selectedVendor?.toString()}
+                    onValueChange={(value) => setSelectedVendor(Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                        <SelectValue placeholder="Select a vendor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {vendors.map((vendor) => (
+                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                          {vendor.companyName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Items Section */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                     <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
@@ -349,7 +434,7 @@ export default function NewRequest() {
                         name="currency"
                         render={({ field }) => (
                           <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} className="form-focus-ring">
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger className="w-[120px] border-[#7156a2]/20 focus:border-[#7156a2]">
                                   <SelectValue placeholder="Currency" />
@@ -481,94 +566,18 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Vendor Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="companyName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Company Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter company name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactPerson"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Contact Person</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter contact person name"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contact_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Contact Number</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="tel"
-                              placeholder="Enter contact number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="accountNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[#191160]">Account Details</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter account number"
-                              className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
+                {/* Additional Approvers */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Approvers</h3>
                   <DepartmentSelect
                     label="Select Departments"
                     onChange={handleDepartmentChange}
                     value={selectedDepartments}
-                    multiple
+                    multiple={true}
                   />
                 </div>
 
+                {/* Supporting Documents */}
                 <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
                   <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
 
@@ -627,6 +636,7 @@ export default function NewRequest() {
                   </div>
                 </div>
 
+                {/* Form Actions */}
                 <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6">
                   <Button
                     type="button"
@@ -665,6 +675,16 @@ export default function NewRequest() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Vendor Dialog */}
+      <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Add New Vendor</DialogTitle>
+          </DialogHeader>
+          <VendorForm onSubmit={handleAddVendor} isLimitedAccess={true} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
