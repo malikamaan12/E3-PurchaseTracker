@@ -1,6 +1,7 @@
 import { db } from "@db";
 import { notifications } from "@db/schema";
 import { AppError } from "./errors";
+import { and, eq, desc } from "drizzle-orm";
 
 // Define valid notification types and their route patterns
 export const NOTIFICATION_ROUTES = {
@@ -66,6 +67,78 @@ export async function createNotification(
   } catch (error) {
     console.error('Error creating notification:', error);
     throw new AppError('Failed to create notification', 500, 'error');
+  }
+}
+
+// Get notifications with proper filtering and error handling
+export async function getNotifications(userId: number, lastFetchTime?: Date) {
+  try {
+    const query = db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50); // Limit to prevent excessive data transfer
+
+    // If lastFetchTime provided, only get newer notifications
+    if (lastFetchTime) {
+      query.where(and(
+        eq(notifications.userId, userId),
+        notifications.createdAt > lastFetchTime
+      ));
+    }
+
+    const results = await query;
+    return results;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw new AppError('Failed to fetch notifications', 500, 'error');
+  }
+}
+
+// Mark notification as read with proper error handling
+export async function markNotificationAsRead(notificationId: number, userId: number) {
+  try {
+    const [updatedNotification] = await db
+      .update(notifications)
+      .set({ 
+        isRead: true,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId)
+      ))
+      .returning();
+
+    if (!updatedNotification) {
+      throw new AppError('Notification not found or access denied', 404, 'error');
+    }
+
+    return updatedNotification;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    console.error('Error marking notification as read:', error);
+    throw new AppError('Failed to mark notification as read', 500, 'error');
+  }
+}
+
+// Get unread count with proper error handling
+export async function getUnreadCount(userId: number) {
+  try {
+    const [result] = await db
+      .select({ 
+        count: notifications.id 
+      })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+
+    return result?.count || 0;
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    throw new AppError('Failed to get unread notification count', 500, 'error');
   }
 }
 

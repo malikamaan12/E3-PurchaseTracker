@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Bell, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
@@ -10,23 +10,50 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
+import { useErrorHandler } from "@/services/error-logging";
 
 interface NotificationsDropdownProps {
   onNotificationClick: (notification: { id: number; link: string | null }) => void;
 }
 
+const POLLING_INTERVAL = 30000; // 30 seconds
+
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
+  const handleError = useErrorHandler();
 
-  // Refetch notifications when dropdown opens
+  // Setup polling with proper interval
   useEffect(() => {
-    if (open) {
-      refetch();
-    }
-  }, [open, refetch]);
+    let pollTimer: number | null = null;
 
-  const handleNotificationClick = async (notification: { id: number; link: string | null }) => {
+    const pollNotifications = async () => {
+      try {
+        await refetch();
+      } catch (error) {
+        handleError(error, { 
+          title: 'Failed to fetch notifications',
+          silent: !open // Only show error toast if dropdown is open
+        });
+      }
+    };
+
+    // Initial fetch when dropdown opens
+    if (open) {
+      pollNotifications();
+
+      // Start polling
+      pollTimer = window.setInterval(pollNotifications, POLLING_INTERVAL);
+    }
+
+    return () => {
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+      }
+    };
+  }, [open, refetch, handleError]);
+
+  const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
       // Mark as read if needed
       if (!notifications.find(n => n.id === notification.id)?.isRead) {
@@ -39,9 +66,11 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       // Call the provided click handler
       onNotificationClick(notification);
     } catch (error) {
-      console.error('Error handling notification click:', error);
+      handleError(error, {
+        title: 'Failed to mark notification as read'
+      });
     }
-  };
+  }, [notifications, markAsRead, onNotificationClick, handleError]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -50,6 +79,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
           variant="outline" 
           size="icon" 
           className="relative interactive-bounce"
+          aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -71,7 +101,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         <ScrollArea className="h-[400px]">
           {isLoading ? (
             <div className="space-y-4 p-4">
-              {Array.from({ length: 5 }).map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <Skeleton className="h-8 w-8 rounded-full" />
                   <div className="space-y-2 flex-1">
