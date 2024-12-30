@@ -6,6 +6,18 @@ interface RequestError extends Error {
   code?: string;
 }
 
+// Helper function to handle API responses
+async function handleResponse(response: Response, errorMessage: string) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`${errorMessage}:`, errorText);
+    const error = new Error(errorText || errorMessage) as RequestError;
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
 export async function updateRequest({
   id,
   data,
@@ -25,13 +37,7 @@ export async function updateRequest({
       credentials: "include",
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to update request:', errorText);
-      throw new Error(errorText || 'Failed to update request');
-    }
-
-    const result = await response.json();
+    const result = await handleResponse(response, 'Failed to update request');
     console.log('Request updated successfully:', result);
     return result;
   } catch (error) {
@@ -50,15 +56,7 @@ export async function createRequest(data: FormData) {
       credentials: "include",
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Request creation failed:', errorText);
-      const error = new Error(errorText || 'Failed to create request') as RequestError;
-      error.status = response.status;
-      throw error;
-    }
-
-    const result = await response.json();
+    const result = await handleResponse(response, 'Failed to create request');
     console.log('Request created successfully:', result);
     return result;
   } catch (error) {
@@ -70,8 +68,8 @@ export async function createRequest(data: FormData) {
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
   console.log('Saving draft:', { id, data });
   try {
-    // Basic validation for draft
-    if (!data.title && !data.description && (!data.items || data.items.length === 0)) {
+    // Basic validation for draft - at least one field should be filled
+    if (!data.title?.trim() && !data.description?.trim() && (!data.items || data.items.length === 0)) {
       throw new Error('Draft must contain at least one field (title, description, or items)');
     }
 
@@ -135,16 +133,15 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
 
 export async function deleteRequest(id: number) {
   console.log('Deleting request:', id);
-  const response = await fetch(`/api/requests/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
+  try {
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to delete request:', errorText);
-    throw new Error(errorText || 'Failed to delete request');
+    return await handleResponse(response, 'Failed to delete request');
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    throw error;
   }
-
-  return response.json();
 }

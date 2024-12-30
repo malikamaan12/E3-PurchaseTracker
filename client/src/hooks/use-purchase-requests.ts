@@ -17,7 +17,7 @@ export function usePurchaseRequests() {
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
 
-  // Fetch all requests with optimized fields
+  // Fetch all requests with optimized fields and error handling
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
@@ -25,11 +25,16 @@ export function usePurchaseRequests() {
         const res = await fetch("/api/requests", {
           credentials: 'include'
         });
+
         if (!res.ok) {
           const errorText = await res.text();
+          console.error("Failed to fetch requests:", errorText);
           throw new Error(errorText || `Failed to fetch requests: ${res.status}`);
         }
-        return res.json();
+
+        const data = await res.json();
+        console.log("Fetched requests:", data);
+        return data;
       } catch (error) {
         console.error("Error fetching requests:", error);
         throw error;
@@ -41,19 +46,15 @@ export function usePurchaseRequests() {
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
 
-  // Draft mutation
+  // Draft mutation with optimistic updates
   const draftMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
       return saveDraft(id, data);
     },
     onMutate: async ({ id, data }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-
-      // Snapshot the previous value
       const previousRequests = queryClient.getQueryData(["/api/requests"]);
 
-      // Optimistically update to the new value
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
         return old.map(request => 
           request.id === id 
@@ -62,7 +63,6 @@ export function usePurchaseRequests() {
         );
       });
 
-      // Return a context object with the snapshotted value
       return { previousRequests };
     },
     onSuccess: (_, variables) => {
@@ -73,7 +73,6 @@ export function usePurchaseRequests() {
       });
     },
     onError: async (error: Error, variables, context) => {
-      // Rollback to the previous value
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
@@ -85,7 +84,7 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Submit mutation
+  // Submit mutation with optimistic updates
   const submitMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
       return submitRequest(id, data);
