@@ -157,6 +157,9 @@ export default function NewRequest() {
     try {
       setIsSubmitting(true);
 
+      // Clear any previous error toasts
+      toast.dismiss();
+
       // Set the status before validation
       form.setValue("status", status);
 
@@ -178,8 +181,17 @@ export default function NewRequest() {
 
       const values = form.getValues();
 
-      // Additional validation based on status
-      validateFormData(values, status);
+      try {
+        // Additional validation based on status
+        validateFormData(values, status);
+      } catch (validationError: any) {
+        toast({
+          title: "Validation Error",
+          description: validationError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Prepare form data
       const formData = new FormData();
@@ -198,11 +210,6 @@ export default function NewRequest() {
         status,
         updatedAt: new Date().toISOString()
       };
-
-      formData.append('data', JSON.stringify(requestData));
-      files.forEach(file => {
-        formData.append('files', file);
-      });
 
       console.log('Submitting form data:', {
         requestData,
@@ -668,7 +675,7 @@ export default function NewRequest() {
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || form.formState.isSubmitting}
                     className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (
@@ -683,7 +690,7 @@ export default function NewRequest() {
                   <Button
                     type="button"
                     onClick={() => handleSubmit("pending")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || form.formState.isSubmitting}
                     className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (
