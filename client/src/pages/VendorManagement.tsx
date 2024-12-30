@@ -29,11 +29,13 @@ import { Loader2, Plus, Search, Star } from "lucide-react";
 import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { VendorForm } from "@/components/VendorForm";
+import { VendorDetails } from "@/components/VendorDetails";
 
 export default function VendorManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked" | "frozen">("all");
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -91,7 +93,7 @@ export default function VendorManagement() {
   };
 
   const filteredVendors = vendors?.filter((vendor: Vendor) => {
-    const matchesSearch = 
+    const matchesSearch =
       vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || vendor.status === statusFilter;
@@ -119,6 +121,10 @@ export default function VendorManagement() {
     });
   };
 
+  const handleViewDetails = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <Card>
@@ -140,8 +146,8 @@ export default function VendorManagement() {
                 className="pl-9"
               />
             </div>
-            <Select 
-              value={statusFilter} 
+            <Select
+              value={statusFilter}
               onValueChange={(value: "all" | "active" | "blocked" | "frozen") => setStatusFilter(value)}
             >
               <SelectTrigger className="w-40">
@@ -199,7 +205,11 @@ export default function VendorManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(vendor)}
+                        >
                           View Details
                         </Button>
                       </TableCell>
@@ -220,6 +230,14 @@ export default function VendorManagement() {
           <VendorForm onSubmit={handleAddVendor} />
         </DialogContent>
       </Dialog>
+
+      {selectedVendor && (
+        <VendorDetails
+          vendor={selectedVendor}
+          open={!!selectedVendor}
+          onOpenChange={(open) => !open && setSelectedVendor(null)}
+        />
+      )}
     </div>
   );
 }
