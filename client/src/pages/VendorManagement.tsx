@@ -36,6 +36,7 @@ export default function VendorManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "blocked" | "frozen">("all");
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -74,6 +75,41 @@ export default function VendorManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to add vendor",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateVendorMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Vendor> }) => {
+      const response = await fetch(`/api/vendors/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setIsEditMode(false);
+      setSelectedVendor(null);
+      toast({
+        title: "Success",
+        description: "Vendor updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update vendor",
         variant: "destructive",
       });
     },
@@ -121,8 +157,24 @@ export default function VendorManagement() {
     });
   };
 
+  const handleUpdateVendor = async (data: any) => {
+    if (!selectedVendor) return;
+    await updateVendorMutation.mutateAsync({
+      id: selectedVendor.id,
+      data: {
+        ...data,
+        status: selectedVendor.status,
+      },
+    });
+  };
+
   const handleViewDetails = (vendor: Vendor) => {
     setSelectedVendor(vendor);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = () => {
+    setIsEditMode(true);
   };
 
   return (
@@ -231,12 +283,27 @@ export default function VendorManagement() {
         </DialogContent>
       </Dialog>
 
-      {selectedVendor && (
+      {selectedVendor && !isEditMode && (
         <VendorDetails
           vendor={selectedVendor}
           open={!!selectedVendor}
           onOpenChange={(open) => !open && setSelectedVendor(null)}
+          onEdit={handleEdit}
         />
+      )}
+
+      {selectedVendor && isEditMode && (
+        <Dialog open={isEditMode} onOpenChange={(open) => !open && setIsEditMode(false)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Vendor</DialogTitle>
+            </DialogHeader>
+            <VendorForm
+              onSubmit={handleUpdateVendor}
+              defaultValues={selectedVendor}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
