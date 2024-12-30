@@ -146,128 +146,130 @@ export function registerRoutes(app: Express): Server {
       try {
         requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
         debug(req, 'Parsed request data:', requestData);
-      } catch (error) {
-        debug(req, 'Error parsing request data:', error);
-        throw new ValidationError('Invalid request data format');
-      }
 
-      // Add requesterId from authenticated user
-      requestData.requesterId = req.user!.id;
+        // Add requesterId from authenticated user
+        requestData.requesterId = req.user!.id;
 
-      // Generate a unique request number
-      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        // Generate a unique request number
+        requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      // Enhanced validation
-      const validationErrors = [];
+        // Basic validation before schema validation
+        if (!requestData.title?.trim()) {
+          throw new ValidationError('Title is required');
+        }
 
-      // Required fields validation
-      if (!requestData.title?.trim()) {
-        validationErrors.push('Title is required');
-      }
-      if (!requestData.description?.trim()) {
-        validationErrors.push('Description is required');
-      }
-      if (!requestData.vendorId) {
-        validationErrors.push('Vendor selection is required');
-      }
-      if (!requestData.items || requestData.items.length === 0) {
-        validationErrors.push('At least one item is required');
-      }
-      if (!requestData.purposeType) {
-        validationErrors.push('Purpose type is required');
-      }
+        if (!requestData.description?.trim()) {
+          throw new ValidationError('Description is required');
+        }
 
-      // Data format validation
-      if (requestData.items?.some((item: any) => !item.name || !item.quantity || !item.estimatedCost)) {
-        validationErrors.push('Each item must have a name, quantity, and estimated cost');
-      }
+        if (!requestData.vendorId) {
+          throw new ValidationError('Vendor selection is required');
+        }
 
-      if (validationErrors.length > 0) {
-        const error = new ValidationError('Validation failed', { errors: validationErrors });
+        if (!requestData.items || !Array.isArray(requestData.items) || requestData.items.length === 0) {
+          throw new ValidationError('At least one item is required');
+        }
 
-        // Analyze validation errors with Anthropic
-        const analysis = await analyzeError(error, {
-          requestData,
-          validationErrors,
-          userId: req.user!.id,
-          path: req.path
+        // Items validation
+        requestData.items.forEach((item: any, index: number) => {
+          if (!item.name?.trim()) {
+            throw new ValidationError(`Item ${index + 1} name is required`);
+          }
+          if (typeof item.quantity !== 'number' || item.quantity <= 0) {
+            throw new ValidationError(`Item ${index + 1} must have a valid quantity`);
+          }
+          if (typeof item.estimatedCost !== 'number' || item.estimatedCost < 0) {
+            throw new ValidationError(`Item ${index + 1} must have a valid cost`);
+          }
         });
 
-        // Log error with AI analysis
-        await db.insert(errorLogs).values({
-          message: error.message,
-          severity: 'error',
-          userId: req.user!.id,
-          details: { validationErrors, requestData },
-          aiAnalysis: analysis,
-          path: req.path,
-          createdAt: new Date()
-        });
+        // Validate request data schema
+        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
-        throw error;
-      }
+        if (!validationResult.success) {
+          debug(req, 'Schema validation failed:', validationResult.error);
+          throw new ValidationError('Invalid request data', {
+            errors: validationResult.error.errors
+          });
+        }
 
-      // Validate vendor exists
-      const [vendor] = await db
-        .select()
-        .from(vendors)
-        .where(eq(vendors.id, requestData.vendorId))
-        .limit(1);
+        // Handle file uploads
+        const files = (req.files as Express.Multer.File[]) || [];
+        const fileData = files.map(file => ({
+          filename: file.filename,
+          originalName: file.originalname,
+          path: file.path,
+          mimetype: file.mimetype,
+          size: file.size
+        }));
 
-      if (!vendor) {
-        throw new ValidationError('Selected vendor does not exist');
-      }
-
-      // Validate request data schema
-      const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-      if (!validationResult.success) {
-        debug(req, 'Schema validation failed:', validationResult.error);
-        throw new ValidationError('Invalid request data', {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Handle file uploads
-      const files = (req.files as Express.Multer.File[]) || [];
-      const fileData = files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        mimetype: file.mimetype,
-        size: file.size
-      }));
-
-      debug(req, 'Creating purchase request with data:', {
-        ...validationResult.data,
-        files: fileData
-      });
-
-      // Create purchase request with file attachments
-      const [newRequest] = await db
-        .insert(purchaseRequests)
-        .values({
+        debug(req, 'Creating purchase request with data:', {
           ...validationResult.data,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
+          files: fileData
+        });
 
-      // Save file attachments if any
-      if (files.length > 0) {
-        await db.insert(fileAttachments).values(
-          files.map(file => ({
-            requestId: newRequest.id,
-            fileName: file.filename,
-            fileType: file.mimetype,
-            fileSize: file.size,
-            fileUrl: file.path,
-          }))
-        );
+        // Create purchase request with file attachments
+        const [newRequest] = await db
+          .insert(purchaseRequests)
+          .values({
+            requestNumber: requestData.requestNumber,
+            requesterId: requestData.requesterId,
+            vendorId: requestData.vendorId,
+            title: requestData.title.trim(),
+            description: requestData.description.trim(),
+            items: requestData.items,
+            purposeType: requestData.purposeType,
+            subPurposeId: requestData.subPurposeId,
+            priority: requestData.priority,
+            currency: requestData.currency,
+            totalEstimatedCost: requestData.totalEstimatedCost,
+            freightAmount: requestData.freightAmount,
+            status: requestData.status || 'draft',
+            isLocked: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+
+        // Save file attachments if any
+        if (files.length > 0) {
+          await db.insert(fileAttachments).values(
+            files.map(file => ({
+              requestId: newRequest.id,
+              fileName: file.filename,
+              fileType: file.mimetype,
+              fileSize: file.size,
+              fileUrl: file.path,
+            }))
+          );
+        }
+
+        debug(req, 'Successfully created purchase request:', newRequest);
+        res.status(201).json(newRequest);
+      } catch (error) {
+        debug(req, 'Error creating purchase request:', error);
+
+        // For unexpected errors, get AI analysis
+        if (!(error instanceof ValidationError)) {
+          const analysis = await analyzeError(error as Error, {
+            path: req.path,
+            userId: req.user?.id,
+            requestData: req.body
+          });
+
+          // Log unexpected errors with analysis
+          await db.insert(errorLogs).values({
+            message: error instanceof Error ? error.message : 'Unknown error',
+            severity: 'error',
+            userId: req.user?.id,
+            path: req.path,
+            aiAnalysis: analysis,
+            createdAt: new Date()
+          });
+        }
+
+        next(error);
       }
-
-      debug(req, 'Successfully created purchase request:', newRequest);
-      res.status(201).json(newRequest);
     } catch (error) {
       debug(req, 'Error creating purchase request:', error);
 

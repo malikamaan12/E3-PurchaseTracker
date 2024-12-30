@@ -6,6 +6,29 @@ interface RequestError extends Error {
   code?: string;
 }
 
+export async function createRequest(data: FormData) {
+  try {
+    const response = await fetch("/api/requests", {
+      method: "POST",
+      body: data,
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(errorText || 'Failed to create request') as RequestError;
+      error.status = response.status;
+      throw error;
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error in createRequest:', error);
+    throw error;
+  }
+}
+
 export async function updateRequest({
   id,
   data,
@@ -14,8 +37,6 @@ export async function updateRequest({
   data: Partial<PurchaseRequest>;
 }) {
   try {
-    console.log('Updating request:', { id, data });
-
     const response = await fetch(`/api/requests/${id}`, {
       method: "PUT",
       headers: {
@@ -27,12 +48,10 @@ export async function updateRequest({
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Failed to update request:', errorText);
       throw new Error(errorText || 'Failed to update request');
     }
 
     const result = await response.json();
-    console.log('Request updated successfully:', result);
     return result;
   } catch (error) {
     console.error('Update request error:', error);
@@ -40,35 +59,7 @@ export async function updateRequest({
   }
 }
 
-export async function createRequest(data: FormData) {
-  try {
-    console.log('Creating request with data:', Object.fromEntries(data.entries()));
-
-    const response = await fetch("/api/requests", {
-      method: "POST",
-      body: data,
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Request creation failed:', errorText);
-      const error = new Error(errorText || 'Failed to create request') as RequestError;
-      error.status = response.status;
-      throw error;
-    }
-
-    const result = await response.json();
-    console.log('Request created successfully:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in createRequest:', error);
-    throw error;
-  }
-}
-
 export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
-  console.log('Saving draft:', { id, data });
   try {
     // Basic validation for draft
     if (!data.title && !data.description && (!data.items || data.items.length === 0)) {
@@ -84,7 +75,6 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
         updatedAt: new Date().toISOString()
       },
     });
-    console.log('Draft saved successfully:', result);
     return result;
   } catch (error) {
     console.error('Error saving draft:', error);
@@ -93,7 +83,6 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>) {
 }
 
 export async function submitRequest(id: number, data: Partial<PurchaseRequest>) {
-  console.log('Submitting request:', { id, data });
   try {
     // Validate required fields for submission
     const validationErrors = [];
@@ -102,7 +91,7 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
       validationErrors.push('Title is required');
     }
     if (!data.description?.trim()) {
-      validationErrors.push('Description is required');
+      validationErrors.push('Description must be at least 10 characters');
     }
     if (!data.items || data.items.length === 0) {
       validationErrors.push('At least one item is required');
@@ -125,7 +114,6 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>) 
         updatedAt: new Date().toISOString()
       },
     });
-    console.log('Request submitted successfully:', result);
     return result;
   } catch (error) {
     console.error('Error submitting request:', error);

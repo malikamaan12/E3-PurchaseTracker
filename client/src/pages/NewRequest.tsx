@@ -7,53 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { insertPurchaseRequestSchema } from "@db/schema";
-import { ArrowLeft, Plus, Trash, Upload } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ArrowLeft, Plus, Trash, Upload, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PurchaseRequest, Vendor } from "@db/schema";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VendorForm } from "@/components/VendorForm";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-
-const itemSchema = z.object({
-  name: z.string().min(1, "Item name is required"),
-  quantity: z.number().min(1, "Quantity must be at least 1"),
-  estimatedCost: z.number().min(0, "Cost cannot be negative"),
-  description: z.string().optional()
-});
-
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  purposeType: z.string(),
-  subPurposeId: z.number().optional(),
-  priority: z.string(),
-  currency: z.string(),
-  status: z.string(),
-  items: z.array(itemSchema).min(1, "At least one item is required"),
-  totalEstimatedCost: z.number(),
-  freightAmount: z.number(),
-  additionalApprovers: z.array(z.string())
-});
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -90,9 +54,8 @@ export default function NewRequest() {
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<number | null>(null);
-  const [isValidatingForm, setIsValidatingForm] = useState(false);
 
-  const { data: vendors = [], isError: isVendorError, error: vendorError } = useQuery<Vendor[]>({
+  const { data: vendors = [], isError: isVendorError } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
     staleTime: 30000,
     onError: (error) => {
@@ -105,7 +68,7 @@ export default function NewRequest() {
   });
 
   const form = useForm<PurchaseRequest>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -126,10 +89,7 @@ export default function NewRequest() {
   }, [form.watch("purposeType")]);
 
   const calculateTotalCost = () => {
-    const itemsTotal = items.reduce(
-      (sum, item) => sum + item.quantity * item.estimatedCost,
-      0
-    );
+    const itemsTotal = items.reduce((sum, item) => sum + item.quantity * item.estimatedCost, 0);
     return itemsTotal + freightAmount;
   };
 
@@ -141,7 +101,6 @@ export default function NewRequest() {
   }, [items, freightAmount, form]);
 
   const validateFormData = async () => {
-    setIsValidatingForm(true);
     const validationErrors: string[] = [];
 
     if (!selectedVendor) {
@@ -153,7 +112,7 @@ export default function NewRequest() {
     }
 
     if (!form.getValues("description")?.trim()) {
-      validationErrors.push("Description is required");
+      validationErrors.push("Description is required and must be at least 10 characters");
     }
 
     const formItems = form.getValues("items");
@@ -173,7 +132,6 @@ export default function NewRequest() {
       });
     }
 
-    setIsValidatingForm(false);
     return validationErrors;
   };
 
@@ -193,6 +151,7 @@ export default function NewRequest() {
         return;
       }
 
+      // File validation
       const maxFileSize = 10 * 1024 * 1024; // 10MB
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
@@ -221,6 +180,8 @@ export default function NewRequest() {
       }
 
       const formData = new FormData();
+
+      // Prepare request data
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -229,9 +190,10 @@ export default function NewRequest() {
           estimatedCost: Number(item.estimatedCost),
           description: item.description?.trim() || ''
         })),
-        freightAmount,
+        freightAmount: Number(freightAmount),
         totalEstimatedCost: calculateTotalCost(),
         vendorId: selectedVendor,
+        additionalApprovers: selectedDepartments
       };
 
       formData.append('data', JSON.stringify(formattedData));
@@ -246,23 +208,26 @@ export default function NewRequest() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to create request");
+        const errorData = await response.text();
+        throw new Error(errorData || "Failed to create request");
       }
 
       const result = await response.json();
 
       toast({
         title: "Success",
-        description: "Request created successfully",
+        description: `Request ${result.requestNumber} created successfully`,
         className: "animate-success",
       });
+
       setLocation("/");
     } catch (error: any) {
       console.error("Create request error:", error);
+
+      const errorMessage = error.message || "Failed to create request. Please try again.";
       toast({
         title: "Error",
-        description: error.message || "Failed to create request. Please try again.",
+        description: errorMessage,
         variant: "destructive",
         className: "animate-error",
       });
