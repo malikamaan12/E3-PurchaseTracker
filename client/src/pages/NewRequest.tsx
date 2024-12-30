@@ -138,6 +138,8 @@ export default function NewRequest() {
         vendorId: selectedVendor,
       };
 
+      console.log('Formatted request data:', formattedData);
+
       if (!formattedData.items || formattedData.items.length === 0) {
         throw new Error("At least one item is required");
       }
@@ -152,15 +154,25 @@ export default function NewRequest() {
         formData.append('files', file);
       });
 
+      console.log('Submitting form data:', {
+        formattedData,
+        filesCount: files.length
+      });
+
       const response = await fetch('/api/requests', {
         method: 'POST',
         body: formData,
+        credentials: 'include'
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText);
+        console.error('Request submission failed:', errorText);
+        throw new Error(errorText || "Failed to create request");
       }
+
+      const result = await response.json();
+      console.log('Request created successfully:', result);
 
       toast({
         title: "Success",

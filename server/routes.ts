@@ -698,7 +698,6 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
