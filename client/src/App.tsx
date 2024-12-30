@@ -42,6 +42,7 @@ function App() {
         <>
           <Route path="/admin" component={AdminPanel} />
           <Route path="/admin/vendors" component={VendorManagement} />
+          <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
         </>

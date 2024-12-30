@@ -9,9 +9,6 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { sql } from 'drizzle-orm';
 import { setupAuth } from './auth';
-import { WebSocketServer, WebSocket } from 'ws';
-import { createServer } from 'http';
-import { IncomingMessage } from 'http';
 
 // Initialize express app
 const app = express();
@@ -121,49 +118,8 @@ async function initializeServer() {
     await setupAuth(app);
     log("Authentication setup completed");
 
-    // Create HTTP server
-    const httpServer = createServer(app);
-
-    // Set up WebSocket server with proper error handling
-    const wss = new WebSocketServer({ 
-      server: httpServer,
-      handleProtocols: (protocols: Set<string>, _request: IncomingMessage) => {
-        // Convert Set to Array for proper protocol handling
-        const protocolArray = Array.from(protocols);
-
-        // Check for Vite HMR protocol
-        if (protocolArray.includes('vite-hmr')) {
-          return false; // Let Vite handle its own HMR
-        }
-
-        // Return first available protocol or false if none available
-        return protocolArray.length > 0 ? protocolArray[0] : false;
-      }
-    });
-
-    // WebSocket error handling
-    wss.on('error', (error) => {
-      console.error('WebSocket server error:', error);
-    });
-
-    // Handle connections
-    wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-      const clientIp = request.socket.remoteAddress;
-      log(`New WebSocket connection from ${clientIp}`);
-
-      ws.on('error', (error) => {
-        console.error(`WebSocket connection error from ${clientIp}:`, error);
-      });
-
-      ws.on('close', () => {
-        log(`WebSocket connection closed from ${clientIp}`);
-      });
-    });
-
-    log("WebSocket server initialized");
-
-    // Set up routes after WebSocket server
-    await registerRoutes(app);
+    // Set up routes
+    const server = registerRoutes(app);
     log("Routes registered successfully");
 
     // Global error handler with proper async handling
@@ -200,33 +156,48 @@ async function initializeServer() {
 
     // Setup vite in development or serve static files in production
     if (app.get("env") === "development") {
-      await setupVite(app, httpServer);
+      await setupVite(app, server);
       log("Vite development server initialized");
     } else {
       serveStatic(app);
       log("Static files serving configured");
     }
 
-    // Start the server
-    const port = 5000;
-    httpServer.listen(port, "0.0.0.0", () => {
-      log(`Server started and listening on port ${port}`);
-    });
+    // Try different ports if the default is in use
+    const ports = [5000, 3000, 8080, 4000];
+    let serverStarted = false;
 
-    // Cleanup handler
-    const cleanup = () => {
-      log('Shutting down server...');
-      httpServer.close(() => {
-        log('HTTP server closed');
-        wss.close(() => {
-          log('WebSocket server closed');
-          process.exit(0);
+    for (const port of ports) {
+      try {
+        await new Promise((resolve, reject) => {
+          server.listen(port, "0.0.0.0")
+            .once('listening', () => {
+              log(`Server started and listening on port ${port}`);
+              serverStarted = true;
+              resolve(true);
+            })
+            .once('error', (err: any) => {
+              if (err.code === 'EADDRINUSE') {
+                log(`Port ${port} is in use, trying next port...`);
+                resolve(false);
+              } else {
+                reject(err);
+              }
+            });
         });
-      });
-    };
 
-    process.on('SIGTERM', cleanup);
-    process.on('SIGINT', cleanup);
+        if (serverStarted) break;
+      } catch (error: any) {
+        log(`Error starting server on port ${port}: ${error.message}`);
+        if (port === ports[ports.length - 1]) {
+          throw error; // Throw if we've tried all ports
+        }
+      }
+    }
+
+    if (!serverStarted) {
+      throw new Error('Failed to start server on any available port');
+    }
 
   } catch (error: any) {
     console.error('Fatal server initialization error:', {

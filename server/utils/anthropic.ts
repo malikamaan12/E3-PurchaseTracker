@@ -1,4 +1,4 @@
-import { Anthropic } from '@anthropic-ai/sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import { AppError } from './errors';
 
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
@@ -8,7 +8,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
   throw new AppError('ANTHROPIC_API_KEY environment variable is not set', 500, 'critical');
 }
 
-export const anthropic = new Anthropic({
+const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 

@@ -1,20 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { LoginCredentials, User } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
-
-type User = {
-  id: number;
-  username: string;
-  email: string;
-  department: string;
-  role: string;
-  contact_number: string;
-  isActive: boolean;
-};
-
-type LoginCredentials = {
-  username: string;
-  password: string;
-};
 
 type RequestResult = {
   ok: true;
@@ -45,29 +31,23 @@ async function handleRequest(
     const data = await response.json();
     return { ok: true, user: data.user };
   } catch (error: any) {
-    console.error('Auth request error:', error);
     return { ok: false, message: error.message || 'An error occurred' };
   }
 }
 
 async function fetchUser(): Promise<User | null> {
-  try {
-    const response = await fetch('/api/auth/user', {
-      credentials: 'include'
-    });
+  const response = await fetch('/api/auth/user', {
+    credentials: 'include'
+  });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        return null;
-      }
-      throw new Error(await response.text());
+  if (!response.ok) {
+    if (response.status === 401) {
+      return null;
     }
-
-    return response.json();
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    throw error;
+    throw new Error(await response.text());
   }
+
+  return response.json();
 }
 
 export function useUser() {
@@ -77,17 +57,27 @@ export function useUser() {
   const { data: user, error, isLoading } = useQuery<User | null, Error>({
     queryKey: ['user'],
     queryFn: fetchUser,
-    retry: false,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    staleTime: Infinity,
+    retry: false
   });
 
   const loginMutation = useMutation({
-    mutationFn: (credentials: LoginCredentials) => 
-      handleRequest('/api/auth/login', 'POST', credentials),
+    mutationFn: (userData: LoginCredentials) => handleRequest('/api/auth/login', 'POST', userData),
     onSuccess: (data) => {
       if (data.ok && data.user) {
         queryClient.setQueryData(['user'], data.user);
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        });
       }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log in",
+        variant: "destructive",
+      });
     },
   });
 
@@ -95,6 +85,17 @@ export function useUser() {
     mutationFn: () => handleRequest('/api/auth/logout', 'POST'),
     onSuccess: () => {
       queryClient.setQueryData(['user'], null);
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log out",
+        variant: "destructive",
+      });
     },
   });
 

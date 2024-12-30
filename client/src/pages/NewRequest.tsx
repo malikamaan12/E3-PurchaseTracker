@@ -54,7 +54,7 @@ const purposeTypes = [
 
 export default function NewRequest() {
   const [, setLocation] = useLocation();
-  const { saveDraft: saveDraftRequest, submitRequest: submitRequestForApproval } = usePurchaseRequests();
+  const { createRequest } = usePurchaseRequests();
   const { toast } = useToast();
   const [items, setItems] = useState([{
     name: "",
@@ -69,6 +69,7 @@ export default function NewRequest() {
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<number | null>(null);
 
+  // Fetch vendors
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
     staleTime: 30000,
@@ -97,10 +98,10 @@ export default function NewRequest() {
 
   const calculateTotalCost = () => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0),
+      (sum, item) => sum + item.quantity * item.estimatedCost,
       0
     );
-    return itemsTotal + (Number(freightAmount) || 0);
+    return itemsTotal + freightAmount;
   };
 
   useEffect(() => {
@@ -110,146 +111,80 @@ export default function NewRequest() {
     form.setValue("totalEstimatedCost", totalCost);
   }, [items, freightAmount, form]);
 
-  const validateFormData = (values: PurchaseRequest, status: "draft" | "pending") => {
-    if (status === "pending") {
-      if (!selectedVendor) {
-        throw new Error("Please select a vendor");
-      }
+  const onSubmit = async (values: PurchaseRequest) => {
+    if (!selectedVendor) {
+      toast({
+        title: "Error",
+        description: "Please select a vendor",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (!values.title?.trim()) {
-        throw new Error("Title is required");
-      }
+    try {
+      setIsSubmitting(true);
+      const formData = new FormData();
 
-      if (!values.description?.trim()) {
-        throw new Error("Description is required");
-      }
+      const formattedData = {
+        ...values,
+        items: items.map(item => ({
+          name: item.name || '',
+          quantity: Number(item.quantity) || 0,
+          estimatedCost: Number(item.estimatedCost) || 0,
+          description: item.description || ''
+        })),
+        freightAmount,
+        totalEstimatedCost: calculateTotalCost(),
+        vendorId: selectedVendor,
+      };
 
-      if (!values.items?.length) {
+      console.log('Formatted request data:', formattedData);
+
+      if (!formattedData.items || formattedData.items.length === 0) {
         throw new Error("At least one item is required");
       }
 
-      values.items.forEach((item, index) => {
-        if (!item.name?.trim()) {
-          throw new Error(`Item ${index + 1}: Name is required`);
-        }
-        if (!item.quantity || item.quantity <= 0) {
-          throw new Error(`Item ${index + 1}: Valid quantity is required`);
-        }
-        if (!item.estimatedCost || item.estimatedCost <= 0) {
-          throw new Error(`Item ${index + 1}: Valid cost is required`);
-        }
-      });
-    } else {
-      // Draft validation - at least one field should be filled
-      const hasContent =
-        values.title?.trim() ||
-        values.description?.trim() ||
-        (values.items && values.items.some(item => item.name?.trim())) ||
-        values.purposeType;
-
-      if (!hasContent) {
-        throw new Error("Draft must contain at least one field (title, description, items, or purpose)");
-      }
-    }
-  };
-
-  const handleSubmit = async (status: "draft" | "pending") => {
-    try {
-      setIsSubmitting(true);
-
-      // Clear any previous error toasts
-      toast.dismiss();
-
-      // Set the status before validation
-      form.setValue("status", status);
-
-      // Run form validation
-      const isValid = await form.trigger();
-      if (!isValid) {
-        const errors = form.formState.errors;
-        const errorMessages = Object.entries(errors)
-          .map(([field, error]) => `${field}: ${error?.message}`)
-          .join('\n');
-
-        toast({
-          title: "Validation Error",
-          description: errorMessages || "Please check all required fields",
-          variant: "destructive",
-        });
-        return;
+      if (formattedData.items.some(item => !item.name || item.name.trim() === '')) {
+        throw new Error("All items must have a name");
       }
 
-      const values = form.getValues();
+      formData.append('data', JSON.stringify(formattedData));
 
-      try {
-        // Additional validation based on status
-        validateFormData(values, status);
-      } catch (validationError: any) {
-        toast({
-          title: "Validation Error",
-          description: validationError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Prepare request data
-      const requestData = {
-        ...values,
-        items: items.map(item => ({
-          name: item.name?.trim() || '',
-          quantity: Number(item.quantity) || 0,
-          estimatedCost: Number(item.estimatedCost) || 0,
-          description: item.description?.trim() || ''
-        })),
-        freightAmount: Number(freightAmount) || 0,
-        totalEstimatedCost: calculateTotalCost(),
-        vendorId: selectedVendor,
-        additionalApprovers: selectedDepartments,
-        status,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Handle file attachments
-      const formData = new FormData();
-      formData.append('data', JSON.stringify(requestData));
-
-      // Add files if any
-      files.forEach((file, index) => {
-        formData.append(`files[${index}]`, file);
+      files.forEach(file => {
+        formData.append('files', file);
       });
 
       console.log('Submitting form data:', {
-        requestData,
+        formattedData,
         filesCount: files.length
       });
 
-      if (status === 'draft') {
-        await saveDraftRequest({
-          id: values.id || 0,
-          data: requestData,
-          formData
-        });
-      } else {
-        await submitRequestForApproval({
-          id: values.id || 0,
-          data: requestData,
-          formData
-        });
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Request submission failed:', errorText);
+        throw new Error(errorText || "Failed to create request");
       }
+
+      const result = await response.json();
+      console.log('Request created successfully:', result);
 
       toast({
         title: "Success",
-        description: status === 'draft' ? "Draft saved successfully" : "Request submitted successfully",
+        description: "Request created successfully",
         className: "animate-success",
       });
-
       setLocation("/");
     } catch (error: any) {
-      console.error("Submit error:", error);
+      console.error("Create request error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to process request",
+        description: error.message || "Failed to create request",
         variant: "destructive",
         className: "animate-error",
       });
@@ -276,6 +211,40 @@ export default function NewRequest() {
       [field]: field === 'name' || field === 'description' ? value : Number(value),
     };
     setItems(newItems);
+  };
+
+  const handleSubmit = async (status: "draft" | "pending") => {
+    setIsSubmitting(true);
+    try {
+      form.setValue("status", status);
+      const isValid = await form.trigger();
+      if (!isValid) {
+        const errors = form.formState.errors;
+
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => `${field}: ${error?.message}`)
+          .join('\n');
+
+        toast({
+          title: "Validation Error",
+          description: errorMessages || "Please check all required fields",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      await form.handleSubmit(onSubmit)();
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit form. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -685,7 +654,7 @@ export default function NewRequest() {
                     type="button"
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
-                    disabled={isSubmitting || form.formState.isSubmitting}
+                    disabled={isSubmitting}
                     className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (
@@ -700,7 +669,7 @@ export default function NewRequest() {
                   <Button
                     type="button"
                     onClick={() => handleSubmit("pending")}
-                    disabled={isSubmitting || form.formState.isSubmitting}
+                    disabled={isSubmitting}
                     className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
                   >
                     {isSubmitting ? (

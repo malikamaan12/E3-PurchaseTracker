@@ -55,7 +55,7 @@ Format as JSON:
 }`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-haiku-20240307',
       max_tokens: 1024,
       temperature: 0.7,
       messages: [{ 
@@ -64,14 +64,14 @@ Format as JSON:
       }]
     });
 
-    // Handle the response content properly for Claude-3
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Expected text response from Anthropic API');
+    // Handle the response content properly
+    if (!response.content || !response.content[0] || typeof response.content[0].text !== 'string') {
+      throw new Error('Invalid response format from Anthropic API');
     }
 
+    const analysisText = response.content[0].text;
     // Parse and validate the response
-    const analysis = JSON.parse(content.text);
+    const analysis = JSON.parse(analysisText);
     return errorAnalysisSchema.parse(analysis);
   } catch (analysisError) {
     console.error('Error analysis failed:', analysisError);

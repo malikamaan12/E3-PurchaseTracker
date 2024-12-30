@@ -12,18 +12,12 @@ interface ApprovalData {
   department: string;
 }
 
-interface MutationParams {
-  id: number;
-  data: Partial<PurchaseRequest>;
-  formData: FormData;
-}
-
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
 
-  // Fetch all requests with optimized fields and error handling
+  // Fetch all requests with optimized fields
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
@@ -31,16 +25,11 @@ export function usePurchaseRequests() {
         const res = await fetch("/api/requests", {
           credentials: 'include'
         });
-
         if (!res.ok) {
           const errorText = await res.text();
-          console.error("Failed to fetch requests:", errorText);
           throw new Error(errorText || `Failed to fetch requests: ${res.status}`);
         }
-
-        const data = await res.json();
-        console.log("Fetched requests:", data);
-        return data;
+        return res.json();
       } catch (error) {
         console.error("Error fetching requests:", error);
         throw error;
@@ -52,48 +41,31 @@ export function usePurchaseRequests() {
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
 
-  // Draft mutation with optimistic updates
+  // Draft mutation
   const draftMutation = useMutation({
-    mutationFn: async ({ id, data, formData }: MutationParams) => {
-      console.log('Saving draft mutation:', { id, data });
-      return saveDraft(id, data, formData);
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      return saveDraft(id, data);
     },
     onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
 
+      // Snapshot the previous value
+      const previousRequests = queryClient.getQueryData(["/api/requests"]);
+
+      // Optimistically update to the new value
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
-        if (id === 0) {
-          // For new drafts, add to the beginning of the list
-          const newRequest = {
-            ...data,
-            id: Date.now(), // Temporary ID
-            status: "draft",
-            isLocked: false,
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString()
-          };
-          return [newRequest, ...old];
-        }
-
-        // For existing drafts, update in place
         return old.map(request => 
           request.id === id 
-            ? { 
-                ...request, 
-                ...data, 
-                status: "draft",
-                isLocked: false,
-                updatedAt: new Date().toISOString()
-              }
+            ? { ...request, ...data, status: "draft", updatedAt: new Date().toISOString() }
             : request
         );
       });
 
+      // Return a context object with the snapshotted value
       return { previousRequests };
     },
-    onSuccess: (result, variables) => {
-      console.log('Draft saved successfully:', result);
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
@@ -101,67 +73,38 @@ export function usePurchaseRequests() {
       });
     },
     onError: async (error: Error, variables, context) => {
-      console.error('Error saving draft:', error);
+      // Rollback to the previous value
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
 
-      toast({
-        title: "Error saving draft",
-        description: error.message || ERROR_MESSAGES.UPDATE_FAILED,
-        variant: "destructive"
-      });
-
       await handleError(error, {
         title: "Error saving draft",
+        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
       });
     }
   });
 
-  // Submit mutation with optimistic updates
+  // Submit mutation
   const submitMutation = useMutation({
-    mutationFn: async ({ id, data, formData }: MutationParams) => {
-      console.log('Submitting request mutation:', { id, data });
-      return submitRequest(id, data, formData);
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
+      return submitRequest(id, data);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData<PurchaseRequest[]>(["/api/requests"]);
+      const previousRequests = queryClient.getQueryData(["/api/requests"]);
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
-        if (id === 0) {
-          // For new requests, add to the beginning of the list
-          const newRequest = {
-            ...data,
-            id: Date.now(), // Temporary ID
-            status: "pending",
-            isLocked: true,
-            submittedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString()
-          };
-          return [newRequest, ...old];
-        }
-
-        // For existing requests, update in place
         return old.map(request => 
           request.id === id 
-            ? { 
-                ...request, 
-                ...data, 
-                status: "pending",
-                isLocked: true,
-                submittedAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              }
+            ? { ...request, ...data, status: "pending", submittedAt: new Date().toISOString() }
             : request
         );
       });
 
       return { previousRequests };
     },
-    onSuccess: (result, variables) => {
-      console.log('Request submitted successfully:', result);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
@@ -169,19 +112,13 @@ export function usePurchaseRequests() {
       });
     },
     onError: async (error: Error, variables, context) => {
-      console.error('Error submitting request:', error);
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
 
-      toast({
-        title: "Error submitting request",
-        description: error.message || ERROR_MESSAGES.UPDATE_FAILED,
-        variant: "destructive"
-      });
-
       await handleError(error, {
         title: "Error submitting request",
+        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
       });
     }
   });

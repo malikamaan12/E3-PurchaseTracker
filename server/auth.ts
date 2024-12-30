@@ -4,7 +4,7 @@ import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { compare, hash } from 'bcrypt';
-import { users } from "@db/schema";
+import { users, accountRequests } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { AppError } from "./utils/errors";
@@ -30,7 +30,7 @@ export async function setupAuth(app: Express) {
   // Configure session
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "vendor-management-secret",
+    secret: process.env.REPL_ID || "purchase-management-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -47,11 +47,10 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Configure passport local strategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log('LocalStrategy: Authentication attempt:', { username });
+        console.log('Attempting authentication for user:', username);
 
         const [user] = await db
           .select()
@@ -76,8 +75,8 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        // Create user object without sensitive data
-        const safeUser: Express.User = {
+        // Create sanitized user object (without password)
+        const sanitizedUser: Express.User = {
           id: user.id,
           username: user.username,
           email: user.email,
@@ -88,7 +87,7 @@ export async function setupAuth(app: Express) {
         };
 
         console.log('Authentication successful for user:', username);
-        return done(null, safeUser);
+        return done(null, sanitizedUser);
       } catch (err) {
         console.error('Authentication error:', err);
         return done(err);
@@ -96,7 +95,6 @@ export async function setupAuth(app: Express) {
     })
   );
 
-  // Configure session serialization
   passport.serializeUser((user, done) => {
     console.log('Serializing user:', user.id);
     done(null, user.id);
@@ -106,41 +104,34 @@ export async function setupAuth(app: Express) {
     try {
       console.log('Deserializing user:', id);
 
+      // Use explicit field selection
       const [user] = await db
-        .select()
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          department: users.department,
+          role: users.role,
+          contact_number: users.contact_number,
+          isActive: users.isActive
+        })
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
 
       if (!user) {
-        console.log('Deserialization failed: User not found:', id);
+        console.log('User not found during deserialization:', id);
         return done(null, false);
       }
 
-      // Create safe user object
-      const safeUser: Express.User = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        department: user.department,
-        role: user.role,
-        contact_number: user.contact_number,
-        isActive: user.isActive
-      };
-
-      console.log('User deserialized successfully:', {
-        id: user.id,
-        username: user.username
-      });
-
-      done(null, safeUser);
-    } catch (error) {
-      console.error('Deserialization error:', error);
-      done(error);
+      done(null, user);
+    } catch (err) {
+      console.error('Deserialization error:', err);
+      done(err);
     }
   });
 
-  // Setup auth routes
+  // Auth routes
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate('local', (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
@@ -182,24 +173,22 @@ export async function setupAuth(app: Express) {
 
   // Create test admin user if it doesn't exist
   try {
-    const hashedPassword = await hash('admin123', 10);
+    const password = await hash('admin123', 10);
     await db
       .insert(users)
       .values({
         username: 'admin',
-        password: hashedPassword,
+        password,
         email: 'admin@example.com',
         department: 'IT',
         role: 'admin',
         contact_number: '123-456-7890',
         isActive: true
       })
-      .onConflictDoNothing();
-
+      .onConflictDoNothing()
+      .execute();
     console.log('Test admin user created/verified');
   } catch (error) {
     console.error('Error creating test admin user:', error);
   }
-
-  console.log('Authentication setup completed');
 }

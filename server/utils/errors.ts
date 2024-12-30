@@ -140,13 +140,3 @@ export async function handleError(err: unknown): Promise<AppError> {
 
   return error;
 }
-
-// Export all error types for convenient usage
-export const Errors = {
-  AppError,
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  NotFoundError,
-  DatabaseError
-};

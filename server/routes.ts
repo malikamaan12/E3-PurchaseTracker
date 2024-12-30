@@ -1,160 +1,259 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupWebSocketServer } from "./utils/websocket";
-import { setupAuth } from "./utils/auth";
-import type { Request, Response, NextFunction } from "express";
-import { AppError } from './utils/errors';
 import { db } from "@db";
-import { eq, and, desc } from 'drizzle-orm';
+import multer from "multer";
+import path from "path";
+import { setupAuth } from "./auth";
 import {
   users,
   notifications,
+  accountRequests,
   purchaseRequests,
-  fileAttachments,
-  errorLogs,
-  type ErrorLog,
-  vendors,
-  companyBranding,
   subPurposes,
-  insertVendorSchema,
   insertAccountRequestSchema,
   approvals,
-  accountRequests,
-  type PurchaseRequest,
+  purchaseApprovers,
+  errorLogs,
   insertErrorLogSchema,
-  insertPurchaseRequestSchema
+  type PurchaseApprover,
+  insertPurchaseRequestSchema,
+  insertSubPurposeSchema,
+  companyBranding,
+  vendors,
+  insertVendorSchema,
+  fileAttachments
 } from "@db/schema";
-import crypto from 'crypto';
-import multer from 'multer';
-import bcrypt from 'bcrypt';
-const upload = multer().any();
+import { eq, and, desc, sql } from "drizzle-orm";
+import { AppError, handleError, DatabaseError, AuthorizationError, ValidationError } from './utils/errors';
+import { hash } from 'bcrypt';
+import { z } from 'zod';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+import { Anthropic } from '@anthropic-ai/sdk';
+import { analyzeError } from './utils/error-analysis';
+import { getNotifications, markNotificationAsRead } from "./utils/notifications";
 
-// Debug logging utility
-function debug(req: Request, message: string, data?: any) {
-  const reqId = (req as any).id;
-  console.log(`[${reqId}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+// Initialize Anthropic client (moved here for better organization)
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-async function createNotification(userId: number, title: string, message: string, type: string, requestId?: number) {
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/svg+xml'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, SVG and PDF files are allowed.'));
+    }
+  }
+});
+
+// Debug logging utility
+const debug = (req: Request, message: string, data?: any) => {
+  console.log(`[${req.id}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+};
+
+async function createNotification(userId: number, title: string, message: string, type: string, linkId: number) {
   await db.insert(notifications).values({
-    userId,
-    title,
-    message,
-    type,
-    requestId,
-    isRead: false,
-    createdAt: new Date()
+      userId,
+      title,
+      message,
+      type,
+      isRead: false,
+      link: `/admin/${type === 'request' ? 'requests/' + linkId : ''}`,
+      createdAt: new Date()
   });
 }
 
 
 export function registerRoutes(app: Express): Server {
-  // Create HTTP server first
-  const httpServer = createServer(app);
-
-  // Setup authentication before everything else
+  // Setup authentication routes and middleware
   setupAuth(app);
-
-  // Setup WebSocket server after auth
-  setupWebSocketServer(httpServer);
 
   // Add request validation middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    (req as any).id = crypto.randomUUID();
+    req.id = crypto.randomUUID();
     debug(req, `${req.method} ${req.path} started`);
     next();
   });
 
-  // Error logging endpoint with proper validation
-  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
+  // Add notifications routes
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Logging error:', req.body);
+      debug(req, 'Fetching notifications for user:', req.user!.id);
+      const notifications = await getNotifications(req.user!.id);
 
-      const validationResult = insertErrorLogSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        throw new AppError('Invalid error log data', 400, {
-          errors: validationResult.error.errors
-        });
-      }
-
-      // Create error log
-      const [errorLog] = await db
-        .insert(errorLogs)
-        .values({
-          ...validationResult.data,
-          userId: req.user?.id,
-          createdAt: new Date()
-        })
-        .returning();
-
-      // If error is critical, notify admin users
-      if (validationResult.data.severity === 'critical') {
-        const admins = await db
-          .select()
-          .from(users)
-          .where(eq(users.role, 'admin'));
-
-        // Notify all admins
-        await Promise.all(admins.map(admin =>
-          createNotification(
-            admin.id,
-            'Critical Error Detected',
-            `A critical error occurred: ${validationResult.data.message}`,
-            'error_analytics'
-          )
-        ));
-      }
-
-      res.status(201).json(errorLog);
+      debug(req, `Found ${notifications.length} notifications`);
+      res.json(notifications);
     } catch (error) {
-      debug(req, 'Error logging error:', error);
+      debug(req, 'Error fetching notifications:', error);
       next(error);
     }
   });
 
-  // Request submission endpoint with proper error handling
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      // Handle file upload with proper error handling
-      await new Promise((resolve, reject) => {
-        upload(req, res, (err) => {
-          if (err) reject(new AppError(err.message, 400));
-          resolve(undefined);
+      const notificationId = parseInt(req.params.id);
+      debug(req, `Marking notification ${notificationId} as read`);
+
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      res.json(updatedNotification);
+    } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
+      next(error);
+    }
+  });
+
+  // Update the POST /api/requests endpoint to include enhanced validation and error analysis
+  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Creating new purchase request', { body: req.body });
+
+      // Parse the JSON data from form data
+      let requestData;
+      try {
+        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+        debug(req, 'Parsed request data:', requestData);
+      } catch (error) {
+        debug(req, 'Error parsing request data:', error);
+        throw new ValidationError('Invalid request data format');
+      }
+
+      // Add requesterId from authenticated user
+      requestData.requesterId = req.user!.id;
+
+      // Generate a unique request number
+      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Enhanced validation
+      const validationErrors = [];
+
+      // Required fields validation
+      if (!requestData.title?.trim()) {
+        validationErrors.push('Title is required');
+      }
+      if (!requestData.description?.trim()) {
+        validationErrors.push('Description is required');
+      }
+      if (!requestData.vendorId) {
+        validationErrors.push('Vendor selection is required');
+      }
+      if (!requestData.items || requestData.items.length === 0) {
+        validationErrors.push('At least one item is required');
+      }
+      if (!requestData.purposeType) {
+        validationErrors.push('Purpose type is required');
+      }
+
+      // Data format validation
+      if (requestData.items?.some((item: any) => !item.name || !item.quantity || !item.estimatedCost)) {
+        validationErrors.push('Each item must have a name, quantity, and estimated cost');
+      }
+
+      if (validationErrors.length > 0) {
+        const error = new ValidationError('Validation failed', { errors: validationErrors });
+
+        // Analyze validation errors with Anthropic
+        const analysis = await analyzeError(error, {
+          requestData,
+          validationErrors,
+          userId: req.user!.id,
+          path: req.path
         });
-      });
 
-      // Parse and validate request data
-      const requestData = {
-        ...JSON.parse(req.body.data),
-        requesterId: req.user!.id,
-        requestNumber: `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      };
+        // Log error with AI analysis
+        await db.insert(errorLogs).values({
+          message: error.message,
+          severity: 'error',
+          userId: req.user!.id,
+          details: { validationErrors, requestData },
+          aiAnalysis: analysis,
+          path: req.path,
+          createdAt: new Date()
+        });
 
+        throw error;
+      }
+
+      // Validate vendor exists
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, requestData.vendorId))
+        .limit(1);
+
+      if (!vendor) {
+        throw new ValidationError('Selected vendor does not exist');
+      }
+
+      // Validate request data schema
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
       if (!validationResult.success) {
-        throw new AppError('Invalid request data', 400, {
+        debug(req, 'Schema validation failed:', validationResult.error);
+        throw new ValidationError('Invalid request data', {
           errors: validationResult.error.errors
         });
       }
 
-      // Create purchase request
+      // Handle file uploads
+      const files = (req.files as Express.Multer.File[]) || [];
+      const fileData = files.map(file => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        path: file.path,
+        mimetype: file.mimetype,
+        size: file.size
+      }));
+
+      debug(req, 'Creating purchase request with data:', {
+        ...validationResult.data,
+        files: fileData
+      });
+
+      // Create purchase request with file attachments
       const [newRequest] = await db
         .insert(purchaseRequests)
-        .values(validationResult.data as PurchaseRequest)
+        .values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning();
 
       // Save file attachments if any
-      const files = (req.files as Express.Multer.File[]) || [];
       if (files.length > 0) {
         await db.insert(fileAttachments).values(
           files.map(file => ({
@@ -170,21 +269,482 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Successfully created purchase request:', newRequest);
       res.status(201).json(newRequest);
     } catch (error) {
-      debug(req, 'Error creating request:', error);
+      debug(req, 'Error creating purchase request:', error);
 
-      if (!(error instanceof AppError)) {
+      // For unexpected errors, get AI analysis
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          path: req.path,
+          userId: req.user?.id,
+          requestData: req.body
+        });
+
+        // Log unexpected errors with analysis
         await db.insert(errorLogs).values({
           message: error instanceof Error ? error.message : 'Unknown error',
           severity: 'error',
           userId: req.user?.id,
           path: req.path,
+          aiAnalysis: analysis,
           createdAt: new Date()
-        } as ErrorLog);
+        });
       }
 
       next(error);
     }
   });
+
+  // Add PUT endpoint for updating requests
+  app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      debug(req, 'Updating request:', { requestId, updateData });
+
+      // Verify the request exists and belongs to the user
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(and(
+          eq(purchaseRequests.id, requestId),
+          eq(purchaseRequests.requesterId, req.user!.id)
+        ))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found or unauthorized', 404);
+      }
+
+      // Prevent updates to locked requests unless it's a status update from an approver
+      if (existingRequest.isLocked &&
+          updateData.status !== 'changes_requested' &&
+          req.user!.role !== 'approver') {
+        throw new AppError('Request is locked', 403);
+      }
+
+      // Enhanced validation for submissions
+      if (updateData.status === 'pending') {
+        const validationErrors = [];
+
+        if (!existingRequest.vendorId) {
+          validationErrors.push('Vendor selection is required before submitting');
+        }
+        if (!existingRequest.items || existingRequest.items.length === 0) {
+          validationErrors.push('At least one item is required');
+        }
+        if (!existingRequest.title?.trim()) {
+          validationErrors.push('Title is required');
+        }
+        if (!existingRequest.description?.trim()) {
+          validationErrors.push('Description is required');
+        }
+        if (!existingRequest.purposeType) {
+          validationErrors.push('Purpose type is required');
+        }
+
+        if (validationErrors.length > 0) {
+          const error = new ValidationError('Validation failed', { errors: validationErrors });
+
+          // Analyze validation errors
+          const analysis = await analyzeError(error, {
+            requestData: updateData,
+            validationErrors,
+            userId: req.user!.id,
+            requestId
+          });
+
+          // Log error with analysis
+          await db.insert(errorLogs).values({
+            message: error.message,
+            severity: 'error',
+            userId: req.user!.id,
+            details: { validationErrors },
+            aiAnalysis: analysis,
+            path: req.path,
+            createdAt: new Date()
+          });
+
+          throw error;
+        }
+      }
+
+      // Update the request with proper validation
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      // If transitioning to pending, create notification for approvers
+      if (updateData.status === 'pending') {
+        const approvers = await db
+          .select()
+          .from(users)
+          .where(and(
+            eq(users.role, 'approver'),
+            eq(users.isActive, true)
+          ));
+
+        await Promise.all(approvers.map(approver =>
+          createNotification(
+            approver.id,
+            'New Purchase Request',
+            `A new purchase request "${updatedRequest.title}" requires your approval`,
+            'request',
+            updatedRequest.id
+          )
+        ));
+      }
+
+      debug(req, 'Request updated successfully:', updatedRequest);
+      res.json(updatedRequest);
+    } catch (error) {
+      debug(req, 'Error updating request:', error);
+
+      // Analyze unexpected errors
+      if (!(error instanceof ValidationError)) {
+        const analysis = await analyzeError(error as Error, {
+          requestId: req.params.id,
+          userId: req.user?.id,
+          path: req.path
+        });
+
+        // Log unexpected errors with analysis
+        await db.insert(errorLogs).values({
+          message: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error',
+          userId: req.user?.id,
+          path: req.path,
+          aiAnalysis: analysis,
+          createdAt: new Date()
+        });
+      }
+
+      next(error);
+    }
+  });
+
+  // Enhanced sub-purposes endpoint with proper query building and error handling
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes', { purposeType });
+
+      let query = db
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purposeType: subPurposes.purpose_type,
+          isFrozen: subPurposes.is_frozen,
+          validFrom: subPurposes.valid_from,
+          validTo: subPurposes.valid_to,
+          createdAt: subPurposes.created_at,
+          updatedAt: subPurposes.updated_at
+        })
+        .from(subPurposes)
+        .orderBy(desc(subPurposes.created_at));
+
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
+      }
+
+      const results = await query;
+
+      // Transform the dates into proper format or null
+      const formattedResults = results.map(sp => ({
+        ...sp,
+        validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
+        validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
+        purposeType: sp.purposeType || 'Unknown',
+        createdAt: new Date(sp.createdAt).toISOString(),
+        updatedAt: new Date(sp.updatedAt).toISOString()
+      }));
+
+      debug(req, `Found ${formattedResults.length} sub-purposes`);
+      res.json(formattedResults);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
+
+  // Add purpose types endpoint
+  app.get("/api/purpose-types", (_req: Request, res: Response) => {
+    const purposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
+    res.json(purposeTypes);
+  });
+
+  // Enhanced sub-purpose creation endpoint
+  app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AuthorizationError('Admin access required');
+      }
+
+      debug(req, 'Creating new sub-purpose - Raw request body:', req.body);
+
+      const validPurposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
+      const purposeType = req.body.purposeType || req.body.purpose_type;
+
+      if (!purposeType || !validPurposeTypes.includes(purposeType)) {
+        throw new ValidationError('Invalid purpose type', {
+          details: {
+            allowed: validPurposeTypes,
+            received: purposeType
+          }
+        });
+      }
+
+      // Parse and validate dates
+      const validFrom = req.body.validFrom || req.body.valid_from;
+      const validTo = req.body.validTo || req.body.valid_to;
+
+      const requestData = {
+        name: req.body.name,
+        purpose_type: purposeType,
+        is_frozen: req.body.isFrozen || req.body.is_frozen || false,
+        valid_from: validFrom ? new Date(validFrom) : null,
+        valid_to: validTo ? new Date(validTo) : null,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+
+      debug(req, 'Transformed request data:', requestData);
+
+      // Validate the data
+      const [newSubPurpose] = await db
+        .insert(subPurposes)
+        .values(requestData)
+        .returning();
+
+      debug(req, 'Successfully created sub-purpose:', newSubPurpose);
+      res.status(201).json(newSubPurpose);
+    } catch (error) {
+      debug(req, 'Error creating sub-purpose:', error);
+      next(error);
+    }
+  });
+
+  // Add user management endpoint
+  app.get("/api/admin/users", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AuthorizationError('Admin access required');
+      }
+
+      debug(req, 'Fetching users');
+
+      const allUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          department: users.department,
+          role: users.role,
+          contact_number: users.contact_number,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt
+        })
+        .from(users)
+        .orderBy(desc(users.createdAt));
+
+      debug(req, `Found ${allUsers.length} users`);
+      res.json(allUsers);
+    } catch (error) {
+      debug(req, 'Error fetching users:', error);
+      next(error);
+    }
+  });
+
+  // Admin route for sub-purposes
+  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AuthorizationError('Admin access required');
+      }
+
+      const allSubPurposes = await db
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purpose_type: subPurposes.purpose_type,
+          is_frozen: subPurposes.is_frozen,
+          valid_from: subPurposes.valid_from,
+          valid_to: subPurposes.valid_to,
+          created_at: subPurposes.created_at,
+          updated_at: subPurposes.updated_at
+        })
+        .from(subPurposes)
+        .orderBy(desc(subPurposes.created_at));
+
+      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
+      res.json(allSubPurposes);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
+
+  // Enhanced approvers endpoint with proper query building
+  app.get("/api/approvers", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { department } = req.query;
+      debug(req, 'Fetching approvers', { department });
+
+      let query = db
+        .select({
+          id: purchaseApprovers.id,
+          departmentId: purchaseApprovers.departmentId,
+          approverId: purchaseApprovers.approverId,
+          isMandatory: purchaseApprovers.isMandatory,
+          level: purchaseApprovers.level,
+          approver: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            department: users.department,
+          },
+        })
+        .from(purchaseApprovers)
+        .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
+        .where(eq(users.isActive, true));
+
+      if (department) {
+        query = query.where(eq(purchaseApprovers.departmentId, department as string));
+      }
+
+      const approvers = await query.orderBy(purchaseApprovers.level);
+      debug(req, `Found ${approvers.length} approvers`);
+      res.json(approvers);
+    } catch (error) {
+      debug(req, 'Error fetching approvers:', error);
+      next(new DatabaseError('Failed to fetch approvers'));
+    }
+  });
+
+  // Account Request endpoint
+  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Received account request:', {
+        ...req.body,
+        password: '[REDACTED]'
+      });
+
+      // Transform the request data to match our schema
+      const requestData = {
+        ...req.body,
+        status: 'pending'
+      };
+
+      debug(req, 'Validating request data');
+      const validationResult = insertAccountRequestSchema.safeParse(requestData);
+
+      if (!validationResult.success) {
+        debug(req, 'Validation failed:', validationResult.error);
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: validationResult.error.format()
+        });
+      }
+
+      // Check for existing username
+      const [existingRequest] = await db
+        .select()
+        .from(accountRequests)
+        .where(eq(accountRequests.username, validationResult.data.username))
+        .limit(1);
+
+      if (existingRequest) {
+        debug(req, 'Username already exists in requests');
+        return res.status(400).json({
+          message: 'An account request with this username already exists'
+        });
+      }
+
+      // Check in users table
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, validationResult.data.username))
+        .limit(1);
+
+      if (existingUser) {
+        debug(req, 'Username exists in users table');
+        return res.status(400).json({
+          message: 'Username already exists'
+        });
+      }
+
+      // Hash password and create request
+      const hashedPassword = await hash(validationResult.data.password, 10);
+      const [newRequest] = await db
+        .insert(accountRequests)
+        .values({
+          ...validationResult.data,
+          password: hashedPassword
+        })
+        .returning();
+
+      // Get all admin users
+      const admins = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.role, 'admin'),
+          eq(users.isActive, true)
+        ));
+
+      // Get all approvers
+      const approvers = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.role, 'approver'),
+          eq(users.isActive, true)
+        ));
+
+      // Create notifications for admins and approvers
+      const createNotifications = async () => {
+        const notificationPromises = [...admins, ...approvers].map(user =>
+          db.insert(notifications).values({
+            userId: user.id,
+            title: 'New Account Request',
+            message: `New account request from ${newRequest.username} for ${newRequest.department} department`,
+            type: 'account_request',
+            isRead: false,
+            link: '/admin/account-requests',
+            createdAt: new Date()
+          })
+        );
+
+        await Promise.all(notificationPromises);
+      };
+
+      // Send notifications asynchronously
+      createNotifications().catch(error => {
+        console.error('Error creating notifications:', error);
+      });
+
+      debug(req, 'Account request created:', newRequest.id);
+      res.status(201).json({
+        message: 'Account request submitted successfully',
+        requestId: newRequest.id
+      });
+    } catch (error) {
+      debug(req, 'Error processing account request:', error);
+      next(error);
+    }
+  });
+
   // Get user's requests with detailed information
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -284,7 +844,7 @@ export function registerRoutes(app: Express): Server {
       // Validate required fields
       if (!requestId || !status || !department) {
         debug(req, 'Validation failed - missing fields:', { requestId, status, department });
-        throw new AppError('Missing required fields: requestId, status, and department are required', 400);
+        throw new ValidationError('Missing required fields: requestId, status, and department are required');
       }
 
       // Check if request exists and get requester info
@@ -357,6 +917,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -424,7 +985,7 @@ export function registerRoutes(app: Express): Server {
 
       // Create new user
       const [newUser] = await db
-        .insert(users)
+                .insert(users)
         .values({
           username: accountRequest.username,
           password: accountRequest.password, // Password is already properly hashed
@@ -547,7 +1108,7 @@ export function registerRoutes(app: Express): Server {
 
       if (!validationResult.success) {
         debug(req, 'Validation failed:', validationResult.error);
-        throw new AppError('Invalid vendor data', 400, {
+        throw new ValidationError('Invalid vendor data', {
           errors: validationResult.error.errors
         });
       }
@@ -582,7 +1143,7 @@ export function registerRoutes(app: Express): Server {
 
       // Validate update data
       if (!updateData.companyName || !updateData.email || !updateData.contactPerson) {
-        throw new AppError('Required fields missing', 400);
+        throw new ValidationError('Required fields missing');
       }
 
       const [updatedVendor] = await db
@@ -616,7 +1177,7 @@ export function registerRoutes(app: Express): Server {
       const { status } = req.body;
 
       if (!status || !['active', 'blocked', 'frozen'].includes(status)) {
-        throw new AppError('Invalid status', 400);
+        throw new ValidationError('Invalid status');
       }
 
       const [updatedVendor] = await db
@@ -678,7 +1239,7 @@ export function registerRoutes(app: Express): Server {
       const { password } = req.body;
 
       if (!password || password.length < 6) {
-        throw new AppError('Password must be at least 6 characters', 400);
+        throw new ValidationError('Password must be at least 6 characters');
       }
 
       // Check if user exists
@@ -693,7 +1254,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash the new password
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await hash(password, 10);
 
       // Update user password
       const [updatedUser] = await db
@@ -730,7 +1291,7 @@ export function registerRoutes(app: Express): Server {
       const { role } = req.body;
 
       if (!role || !['user', 'approver', 'admin'].includes(role)) {
-        throw new AppError('Invalid role specified', 400);
+        throw new ValidationError('Invalid role specified');
       }
 
       // Check if user exists
@@ -897,14 +1458,13 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       debug(req, 'Error fetching branding settings:', error);
       next(error);
-    }
-  });
+    }  });
 
   // Update company branding settings
   app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
+        throw new AuthorizationError('Admin access required');
       }
 
       debug(req, 'Updating branding settings:', req.body);
@@ -916,9 +1476,9 @@ export function registerRoutes(app: Express): Server {
           companyName: req.body.companyName,
           logo: req.body.logo,
           logoMimeType: req.body.logoMimeType,
-          headerImageUrl: req.body.headerImageUrl,
+          headerImage: req.body.headerImage,
           headerImageMimeType: req.body.headerImageMimeType,
-          footerImageUrl: req.body.footerImageUrl,
+          footerImage: req.body.footerImage,
           footerImageMimeType: req.body.footerImageMimeType,
           headerStyle: req.body.headerStyle,
           primaryColor: req.body.primaryColor,
@@ -933,9 +1493,9 @@ export function registerRoutes(app: Express): Server {
             companyName: req.body.companyName,
             logo: req.body.logo,
             logoMimeType: req.body.logoMimeType,
-            headerImageUrl: req.body.headerImageUrl,
+            headerImage: req.body.headerImage,
             headerImageMimeType: req.body.headerImageMimeType,
-            footerImageUrl: req.body.footerImageUrl,
+            footerImage: req.body.footerImage,
             footerImageMimeType: req.body.footerImageMimeType,
             headerStyle: req.body.headerStyle,
             primaryColor: req.body.primaryColor,
@@ -1019,7 +1579,7 @@ export function registerRoutes(app: Express): Server {
       const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
 
       if (!companyName || !primaryColor) {
-        throw new AppError('Company name and primary color are required', 400);
+        throw new ValidationError('Company name and primary color are required');
       }
 
       const prompt = `Create a brand mood board for a company named "${companyName}". 
@@ -1033,34 +1593,106 @@ export function registerRoutes(app: Express): Server {
         the brand's personality and values.`;
 
       const message = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-opus-20240229",
         max_tokens: 4096,
         messages: [{
-          role: "user",          content: prompt
+          role: "user",
+          content: prompt
         }],
       });
 
-      const content = message.content[0];
-      if (content.type !== 'text') {
-        throw new AppError('Invalid response type from Anthropic API', 500);
-      }
+      const suggestions = message.content[0].text;
 
       res.json({
         success: true,
-        suggestions: content.text,
+        suggestions,
         moodBoard: {
           companyName,
           colors: {
             primary: primaryColor,
             secondary: secondaryColor,
             accent: accentColor
-          }
+          },
+          timestamp: new Date().toISOString()
         }
       });
+
     } catch (error) {
       next(error);
     }
   });
 
+  // Add to the existing routes
+  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Logging error:', req.body);
+
+      const validationResult = insertErrorLogSchema.safeParse({
+        ...req.body,
+        userId: req.user?.id
+      });
+
+      if (!validationResult.success) {
+        debug(req, 'Error log validation failed:', validationResult.error);
+        throw new ValidationError('Invalid error log data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Analyze error with Claude if API key is available
+      let aiAnalysis = null;
+      if (process.env.ANTHROPIC_API_KEY) {
+        try {
+          const anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY,
+          });
+
+          const message = await anthropic.messages.create({
+            model: "claude-3-opus-20240229",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: `Analyze this error and suggest possible solutions:
+                Error Message: ${validationResult.data.message}
+                Error Code: ${validationResult.data.code || 'N/A'}
+                Path: ${validationResult.data.path || 'N/A'}
+                Details: ${JSON.stringify(validationResult.data.details || {}, null, 2)}
+              `
+            }]
+          });
+
+          aiAnalysis = {
+            analysis: message.content,
+            timestamp: new Date().toISOString()
+          };
+        } catch (aiError) {
+          console.error('AI Analysis failed:', aiError);
+        }
+      }
+
+      // Save error log with AI analysis
+      const [errorLog] = await db
+        .insert(errorLogs)
+        .values({
+          ...validationResult.data,
+          aiAnalysis,
+          createdAt: new Date()
+        })
+        .returning();
+
+      debug(req, 'Error logged successfully:', errorLog);
+      res.status(201).json(errorLog);
+    } catch (error) {
+      debug(req, 'Error logging error:', error);
+      next(error);
+    }
+  });
+
+  // Create and return the HTTP server after adding all routes
+  const httpServer = createServer(app);
   return httpServer;
 }
