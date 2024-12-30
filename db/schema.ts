@@ -163,6 +163,7 @@ export const vendors = pgTable("vendors", {
   ibanNumber: text("iban_number").notNull(),
   branchName: text("branch_name").notNull(),
   category: text("category").default("general"),
+  payment_currency: text("payment_currency").notNull().default("QAR"),
   rating: integer("rating").default(0),
   status: text("status").notNull().default("active"),
   remarks: text("remarks"),
@@ -464,6 +465,7 @@ export const insertVendorSchema = createInsertSchema(vendors, {
     .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
+  payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
   remarks: z.string().optional(),
   status: z.enum(["active", "blocked", "frozen"]).default("active"),
 });

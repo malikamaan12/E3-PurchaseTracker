@@ -65,7 +65,14 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
 
   const handleSubmit = async (values: VendorFormValues) => {
     try {
-      await onSubmit(values);
+      // Add default values for fields not in the form
+      const enrichedValues = {
+        ...values,
+        category: "general",
+        payment_currency: "QAR",
+        status: "active"
+      };
+      await onSubmit(enrichedValues);
       form.reset();
     } catch (error) {
       toast({
