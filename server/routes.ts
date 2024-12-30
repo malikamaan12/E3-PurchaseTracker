@@ -136,7 +136,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Creating purchase request', { 
+      debug(req, 'Creating purchase request', {
         body: req.body,
         files: req.files?.length || 0,
         user: req.user?.id
@@ -312,8 +312,8 @@ export function registerRoutes(app: Express): Server {
 
       // Prevent updates to locked requests unless it's a status update from an approver
       if (existingRequest.isLocked &&
-          updateData.status !== 'changes_requested' &&
-          req.user!.role !== 'approver') {
+        updateData.status !== 'changes_requested' &&
+        req.user!.role !== 'approver') {
         throw new AppError('Request is locked', 403);
       }
 
@@ -1437,17 +1437,45 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Fetching company branding settings');
 
       const [settings] = await db
-        .select()
+        .select({
+          id: companyBranding.id,
+          companyName: companyBranding.companyName,
+          headerStyle: companyBranding.headerStyle,
+          primaryColor: companyBranding.primaryColor,
+          secondaryColor: companyBranding.secondaryColor,
+          accentColor: companyBranding.accentColor,
+          logo: companyBranding.logo,
+          logoMimeType: companyBranding.logoMimeType,
+          footerText: companyBranding.footerText,
+          createdAt: companyBranding.createdAt,
+          updatedAt: companyBranding.updatedAt
+        })
         .from(companyBranding)
-        .orderBy(desc(companyBranding.updatedAt))
         .limit(1);
 
+      if (!settings) {
+        // Return default branding if no settings exist
+        return res.json({
+          companyName: 'Default Company',
+          headerStyle: 'modern',
+          primaryColor: '#71569E',
+          secondaryColor: '#F0F0FA',
+          accentColor: '#191160',
+          logo: null,
+          logoMimeType: null,
+          footerText: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
       debug(req, 'Found branding settings:', settings);
-      res.json(settings || {});
+      res.json(settings);
     } catch (error) {
       debug(req, 'Error fetching branding settings:', error);
       next(error);
-    }  });
+    }
+  });
 
   // Update company branding settings
   app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
@@ -1465,8 +1493,6 @@ export function registerRoutes(app: Express): Server {
           companyName: req.body.companyName,
           logo: req.body.logo,
           logoMimeType: req.body.logoMimeType,
-          headerImage: req.body.headerImage,
-          headerImageMimeType: req.body.headerImageMimeType,
           footerImage: req.body.footerImage,
           footerImageMimeType: req.body.footerImageMimeType,
           headerStyle: req.body.headerStyle,
@@ -1482,8 +1508,6 @@ export function registerRoutes(app: Express): Server {
             companyName: req.body.companyName,
             logo: req.body.logo,
             logoMimeType: req.body.logoMimeType,
-            headerImage: req.body.headerImage,
-            headerImageMimeType: req.body.headerImageMimeType,
             footerImage: req.body.footerImage,
             footerImageMimeType: req.body.footerImageMimeType,
             headerStyle: req.body.headerStyle,
@@ -1687,17 +1711,35 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Fetching company branding settings');
 
       const [settings] = await db
-        .select()
+        .select({
+          id: companyBranding.id,
+          companyName: companyBranding.companyName,
+          headerStyle: companyBranding.headerStyle,
+          primaryColor: companyBranding.primaryColor,
+          secondaryColor: companyBranding.secondaryColor,
+          accentColor: companyBranding.accentColor,
+          logo: companyBranding.logo,
+          logoMimeType: companyBranding.logoMimeType,
+          footerText: companyBranding.footerText,
+          createdAt: companyBranding.createdAt,
+          updatedAt: companyBranding.updatedAt
+        })
         .from(companyBranding)
         .limit(1);
 
       if (!settings) {
+        // Return default branding if no settings exist
         return res.json({
           companyName: 'Default Company',
           headerStyle: 'modern',
           primaryColor: '#71569E',
           secondaryColor: '#F0F0FA',
           accentColor: '#191160',
+          logo: null,
+          logoMimeType: null,
+          footerText: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
       }
 
