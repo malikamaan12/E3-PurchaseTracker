@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
@@ -57,14 +57,7 @@ export default function NewRequest() {
 
   const { data: vendors = [], isError: isVendorError } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    staleTime: 30000,
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to load vendors. Please try again.",
-        variant: "destructive",
-      });
-    }
+    staleTime: 30000
   });
 
   const form = useForm<PurchaseRequest>({
@@ -85,20 +78,22 @@ export default function NewRequest() {
   });
 
   useEffect(() => {
-    form.setValue("subPurposeId", undefined);
+    if (form.watch("purposeType")) {
+      form.setValue("subPurposeId", undefined);
+    }
   }, [form.watch("purposeType")]);
 
-  const calculateTotalCost = () => {
+  const calculateTotalCost = useCallback(() => {
     const itemsTotal = items.reduce((sum, item) => sum + item.quantity * item.estimatedCost, 0);
     return itemsTotal + freightAmount;
-  };
+  }, [items, freightAmount]);
 
   useEffect(() => {
     const totalCost = calculateTotalCost();
-    form.setValue("items", items);
-    form.setValue("freightAmount", freightAmount);
-    form.setValue("totalEstimatedCost", totalCost);
-  }, [items, freightAmount, form]);
+    form.setValue("items", items, { shouldValidate: true });
+    form.setValue("freightAmount", freightAmount, { shouldValidate: true });
+    form.setValue("totalEstimatedCost", totalCost, { shouldValidate: true });
+  }, [items, freightAmount, form, calculateTotalCost]);
 
   const validateFormData = async () => {
     const validationErrors: string[] = [];
@@ -136,6 +131,8 @@ export default function NewRequest() {
   };
 
   const onSubmit = async (values: PurchaseRequest) => {
+    if (isSubmitting) return;
+
     try {
       setIsSubmitting(true);
 
@@ -193,7 +190,8 @@ export default function NewRequest() {
         freightAmount: Number(freightAmount),
         totalEstimatedCost: calculateTotalCost(),
         vendorId: selectedVendor,
-        additionalApprovers: selectedDepartments
+        additionalApprovers: selectedDepartments,
+        action: values.status // 'draft' or 'pending'
       };
 
       formData.append('data', JSON.stringify(formattedData));
@@ -216,7 +214,7 @@ export default function NewRequest() {
 
       toast({
         title: "Success",
-        description: `Request ${result.requestNumber} created successfully`,
+        description: `Request ${result.requestNumber} ${values.status === 'draft' ? 'saved as draft' : 'submitted'} successfully`,
         className: "animate-success",
       });
 
@@ -706,7 +704,6 @@ export default function NewRequest() {
                           multiple
                           onChange={handleFileChange}
                           name="files"
-                          id="files"
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                         />
                       </label>
