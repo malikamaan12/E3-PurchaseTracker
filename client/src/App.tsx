@@ -36,12 +36,12 @@ function App() {
       <Route path="/new-request" component={NewRequest} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
-      <Route path="/vendors" component={VendorManagement} />
 
       {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
         <>
           <Route path="/admin" component={AdminPanel} />
+          <Route path="/admin/vendors" component={VendorManagement} />
           <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
