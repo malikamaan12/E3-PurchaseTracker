@@ -1,10 +1,8 @@
 import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
-import { type InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// ============= Tables =============
+// User table schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -17,6 +15,37 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Validation schemas
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email format"),
+  contact_number: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits"),
+  department: z.string().min(1, "Department is required"),
+  role: z.enum(["user", "approver", "admin"]).default("user"),
+});
+
+export const selectUserSchema = createSelectSchema(users);
+
+// Types
+export type LoginCredentials = z.infer<typeof loginSchema>;
+export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
+
+// Extend Express.User interface
+declare global {
+  namespace Express {
+    interface User extends SelectUser {}
+  }
+}
 
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
@@ -158,7 +187,6 @@ export const companyBranding = pgTable("company_branding", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ============= Relations =============
 export const errorLogRelations = relations(errorLogs, ({ one }) => ({
   user: one(users, {
     fields: [errorLogs.userId],
@@ -216,7 +244,6 @@ export const vendorRelations = relations(vendors, ({ many }) => ({
   purchaseRequests: many(purchaseRequests),
 }));
 
-// ============= Type Definitions =============
 export type User = InferModel<typeof users>;
 export type SubPurpose = InferModel<typeof subPurposes>;
 export type PurchaseRequest = z.infer<typeof insertPurchaseRequestSchema>;
@@ -227,7 +254,6 @@ export type CompanyBranding = InferModel<typeof companyBranding>;
 export type AccountRequest = InferModel<typeof accountRequests>;
 export type ErrorLog = typeof errorLogs.$inferSelect;
 export type InsertErrorLog = typeof errorLogs.$inferInsert;
-export type LoginCredentials = z.infer<typeof loginSchema>;
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
@@ -235,23 +261,6 @@ export type SelectNotification = typeof notifications.$inferSelect;
 export type Vendor = typeof vendors.$inferSelect;
 export type InsertVendor = typeof vendors.$inferInsert;
 
-// ============= Validation Schemas =============
-export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
-});
-
-export const insertUserSchema = createInsertSchema(users, {
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  email: z.string().email("Invalid email format"),
-  contact_number: z.string()
-    .min(8, "Contact number must be at least 8 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  department: z.string().min(1, "Department is required"),
-  role: z.enum(["user", "approver", "admin"]).default("user"),
-});
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -327,8 +336,6 @@ export const insertErrorLogSchema = z.object({
   aiAnalysis: z.record(z.unknown()).optional(),
 });
 
-// ============= Select Schemas =============
-export const selectUserSchema = createSelectSchema(users);
 export const selectAccountRequestSchema = createSelectSchema(accountRequests);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
@@ -338,7 +345,6 @@ export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const selectVendorSchema = createSelectSchema(vendors);
 
-// ============= Department Constants =============
 export const mandatoryDepartments = [
   "Business",
   "Management",

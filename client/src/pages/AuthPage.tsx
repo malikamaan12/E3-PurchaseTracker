@@ -8,16 +8,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema } from "@db/schema";
-import type { LoginCredentials } from "@db/schema";
-import AccountRequestForm from "@/components/AccountRequestForm";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const { login } = useUser();
   const { toast } = useToast();
 
-  const loginForm = useForm<LoginCredentials>({
+  const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
@@ -25,16 +30,7 @@ export default function AuthPage() {
     },
   });
 
-  const onTabChange = (value: string) => {
-    if (value === "login" || value === "register") {
-      setActiveTab(value);
-      if (value === "login") {
-        loginForm.reset();
-      }
-    }
-  };
-
-  const onSubmit = async (data: LoginCredentials) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       const result = await login(data);
       if (!result.ok) {
@@ -55,29 +51,26 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md mx-4">
-        <Card className="border-[#35bbba]/20 shadow-lg">
-          <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
-            <CardTitle className="text-2xl font-bold text-center text-[#191160]">
-              Purchase Management System
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              Vendor Management System
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <Tabs value={activeTab} onValueChange={onTabChange}>
+            <Tabs value={activeTab} onValueChange={(value: string) => {
+              if (value === "login" || value === "register") {
+                setActiveTab(value);
+                if (value === "login") {
+                  loginForm.reset();
+                }
+              }
+            }}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger
-                  value="login"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
-                >
-                  Login
-                </TabsTrigger>
-                <TabsTrigger
-                  value="register"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white"
-                >
-                  Request Account
-                </TabsTrigger>
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="register">Request Account</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -88,12 +81,9 @@ export default function AuthPage() {
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Username</FormLabel>
+                          <FormLabel>Username</FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                            />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -105,23 +95,16 @@ export default function AuthPage() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Password</FormLabel>
+                          <FormLabel>Password</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              {...field}
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
-                            />
+                            <Input type="password" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <Button
-                      type="submit"
-                      className="w-full bg-[#7156a2] hover:bg-[#7156a2]/90 text-white transition-colors"
-                    >
+                    <Button type="submit" className="w-full">
                       Login
                     </Button>
                   </form>
@@ -129,7 +112,10 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="register">
-                <AccountRequestForm />
+                {/* We'll add the account request form component later */}
+                <p className="text-center text-muted-foreground">
+                  Please contact your administrator to request an account.
+                </p>
               </TabsContent>
             </Tabs>
           </CardContent>

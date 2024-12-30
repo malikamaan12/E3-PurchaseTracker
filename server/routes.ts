@@ -1,17 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupWebSocketServer } from "./utils/websocket";
-import { setupAuth } from "./auth";
+import { setupAuth } from "./utils/auth";
 import type { Request, Response, NextFunction } from "express";
-import { AppError, ValidationError, AuthorizationError } from './utils/errors';
+import { AppError } from './utils/errors';
 import { db } from "@db";
-import { anthropic } from './utils/anthropic';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import {
   users,
   notifications,
   purchaseRequests,
-  insertPurchaseRequestSchema,
   fileAttachments,
   errorLogs,
   type ErrorLog,
@@ -23,50 +21,42 @@ import {
   approvals,
   accountRequests,
   type PurchaseRequest,
-  insertErrorLogSchema
+  insertErrorLogSchema,
+  insertPurchaseRequestSchema
 } from "@db/schema";
-import multer from "multer";
-import path from "path";
-import * as crypto from 'crypto';
-import fs from 'fs';
+import crypto from 'crypto';
+import multer from 'multer';
 import bcrypt from 'bcrypt';
-import { createNotification } from './utils/notifications';
+const upload = multer().any();
 
 // Debug logging utility
 function debug(req: Request, message: string, data?: any) {
-  const reqId = (req as any).id || crypto.randomUUID();
+  const reqId = (req as any).id;
   console.log(`[${reqId}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+async function createNotification(userId: number, title: string, message: string, type: string, requestId?: number) {
+  await db.insert(notifications).values({
+    userId,
+    title,
+    message,
+    type,
+    requestId,
+    isRead: false,
+    createdAt: new Date()
+  });
+}
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-}).array('files', 5);
 
 export function registerRoutes(app: Express): Server {
   // Create HTTP server first
   const httpServer = createServer(app);
 
-  // Setup WebSocket server
-  setupWebSocketServer(httpServer);
-
-  // Setup authentication routes and middleware
+  // Setup authentication before everything else
   setupAuth(app);
+
+  // Setup WebSocket server after auth
+  setupWebSocketServer(httpServer);
 
   // Add request validation middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -87,7 +77,7 @@ export function registerRoutes(app: Express): Server {
       const validationResult = insertErrorLogSchema.safeParse(req.body);
 
       if (!validationResult.success) {
-        throw new ValidationError('Invalid error log data', {
+        throw new AppError('Invalid error log data', 400, {
           errors: validationResult.error.errors
         });
       }
@@ -137,7 +127,7 @@ export function registerRoutes(app: Express): Server {
       // Handle file upload with proper error handling
       await new Promise((resolve, reject) => {
         upload(req, res, (err) => {
-          if (err) reject(new ValidationError(err.message));
+          if (err) reject(new AppError(err.message, 400));
           resolve(undefined);
         });
       });
@@ -152,7 +142,7 @@ export function registerRoutes(app: Express): Server {
       const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
 
       if (!validationResult.success) {
-        throw new ValidationError('Invalid request data', {
+        throw new AppError('Invalid request data', 400, {
           errors: validationResult.error.errors
         });
       }
@@ -182,7 +172,7 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       debug(req, 'Error creating request:', error);
 
-      if (!(error instanceof ValidationError)) {
+      if (!(error instanceof AppError)) {
         await db.insert(errorLogs).values({
           message: error instanceof Error ? error.message : 'Unknown error',
           severity: 'error',
@@ -294,7 +284,7 @@ export function registerRoutes(app: Express): Server {
       // Validate required fields
       if (!requestId || !status || !department) {
         debug(req, 'Validation failed - missing fields:', { requestId, status, department });
-        throw new ValidationError('Missing required fields: requestId, status, and department are required');
+        throw new AppError('Missing required fields: requestId, status, and department are required', 400);
       }
 
       // Check if request exists and get requester info
@@ -365,7 +355,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
 
   // Account requests management
@@ -558,7 +547,7 @@ export function registerRoutes(app: Express): Server {
 
       if (!validationResult.success) {
         debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid vendor data', {
+        throw new AppError('Invalid vendor data', 400, {
           errors: validationResult.error.errors
         });
       }
@@ -593,7 +582,7 @@ export function registerRoutes(app: Express): Server {
 
       // Validate update data
       if (!updateData.companyName || !updateData.email || !updateData.contactPerson) {
-        throw new ValidationError('Required fields missing');
+        throw new AppError('Required fields missing', 400);
       }
 
       const [updatedVendor] = await db
@@ -627,7 +616,7 @@ export function registerRoutes(app: Express): Server {
       const { status } = req.body;
 
       if (!status || !['active', 'blocked', 'frozen'].includes(status)) {
-        throw new ValidationError('Invalid status');
+        throw new AppError('Invalid status', 400);
       }
 
       const [updatedVendor] = await db
@@ -689,7 +678,7 @@ export function registerRoutes(app: Express): Server {
       const { password } = req.body;
 
       if (!password || password.length < 6) {
-        throw new ValidationError('Password must be at least 6 characters');
+        throw new AppError('Password must be at least 6 characters', 400);
       }
 
       // Check if user exists
@@ -741,7 +730,7 @@ export function registerRoutes(app: Express): Server {
       const { role } = req.body;
 
       if (!role || !['user', 'approver', 'admin'].includes(role)) {
-        throw new ValidationError('Invalid role specified');
+        throw new AppError('Invalid role specified', 400);
       }
 
       // Check if user exists
@@ -915,7 +904,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AuthorizationError('Admin access required');
+        throw new AppError('Admin access required', 403);
       }
 
       debug(req, 'Updating branding settings:', req.body);
@@ -1030,7 +1019,7 @@ export function registerRoutes(app: Express): Server {
       const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
 
       if (!companyName || !primaryColor) {
-        throw new ValidationError('Company name and primary color are required');
+        throw new AppError('Company name and primary color are required', 400);
       }
 
       const prompt = `Create a brand mood board for a company named "${companyName}". 
@@ -1047,8 +1036,7 @@ export function registerRoutes(app: Express): Server {
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 4096,
         messages: [{
-          role: "user",
-          content: prompt
+          role: "user",          content: prompt
         }],
       });
 

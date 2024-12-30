@@ -30,7 +30,7 @@ export async function setupAuth(app: Express) {
   // Configure session
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "purchase-management-secret",
+    secret: process.env.REPL_ID || "vendor-management-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -51,7 +51,7 @@ export async function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log('Attempting authentication for user:', username);
+        console.log('LocalStrategy: Authentication attempt:', { username });
 
         const [user] = await db
           .select()
@@ -76,8 +76,8 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        // Create sanitized user object (without password)
-        const sanitizedUser = {
+        // Create user object without sensitive data
+        const safeUser: Express.User = {
           id: user.id,
           username: user.username,
           email: user.email,
@@ -88,7 +88,7 @@ export async function setupAuth(app: Express) {
         };
 
         console.log('Authentication successful for user:', username);
-        return done(null, sanitizedUser);
+        return done(null, safeUser);
       } catch (err) {
         console.error('Authentication error:', err);
         return done(err);
@@ -107,28 +107,36 @@ export async function setupAuth(app: Express) {
       console.log('Deserializing user:', id);
 
       const [user] = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          department: users.department,
-          role: users.role,
-          contact_number: users.contact_number,
-          isActive: users.isActive
-        })
+        .select()
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
 
       if (!user) {
-        console.log('User not found during deserialization:', id);
+        console.log('Deserialization failed: User not found:', id);
         return done(null, false);
       }
 
-      done(null, user);
-    } catch (err) {
-      console.error('Deserialization error:', err);
-      done(err);
+      // Create safe user object
+      const safeUser: Express.User = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        department: user.department,
+        role: user.role,
+        contact_number: user.contact_number,
+        isActive: user.isActive
+      };
+
+      console.log('User deserialized successfully:', {
+        id: user.id,
+        username: user.username
+      });
+
+      done(null, safeUser);
+    } catch (error) {
+      console.error('Deserialization error:', error);
+      done(error);
     }
   });
 
@@ -186,10 +194,12 @@ export async function setupAuth(app: Express) {
         contact_number: '123-456-7890',
         isActive: true
       })
-      .onConflictDoNothing()
-      .execute();
+      .onConflictDoNothing();
+
     console.log('Test admin user created/verified');
   } catch (error) {
     console.error('Error creating test admin user:', error);
   }
+
+  console.log('Authentication setup completed');
 }
