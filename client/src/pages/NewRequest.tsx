@@ -401,7 +401,7 @@ export default function NewRequest() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} name="purposeType" id="purposeType">
                             <FormControl>
                               <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
                                 <SelectValue placeholder="Select purpose type" />
@@ -431,6 +431,8 @@ export default function NewRequest() {
                               purposeType={form.watch("purposeType")}
                               value={field.value}
                               onChange={field.onChange}
+                              id="subPurposeId"
+                              name="subPurposeId"
                             />
                           </FormControl>
                           <FormMessage />
@@ -451,6 +453,8 @@ export default function NewRequest() {
                         <FormControl>
                           <Input
                             {...field}
+                            id="title"
+                            name="title"
                             className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
@@ -468,6 +472,8 @@ export default function NewRequest() {
                         <FormControl>
                           <Textarea
                             {...field}
+                            id="description"
+                            name="description"
                             className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                         </FormControl>
@@ -494,6 +500,8 @@ export default function NewRequest() {
                   <Select
                     value={selectedVendor?.toString()}
                     onValueChange={(value) => setSelectedVendor(Number(value))}
+                    name="vendorId"
+                    id="vendorId"
                   >
                     <FormControl>
                       <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
@@ -519,7 +527,7 @@ export default function NewRequest() {
                         name="currency"
                         render={({ field }) => (
                           <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} name="currency" id="currency">
                               <FormControl>
                                 <SelectTrigger className="w-[120px] border-[#7156a2]/20 focus:border-[#7156a2]">
                                   <SelectValue placeholder="Currency" />
@@ -556,12 +564,16 @@ export default function NewRequest() {
                       >
                         <div className="flex-1 space-y-2">
                           <Input
+                            id={`item-name-${index}`}
+                            name={`items[${index}].name`}
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
                             className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                           />
                           <Textarea
+                            id={`item-description-${index}`}
+                            name={`items[${index}].description`}
                             placeholder="Item description (optional)"
                             value={item.description || ''}
                             onChange={(e) => updateItem(index, "description", e.target.value)}
@@ -570,6 +582,8 @@ export default function NewRequest() {
                         </div>
                         <div className="w-full sm:w-24">
                           <Input
+                            id={`item-quantity-${index}`}
+                            name={`items[${index}].quantity`}
                             type="number"
                             min="1"
                             placeholder="Qty"
@@ -580,6 +594,8 @@ export default function NewRequest() {
                         </div>
                         <div className="w-full sm:w-32">
                           <Input
+                            id={`item-cost-${index}`}
+                            name={`items[${index}].estimatedCost`}
                             type="number"
                             min="0"
                             step="0.01"
@@ -618,6 +634,8 @@ export default function NewRequest() {
                           step="0.01"
                           value={freightAmount}
                           onChange={(e) => setFreightAmount(Number(e.target.value))}
+                          id="freightAmount"
+                          name="freightAmount"
                           className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
                         />
                       </FormControl>
@@ -658,6 +676,8 @@ export default function NewRequest() {
                     onChange={handleDepartmentChange}
                     value={selectedDepartments}
                     multiple={true}
+                    name="additionalApprovers"
+                    id="additionalApprovers"
                   />
                 </div>
 
@@ -685,6 +705,8 @@ export default function NewRequest() {
                           className="hidden"
                           multiple
                           onChange={handleFileChange}
+                          name="files"
+                          id="files"
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                         />
                       </label>
@@ -726,6 +748,9 @@ export default function NewRequest() {
                     variant="outline"
                     disabled={isSubmitting}
                     className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
+                    id="save-draft-btn"
+                    name="action"
+                    value="draft"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
@@ -741,6 +766,9 @@ export default function NewRequest() {
                     onClick={() => handleSubmit("pending")}
                     disabled={isSubmitting}
                     className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
+                    id="submit-request-btn"
+                    name="action"
+                    value="submit"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
