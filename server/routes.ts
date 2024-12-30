@@ -867,9 +867,16 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Creating new vendor:', req.body);
 
-      const validationResult = insertVendorSchema.safeParse(req.body);
+      // Set default category if not provided
+      const vendorData = {
+        ...req.body,
+        category: req.body.category || "general"
+      };
+
+      const validationResult = insertVendorSchema.safeParse(vendorData);
 
       if (!validationResult.success) {
+        debug(req, 'Validation failed:', validationResult.error);
         throw new ValidationError('Invalid vendor data', {
           errors: validationResult.error.errors
         });
