@@ -12,7 +12,12 @@ import {
   insertPurchaseRequestSchema,
   fileAttachments,
   errorLogs,
-  type ErrorLog
+  type ErrorLog,
+  vendors,
+  companyBranding,
+  vendorCategories,
+  insertVendorSchema,
+  subPurposes
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { AppError, ValidationError } from './utils/errors';
@@ -966,11 +971,11 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Vendor not found', 404);
       }
 
-      debug(req, 'Successfully updated vendor:', updatedVendor);
+      debug(req,req, 'Successfully updated vendor:', updatedVendor);
       res.json(updatedVendor);
     } catch (error) {
       debug(req, 'Error updating vendor:', error);
-            next(error);
+      next(error);
     }
   });
 
