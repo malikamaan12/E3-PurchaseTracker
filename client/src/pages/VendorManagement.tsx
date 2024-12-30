@@ -32,14 +32,13 @@ export default function VendorManagement() {
     queryKey: ["/api/vendors"],
     retry: false,
     staleTime: 5000,
-  });
-
-  const filteredVendors = vendors.filter((vendor: Vendor) => {
-    const matchesSearch = 
-      vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || vendor.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    onError: (err: Error) => {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to load vendors",
+        variant: "destructive",
+      });
+    }
   });
 
   const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
@@ -55,13 +54,16 @@ export default function VendorManagement() {
     }
   };
 
-  if (error instanceof Error) {
-    toast({
-      title: "Error",
-      description: error.message || "Failed to load vendors",
-      variant: "destructive",
-    });
+  const filteredVendors = vendors.filter((vendor: Vendor) => {
+    if (!vendor.companyName || !vendor.contactPerson) return false;
+    const matchesSearch = 
+      vendor.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vendor.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || vendor.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
+  if (error instanceof Error) {
     return (
       <div className="container mx-auto py-8">
         <Card>
