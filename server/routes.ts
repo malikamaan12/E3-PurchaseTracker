@@ -8,6 +8,7 @@ import {
   users,
   notifications,
   purchaseRequests,
+  approvals,
   fileAttachments,
   insertPurchaseRequestSchema,
   vendors,
@@ -690,7 +691,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user's requests with detailed information
+  // Update the GET /api/requests endpoint
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -699,7 +700,7 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Fetching requests for user:', req.user!.id);
 
-      // First get the requests with requester information
+      // Get all requests with requester information
       const requests = await db
         .select({
           id: purchaseRequests.id,
@@ -725,42 +726,29 @@ export function registerRoutes(app: Express): Server {
           }
         })
         .from(purchaseRequests)
-        .innerJoin(users, eq(users.id, purchaseRequests.requesterId));
+        .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+        .orderBy(desc(purchaseRequests.createdAt));
 
       debug(req, 'Raw requests data:', JSON.stringify(requests, null, 2));
 
-      // Validate request data structure
-      if (!Array.isArray(requests)) {
-        throw new Error('Invalid requests data structure');
-      }
+      // Parse JSON fields and get approvals for each request
+      const requestsWithDetails = await Promise.all(requests.map(async (request) => {
+        // Get approvals for this request
+        const requestApprovals = await db
+          .select()
+          .from(approvals)
+          .where(eq(approvals.requestId, request.id));
 
-      // Validate each request has required fields
-      requests.forEach((request, index) => {
-        if (!request.requester || !request.requester.department) {
-          console.error(`Invalid requester data for request ${index}:`, request);
-          throw new Error(`Missing requester data for request ${request.id}`);
-        }
-      });
+        // Parse JSON fields
+        return {
+          ...request,
+          items: typeof request.items === 'string' ? JSON.parse(request.items) : request.items,
+          approvals: requestApprovals || []
+        };
+      }));
 
-      // For each request, fetch its approvals
-      const requestsWithApprovals = await Promise.all(
-        requests.map(async (request) => {
-          const requestApprovals = await db
-            .select()
-            .from(approvals)
-            .where(eq(approvals.requestId, request.id));
-
-          debug(req, `Approvals for request ${request.id}:`, requestApprovals);
-
-          return {
-            ...request,
-            approvals: requestApprovals || []
-          };
-        })
-      );
-
-      debug(req, 'Found requests:', requestsWithApprovals.length);
-      return res.json(requestsWithApprovals);
+      debug(req, `Found ${requestsWithDetails.length} requests`);
+      return res.json(requestsWithDetails);
     } catch (error) {
       debug(req, 'Error fetching requests:', error);
       next(error);
@@ -860,7 +848,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
 
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
