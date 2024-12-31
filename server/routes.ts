@@ -755,7 +755,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Approval endpoint
+  // Add approval endpoint with proper validation and mandatory approver logic
   app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -785,7 +785,8 @@ export function registerRoutes(app: Express): Server {
         .select({
           id: purchaseRequests.id,
           requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title
+          title: purchaseRequests.title,
+          status: purchaseRequests.status
         })
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
@@ -793,6 +794,29 @@ export function registerRoutes(app: Express): Server {
 
       if (!request) {
         throw new AppError('Request not found', 404);
+      }
+
+      // Check if request is not already approved or rejected
+      if (request.status === 'approved' || request.status === 'rejected') {
+        throw new AppError('Request is already finalized', 400);
+      }
+
+      // Define mandatory departments
+      const mandatoryDepartments = ['CEO Office', 'Director', 'Finance'];
+      const isMandatoryApprover = mandatoryDepartments.includes(department);
+
+      // Check for existing approval from this department
+      const [existingApproval] = await db
+        .select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.department, department)
+        ))
+        .limit(1);
+
+      if (existingApproval) {
+        throw new AppError('Department has already provided approval', 400);
       }
 
       // Create the approval record
@@ -804,10 +828,52 @@ export function registerRoutes(app: Express): Server {
           status,
           comments,
           department,
+          isMandatory: isMandatoryApprover,
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
+
+      // Get all approvals for this request to check status
+      const allApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Check if all mandatory approvers have approved
+      const mandatoryApprovals = allApprovals.filter(a =>
+        mandatoryDepartments.includes(a.department)
+      );
+      const allMandatoryApproved = mandatoryDepartments.every(dept =>
+        mandatoryApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // Update request status based on approvals
+      let requestStatus = request.status;
+      let isLocked = false;
+
+      if (status === 'rejected') {
+        requestStatus = 'rejected';
+        isLocked = true;
+      } else if (status === 'changes_requested') {
+        requestStatus = 'changes_requested';
+        isLocked = false;
+      } else if (allMandatoryApproved) {
+        requestStatus = 'approved';
+        isLocked = true;
+      }
+
+      // Update request status if changed
+      if (requestStatus !== request.status) {
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: requestStatus,
+            isLocked,
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+      }
 
       // Create notification for the requester
       await createNotification(
@@ -818,30 +884,11 @@ export function registerRoutes(app: Express): Server {
         requestId
       );
 
-      // Update request status
-      let requestStatus = status;
-      let isLocked = false;
-
-      if (department === "Finance" && status === "approved") {
-        isLocked = true;
-        requestStatus = "approved";
-      } else if (status === "rejected") {
-        requestStatus = "rejected";
-      } else if (status === "changes_requested") {
-        requestStatus = "changes_requested";
-        isLocked = false;
-      }
-
-      await db
-        .update(purchaseRequests)
-        .set({
-          status: requestStatus,
-          isLocked,
-          updatedAt: new Date()
-        })
-        .where(eq(purchaseRequests.id, requestId));
-
-      debug(req, 'Approval created and notification sent:', approval);
+      debug(req, 'Approval created successfully:', {
+        approvalId: approval.id,
+        requestStatus,
+        isLocked
+      });
       res.status(201).json(approval);
     } catch (error) {
       debug(req, 'Error creating approval:', error);
