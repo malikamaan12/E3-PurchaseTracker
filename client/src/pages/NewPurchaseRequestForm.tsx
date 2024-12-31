@@ -29,11 +29,13 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import type { PurchaseRequest, Vendor } from "@db/schema";
+import type { PurchaseRequest, Vendor, MandatoryDepartment } from "@db/schema";
 import { createRequest } from "@/services/requests";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import { VendorForm } from "@/components/VendorForm";
+import { mandatoryDepartments } from "@db/schema";
 
 // Form schema based on database schema
 const formSchema = z.object({
@@ -61,16 +63,24 @@ const formSchema = z.object({
   currency: z.enum(["QAR", "USD", "CNY"]),
   totalEstimatedCost: z.number().min(0),
   freightAmount: z.number().min(0),
-  mandatoryApproversCount: z.number().min(0).default(0),
+  optionalApprovers: z.array(z.string()),
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+// Predefined mandatory approvers
+const MANDATORY_APPROVERS = ["CEO Office", "Director", "Finance"];
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVendorForm, setShowVendorForm] = useState(false);
+
+  // Get optional departments by filtering out mandatory ones
+  const optionalDepartments = mandatoryDepartments.filter(
+    dept => !MANDATORY_APPROVERS.includes(dept)
+  );
 
   // Initialize form with default values
   const form = useForm<FormData>({
@@ -83,7 +93,7 @@ export default function NewPurchaseRequestForm() {
       currency: "QAR",
       freightAmount: 0,
       totalEstimatedCost: 0,
-      mandatoryApproversCount: 0,
+      optionalApprovers: [],
     },
   });
 
@@ -159,11 +169,13 @@ export default function NewPurchaseRequestForm() {
     try {
       setIsSubmitting(true);
 
+      // Add mandatory approvers to the request data
       const formattedData = {
         ...data,
         status: action === "draft" ? "draft" : "pending",
         isLocked: action !== "draft",
         totalEstimatedCost: calculateTotalCost(data.items, data.freightAmount),
+        mandatoryApprovers: MANDATORY_APPROVERS,
       };
 
       await createRequest(formattedData);
@@ -394,26 +406,63 @@ export default function NewPurchaseRequestForm() {
                 />
               </div>
 
-              {/* Mandatory Approvers Count */}
-              <FormField
-                control={form.control}
-                name="mandatoryApproversCount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Mandatory Approvers</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                        className="border-[#7156a2]/20"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Approvers Section */}
+              <div className="space-y-4">
+                {/* Mandatory Approvers Display */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    Mandatory Approvers
+                  </h3>
+                  <div className="space-y-2">
+                    {MANDATORY_APPROVERS.map((dept) => (
+                      <div
+                        key={dept}
+                        className="flex items-center gap-2 p-2 bg-gray-50 rounded-md"
+                      >
+                        <div className="h-4 w-4 rounded-full bg-[#7156a2]/20" />
+                        <span className="text-sm text-gray-600">{dept}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Optional Approvers Selection */}
+                <FormField
+                  control={form.control}
+                  name="optionalApprovers"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Optional Approvers</FormLabel>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        {optionalDepartments.map((department) => (
+                          <div
+                            key={department}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(department)}
+                                onCheckedChange={(checked) => {
+                                  const current = field.value || [];
+                                  const updated = checked
+                                    ? [...current, department]
+                                    : current.filter((dept) => dept !== department);
+                                  field.onChange(updated);
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              {department}
+                            </FormLabel>
+                          </div>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
             </div>
 
             {/* Items Section */}
