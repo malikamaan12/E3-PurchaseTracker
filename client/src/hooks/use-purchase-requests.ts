@@ -79,8 +79,7 @@ export function usePurchaseRequests() {
       }
 
       await handleError(error, {
-        title: "Error saving draft",
-        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
+        title: "Error saving draft"
       });
     }
   });
@@ -117,8 +116,40 @@ export function usePurchaseRequests() {
       }
 
       await handleError(error, {
-        title: "Error submitting request",
-        fallbackMessage: ERROR_MESSAGES.UPDATE_FAILED
+        title: "Error submitting request"
+      });
+    }
+  });
+
+  // Approval mutation
+  const approvalMutation = useMutation({
+    mutationFn: async (data: ApprovalData) => {
+      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to create approval: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: data.message || "Approval submitted successfully",
+      });
+    },
+    onError: async (error: Error) => {
+      await handleError(error, {
+        title: "Error processing approval"
       });
     }
   });
@@ -129,5 +160,6 @@ export function usePurchaseRequests() {
     error,
     saveDraft: draftMutation.mutateAsync,
     submitRequest: submitMutation.mutateAsync,
+    createApproval: approvalMutation.mutateAsync,
   };
 }
