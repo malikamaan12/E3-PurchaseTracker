@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest, Vendor } from "@db/schema";
+import { createRequest } from "@/services/requests";
 
 // Form schema based on database schema
 const formSchema = z.object({
@@ -116,10 +117,7 @@ export default function NewPurchaseRequestForm() {
         totalEstimatedCost: calculateTotalCost(data.items, data.freightAmount),
       };
 
-      await createRequest({
-        data: formattedData,
-        action
-      });
+      await createRequest(formattedData);
 
       toast({
         title: "Success",

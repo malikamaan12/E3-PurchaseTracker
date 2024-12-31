@@ -5,14 +5,14 @@ interface RequestError extends Error {
   code?: string;
 }
 
-export async function createRequest(data: FormData): Promise<PurchaseRequest> {
+export async function createRequest(data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
   try {
     const response = await fetch("/api/requests", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(Object.fromEntries(data.entries())), // Convert FormData to JSON
+      body: JSON.stringify({ data, action: data.status === 'draft' ? 'draft' : 'submit' }),
       credentials: "include",
     });
 
