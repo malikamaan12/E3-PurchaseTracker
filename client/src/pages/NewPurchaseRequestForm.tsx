@@ -116,28 +116,14 @@ export default function NewPurchaseRequestForm() {
         totalEstimatedCost: calculateTotalCost(data.items, data.freightAmount),
       };
 
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          data: formattedData,
-          action 
-        }),
-        credentials: "include",
+      await createRequest({
+        data: formattedData,
+        action
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create request");
-      }
-
-      const result = await response.json();
 
       toast({
         title: "Success",
-        description: `Request ${result.requestNumber} ${
+        description: `Request ${
           action === "draft" ? "saved as draft" : "submitted"
         } successfully`,
       });

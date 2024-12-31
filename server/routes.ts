@@ -130,7 +130,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Create purchase request endpoint with proper error handling and draft support
-  app.post("/api/requests", upload.array('files'), async (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
@@ -138,7 +138,6 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Creating purchase request', {
         body: req.body,
-        files: req.files?.length || 0,
         user: req.user?.id,
         action: req.body.action // 'draft' or 'submit'
       });
@@ -146,7 +145,7 @@ export function registerRoutes(app: Express): Server {
       // Parse request data with enhanced error handling
       let requestData;
       try {
-        requestData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+        requestData = req.body.data;
         debug(req, 'Parsed request data:', requestData);
       } catch (error) {
         debug(req, 'Error parsing request data:', error);
@@ -186,98 +185,32 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Selected vendor does not exist');
       }
 
-      // Start transaction
-      const result = await db.transaction(async (tx) => {
-        debug(req, 'Starting transaction for request creation');
-
-        // Create purchase request
-        const [newRequest] = await tx
-          .insert(purchaseRequests)
-          .values({
-            requestNumber: requestData.requestNumber,
-            requesterId: requestData.requesterId,
-            vendorId: requestData.vendorId,
-            title: requestData.title?.trim() || '',
-            description: requestData.description?.trim() || '',
-            items: requestData.items || [],
-            purposeType: requestData.purposeType,
-            subPurposeId: requestData.subPurposeId,
-            priority: requestData.priority || 'medium',
-            currency: requestData.currency || 'QAR',
-            totalEstimatedCost: requestData.totalEstimatedCost || 0,
-            freightAmount: requestData.freightAmount || 0,
-            status: requestData.status,
-            isLocked: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-
-        debug(req, 'Request created:', newRequest);
-
-        // Handle file attachments if any
-        const files = (req.files as Express.Multer.File[]) || [];
-        if (files.length > 0) {
-          debug(req, `Processing ${files.length} file attachments`);
-          await tx.insert(fileAttachments).values(
-            files.map(file => ({
-              requestId: newRequest.id,
-              fileName: file.filename,
-              fileType: file.mimetype,
-              fileSize: file.size,
-              fileUrl: file.path,
-              uploadedAt: new Date()
-            }))
-          );
-        }
-
-        // If this is a submission (not a draft), create notifications for approvers
-        if (req.body.action !== 'draft') {
-          const approvers = await tx
-            .select()
-            .from(users)
-            .where(and(
-              eq(users.role, 'approver'),
-              eq(users.isActive, true)
-            ));
-
-          await Promise.all(approvers.map(approver =>
-            createNotification(
-              approver.id,
-              'New Purchase Request',
-              `A new purchase request "${newRequest.title}" requires your approval`,
-              'request',
-              newRequest.id
-            )
-          ));
-        }
-
-        return newRequest;
-      });
+      // Create purchase request
+      const result = await db
+        .insert(purchaseRequests)
+        .values({
+          requestNumber: requestData.requestNumber,
+          requesterId: requestData.requesterId,
+          vendorId: requestData.vendorId,
+          title: requestData.title?.trim() || '',
+          description: requestData.description?.trim() || '',
+          items: requestData.items || [],
+          purposeType: requestData.purposeType,
+          priority: requestData.priority || 'medium',
+          currency: requestData.currency || 'QAR',
+          totalEstimatedCost: requestData.totalEstimatedCost || 0,
+          freightAmount: requestData.freightAmount || 0,
+          status: requestData.status,
+          isLocked: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
 
       debug(req, `Purchase request ${req.body.action === 'draft' ? 'draft saved' : 'submitted'} successfully`, result);
-      res.status(201).json(result);
+      res.status(201).json(result[0]);
     } catch (error) {
-      debug(req, 'Error creating purchase request', error);
-
-      if (!(error instanceof ValidationError)) {
-        const analysis = await analyzeError(error as Error, {
-          path: req.path,
-          userId: req.user?.id,
-          requestData: req.body
-        });
-
-        // Log unexpected errors
-        await db.insert(errorLogs).values({
-          message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',
-          userId: req.user?.id,
-          path: req.path,
-          aiAnalysis: analysis,
-          createdAt: new Date()
-        });
-      }
-
+      debug(req, 'Error creating purchase request:', error);
       next(error);
     }
   });

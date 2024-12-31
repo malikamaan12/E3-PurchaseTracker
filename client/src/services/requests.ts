@@ -9,7 +9,10 @@ export async function createRequest(data: FormData): Promise<PurchaseRequest> {
   try {
     const response = await fetch("/api/requests", {
       method: "POST",
-      body: data,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(Object.fromEntries(data.entries())), // Convert FormData to JSON
       credentials: "include",
     });
 
