@@ -762,21 +762,19 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      if (!req.user || !req.user.id || !req.user.department) {
+      if (!req.user || !req.user.id) {
         throw new AppError('Invalid user session', 401);
       }
 
       const requestId = parseInt(req.params.requestId);
-      const { status, comments } = req.body;
-      const department = req.user.department;
+      const { status, comments, department } = req.body;
 
       debug(req, 'Creating approval with data:', {
         requestId,
         status,
         comments,
         department,
-        userId: req.user.id,
-        userDepartment: req.user.department
+        userId: req.user.id
       });
 
       // Validate required fields
@@ -896,7 +894,11 @@ export function registerRoutes(app: Express): Server {
         isLocked
       });
 
-      res.status(201).json(approval);
+      res.status(201).json({
+        ...approval,
+        requestStatus,
+        message: `Approval submitted successfully${requestStatus !== request.status ? `. Request status updated to ${requestStatus}` : ''}`
+      });
     } catch (error) {
       debug(req, 'Error creating approval:', error);
       next(error);
