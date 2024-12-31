@@ -146,6 +146,24 @@ export function registerRoutes(app: Express): Server {
       let requestData;
       try {
         requestData = req.body.data;
+
+        // Ensure arrays are properly formatted for PostgreSQL JSON columns
+        requestData.items = Array.isArray(requestData.items)
+          ? JSON.stringify(requestData.items)
+          : '[]';
+
+        requestData.mandatoryApprovers = Array.isArray(requestData.mandatoryApprovers)
+          ? JSON.stringify(requestData.mandatoryApprovers)
+          : '[]';
+
+        requestData.optionalApprovers = Array.isArray(requestData.optionalApprovers)
+          ? JSON.stringify(requestData.optionalApprovers)
+          : '[]';
+
+        requestData.priorityRecommendations = Array.isArray(requestData.priorityRecommendations)
+          ? JSON.stringify(requestData.priorityRecommendations)
+          : '[]';
+
         debug(req, 'Parsed request data:', requestData);
       } catch (error) {
         debug(req, 'Error parsing request data:', error);
@@ -185,7 +203,7 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Selected vendor does not exist');
       }
 
-      // Create purchase request
+      // Create purchase request with properly formatted JSON fields
       const result = await db
         .insert(purchaseRequests)
         .values({
@@ -194,7 +212,7 @@ export function registerRoutes(app: Express): Server {
           vendorId: requestData.vendorId,
           title: requestData.title?.trim() || '',
           description: requestData.description?.trim() || '',
-          items: requestData.items || [],
+          items: requestData.items,
           purposeType: requestData.purposeType,
           priority: requestData.priority || 'medium',
           currency: requestData.currency || 'QAR',
@@ -202,6 +220,9 @@ export function registerRoutes(app: Express): Server {
           freightAmount: requestData.freightAmount || 0,
           status: requestData.status,
           isLocked: false,
+          mandatoryApprovers: requestData.mandatoryApprovers,
+          optionalApprovers: requestData.optionalApprovers,
+          priorityRecommendations: requestData.priorityRecommendations,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -890,7 +911,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       if (accountRequest.status !== 'pending') {
-        throw new AppError('Account request is not pending', 400);      }
+        throw new AppError('Account request is not pending', 400);
+      }
 
       // Check if username already exists in users table
       const [existingUser] = await db
