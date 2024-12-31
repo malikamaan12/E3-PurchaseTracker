@@ -212,7 +212,7 @@ export function registerRoutes(app: Express): Server {
           vendorId: requestData.vendorId,
           title: requestData.title?.trim() || '',
           description: requestData.description?.trim() || '',
-          items: requestData.items,
+          items: JSON.stringify(requestData.items || []),
           purposeType: requestData.purposeType,
           subPurposeId: requestData.subPurposeId,
           priority: requestData.priority || 'medium',
@@ -222,9 +222,9 @@ export function registerRoutes(app: Express): Server {
           status: requestData.status,
           isLocked: false,
           mandatoryApproversCount: requestData.mandatoryApprovers?.length || 0,
-          mandatoryApprovers: requestData.mandatoryApprovers,
-          optionalApprovers: requestData.optionalApprovers,
-          priorityRecommendations: requestData.priorityRecommendations,
+          mandatoryApprovers: JSON.stringify(requestData.mandatoryApprovers || []),
+          optionalApprovers: JSON.stringify(requestData.optionalApprovers || []),
+          priorityRecommendations: JSON.stringify(requestData.priorityRecommendations || []),
           createdAt: new Date(),
           updatedAt: new Date()
         })
