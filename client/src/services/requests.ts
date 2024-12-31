@@ -7,12 +7,25 @@ interface RequestError extends Error {
 
 export async function createRequest(data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
   try {
+    // Ensure items array is properly formatted as JSON string
+    const formattedData = {
+      ...data,
+      items: Array.isArray(data.items) ? data.items : [],
+      // Convert arrays to proper format
+      mandatoryApprovers: Array.isArray(data.mandatoryApprovers) ? data.mandatoryApprovers : [],
+      optionalApprovers: Array.isArray(data.optionalApprovers) ? data.optionalApprovers : [],
+      priorityRecommendations: Array.isArray(data.priorityRecommendations) ? data.priorityRecommendations : [],
+    };
+
     const response = await fetch("/api/requests", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ data, action: data.status === 'draft' ? 'draft' : 'submit' }),
+      body: JSON.stringify({
+        data: formattedData,
+        action: formattedData.status === 'draft' ? 'draft' : 'submit'
+      }),
       credentials: "include",
     });
 
@@ -46,12 +59,21 @@ export async function updateRequest({
   data: Partial<PurchaseRequest>;
 }): Promise<PurchaseRequest> {
   try {
+    // Ensure arrays are properly formatted
+    const formattedData = {
+      ...data,
+      items: Array.isArray(data.items) ? data.items : [],
+      mandatoryApprovers: Array.isArray(data.mandatoryApprovers) ? data.mandatoryApprovers : [],
+      optionalApprovers: Array.isArray(data.optionalApprovers) ? data.optionalApprovers : [],
+      priorityRecommendations: Array.isArray(data.priorityRecommendations) ? data.priorityRecommendations : [],
+    };
+
     const response = await fetch(`/api/requests/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(formattedData),
       credentials: "include",
     });
 
