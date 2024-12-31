@@ -2,16 +2,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
-import type { Approval, User } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { useState, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { type PurchaseRequest, type User, type Approval } from "@db/schema";
 
 interface ApprovalFlowProps {
-  approvals: (Approval & { approver?: User })[];  // Make approver optional
+  approvals: (Approval & { approver?: User })[];
   requestId: number;
   requesterId: number;
   status: string;
@@ -46,13 +46,17 @@ export default function ApprovalFlow({
 
     // Check if this department hasn't approved yet
     const departmentApproval = approvals.find(
-      (a) => a.department === user?.department
+      (a) => a.department === user.department && a.status !== 'pending'
     );
 
-    return !departmentApproval || departmentApproval.status === "pending";
+    return !departmentApproval;
   }, [approvals, user, requesterId, status]);
 
   const handleApproval = async (approvalStatus: "approved" | "rejected") => {
+    if (isSubmitting) {
+      return; // Prevent multiple submissions
+    }
+
     if (!user?.department || !canApprove) {
       toast({
         title: "Error",
@@ -89,6 +93,7 @@ export default function ApprovalFlow({
       setComments("");
       onApprovalUpdate?.();
     } catch (error: any) {
+      console.error('Error in handleApproval:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to process approval",
@@ -124,7 +129,7 @@ export default function ApprovalFlow({
   };
 
   // Get unique approvals by department (keep only the latest approval for each department)
-  const uniqueApprovals = approvals.reduce((acc, curr) => {
+  const uniqueApprovals = approvals.reduce((acc: (Approval & { approver?: User })[], curr) => {
     const existing = acc.find(a => a.department === curr.department);
     if (!existing || new Date(curr.updatedAt) > new Date(existing.updatedAt)) {
       // Remove existing if found
@@ -135,7 +140,7 @@ export default function ApprovalFlow({
       acc.push(curr);
     }
     return acc;
-  }, [] as (Approval & { approver?: User })[]);
+  }, []);
 
   // Sort approvals: mandatory first, then by status (pending first)
   const sortedApprovals = uniqueApprovals.sort((a, b) => {
@@ -143,7 +148,7 @@ export default function ApprovalFlow({
     if (!a.isMandatory && b.isMandatory) return 1;
 
     const statusOrder = { pending: 0, approved: 1, rejected: 2 };
-    return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+    return (statusOrder[a.status as keyof typeof statusOrder] || 0) - (statusOrder[b.status as keyof typeof statusOrder] || 0);
   });
 
   return (
@@ -166,7 +171,6 @@ export default function ApprovalFlow({
                       )}
                     </div>
                     <p className="text-sm text-gray-500">
-                      {/* Add conditional rendering for approver username */}
                       {approval.approver?.username || 'Unknown Approver'}
                     </p>
                   </div>
@@ -200,6 +204,7 @@ export default function ApprovalFlow({
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
                   className="w-full"
+                  disabled={isSubmitting}
                 />
                 <div className="flex gap-2">
                   <Button
