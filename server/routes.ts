@@ -63,22 +63,34 @@ export function registerRoutes(app: Express): Server {
       const { purposeType } = req.query;
       debug(req, 'Fetching sub-purposes', { purposeType });
 
-      let query = db.select().from(subPurposes);
+      let query = db
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purposeType: subPurposes.purpose_type,
+          isFrozen: subPurposes.is_frozen,
+          validFrom: subPurposes.valid_from,
+          validTo: subPurposes.valid_to,
+          createdAt: subPurposes.created_at,
+          updatedAt: subPurposes.updated_at
+        })
+        .from(subPurposes)
+        .orderBy(desc(subPurposes.created_at));
 
       if (purposeType) {
         query = query.where(eq(subPurposes.purpose_type, purposeType as string));
       }
 
-      const results = await query.orderBy(desc(subPurposes.created_at));
+      const results = await query;
 
       // Transform the dates into proper format or null
       const formattedResults = results.map(sp => ({
         ...sp,
-        validFrom: sp.valid_from ? new Date(sp.valid_from).toISOString() : null,
-        validTo: sp.valid_to ? new Date(sp.valid_to).toISOString() : null,
-        purposeType: sp.purpose_type || 'Unknown',
-        createdAt: sp.created_at ? new Date(sp.created_at).toISOString() : null,
-        updatedAt: sp.updated_at ? new Date(sp.updated_at).toISOString() : null
+        validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
+        validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
+        purposeType: sp.purposeType || 'Unknown',
+        createdAt: new Date(sp.createdAt).toISOString(),
+        updatedAt: new Date(sp.updatedAt).toISOString()
       }));
 
       debug(req, `Found ${formattedResults.length} sub-purposes`);
@@ -97,7 +109,16 @@ export function registerRoutes(app: Express): Server {
       }
 
       const allSubPurposes = await db
-        .select()
+        .select({
+          id: subPurposes.id,
+          name: subPurposes.name,
+          purpose_type: subPurposes.purpose_type,
+          is_frozen: subPurposes.is_frozen,
+          valid_from: subPurposes.valid_from,
+          valid_to: subPurposes.valid_to,
+          created_at: subPurposes.created_at,
+          updated_at: subPurposes.updated_at
+        })
         .from(subPurposes)
         .orderBy(desc(subPurposes.created_at));
 
@@ -118,7 +139,17 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Fetching account requests...');
       const accountRequestsResult = await db
-        .select()
+        .select({
+          id: accountRequests.id,
+          username: accountRequests.username,
+          email: accountRequests.email,
+          department: accountRequests.department,
+          role: accountRequests.role,
+          status: accountRequests.status,
+          contact_number: accountRequests.contact_number,
+          createdAt: accountRequests.createdAt,
+          updatedAt: accountRequests.updatedAt
+        })
         .from(accountRequests)
         .orderBy(desc(accountRequests.createdAt));
 
@@ -378,50 +409,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Enhanced sub-purposes endpoint with proper query building and error handling
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { purposeType } = req.query;
-      debug(req, 'Fetching sub-purposes', { purposeType });
-
-      let query = db
-        .select({
-          id: subPurposes.id,
-          name: subPurposes.name,
-          purposeType: subPurposes.purpose_type,
-          isFrozen: subPurposes.is_frozen,
-          validFrom: subPurposes.valid_from,
-          validTo: subPurposes.valid_to,
-          createdAt: subPurposes.created_at,
-          updatedAt: subPurposes.updated_at
-        })
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.created_at));
-
-      if (purposeType) {
-        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
-      }
-
-      const results = await query;
-
-      // Transform the dates into proper format or null
-      const formattedResults = results.map(sp => ({
-        ...sp,
-        validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
-        validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
-        purposeType: sp.purposeType || 'Unknown',
-        createdAt: new Date(sp.createdAt).toISOString(),
-        updatedAt: new Date(sp.updatedAt).toISOString()
-      }));
-
-      debug(req, `Found ${formattedResults.length} sub-purposes`);
-      res.json(formattedResults);
-    } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
-      next(error);
-    }
-  });
-
   // Add purpose types endpoint
   app.get("/api/purpose-types", (_req: Request, res: Response) => {
     const purposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
@@ -507,35 +494,6 @@ export function registerRoutes(app: Express): Server {
       res.json(allUsers);
     } catch (error) {
       debug(req, 'Error fetching users:', error);
-      next(error);
-    }
-  });
-
-  // Admin route for sub-purposes
-  app.get("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-
-      const allSubPurposes = await db
-        .select({
-          id: subPurposes.id,
-          name: subPurposes.name,
-          purpose_type: subPurposes.purpose_type,
-          is_frozen: subPurposes.is_frozen,
-          valid_from: subPurposes.valid_from,
-          valid_to: subPurposes.valid_to,
-          created_at: subPurposes.created_at,
-          updated_at: subPurposes.updated_at
-        })
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.created_at));
-
-      debug(req, `Found ${allSubPurposes.length} sub-purposes`);
-      res.json(allSubPurposes);
-    } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
       next(error);
     }
   });
@@ -789,7 +747,8 @@ export function registerRoutes(app: Express): Server {
           id: purchaseRequests.id,
           requesterId: purchaseRequests.requesterId,
           title: purchaseRequests.title,
-          status: purchaseRequests.status
+          status: purchaseRequests.status,
+          isLocked: purchaseRequests.isLocked
         })
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
@@ -799,9 +758,14 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request not found', 404);
       }
 
-      // Check if request is not already approved or rejected
+      // Check if request is already finalized
       if (request.status === 'approved' || request.status === 'rejected') {
         throw new AppError('Request is already finalized', 400);
+      }
+
+      // Check if request is locked
+      if (request.isLocked && status !== 'changes_requested') {
+        throw new AppError('Request is locked', 403);
       }
 
       // Define mandatory departments
@@ -829,7 +793,7 @@ export function registerRoutes(app: Express): Server {
           requestId,
           approverId: req.user.id,
           status,
-          comments,
+          comments: comments || null,
           department,
           isMandatory: isMandatoryApprover,
           createdAt: new Date(),
@@ -854,7 +818,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update request status based on approvals
       let requestStatus = request.status;
-      let isLocked = false;
+      let isLocked = request.isLocked;
 
       if (status === 'rejected') {
         requestStatus = 'rejected';
@@ -867,8 +831,15 @@ export function registerRoutes(app: Express): Server {
         isLocked = true;
       }
 
+      debug(req, 'Status update check:', {
+        currentStatus: request.status,
+        newStatus: requestStatus,
+        currentlyLocked: request.isLocked,
+        willBeLocked: isLocked
+      });
+
       // Update request status if changed
-      if (requestStatus !== request.status) {
+      if (requestStatus !== request.status || isLocked !== request.isLocked) {
         await db
           .update(purchaseRequests)
           .set({
@@ -882,7 +853,7 @@ export function registerRoutes(app: Express): Server {
         await createNotification(
           request.requesterId,
           `Request ${status}`,
-          `Your request has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
+          `Your request "${request.title}" has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
           'request',
           requestId
         );
@@ -891,12 +862,14 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Approval created successfully:', {
         approvalId: approval.id,
         requestStatus,
-        isLocked
+        isLocked,
+        statusChanged: requestStatus !== request.status
       });
 
       res.status(201).json({
         ...approval,
         requestStatus,
+        isLocked,
         message: `Approval submitted successfully${requestStatus !== request.status ? `. Request status updated to ${requestStatus}` : ''}`
       });
     } catch (error) {
@@ -949,7 +922,7 @@ export function registerRoutes(app: Express): Server {
         .select()
         .from(accountRequests)
         .where(eq(accountRequests.id, requestId))
-                .limit(1);
+        .limit(1);
 
       if (!accountRequest) {
         throw new AppError('Account request not found', 404);
@@ -988,7 +961,7 @@ export function registerRoutes(app: Express): Server {
       await db
         .update(accountRequests)
         .set({ status: 'approved' })
-        .where(eq(accountRequests.id, requestId));
+        .where(eq(accountRequests.id.id, requestId));
 
       res.json({
         message: 'Account request approved',
