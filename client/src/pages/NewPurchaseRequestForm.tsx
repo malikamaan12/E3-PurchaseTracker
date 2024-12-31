@@ -24,9 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest, Vendor } from "@db/schema";
 import { createRequest } from "@/services/requests";
+import SubPurposeSelect from "@/components/SubPurposeSelect";
+import { VendorForm } from "@/components/VendorForm";
 
 // Form schema based on database schema
 const formSchema = z.object({
@@ -43,6 +50,7 @@ const formSchema = z.object({
   purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
     required_error: "Purpose type is required",
   }),
+  subPurposeId: z.number().optional(),
   items: z.array(z.object({
     name: z.string().min(1, "Item name is required"),
     quantity: z.number().positive("Quantity must be greater than 0"),
@@ -53,6 +61,7 @@ const formSchema = z.object({
   currency: z.enum(["QAR", "USD", "CNY"]),
   totalEstimatedCost: z.number().min(0),
   freightAmount: z.number().min(0),
+  mandatoryApproversCount: z.number().min(0).default(0),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -61,6 +70,7 @@ export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showVendorForm, setShowVendorForm] = useState(false);
 
   // Initialize form with default values
   const form = useForm<FormData>({
@@ -73,11 +83,12 @@ export default function NewPurchaseRequestForm() {
       currency: "QAR",
       freightAmount: 0,
       totalEstimatedCost: 0,
+      mandatoryApproversCount: 0,
     },
   });
 
   // Fetch vendors
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  const { data: vendors = [], refetch: refetchVendors } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
   });
 
@@ -108,6 +119,39 @@ export default function NewPurchaseRequestForm() {
       0
     );
     return itemsTotal + freightAmount;
+  };
+
+  // Handle vendor creation
+  const handleVendorSubmit = async (vendorData: any) => {
+    try {
+      const response = await fetch("/api/vendors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(vendorData),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const newVendor = await response.json();
+      await refetchVendors();
+      form.setValue("vendorId", newVendor.id);
+      setShowVendorForm(false);
+      toast({
+        title: "Success",
+        description: "Vendor created successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create vendor",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle form submission
@@ -193,36 +237,54 @@ export default function NewPurchaseRequestForm() {
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="vendorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vendor</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(Number(value))}
-                        value={field.value?.toString()}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="border-[#7156a2]/20">
-                            <SelectValue placeholder="Select vendor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {vendors.map((vendor) => (
-                            <SelectItem
-                              key={vendor.id}
-                              value={vendor.id.toString()}
-                            >
-                              {vendor.companyName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="vendorId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vendor</FormLabel>
+                        <div className="flex gap-2">
+                          <Select
+                            onValueChange={(value) => field.onChange(Number(value))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-[#7156a2]/20 flex-1">
+                                <SelectValue placeholder="Select vendor" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {vendors.map((vendor) => (
+                                <SelectItem
+                                  key={vendor.id}
+                                  value={vendor.id.toString()}
+                                >
+                                  {vendor.companyName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Dialog open={showVendorForm} onOpenChange={setShowVendorForm}>
+                            <DialogTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="border-[#7156a2] text-[#7156a2]"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl">
+                              <VendorForm onSubmit={handleVendorSubmit} />
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -254,6 +316,25 @@ export default function NewPurchaseRequestForm() {
                   )}
                 />
               </div>
+
+              {/* Sub Purpose Selection */}
+              <FormField
+                control={form.control}
+                name="subPurposeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sub Purpose</FormLabel>
+                    <FormControl>
+                      <SubPurposeSelect
+                        purposeType={form.watch("purposeType") || ""}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -312,6 +393,27 @@ export default function NewPurchaseRequestForm() {
                   )}
                 />
               </div>
+
+              {/* Mandatory Approvers Count */}
+              <FormField
+                control={form.control}
+                name="mandatoryApproversCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Mandatory Approvers</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        className="border-[#7156a2]/20"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Items Section */}
