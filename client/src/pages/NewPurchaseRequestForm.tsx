@@ -25,10 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { Vendor } from "@db/schema";
+import type { PurchaseRequest, Vendor } from "@db/schema";
 
 // Form schema based on database schema
-const purchaseRequestFormSchema = z.object({
+const formSchema = z.object({
   title: z.string()
     .min(1, "Title is required")
     .max(100, "Title cannot exceed 100 characters"),
@@ -54,7 +54,7 @@ const purchaseRequestFormSchema = z.object({
   freightAmount: z.number().min(0).default(0),
 });
 
-type FormData = z.infer<typeof purchaseRequestFormSchema>;
+type FormData = z.infer<typeof formSchema>;
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
@@ -63,7 +63,7 @@ export default function NewPurchaseRequestForm() {
 
   // Initialize form with default values
   const form = useForm<FormData>({
-    resolver: zodResolver(purchaseRequestFormSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -78,7 +78,6 @@ export default function NewPurchaseRequestForm() {
   // Fetch vendors
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    staleTime: 30000,
   });
 
   // Add new item to the items array
@@ -110,20 +109,22 @@ export default function NewPurchaseRequestForm() {
     try {
       setIsSubmitting(true);
 
-      // Create FormData instance
-      const formData = new FormData();
-      formData.append(
-        "data",
-        JSON.stringify({
-          ...data,
-          status: action === "draft" ? "draft" : "pending",
-          isLocked: action !== "draft",
-        })
-      );
+      const formattedData = {
+        ...data,
+        status: action === "draft" ? "draft" : "pending",
+        isLocked: action !== "draft",
+        totalEstimatedCost: calculateTotalCost(data.items, data.freightAmount),
+      };
 
       const response = await fetch("/api/requests", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          data: formattedData,
+          action 
+        }),
         credentials: "include",
       });
 
@@ -144,6 +145,7 @@ export default function NewPurchaseRequestForm() {
       // Redirect to the dashboard
       setLocation("/");
     } catch (error) {
+      console.error("Error submitting form:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "An error occurred",
