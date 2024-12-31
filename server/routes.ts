@@ -762,16 +762,21 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
+      if (!req.user || !req.user.id || !req.user.department) {
+        throw new AppError('Invalid user session', 401);
+      }
+
       const requestId = parseInt(req.params.requestId);
-      const { status, comments, department } = req.body;
+      const { status, comments } = req.body;
+      const department = req.user.department;
 
       debug(req, 'Creating approval with data:', {
         requestId,
         status,
         comments,
         department,
-        userId: req.user?.id,
-        userDepartment: req.user?.department
+        userId: req.user.id,
+        userDepartment: req.user.department
       });
 
       // Validate required fields
@@ -824,7 +829,7 @@ export function registerRoutes(app: Express): Server {
         .insert(approvals)
         .values({
           requestId,
-          approverId: req.user!.id,
+          approverId: req.user.id,
           status,
           comments,
           department,
@@ -844,6 +849,7 @@ export function registerRoutes(app: Express): Server {
       const mandatoryApprovals = allApprovals.filter(a =>
         mandatoryDepartments.includes(a.department)
       );
+
       const allMandatoryApproved = mandatoryDepartments.every(dept =>
         mandatoryApprovals.some(a => a.department === dept && a.status === 'approved')
       );
@@ -873,22 +879,23 @@ export function registerRoutes(app: Express): Server {
             updatedAt: new Date()
           })
           .where(eq(purchaseRequests.id, requestId));
-      }
 
-      // Create notification for the requester
-      await createNotification(
-        request.requesterId,
-        `Request ${status}`,
-        `Your request "${request.title}" has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
-        'request',
-        requestId
-      );
+        // Create notification for the requester
+        await createNotification(
+          request.requesterId,
+          `Request ${status}`,
+          `Your request has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
+          'request',
+          requestId
+        );
+      }
 
       debug(req, 'Approval created successfully:', {
         approvalId: approval.id,
         requestStatus,
         isLocked
       });
+
       res.status(201).json(approval);
     } catch (error) {
       debug(req, 'Error creating approval:', error);
@@ -940,7 +947,7 @@ export function registerRoutes(app: Express): Server {
         .select()
         .from(accountRequests)
         .where(eq(accountRequests.id, requestId))
-        .limit(1);
+                .limit(1);
 
       if (!accountRequest) {
         throw new AppError('Account request not found', 404);
