@@ -149,20 +149,20 @@ export function registerRoutes(app: Express): Server {
 
         // Ensure arrays are properly formatted for PostgreSQL JSON columns
         requestData.items = Array.isArray(requestData.items)
-          ? JSON.stringify(requestData.items)
-          : '[]';
+          ? requestData.items
+          : [];
 
         requestData.mandatoryApprovers = Array.isArray(requestData.mandatoryApprovers)
-          ? JSON.stringify(requestData.mandatoryApprovers)
-          : '[]';
+          ? requestData.mandatoryApprovers
+          : [];
 
         requestData.optionalApprovers = Array.isArray(requestData.optionalApprovers)
-          ? JSON.stringify(requestData.optionalApprovers)
-          : '[]';
+          ? requestData.optionalApprovers
+          : [];
 
         requestData.priorityRecommendations = Array.isArray(requestData.priorityRecommendations)
-          ? JSON.stringify(requestData.priorityRecommendations)
-          : '[]';
+          ? requestData.priorityRecommendations
+          : [];
 
         debug(req, 'Parsed request data:', requestData);
       } catch (error) {
@@ -214,12 +214,14 @@ export function registerRoutes(app: Express): Server {
           description: requestData.description?.trim() || '',
           items: requestData.items,
           purposeType: requestData.purposeType,
+          subPurposeId: requestData.subPurposeId,
           priority: requestData.priority || 'medium',
           currency: requestData.currency || 'QAR',
           totalEstimatedCost: requestData.totalEstimatedCost || 0,
           freightAmount: requestData.freightAmount || 0,
           status: requestData.status,
           isLocked: false,
+          mandatoryApproversCount: requestData.mandatoryApprovers?.length || 0,
           mandatoryApprovers: requestData.mandatoryApprovers,
           optionalApprovers: requestData.optionalApprovers,
           priorityRecommendations: requestData.priorityRecommendations,
