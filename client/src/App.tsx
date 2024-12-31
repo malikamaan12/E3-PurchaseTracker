@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
-import NewRequest from "./pages/NewRequest";
+import NewPurchaseRequestForm from "./pages/NewPurchaseRequestForm";
 import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
@@ -33,7 +33,7 @@ function App() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/new-request" component={NewRequest} />
+      <Route path="/new-request" component={NewPurchaseRequestForm} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
 
