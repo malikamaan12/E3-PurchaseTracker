@@ -68,11 +68,14 @@ export function registerRoutes(app: Express): Server {
       const { data: requestData, action } = req.body;
       console.log('Creating purchase request:', {
         action,
-        requestData: JSON.stringify(requestData, null, 2)
+        requestData
       });
 
       // Generate a unique request number
       const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Ensure items is an array before stringifying
+      const items = Array.isArray(requestData.items) ? requestData.items : [];
 
       // Prepare request data
       let finalRequestData = {
@@ -82,8 +85,8 @@ export function registerRoutes(app: Express): Server {
         status: action === 'draft' ? 'draft' : 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
-        // Ensure items is properly stringified for PostgreSQL JSON column
-        items: Array.isArray(requestData.items) ? JSON.stringify(requestData.items) : '[]'
+        // Properly stringify the items array
+        items: JSON.stringify(items)
       };
 
       // If saving as draft, make sure required fields are not enforced
@@ -99,7 +102,7 @@ export function registerRoutes(app: Express): Server {
         // Validate required fields for submissions
         const validationResult = insertPurchaseRequestSchema.safeParse({
           ...requestData,
-          items: Array.isArray(requestData.items) ? requestData.items : []
+          items: items // Pass the original array for validation
         });
 
         if (!validationResult.success) {
@@ -135,11 +138,10 @@ export function registerRoutes(app: Express): Server {
 
       console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
 
-      // Return detailed response
+      // Return detailed response with parsed items
       res.status(201).json({
         ...request,
-        // Parse items back to array for response
-        items: JSON.parse(request.items as string),
+        items: items, // Return the original array
         message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
       });
     } catch (error) {
@@ -968,8 +970,7 @@ export function registerRoutes(app: Express): Server {
         .set({ status: 'approved' })
         .where(eq(accountRequests.id, requestId));
 
-      res.json({
-        message: 'Account request approved',
+      res.json({        message: 'Account request approved',
         user: {
           id: newUser.id,
           username: newUser.username,
