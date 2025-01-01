@@ -61,6 +61,30 @@ interface PurchaseRequestFormProps {
   initialData?: any;
 }
 
+const FilePreview = ({ file }: { file: FileWithMetadata }) => {
+  return (
+    <div className="flex flex-col gap-2 p-4 border rounded-lg bg-white">
+      {file.preview || (file.fileType?.startsWith('image/') && file.fileUrl) ? (
+        <img
+          src={file.preview || file.fileUrl}
+          alt={file.fileName || file.file?.name}
+          className="w-full h-48 object-contain rounded-md"
+        />
+      ) : (
+        <div className="w-full h-48 flex items-center justify-center bg-gray-50 rounded-md">
+          <span className="text-lg font-medium text-gray-500">
+            {file.fileName?.split('.').pop()?.toUpperCase() || file.file?.name.split('.').pop()?.toUpperCase()}
+          </span>
+        </div>
+      )}
+      <p className="text-sm font-medium truncate">{file.fileName || file.file?.name}</p>
+      <p className="text-xs text-gray-500">
+        {file.file ? `${(file.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
+      </p>
+    </div>
+  );
+};
+
 export default function PurchaseRequestForm({
   subPurposes = [],
   vendors = [],
@@ -231,7 +255,13 @@ export default function PurchaseRequestForm({
         });
 
         try {
-          attachments = await uploadMutation.mutateAsync(formData);
+          const uploadResponse = await uploadMutation.mutateAsync(formData);
+          if (Array.isArray(uploadResponse)) {
+            attachments = uploadResponse;
+          } else {
+            console.error('Invalid upload response:', uploadResponse);
+            throw new Error('Failed to upload files');
+          }
         } catch (error) {
           console.error('File upload error:', error);
           handleError(error, 'File Upload');
@@ -257,7 +287,16 @@ export default function PurchaseRequestForm({
       };
 
       console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
-      await submitMutation.mutateAsync(requestData);
+      const response = await submitMutation.mutateAsync(requestData);
+
+      if (response) {
+        toast({
+          title: "Success",
+          description: `Request ${draft ? 'saved as draft' : 'submitted'} successfully`,
+          variant: "default"
+        });
+        onSubmit?.(draft);
+      }
     } catch (error) {
       console.error('Error submitting request:', error);
       handleError(error, 'Form Submission');
@@ -274,6 +313,48 @@ export default function PurchaseRequestForm({
       return newFiles;
     });
   };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const selectedFiles = Array.from(event.target.files || []);
+
+      // Validate each file
+      await Promise.all(selectedFiles.map(async (file) => {
+        try {
+          await fileSchema.parseAsync({
+            name: file.name,
+            size: file.size,
+            type: file.type
+          });
+        } catch (error) {
+          throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
+        }
+      }));
+
+      // Create previews for images
+      const filesWithPreviews = await Promise.all(
+        selectedFiles.map(async (file) => {
+          const fileWithPreview: FileWithMetadata = { file };
+          if (file.type.startsWith('image/')) {
+            fileWithPreview.preview = URL.createObjectURL(file);
+          }
+          return fileWithPreview;
+        })
+      );
+
+      setFiles(prev => [...prev, ...filesWithPreviews]);
+    } catch (error) {
+      toast({
+        title: "Error adding file",
+        description: error instanceof Error ? error.message : "Failed to add file",
+        variant: "destructive"
+      });
+    }
+
+    // Clear input value to allow uploading the same file again
+    event.target.value = '';
+  };
+
 
   useEffect(() => {
     if (initialData?.attachments) {
@@ -634,91 +715,25 @@ export default function PurchaseRequestForm({
                     className="hidden"
                     multiple
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    onChange={async (event) => {
-                      try {
-                        const selectedFiles = Array.from(event.target.files || []);
-
-                        // Validate each file
-                        await Promise.all(selectedFiles.map(async (file) => {
-                          try {
-                            await fileSchema.parseAsync({
-                              name: file.name,
-                              size: file.size,
-                              type: file.type
-                            });
-                          } catch (error) {
-                            throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
-                          }
-                        }));
-
-                        // Create previews for images
-                        const filesWithPreviews = await Promise.all(
-                          selectedFiles.map(async (file) => {
-                            const fileWithPreview: FileWithMetadata = { file };
-                            if (file.type.startsWith('image/')) {
-                              fileWithPreview.preview = URL.createObjectURL(file);
-                            }
-                            return fileWithPreview;
-                          })
-                        );
-
-                        setFiles(prev => [...prev, ...filesWithPreviews]);
-                      } catch (error) {
-                        toast({
-                          title: "Error adding file",
-                          description: error instanceof Error ? error.message : "Failed to add file",
-                          variant: "destructive"
-                        });
-                      }
-
-                      // Clear input value to allow uploading the same file again
-                      event.target.value = '';
-                    }}
+                    onChange={handleFileChange}
                     disabled={submitMutation.isPending || uploadMutation.isPending}
                   />
                 </label>
               </CardContent>
             </Card>
 
-            {/* File Preview List */}
+            {/* File Preview Grid */}
             {files.length > 0 && (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {files.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
-                  >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0" onClick={() => handlePreviewFiles([file])}>
-                      {file.preview ? (
-                        <img
-                          src={file.preview}
-                          alt="preview"
-                          className="w-10 h-10 object-cover rounded-md cursor-pointer"
-                        />
-                      ) : (
-                        <div
-                          className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center cursor-pointer"
-                        >
-                          <span className="text-xs font-medium text-gray-500">
-                            {file.fileName?.split('.').pop()?.toUpperCase() || file.file?.name.split('.').pop()?.toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.fileName || file.file?.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {file.file ? `${(file.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
-                        </p>
-                      </div>
-                    </div>
+                  <div key={index} className="relative">
+                    <FilePreview file={file} />
                     {!file.id && ( // Only show remove button for new files
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => removeFile(index)}
                         disabled={submitMutation.isPending || uploadMutation.isPending}
                       >

@@ -1,9 +1,16 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { useToast } from '@/hooks/use-toast';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.VITE_ANTHROPIC_API_KEY || '',
-});
+// Initialize Anthropic with environment variable access
+const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+// Create Anthropic instance only if API key is available
+const anthropic = anthropicApiKey ? new Anthropic({ apiKey: anthropicApiKey }) : null;
+
+// Log warning if API key is missing
+if (!anthropicApiKey) {
+  console.warn('Warning: VITE_ANTHROPIC_API_KEY is not set. AI-powered error analysis will be limited.');
+}
 
 export async function analyzeFormError(formData: any, error: any) {
   try {
@@ -15,6 +22,10 @@ export async function analyzeFormError(formData: any, error: any) {
       } : error
     });
 
+    if (!anthropic) {
+      return error instanceof Error ? error.message : "Unable to analyze error. Please check form inputs.";
+    }
+
     // Prepare context for Claude
     const context = `
 Form Data: ${JSON.stringify(formData, null, 2)}
@@ -23,8 +34,9 @@ Stack: ${error instanceof Error ? error.stack : 'No stack trace'}
     `;
 
     // Get analysis from Claude
-    const message = await anthropic.messages.create({
-      model: 'claude-3-sonnet-20240229',
+    // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -39,7 +51,8 @@ Provide concise, actionable steps.`
       }]
     });
 
-    const analysis = message.content[0].text;
+    const analysis = response.content[0].type === 'text' ? response.content[0].text : 
+      "Unable to analyze error. Please check form inputs and try again.";
     console.log("Claude Analysis:", analysis);
 
     return analysis;
@@ -51,6 +64,10 @@ Provide concise, actionable steps.`
 
 export async function debugFilePreview(files: any[], error?: any) {
   try {
+    if (!anthropic) {
+      return "File preview analysis unavailable. Please check file compatibility manually.";
+    }
+
     const fileContext = files.map(file => ({
       name: file.fileName || file.name,
       type: file.fileType || file.type,
@@ -67,8 +84,9 @@ export async function debugFilePreview(files: any[], error?: any) {
     });
 
     // Get analysis from Claude
-    const message = await anthropic.messages.create({
-      model: 'claude-3-sonnet-20240229',
+    // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -83,7 +101,9 @@ Provide specific debugging steps.`
       }]
     });
 
-    return message.content[0].text;
+    const analysis = response.content[0].type === 'text' ? response.content[0].text :
+      "Unable to analyze file preview issues. Please check file compatibility.";
+    return analysis;
   } catch (debugError) {
     console.error("File preview debug failed:", debugError);
     return "Unable to analyze file preview issue. Please check file compatibility and component rendering.";
@@ -96,10 +116,19 @@ export function useErrorHandler() {
   return async (error: any, context?: string) => {
     console.error(`Error in ${context || 'application'}:`, error);
 
-    // Get analysis from Claude
+    if (!anthropic) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const message = await anthropic.messages.create({
-        model: 'claude-3-sonnet-20240229',
+      // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+      const response = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1024,
         messages: [{
           role: 'user',
@@ -111,7 +140,8 @@ Provide a clear, non-technical explanation and suggestion.`
         }]
       });
 
-      const analysis = message.content[0].text;
+      const analysis = response.content[0].type === 'text' ? response.content[0].text :
+        (error instanceof Error ? error.message : "An unexpected error occurred");
 
       toast({
         title: "Error",

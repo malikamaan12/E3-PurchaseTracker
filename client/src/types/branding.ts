@@ -31,6 +31,10 @@ export const brandingFormSchema = brandingSchema.extend({
 export interface BrandingPreviewProps {
   logo: string | null;
   logoMimeType?: string | null;
+  headerImage?: string | null;
+  headerImageMimeType?: string | null;
+  footerImage?: string | null;
+  footerImageMimeType?: string | null;
   headerStyle: "modern" | "classic" | "minimal";
   companyName: string;
   primaryColor: string;

@@ -50,11 +50,12 @@ export default function NewPurchaseRequestForm() {
     <div className="min-h-screen bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow-lg p-6 border border-[#7058a3]/10">
+          {/* Back Navigation */}
           <div className="flex items-center gap-4 mb-6">
             <Button
               onClick={() => setLocation("/")}
               variant="ghost"
-              className="text-[#7058a3] hover:text-[#7058a3]/90 hover:bg-[#7058a3]/10 transition-colors duration-200"
+              className="text-[#7058a3] hover:text-[#7058a3]/90 hover:bg-[#7058a3]/10 transition-colors duration-200 flex items-center"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
