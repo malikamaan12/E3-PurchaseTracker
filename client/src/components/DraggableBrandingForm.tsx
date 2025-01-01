@@ -9,7 +9,9 @@ import { Loader2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import BrandingPreview from "./BrandingPreview";
 import BrandMoodBoardGenerator from "./BrandMoodBoardGenerator";
-import { BrandingData, brandingFormSchema } from "@/types/branding";
+import type { CompanyBranding } from "@db/schema";
+
+interface BrandingData extends CompanyBranding {}
 
 type ColorSwatch = {
   id: string;
@@ -50,7 +52,6 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
   const [footerImageMimeType, setFooterImageMimeType] = useState<string | null>(null);
   const [colorSwatches, setColorSwatches] = useState<ColorSwatch[]>(defaultColors);
   const [selectedStyle, setSelectedStyle] = useState<StyleOption>(styleOptions[0]);
-
   const [formData, setFormData] = useState<BrandingData>({
     companyName: "",
     headerStyle: "modern",
@@ -60,9 +61,8 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
     footerText: "",
   });
 
-  const { data: branding, onSuccess: handleBrandingSuccess } = useQuery<BrandingData>({
+  const { data: branding } = useQuery<BrandingData>({
     queryKey: ["/api/branding"],
-    enabled: true,
     onSuccess: (data) => {
       if (data) {
         setFormData({
@@ -82,18 +82,16 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
           setLogoPreview(data.logo);
           setLogoMimeType(data.logoMimeType || "image/png");
         }
-
         if (data.headerImage) {
           setHeaderImagePreview(data.headerImage);
           setHeaderImageMimeType(data.headerImageMimeType || "image/png");
         }
-
         if (data.footerImage) {
           setFooterImagePreview(data.footerImage);
           setFooterImageMimeType(data.footerImageMimeType || "image/png");
         }
       }
-    }
+    },
   });
 
   const updateBranding = useMutation({
@@ -474,14 +472,14 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
       {/* Preview Panel */}
       <div className="space-y-6">
         <BrandingPreview
-          logo={logoPreview}
-          logoMimeType={logoMimeType}
-          headerImage={headerImagePreview}
-          headerImageMimeType={headerImageMimeType}
-          footerImage={footerImagePreview}
-          footerImageMimeType={footerImageMimeType}
+          logo={logoPreview || branding?.logo || null}
+          logoMimeType={logoMimeType || branding?.logoMimeType}
+          headerImage={headerImagePreview || branding?.headerImage || null}
+          headerImageMimeType={headerImageMimeType || branding?.headerImageMimeType}
+          footerImage={footerImagePreview || branding?.footerImage || null}
+          footerImageMimeType={footerImageMimeType || branding?.footerImageMimeType}
           headerStyle={formData.headerStyle}
-          companyName={formData.companyName}
+          companyName={formData.companyName || "Company Name"}
           primaryColor={formData.primaryColor}
           secondaryColor={formData.secondaryColor}
           accentColor={formData.accentColor}

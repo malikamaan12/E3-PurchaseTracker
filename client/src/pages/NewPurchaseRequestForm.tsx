@@ -4,14 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
-import RequestPreview from "@/components/RequestPreview";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [previewRequestId, setPreviewRequestId] = useState<number | null>(null);
 
   // Fetch vendors and subpurposes for the form
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
@@ -23,15 +20,15 @@ export default function NewPurchaseRequestForm() {
   });
 
   // Handle successful submission
-  const handleSubmit = (requestId: number, draft?: boolean) => {
+  const handleSubmit = (draft?: boolean) => {
     toast({
       title: "Success",
       description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
       variant: "default"
     });
 
-    // Show preview for the submitted request
-    setPreviewRequestId(requestId);
+    // Redirect to the dashboard
+    setLocation("/");
   };
 
   // Handle cancellation
@@ -42,30 +39,19 @@ export default function NewPurchaseRequestForm() {
   // Show loading state
   if (vendorsLoading || subPurposesLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7058a3]" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6 border border-[#7058a3]/10">
-          {/* Back Navigation */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              onClick={() => setLocation("/")}
-              variant="ghost"
-              className="text-[#7058a3] hover:text-[#7058a3]/90 hover:bg-[#7058a3]/10 transition-colors duration-200 flex items-center"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <h1 className="text-2xl font-bold text-[#7058a3]">
-              New Purchase Request
-            </h1>
-          </div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-[#191160] mb-6">
+            New Purchase Request
+          </h1>
 
           <PurchaseRequestForm
             subPurposes={subPurposes}
@@ -73,18 +59,6 @@ export default function NewPurchaseRequestForm() {
             onSubmit={handleSubmit}
             onCancel={handleCancel}
           />
-
-          {/* Preview Dialog */}
-          {previewRequestId && (
-            <RequestPreview
-              requestId={previewRequestId}
-              open={true}
-              onClose={() => {
-                setPreviewRequestId(null);
-                setLocation("/");
-              }}
-            />
-          )}
         </div>
       </div>
     </div>

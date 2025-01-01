@@ -35,9 +35,7 @@ import {
   Eye,
   FileText,
   ChevronDown,
-  ChevronUp,
-  Image as ImageIcon,
-  FileArchive
+  ChevronUp
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
@@ -48,7 +46,6 @@ import { generateRequestPDF } from "@/lib/pdfGenerator";
 import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog } from "@/components/ui/dialog";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -125,7 +122,6 @@ export default function RequestCard({
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
   const getStatusColor = (status: string) => {
@@ -325,32 +321,17 @@ export default function RequestCard({
     }
   };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) {
-      return <ImageIcon className="h-5 w-5 text-[#7058a3]" />;
-    } else if (fileType.includes('pdf')) {
-      return <FileText className="h-5 w-5 text-[#7058a3]" />;
-    } else {
-      return <FileArchive className="h-5 w-5 text-[#7058a3]" />;
-    }
-  };
-
   const isPreviewable = (fileType: string) => {
     return fileType.startsWith('image/');
   };
 
-  const handlePreview = (files: any[]) => {
-    setSelectedFiles(files);
-    setShowPreview(true);
-  };
-
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 
   const handleDelete = async (requestId: number) => {
@@ -628,17 +609,17 @@ export default function RequestCard({
 
           {request.attachments && request.attachments.length > 0 && (
             <div className="space-y-4">
-              <h4 className="font-medium text-[#7058a3]">Attachments</h4>
+              <h4 className="font-medium text-gray-900">Attachments</h4>
               <div className="grid gap-2">
                 {request.attachments.map((file) => (
                   <motion.div
                     key={file.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center justify-between p-3 rounded-lg border border-[#7058a3]/10 hover:border-[#7058a3]/30 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      {getFileIcon(file.fileType)}
+                      <FileIcon className="h-5 w-5 text-[#7156a2]" />
                       <div>
                         <p className="text-sm font-medium text-gray-700 break-all">
                           {file.fileName}
@@ -653,8 +634,8 @@ export default function RequestCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handlePreview([file])}
-                          className="text-[#7058a3] hover:text-[#7058a3]/80 hover:bg-[#7058a3]/10"
+                          onClick={() => setShowPreview(true)}
+                          className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           <span className="hidden sm:inline">Preview</span>
@@ -664,7 +645,7 @@ export default function RequestCard({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDownload(file.id)}
-                        className="text-[#7058a3] hover:text-[#7058a3]/80 hover:bg-[#7058a3]/10"
+                        className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
                       >
                         <FileDown className="h-4 w-4 mr-1" />
                         <span className="hidden sm:inline">Download</span>
@@ -674,16 +655,11 @@ export default function RequestCard({
                 ))}
               </div>
 
-              {showPreview && selectedFiles && (
-                <Dialog open={showPreview} onOpenChange={setShowPreview}>
-                  <FilePreviewCarousel
-                    files={selectedFiles}
-                    onClose={() => {
-                      setShowPreview(false);
-                      setSelectedFiles([]);
-                    }}
-                  />
-                </Dialog>
+              {showPreview && request.attachments && (
+                <FilePreviewCarousel
+                  files={request.attachments.filter(file => isPreviewable(file.fileType))}
+                  onClose={() => setShowPreview(false)}
+                />
               )}
             </div>
           )}

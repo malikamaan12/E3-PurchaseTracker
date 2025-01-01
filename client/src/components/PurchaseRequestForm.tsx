@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
@@ -16,13 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Upload, Loader2, Plus, AlertTriangle, ArrowLeft } from "lucide-react";
+import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
-import { analyzeFormError, useErrorHandler } from "@/lib/debugUtils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import FilePreviewCarousel from "@/components/FilePreviewCarousel";
+import { analyzeFormError } from "@/lib/debugUtils";
 
 // File validation schema
 const fileSchema = z.object({
@@ -46,44 +44,13 @@ type FileWithPreview = {
   preview?: string;
 };
 
-interface FileWithMetadata extends FileWithPreview {
-  id?: number;
-  fileName?: string;
-  fileType?: string;
-  fileUrl?: string;
-}
-
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
   vendors: Vendor[];
-  onSubmit?: (requestId: number, draft?: boolean) => void;
+  onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
 }
-
-const FilePreview = ({ file }: { file: FileWithMetadata }) => {
-  return (
-    <div className="flex flex-col gap-2 p-4 border rounded-lg bg-white">
-      {file.preview || (file.fileType?.startsWith('image/') && file.fileUrl) ? (
-        <img
-          src={file.preview || file.fileUrl}
-          alt={file.fileName || file.file?.name}
-          className="w-full h-48 object-contain rounded-md"
-        />
-      ) : (
-        <div className="w-full h-48 flex items-center justify-center bg-gray-50 rounded-md">
-          <span className="text-lg font-medium text-gray-500">
-            {file.fileName?.split('.').pop()?.toUpperCase() || file.file?.name.split('.').pop()?.toUpperCase()}
-          </span>
-        </div>
-      )}
-      <p className="text-sm font-medium truncate">{file.fileName || file.file?.name}</p>
-      <p className="text-xs text-gray-500">
-        {file.file ? `${(file.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
-      </p>
-    </div>
-  );
-};
 
 export default function PurchaseRequestForm({
   subPurposes = [],
@@ -92,13 +59,11 @@ export default function PurchaseRequestForm({
   onCancel,
   initialData
 }: PurchaseRequestFormProps) {
-  const [files, setFiles] = useState<FileWithMetadata[]>([]);
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<FileWithMetadata[]>([]);
-  const handleError = useErrorHandler();
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -142,26 +107,21 @@ export default function PurchaseRequestForm({
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
-      try {
-        const response = await fetch('/api/requests', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-          credentials: 'include'
-        });
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to submit request');
-        }
-
-        return response.json();
-      } catch (error) {
-        handleError(error, 'Request Submission');
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit request');
       }
+
+      return response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -171,8 +131,124 @@ export default function PurchaseRequestForm({
         duration: 3000,
       });
 
-      if (data?.id) {
-        onSubmit?.(data.id, false);
+      // Use wouter navigate for client-side navigation
+      navigate('/');
+    },
+    onError: async (error: Error) => {
+      console.error('Form submission error:', error);
+
+      // Show initial error toast
+      const errorToast = toast({
+        title: "Error",
+        description: "Analyzing submission error...",
+        variant: "destructive",
+        duration: null, // Keep toast until we get analysis
+      });
+
+      try {
+        // Gather form state and error details for analysis
+        const formState = {
+          values: form.getValues(),
+          errors: form.formState.errors,
+          isDirty: form.formState.isDirty,
+          touchedFields: form.formState.touchedFields,
+        };
+
+        const analysisResponse = await fetch('/api/analyze-submission', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            formData: form.getValues(),
+            error: error.message,
+            formState
+          }),
+          credentials: 'include'
+        });
+
+        if (analysisResponse.ok) {
+          const analysis = await analysisResponse.json();
+
+          // Dismiss loading toast
+          errorToast.dismiss();
+
+          // Show detailed error analysis with recovery options
+          toast({
+            title: "Form Submission Error",
+            description: (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-destructive">
+                  {error.message}
+                </p>
+                {analysis.suggestion && (
+                  <p className="text-sm text-muted-foreground">
+                    Suggestion: {analysis.suggestion}
+                  </p>
+                )}
+                {analysis.autofix && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Auto-fix available
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Apply suggested fixes
+                        Object.entries(analysis.autofix).forEach(([field, value]) => {
+                          form.setValue(field as any, value);
+                        });
+                        // Show confirmation
+                        toast({
+                          title: "Changes Applied",
+                          description: "Suggested fixes have been applied to the form",
+                          variant: "default"
+                        });
+                      }}
+                    >
+                      Apply Fix
+                    </Button>
+                  </div>
+                )}
+                {analysis.validationErrors?.length > 0 && (
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground">
+                    {analysis.validationErrors.map((err: string, i: number) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ),
+            variant: "destructive",
+            duration: 8000,
+          });
+
+        } else {
+          // If analysis fails, show generic error with form state analysis
+          const localAnalysis = await analyzeFormError(form.getValues(), error);
+
+          toast({
+            title: "Error",
+            description: (
+              <div className="space-y-2">
+                <p className="text-sm text-destructive">{error.message}</p>
+                <p className="text-sm text-muted-foreground">{localAnalysis}</p>
+              </div>
+            ),
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      } catch (analysisError) {
+        console.error('Error getting analysis:', analysisError);
+        // Show basic error message if analysis fails
+        toast({
+          title: "Error",
+          description: error.message || "Failed to submit request",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     }
   });
@@ -180,41 +256,36 @@ export default function PurchaseRequestForm({
   // File upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      try {
-        const response = await fetch('/api/attachments', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include'
-        });
+      const response = await fetch('/api/attachments', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
 
-        if (!response.ok) {
-          throw new Error(`Failed to upload files: ${await response.text()}`);
-        }
-
-        return response.json();
-      } catch (error) {
-        handleError(error, 'File Upload');
-        throw error;
+      if (!response.ok) {
+        throw new Error(`Failed to upload files: ${await response.text()}`);
       }
+
+      return response.json();
     }
   });
 
   // Calculate total cost
-  const calculateTotalCost = useCallback((items: any[], freightAmount: number) => {
+  const calculateTotalCost = (items: any[], freightAmount: number) => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)),
       0
     );
     return itemsTotal + Number(freightAmount || 0);
-  }, []);
+  };
 
   // Update total cost
-  const updateTotalCost = useCallback(() => {
+  const updateTotalCost = () => {
     const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
     const total = calculateTotalCost(items, freightAmount);
     form.setValue("totalEstimatedCost", total);
-  }, [form, calculateTotalCost]);
+  };
 
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
@@ -249,22 +320,18 @@ export default function PurchaseRequestForm({
       if (files.length > 0) {
         const formData = new FormData();
         files.forEach(fileObj => {
-          if (fileObj.file) {
-            formData.append('files', fileObj.file);
-          }
+          formData.append('files', fileObj.file);
         });
 
         try {
-          const uploadResponse = await uploadMutation.mutateAsync(formData);
-          if (Array.isArray(uploadResponse)) {
-            attachments = uploadResponse;
-          } else {
-            console.error('Invalid upload response:', uploadResponse);
-            throw new Error('Failed to upload files');
-          }
+          attachments = await uploadMutation.mutateAsync(formData);
         } catch (error) {
           console.error('File upload error:', error);
-          handleError(error, 'File Upload');
+          toast({
+            title: "Error",
+            description: "Failed to upload files. Please try again.",
+            variant: "destructive"
+          });
           return;
         }
       }
@@ -287,19 +354,15 @@ export default function PurchaseRequestForm({
       };
 
       console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
-      const response = await submitMutation.mutateAsync(requestData);
 
-      if (response?.id) {
-        toast({
-          title: "Success",
-          description: `Request ${draft ? 'saved as draft' : 'submitted'} successfully`,
-          variant: "default"
-        });
-        onSubmit?.(response.id, draft);
-      }
+      await submitMutation.mutateAsync(requestData);
     } catch (error) {
       console.error('Error submitting request:', error);
-      handleError(error, 'Form Submission');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit request",
+        variant: "destructive"
+      });
     }
   };
 
@@ -314,82 +377,9 @@ export default function PurchaseRequestForm({
     });
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const selectedFiles = Array.from(event.target.files || []);
-
-      // Validate each file
-      await Promise.all(selectedFiles.map(async (file) => {
-        try {
-          await fileSchema.parseAsync({
-            name: file.name,
-            size: file.size,
-            type: file.type
-          });
-        } catch (error) {
-          throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
-        }
-      }));
-
-      // Create previews for images
-      const filesWithPreviews = await Promise.all(
-        selectedFiles.map(async (file) => {
-          const fileWithPreview: FileWithMetadata = { file };
-          if (file.type.startsWith('image/')) {
-            fileWithPreview.preview = URL.createObjectURL(file);
-          }
-          return fileWithPreview;
-        })
-      );
-
-      setFiles(prev => [...prev, ...filesWithPreviews]);
-    } catch (error) {
-      toast({
-        title: "Error adding file",
-        description: error instanceof Error ? error.message : "Failed to add file",
-        variant: "destructive"
-      });
-    }
-
-    // Clear input value to allow uploading the same file again
-    event.target.value = '';
-  };
-
-
-  useEffect(() => {
-    if (initialData?.attachments) {
-      setFiles(initialData.attachments.map((attachment: any) => ({
-        id: attachment.id,
-        fileName: attachment.fileName,
-        fileType: attachment.fileType,
-        fileUrl: `/api/attachments/${attachment.id}`,
-        preview: attachment.fileType.startsWith('image/') ? `/api/attachments/${attachment.id}` : undefined,
-        file: new File([], attachment.fileName) // Dummy file for size/type
-      })));
-    }
-  }, [initialData]);
-
-  const handlePreviewFiles = (files: FileWithMetadata[]) => {
-    setSelectedFiles(files);
-    setPreviewOpen(true);
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
-        {/* Back Button */}
-        <div className="flex items-center gap-2 mb-4">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onCancel}
-            className="text-[#7058a3] hover:text-[#3eb6ba] transition-colors duration-200"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
-
         {/* Basic Information */}
         <div className="space-y-4">
           {/* Title */}
@@ -398,15 +388,11 @@ export default function PurchaseRequestForm({
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Title</FormLabel>
+                <FormLabel>Title</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="Enter request title"
-                    className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
-                  />
+                  <Input {...field} placeholder="Enter request title" />
                 </FormControl>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -417,15 +403,15 @@ export default function PurchaseRequestForm({
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Description</FormLabel>
+                <FormLabel>Description</FormLabel>
                 <FormControl>
                   <Textarea
                     {...field}
                     placeholder="Enter request description"
-                    className="min-h-[100px] border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
+                    className="min-h-[100px]"
                   />
                 </FormControl>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -439,10 +425,10 @@ export default function PurchaseRequestForm({
             name="vendorId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Vendor</FormLabel>
+                <FormLabel>Vendor</FormLabel>
                 <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
                   <FormControl>
-                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select a vendor" />
                     </SelectTrigger>
                   </FormControl>
@@ -454,7 +440,7 @@ export default function PurchaseRequestForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -465,10 +451,10 @@ export default function PurchaseRequestForm({
             name="purposeType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Purpose Type</FormLabel>
+                <FormLabel>Purpose Type</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select purpose type" />
                     </SelectTrigger>
                   </FormControl>
@@ -479,24 +465,25 @@ export default function PurchaseRequestForm({
                     <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
+
           {/* Sub Purpose */}
           <FormField
             control={form.control}
             name="subPurposeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Sub Purpose</FormLabel>
+                <FormLabel>Sub Purpose</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(Number(value))}
                   value={field.value?.toString()}
                   disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
                 >
                   <FormControl>
-                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
+                    <SelectTrigger>
                       <SelectValue placeholder={
                         !form.watch("purposeType")
                           ? "Select purpose type first"
@@ -517,7 +504,7 @@ export default function PurchaseRequestForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -528,10 +515,10 @@ export default function PurchaseRequestForm({
             name="priority"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Priority</FormLabel>
+                <FormLabel>Priority</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                   </FormControl>
@@ -542,7 +529,7 @@ export default function PurchaseRequestForm({
                     <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -553,10 +540,10 @@ export default function PurchaseRequestForm({
             name="currency"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#7058a3] font-medium">Currency</FormLabel>
+                <FormLabel>Currency</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                   </FormControl>
@@ -566,7 +553,7 @@ export default function PurchaseRequestForm({
                     <SelectItem value="CNY">CNY</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage className="text-red-500" />
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -600,11 +587,11 @@ export default function PurchaseRequestForm({
                   name={`items.${index}.name`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#7058a3] font-medium">Item Name</FormLabel>
+                      <FormLabel>Item Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Item name" className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]" />
+                        <Input {...field} placeholder="Item name" />
                       </FormControl>
-                      <FormMessage className="text-red-500" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -614,11 +601,11 @@ export default function PurchaseRequestForm({
                   name={`items.${index}.description`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[#7058a3] font-medium">Item Description</FormLabel>
+                      <FormLabel>Item Description</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="Item description" className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]" />
+                        <Textarea {...field} placeholder="Item description" />
                       </FormControl>
-                      <FormMessage className="text-red-500" />
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -629,7 +616,7 @@ export default function PurchaseRequestForm({
                     name={`items.${index}.quantity`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[#7058a3] font-medium">Quantity</FormLabel>
+                        <FormLabel>Quantity</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -640,10 +627,9 @@ export default function PurchaseRequestForm({
                               field.onChange(Number(e.target.value));
                               updateTotalCost();
                             }}
-                            className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                           />
                         </FormControl>
-                        <FormMessage className="text-red-500" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -653,7 +639,7 @@ export default function PurchaseRequestForm({
                     name={`items.${index}.estimatedCost`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[#7058a3] font-medium">Cost Per Unit</FormLabel>
+                        <FormLabel>Cost Per Unit</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -665,10 +651,9 @@ export default function PurchaseRequestForm({
                               field.onChange(Number(e.target.value));
                               updateTotalCost();
                             }}
-                            className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                           />
                         </FormControl>
-                        <FormMessage className="text-red-500" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -715,31 +700,93 @@ export default function PurchaseRequestForm({
                     className="hidden"
                     multiple
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    onChange={handleFileChange}
+                    onChange={async (event) => {
+                      try {
+                        const selectedFiles = Array.from(event.target.files || []);
+
+                        // Validate each file
+                        await Promise.all(selectedFiles.map(async (file) => {
+                          try {
+                            await fileSchema.parseAsync({
+                              name: file.name,
+                              size: file.size,
+                              type: file.type
+                            });
+                          } catch (error) {
+                            throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
+                          }
+                        }));
+
+                        // Create previews for images
+                        const filesWithPreviews = await Promise.all(
+                          selectedFiles.map(async (file) => {
+                            const fileWithPreview: FileWithPreview = { file };
+                            if (file.type.startsWith('image/')) {
+                              fileWithPreview.preview = URL.createObjectURL(file);
+                            }
+                            return fileWithPreview;
+                          })
+                        );
+
+                        setFiles(prev => [...prev, ...filesWithPreviews]);
+                      } catch (error) {
+                        toast({
+                          title: "Error adding file",
+                          description: error instanceof Error ? error.message : "Failed to add file",
+                          variant: "destructive"
+                        });
+                      }
+
+                      // Clear input value to allow uploading the same file again
+                      event.target.value = '';
+                    }}
                     disabled={submitMutation.isPending || uploadMutation.isPending}
                   />
                 </label>
               </CardContent>
             </Card>
 
-            {/* File Preview Grid */}
+            {/* File Preview List */}
             {files.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
                 {files.map((file, index) => (
-                  <div key={index} className="relative">
-                    <FilePreview file={file} />
-                    {!file.id && ( // Only show remove button for new files
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => removeFile(index)}
-                        disabled={submitMutation.isPending || uploadMutation.isPending}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      {file.preview ? (
+                        <img
+                          src={file.preview}
+                          alt="preview"
+                          className="w-10 h-10 object-cover rounded-md"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center">
+                          <span className="text-xs font-medium text-gray-500">
+                            {file.file.name.split('.').pop()?.toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {file.file.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(file.file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => removeFile(index)}
+                      disabled={submitMutation.isPending || uploadMutation.isPending}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -753,7 +800,7 @@ export default function PurchaseRequestForm({
           name="freightAmount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-[#7058a3] font-medium">Freight Amount</FormLabel>
+              <FormLabel>Freight Amount</FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -765,10 +812,9 @@ export default function PurchaseRequestForm({
                     field.onChange(Number(e.target.value));
                     updateTotalCost();
                   }}
-                  className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                 />
               </FormControl>
-              <FormMessage className="text-red-500" />
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -783,43 +829,51 @@ export default function PurchaseRequestForm({
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-4 mt-8">
+        {/* Form Actions */}
+        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={submitMutation.isPending || uploadMutation.isPending}
+              className="w-full sm:w-auto order-3 sm:order-1"
+            >
+              Cancel
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
-            onClick={() => handleSubmitRequest(form.getValues(), true)}
-            disabled={submitMutation.isPending}
-            className="border-[#7058a3] text-[#7058a3] hover:bg-[#7058a3]/10"
+            onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
+            disabled={submitMutation.isPending || uploadMutation.isPending}
+            className="w-full sm:w-auto order-2"
           >
-            {submitMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {submitMutation.isPending && uploadMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save as Draft'
             )}
-            Save as Draft
           </Button>
           <Button
             type="submit"
-            disabled={submitMutation.isPending}
-            className="bg-[#3eb6ba] hover:bg-[#3eb6ba]/90 text-white"
+            disabled={submitMutation.isPending || uploadMutation.isPending}
+            className="w-full sm:w-auto order-1 sm:order-3"
           >
-            {submitMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {(submitMutation.isPending || uploadMutation.isPending) ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {uploadMutation.isPending ? "Uploading..." : "Submitting..."}
+              </>
+            ) : (
+              'Submit Request'
             )}
-            Submit Request
           </Button>
         </div>
       </form>
-
-      {/* File Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl">
-          <FilePreviewCarousel
-            files={selectedFiles}
-            onClose={() => setPreviewOpen(false)}
-            onBack={() => setSelectedFiles([])}
-          />
-        </DialogContent>
-      </Dialog>
     </Form>
   );
 }
