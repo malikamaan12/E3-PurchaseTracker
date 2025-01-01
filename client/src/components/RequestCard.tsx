@@ -96,7 +96,7 @@ export default function RequestCard({
   showItemDescriptions = false,
 }: RequestCardProps) {
   const { user } = useUser();
-  const { updateRequest, createApproval, deleteRequest } = usePurchaseRequests();
+  const { updateRequest, createApproval, deleteRequest, submitRequest } = usePurchaseRequests(); // Added submitRequest
   const [comments, setComments] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [, setLocation] = useLocation();
@@ -171,9 +171,14 @@ export default function RequestCard({
 
   const handleDraftSubmit = async () => {
     try {
-      await updateRequest({
-        id: request.id,
-        data: { ...request, status: "pending" }
+      if (!request.id) {
+        throw new Error("Request ID is required");
+      }
+
+      // Update the request status to pending
+      await submitRequest({
+        ...request,
+        status: "pending",
       });
 
       toast({
@@ -184,7 +189,7 @@ export default function RequestCard({
       console.error("Error submitting draft:", error);
       toast({
         title: "Error",
-        description: "Failed to submit request",
+        description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive",
       });
     }

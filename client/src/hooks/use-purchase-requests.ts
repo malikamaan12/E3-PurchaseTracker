@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
-import { saveDraft, submitRequest } from "@/services/requests";
 import { useErrorHandler } from "@/services/error-logging";
-import { NOTIFICATION_CONFIG, ERROR_MESSAGES } from "@/config/notification";
+import { NOTIFICATION_CONFIG } from "@/config/notification";
 
 interface ApprovalData {
   requestId: number;
@@ -41,38 +40,61 @@ export function usePurchaseRequests() {
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
 
-  // Draft mutation
-  const draftMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
-      return saveDraft(id, data);
+  // Draft mutation with proper type safety
+  const draftMutation = useMutation<PurchaseRequest, Error, Partial<PurchaseRequest>>({
+    mutationFn: async (data) => {
+      if (!data) {
+        throw new Error("Request data is required");
+      }
+
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "draft",
+          data
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to save draft: ${response.status}`);
+      }
+
+      return response.json();
     },
-    onMutate: async ({ id, data }) => {
+    onMutate: async (newData) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
 
       // Snapshot the previous value
-      const previousRequests = queryClient.getQueryData(["/api/requests"]);
+      const previousRequests = queryClient.getQueryData(["/api/requests"]) as PurchaseRequest[];
 
       // Optimistically update to the new value
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
-        return old.map(request => 
-          request.id === id 
-            ? { ...request, ...data, status: "draft", updatedAt: new Date().toISOString() }
-            : request
-        );
+        if (newData.id) {
+          return old.map(request => 
+            request.id === newData.id 
+              ? { ...request, ...newData, status: "draft", updatedAt: new Date().toISOString() }
+              : request
+          );
+        }
+        return old;
       });
 
-      // Return a context object with the snapshotted value
       return { previousRequests };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
         description: "Draft saved successfully",
       });
     },
-    onError: async (error: Error, variables, context) => {
+    onError: async (error, _, context) => {
       // Rollback to the previous value
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
@@ -84,19 +106,40 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Submit mutation
-  const submitMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PurchaseRequest> }) => {
-      return submitRequest(id, data);
+  // Submit mutation with type safety
+  const submitMutation = useMutation<PurchaseRequest, Error, PurchaseRequest>({
+    mutationFn: async (data) => {
+      if (!data.id) {
+        throw new Error("Request ID is required for submission");
+      }
+
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "submit",
+          data
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to submit request: ${response.status}`);
+      }
+
+      return response.json();
     },
-    onMutate: async ({ id, data }) => {
+    onMutate: async (newData) => {
       await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData(["/api/requests"]);
+      const previousRequests = queryClient.getQueryData(["/api/requests"]) as PurchaseRequest[];
 
       queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
         return old.map(request => 
-          request.id === id 
-            ? { ...request, ...data, status: "pending", submittedAt: new Date().toISOString() }
+          request.id === newData.id 
+            ? { ...request, ...newData, status: "pending", updatedAt: new Date().toISOString() }
             : request
         );
       });
@@ -110,7 +153,7 @@ export function usePurchaseRequests() {
         description: "Request submitted successfully",
       });
     },
-    onError: async (error: Error, variables, context) => {
+    onError: async (error, _, context) => {
       if (context?.previousRequests) {
         queryClient.setQueryData(["/api/requests"], context.previousRequests);
       }
@@ -121,9 +164,13 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Approval mutation
-  const approvalMutation = useMutation({
-    mutationFn: async (data: ApprovalData) => {
+  // Approval mutation with proper type safety
+  const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
+    mutationFn: async (data) => {
+      if (!data.requestId) {
+        throw new Error("Request ID is required for approval");
+      }
+
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: 'POST',
         headers: {
@@ -147,7 +194,7 @@ export function usePurchaseRequests() {
         description: data.message || "Approval submitted successfully",
       });
     },
-    onError: async (error: Error) => {
+    onError: async (error) => {
       await handleError(error, {
         title: "Error processing approval"
       });
