@@ -176,9 +176,10 @@ export default function PurchaseRequestForm({
     form.setValue("totalEstimatedCost", total);
   };
 
-  // Handle form submission
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
+      console.log('Form data before submission:', data);
+
       // Client-side validation for non-draft submissions
       if (!draft) {
         const validationErrors = [];
@@ -211,10 +212,20 @@ export default function PurchaseRequestForm({
           formData.append('files', fileObj.file);
         });
 
-        attachments = await uploadMutation.mutateAsync(formData);
+        try {
+          attachments = await uploadMutation.mutateAsync(formData);
+        } catch (error) {
+          console.error('File upload error:', error);
+          toast({
+            title: "Error",
+            description: "Failed to upload files. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
-      // Prepare request data
+      // Prepare request data with proper number conversions
       const requestData = {
         data: {
           ...data,
@@ -223,10 +234,15 @@ export default function PurchaseRequestForm({
             ...item,
             quantity: Number(item.quantity),
             estimatedCost: Number(item.estimatedCost)
-          }))
+          })),
+          totalEstimatedCost: Number(data.totalEstimatedCost),
+          freightAmount: Number(data.freightAmount || 0),
+          vendorId: Number(data.vendorId)
         },
         action: draft ? 'draft' : 'submit'
       };
+
+      console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
 
       await submitMutation.mutateAsync(requestData);
     } catch (error) {
@@ -350,26 +366,26 @@ export default function PurchaseRequestForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Sub Purpose</FormLabel>
-                <Select 
-                  onValueChange={(value) => field.onChange(Number(value))} 
+                <Select
+                  onValueChange={(value) => field.onChange(Number(value))}
                   value={field.value?.toString()}
                   disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
                 >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={
-                        !form.watch("purposeType") 
+                        !form.watch("purposeType")
                           ? "Select purpose type first"
-                          : filteredSubPurposes.length === 0 
-                            ? "No sub purposes available" 
+                          : filteredSubPurposes.length === 0
+                            ? "No sub purposes available"
                             : "Select sub purpose"
                       } />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {filteredSubPurposes.map((subPurpose) => (
-                      <SelectItem 
-                        key={subPurpose.id} 
+                      <SelectItem
+                        key={subPurpose.id}
                         value={String(subPurpose.id)}
                       >
                         {subPurpose.name}
@@ -705,9 +721,9 @@ export default function PurchaseRequestForm({
         {/* Form Actions */}
         <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
           {onCancel && (
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onCancel}
               disabled={submitMutation.isPending || uploadMutation.isPending}
               className="w-full sm:w-auto order-3 sm:order-1"
@@ -731,8 +747,8 @@ export default function PurchaseRequestForm({
               'Save as Draft'
             )}
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={submitMutation.isPending || uploadMutation.isPending}
             className="w-full sm:w-auto order-1 sm:order-3"
           >

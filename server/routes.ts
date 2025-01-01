@@ -57,7 +57,7 @@ const debug = (req: Request, message: string, data?: any) => {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Create purchase request endpoint with improved validation
+  // Update the create purchase request endpoint
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -67,7 +67,7 @@ export function registerRoutes(app: Express): Server {
       const { data: requestData, action } = req.body;
       console.log('Creating purchase request:', {
         action,
-        requestData: { ...requestData, items: requestData?.items?.length }
+        requestData: JSON.stringify(requestData, null, 2)
       });
 
       // Generate a unique request number
@@ -80,7 +80,9 @@ export function registerRoutes(app: Express): Server {
         requesterId: req.user!.id,
         status: action === 'draft' ? 'draft' : 'pending',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        // Ensure items is properly stringified for PostgreSQL JSON column
+        items: Array.isArray(requestData.items) ? JSON.stringify(requestData.items) : '[]'
       };
 
       // If saving as draft, make sure required fields are not enforced
@@ -88,20 +90,27 @@ export function registerRoutes(app: Express): Server {
         // Allow empty or partial data for drafts
         finalRequestData = {
           ...finalRequestData,
-          items: finalRequestData.items || [],
+          items: finalRequestData.items || '[]',
           totalEstimatedCost: finalRequestData.totalEstimatedCost || 0,
           freightAmount: finalRequestData.freightAmount || 0
         };
       } else {
         // Validate required fields for submissions
-        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+        const validationResult = insertPurchaseRequestSchema.safeParse({
+          ...requestData,
+          items: Array.isArray(requestData.items) ? requestData.items : []
+        });
+
         if (!validationResult.success) {
+          console.error('Validation failed:', validationResult.error.format());
           return res.status(400).json({
             message: 'Invalid request data',
             errors: validationResult.error.format()
           });
         }
       }
+
+      console.log('Final request data:', JSON.stringify(finalRequestData, null, 2));
 
       // Create purchase request
       const [request] = await db
@@ -128,6 +137,8 @@ export function registerRoutes(app: Express): Server {
       // Return detailed response
       res.status(201).json({
         ...request,
+        // Parse items back to array for response
+        items: JSON.parse(request.items as string),
         message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
       });
     } catch (error) {
