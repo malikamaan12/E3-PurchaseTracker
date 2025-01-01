@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,13 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Loader2, Plus } from "lucide-react";
@@ -26,7 +21,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 
-// Enhanced file validation schema
+// File validation schema
 const fileSchema = z.object({
   name: z.string().min(1, "File name is required"),
   size: z.number().max(5 * 1024 * 1024, "File must be smaller than 5MB"),
@@ -65,6 +60,7 @@ export default function PurchaseRequestForm({
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
 
   const form = useForm({
@@ -105,7 +101,7 @@ export default function PurchaseRequestForm({
     }
   }, [form.watch("purposeType"), subPurposes]);
 
-  // Submit mutation with improved error handling
+  // Submit mutation with improved error handling and navigation
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
@@ -131,9 +127,18 @@ export default function PurchaseRequestForm({
         description: data.message || "Request submitted successfully",
         variant: "default"
       });
-      onSubmit?.();
+
+      // Call onSubmit callback if provided
+      if (onSubmit) {
+        onSubmit();
+      } else {
+        // Navigate to dashboard if no callback provided
+        console.log('Navigating to dashboard after successful submission');
+        navigate("/dashboard");
+      }
     },
     onError: (error: Error) => {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to submit request",
@@ -204,7 +209,7 @@ export default function PurchaseRequestForm({
         }
       }
 
-      // Upload files if any
+      // Handle file uploads if any
       let attachments = [];
       if (files.length > 0) {
         const formData = new FormData();
