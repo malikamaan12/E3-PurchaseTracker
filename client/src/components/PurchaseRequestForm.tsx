@@ -24,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Loader2, Plus } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
 
 // Enhanced file validation schema
 const fileSchema = z.object({
@@ -53,6 +54,7 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
+  approvers?: any[];
 }
 
 export default function PurchaseRequestForm({
@@ -63,7 +65,6 @@ export default function PurchaseRequestForm({
   initialData
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
-  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
   // Initialize form with default values
@@ -85,6 +86,59 @@ export default function PurchaseRequestForm({
       totalEstimatedCost: 0,
       freightAmount: 0,
       vendorId: undefined
+    }
+  });
+
+  // Create mutation for submitting the request
+  const submitMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Request submitted successfully",
+        variant: "default"
+      });
+      onSubmit?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Create mutation for file uploads
+  const uploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/attachments', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload files: ${await response.text()}`);
+      }
+
+      return response.json();
     }
   });
 
@@ -168,87 +222,55 @@ export default function PurchaseRequestForm({
   // Handle form submission with improved error handling and validation
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
-      setUploading(true);
-
       // Validate required fields for non-draft submissions
       if (!draft) {
-        if (!data.vendorId) {
-          throw new Error("Please select a vendor");
-        }
-        if (!data.title?.trim()) {
-          throw new Error("Title is required");
-        }
-        if (!data.description?.trim()) {
-          throw new Error("Description is required");
-        }
+        const validationErrors = [];
+        if (!data.vendorId) validationErrors.push("Please select a vendor");
+        if (!data.title?.trim()) validationErrors.push("Title is required");
+        if (!data.description?.trim()) validationErrors.push("Description is required");
+        if (!data.purposeType) validationErrors.push("Purpose type is required");
         if (!data.items?.length || data.items.some(item => !item.name?.trim())) {
-          throw new Error("At least one item with a name is required");
+          validationErrors.push("At least one item with a name is required");
+        }
+
+        if (validationErrors.length > 0) {
+          validationErrors.forEach(error => {
+            toast({
+              title: "Validation Error",
+              description: error,
+              variant: "destructive"
+            });
+          });
+          return;
         }
       }
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      files.forEach((fileObj) => {
-        formData.append('files', fileObj.file);
-      });
-
-      // Upload files first
-      let uploadedFiles = [];
+      // Upload files if any
+      let attachments = [];
       if (files.length > 0) {
-        const uploadResponse = await fetch('/api/attachments', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include'
+        const formData = new FormData();
+        files.forEach(fileObj => {
+          formData.append('files', fileObj.file);
         });
 
-        if (!uploadResponse.ok) {
-          throw new Error(`Failed to upload files: ${await uploadResponse.text()}`);
-        }
-
-        uploadedFiles = await uploadResponse.json();
+        attachments = await uploadMutation.mutateAsync(formData);
       }
-
-      // Transform form data
-      const requestData = {
-        ...data,
-        attachments: uploadedFiles,
-        status: draft ? 'draft' : 'pending',
-        items: data.items.map(item => ({
-          ...item,
-          quantity: Number(item.quantity),
-          estimatedCost: Number(item.estimatedCost)
-        }))
-      };
 
       // Submit request
-      const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const requestData = {
+        data: {
+          ...data,
+          attachments,
+          items: data.items.map(item => ({
+            ...item,
+            quantity: Number(item.quantity),
+            estimatedCost: Number(item.estimatedCost)
+          }))
         },
-        body: JSON.stringify({
-          data: requestData,
-          action: draft ? 'draft' : 'submit'
-        }),
-        credentials: 'include'
-      });
+        action: draft ? 'draft' : 'submit'
+      };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
-      }
-
-      const result = await response.json();
-
-      // Show success message
-      toast({
-        title: "Success",
-        description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
-        variant: "default"
-      });
-
-      // Call the onSubmit callback
-      onSubmit?.(draft);
+      await submitMutation.mutateAsync(requestData);
     } catch (error) {
       console.error('Error submitting request:', error);
       toast({
@@ -256,8 +278,6 @@ export default function PurchaseRequestForm({
         description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive"
       });
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -581,7 +601,7 @@ export default function PurchaseRequestForm({
                     multiple
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
                     onChange={handleFileChange}
-                    disabled={uploading}
+                    disabled={uploadMutation.isPending}
                   />
                 </label>
               </CardContent>
@@ -624,7 +644,7 @@ export default function PurchaseRequestForm({
                       size="sm"
                       className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       onClick={() => removeFile(index)}
-                      disabled={uploading}
+                      disabled={uploadMutation.isPending}
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -677,6 +697,7 @@ export default function PurchaseRequestForm({
               type="button" 
               variant="outline" 
               onClick={onCancel}
+              disabled={submitMutation.isPending || uploadMutation.isPending}
               className="w-full sm:w-auto order-3 sm:order-1"
             >
               Cancel
@@ -686,20 +707,20 @@ export default function PurchaseRequestForm({
             type="button"
             variant="outline"
             onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
-            disabled={uploading}
+            disabled={submitMutation.isPending || uploadMutation.isPending}
             className="w-full sm:w-auto order-2"
           >
             Save as Draft
           </Button>
           <Button 
             type="submit" 
-            disabled={uploading}
+            disabled={submitMutation.isPending || uploadMutation.isPending}
             className="w-full sm:w-auto order-1 sm:order-3"
           >
-            {uploading ? (
+            {(submitMutation.isPending || uploadMutation.isPending) ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Uploading...
+                {uploadMutation.isPending ? "Uploading..." : "Submitting..."}
               </>
             ) : (
               'Submit Request'

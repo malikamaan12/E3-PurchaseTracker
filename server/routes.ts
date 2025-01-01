@@ -188,33 +188,33 @@ export function registerRoutes(app: Express): Server {
   // Create purchase request endpoint with improved validation
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { data: requestData, action } = req.body;
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
+      const { data: requestData, action } = req.body;
       console.log('Creating purchase request:', {
         action,
         requestData: { ...requestData, items: requestData?.items?.length }
       });
 
-      // Validate request data using Anthropic
-      const validation = await validatePurchaseRequest(requestData);
+      // Generate a unique request number
+      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      if (!validation.isValid && action !== 'draft') {
-        return res.status(400).json({
-          message: 'Invalid request data',
-          suggestions: validation.suggestions,
-          risks: validation.risks
-        });
-      }
+      // Prepare request data
+      const finalRequestData = {
+        ...requestData,
+        requestNumber,
+        requesterId: req.user!.id,
+        status: action === 'draft' ? 'draft' : 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
       // Create purchase request
       const [request] = await db
         .insert(purchaseRequests)
-        .values({
-          ...requestData,
-          status: action === 'draft' ? 'draft' : 'pending',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+        .values(finalRequestData)
         .returning();
 
       // Handle attachments if any
