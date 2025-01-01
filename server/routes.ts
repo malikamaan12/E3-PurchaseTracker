@@ -57,33 +57,44 @@ const debug = (req: Request, message: string, data?: any) => {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Enhanced sub-purposes endpoint with proper error handling
+  // Enhanced sub-purposes endpoint with proper error handling and logging
   app.get("/api/subpurposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
-      console.log('Fetching subpurposes:', { purposeType });
+      console.log('[SubPurposes API] Request received:', { purposeType });
 
-      const query = db
+      let query = db
         .select({
           id: subPurposes.id,
           name: subPurposes.name,
-          purposeType: subPurposes.purpose_type,
-          createdAt: subPurposes.created_at,
-          updatedAt: subPurposes.updated_at
+          purpose_type: subPurposes.purpose_type,
+          is_frozen: subPurposes.is_frozen,
+          created_at: subPurposes.created_at,
+          updated_at: subPurposes.updated_at
         })
         .from(subPurposes)
         .orderBy(desc(subPurposes.created_at));
 
       if (purposeType) {
-        query.where(eq(subPurposes.purpose_type, purposeType as string));
+        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
       }
 
       const results = await query;
-      console.log(`Found ${results.length} subpurposes`);
+      console.log('[SubPurposes API] Found results:', results.length);
 
-      res.json(results);
+      // Format the response
+      const formattedResults = results.map(sp => ({
+        id: sp.id,
+        name: sp.name,
+        purpose_type: sp.purpose_type,
+        is_frozen: sp.is_frozen,
+        created_at: sp.created_at ? new Date(sp.created_at).toISOString() : null,
+        updated_at: sp.updated_at ? new Date(sp.updated_at).toISOString() : null
+      }));
+
+      res.json(formattedResults);
     } catch (error) {
-      console.error('Error fetching subpurposes:', error);
+      console.error('[SubPurposes API] Error:', error);
       next(error);
     }
   });
