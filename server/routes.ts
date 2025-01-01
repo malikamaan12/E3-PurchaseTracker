@@ -23,6 +23,7 @@ import { AppError, ValidationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
+import express from 'express';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -161,6 +162,36 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add file upload endpoint before purchase request creation endpoint
+  app.post("/api/attachments", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      if (!req.files || !Array.isArray(req.files)) {
+        throw new ValidationError('No files uploaded');
+      }
+
+      const uploadedFiles = req.files.map(file => ({
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        fileUrl: `/uploads/${file.filename}`
+      }));
+
+      debug(req, 'Files uploaded:', uploadedFiles);
+      res.status(201).json(uploadedFiles);
+    } catch (error) {
+      debug(req, 'Error uploading files:', error);
+      next(error);
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static('uploads'));
+
+
   // Create purchase request endpoint with proper error handling and draft support
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -168,16 +199,23 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Creating purchase request', {
+      debug(req, 'Creating purchase request with data:', {
         body: req.body,
         user: req.user?.id,
-        action: req.body.action // 'draft' or 'submit'
+        action: req.body.action
       });
 
       // Parse request data with enhanced error handling
       let requestData;
+      let attachments;
       try {
         requestData = req.body.data;
+
+        // Handle attachments
+        if (requestData.attachments) {
+          attachments = Array.isArray(requestData.attachments) ? requestData.attachments : [];
+          delete requestData.attachments; // Remove from main request data
+        }
 
         // Ensure arrays are properly formatted for PostgreSQL JSON columns
         requestData.items = Array.isArray(requestData.items)
@@ -262,8 +300,33 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      debug(req, `Purchase request ${req.body.action === 'draft' ? 'draft saved' : 'submitted'} successfully`, result);
-      res.status(201).json(result[0]);
+      // After creating the request, add attachments if any
+      if (attachments?.length > 0) {
+        await db.insert(fileAttachments).values(
+          attachments.map(attachment => ({
+            requestId: result[0].id,
+            fileName: attachment.fileName,
+            fileType: attachment.fileType,
+            fileSize: attachment.fileSize,
+            fileUrl: attachment.fileUrl,
+            uploadedAt: new Date()
+          }))
+        );
+      }
+
+      // Get the created request with attachments
+      const [requestWithAttachments] = await db
+        .select({
+          ...purchaseRequests,
+          attachments: fileAttachments
+        })
+        .from(purchaseRequests)
+        .leftJoin(fileAttachments, eq(fileAttachments.requestId, purchaseRequests.id))
+        .where(eq(purchaseRequests.id, result[0].id))
+        .limit(1);
+
+      debug(req, `Purchase request ${req.body.action === 'draft' ? 'draft saved' : 'submitted'} successfully`, requestWithAttachments);
+      res.status(201).json(requestWithAttachments);
     } catch (error) {
       debug(req, 'Error creating purchase request:', error);
       next(error);
@@ -961,7 +1024,7 @@ export function registerRoutes(app: Express): Server {
       await db
         .update(accountRequests)
         .set({ status: 'approved' })
-        .where(eq(accountRequests.id.id, requestId));
+        .where(eq(accountRequests.id, requestId));
 
       res.json({
         message: 'Account request approved',

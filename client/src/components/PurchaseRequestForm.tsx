@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPurchaseRequestSchema, type InsertSubPurpose } from "@db/schema";
+import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -53,13 +53,15 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
+  vendors?: Vendor[]; // Add vendors prop to interface
 }
 
 export default function PurchaseRequestForm({
   subPurposes,
   onSubmit,
   onCancel,
-  initialData
+  initialData,
+  vendors = [] // Add vendors with default empty array
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -76,7 +78,8 @@ export default function PurchaseRequestForm({
       priority: "medium",
       currency: "QAR",
       totalEstimatedCost: 0,
-      freightAmount: 0
+      freightAmount: 0,
+      vendorId: undefined // Add vendorId to default values
     }
   });
 
@@ -148,7 +151,7 @@ export default function PurchaseRequestForm({
       });
 
       // Upload files first
-      const uploadResponse = await fetch('/api/attachments/upload', {
+      const uploadResponse = await fetch('/api/attachments', {
         method: 'POST',
         body: formData,
         credentials: 'include'
@@ -158,12 +161,12 @@ export default function PurchaseRequestForm({
         throw new Error('Failed to upload files');
       }
 
-      const { fileIds } = await uploadResponse.json();
+      const uploadedFiles = await uploadResponse.json();
 
-      // Add file IDs to request data
+      // Add file data to request data
       const requestData = {
         ...data,
-        attachments: fileIds,
+        attachments: uploadedFiles,
         status: draft ? 'draft' : 'pending'
       };
 
@@ -224,6 +227,32 @@ export default function PurchaseRequestForm({
                   className="min-h-[100px]"
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Vendor Selection */}
+        <FormField
+          control={form.control}
+          name="vendorId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Vendor</FormLabel>
+              <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a vendor" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                      {vendor.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
