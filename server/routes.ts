@@ -23,6 +23,7 @@ import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
 import express from 'express';
+import { analyzeFormSubmission } from './utils/anthropic-analyzer';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -1726,7 +1727,26 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Create and return the HTTP server after adding all routes
+  // Add new analysis endpoint
+  app.post("/api/analyze-submission", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const analysis = await analyzeFormSubmission({
+        formData: req.body.formData,
+        error: req.body.error ? new Error(req.body.error) : undefined,
+        navigationTarget: req.body.navigationTarget,
+        userId: req.user?.id
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

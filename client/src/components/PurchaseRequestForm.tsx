@@ -105,21 +105,47 @@ export default function PurchaseRequestForm({
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
-      const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
+      try {
+        const response = await fetch('/api/requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+          credentials: 'include'
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit request');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to submit request');
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error('Submission error:', error);
+        // Send submission data for analysis
+        const analysisResponse = await fetch('/api/analyze-submission', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            formData: data,
+            error: error instanceof Error ? error.message : String(error),
+            navigationTarget: '/dashboard'
+          }),
+          credentials: 'include'
+        });
+
+        if (analysisResponse.ok) {
+          const analysis = await analysisResponse.json();
+          console.log('Submission analysis:', analysis);
+          if (analysis.recommendation) {
+            throw new Error(`${error instanceof Error ? error.message : String(error)}\nRecommendation: ${analysis.recommendation}`);
+          }
+        }
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -132,9 +158,16 @@ export default function PurchaseRequestForm({
       if (onSubmit) {
         onSubmit();
       } else {
-        // Navigate to dashboard if no callback provided
-        console.log('Navigating to dashboard after successful submission');
-        navigate("/dashboard");
+        // Navigate to dashboard with improved error handling
+        try {
+          console.log('Attempting navigation to dashboard...');
+          navigate("/dashboard");
+          console.log('Navigation successful');
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // Fallback navigation
+          window.location.href = '/dashboard';
+        }
       }
     },
     onError: (error: Error) => {
