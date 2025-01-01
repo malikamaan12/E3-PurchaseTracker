@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Upload, Loader2, Plus } from "lucide-react";
+import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
@@ -62,6 +62,7 @@ export default function PurchaseRequestForm({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -123,7 +124,8 @@ export default function PurchaseRequestForm({
         return response.json();
       } catch (error) {
         console.error('Submission error:', error);
-        // Send submission data for analysis
+
+        // Get intelligent error analysis
         const analysisResponse = await fetch('/api/analyze-submission', {
           method: 'POST',
           headers: {
@@ -132,7 +134,8 @@ export default function PurchaseRequestForm({
           body: JSON.stringify({
             formData: data,
             error: error instanceof Error ? error.message : String(error),
-            navigationTarget: '/dashboard'
+            navigationTarget: '/dashboard',
+            formState: form.formState
           }),
           credentials: 'include'
         });
@@ -140,8 +143,47 @@ export default function PurchaseRequestForm({
         if (analysisResponse.ok) {
           const analysis = await analysisResponse.json();
           console.log('Submission analysis:', analysis);
+
+          // Show recovery suggestions if available
           if (analysis.recommendation) {
-            throw new Error(`${error instanceof Error ? error.message : String(error)}\nRecommendation: ${analysis.recommendation}`);
+            toast({
+              title: "Form Submission Error",
+              description: (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>{error instanceof Error ? error.message : String(error)}</span>
+                  </div>
+                  <div className="mt-2">
+                    <p className="font-medium">Suggested Fix:</p>
+                    <p className="text-sm text-muted-foreground">{analysis.recommendation}</p>
+                  </div>
+                  {analysis.autofix && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsRecovering(true);
+                        // Apply suggested fixes
+                        Object.entries(analysis.autofix).forEach(([field, value]) => {
+                          form.setValue(field as any, value);
+                        });
+                        setIsRecovering(false);
+                      }}
+                      disabled={isRecovering}
+                    >
+                      {isRecovering ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Apply Suggested Fix"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ),
+              variant: "destructive",
+              duration: 8000,
+            });
           }
         }
         throw error;
@@ -154,29 +196,21 @@ export default function PurchaseRequestForm({
         variant: "default"
       });
 
-      // Call onSubmit callback if provided
       if (onSubmit) {
         onSubmit();
       } else {
-        // Navigate to dashboard with improved error handling
         try {
           console.log('Attempting navigation to dashboard...');
           navigate("/dashboard");
           console.log('Navigation successful');
         } catch (error) {
           console.error('Navigation error:', error);
-          // Fallback navigation
           window.location.href = '/dashboard';
         }
       }
     },
     onError: (error: Error) => {
       console.error('Form submission error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit request",
-        variant: "destructive"
-      });
     }
   });
 
