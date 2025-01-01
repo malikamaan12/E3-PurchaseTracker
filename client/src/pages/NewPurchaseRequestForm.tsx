@@ -1,27 +1,50 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { Vendor } from "@db/schema";
+import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
+import { Loader2 } from "lucide-react";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Fetch vendors for the form
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  // Fetch vendors for the form with proper error handling
+  const { data: vendors = [], isLoading: isLoadingVendors, error: vendorError } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
   });
 
+  // Fetch sub-purposes with proper error handling
+  const { data: subPurposes = [], isLoading: isLoadingSubPurposes, error: subPurposeError } = useQuery<SubPurpose[]>({
+    queryKey: ["/api/sub-purposes"],
+  });
+
+  // Handle any loading states
+  if (isLoadingVendors || isLoadingSubPurposes) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Handle any errors
+  if (vendorError || subPurposeError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-500">
+          {vendorError ? "Error loading vendors" : "Error loading sub-purposes"}
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = (draft?: boolean) => {
-    // Show success message
     toast({
       title: "Success",
       description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
     });
-
-    // Redirect to the dashboard
     setLocation("/");
   };
 
@@ -38,7 +61,7 @@ export default function NewPurchaseRequestForm() {
           </h1>
 
           <PurchaseRequestForm
-            subPurposes={[]}
+            subPurposes={subPurposes}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             vendors={vendors}

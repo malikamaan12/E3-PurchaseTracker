@@ -61,7 +61,7 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
-  vendors?: Vendor[];
+  vendors: Vendor[];
 }
 
 export default function PurchaseRequestForm({
@@ -76,10 +76,19 @@ export default function PurchaseRequestForm({
   const { toast } = useToast();
   const { saveDraft, submitRequest } = usePurchaseRequests();
 
-  // Fetch approvers with proper typing
-  const { data: approvers = [] } = useQuery<Approver[]>({
+  // Fetch approvers with proper typing and error handling
+  const { data: approvers = [], error: approversError } = useQuery<Approver[]>({
     queryKey: ["/api/approvers"],
   });
+
+  // Show error if approvers fetch fails
+  if (approversError) {
+    toast({
+      title: "Error",
+      description: "Failed to load approvers. Some features may be limited.",
+      variant: "destructive"
+    });
+  }
 
   // Group approvers by department for better organization
   const approversByDepartment = approvers.reduce((acc, approver) => {
