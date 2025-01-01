@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
+import RequestPreview from "@/components/RequestPreview";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [previewRequestId, setPreviewRequestId] = useState<number | null>(null);
 
   // Fetch vendors and subpurposes for the form
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
@@ -21,15 +23,15 @@ export default function NewPurchaseRequestForm() {
   });
 
   // Handle successful submission
-  const handleSubmit = (draft?: boolean) => {
+  const handleSubmit = (requestId: number, draft?: boolean) => {
     toast({
       title: "Success",
       description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
       variant: "default"
     });
 
-    // Redirect to the dashboard
-    setLocation("/");
+    // Show preview for the submitted request
+    setPreviewRequestId(requestId);
   };
 
   // Handle cancellation
@@ -71,6 +73,18 @@ export default function NewPurchaseRequestForm() {
             onSubmit={handleSubmit}
             onCancel={handleCancel}
           />
+
+          {/* Preview Dialog */}
+          {previewRequestId && (
+            <RequestPreview
+              requestId={previewRequestId}
+              open={true}
+              onClose={() => {
+                setPreviewRequestId(null);
+                setLocation("/");
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

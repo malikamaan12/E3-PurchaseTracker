@@ -56,7 +56,7 @@ interface FileWithMetadata extends FileWithPreview {
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
   vendors: Vendor[];
-  onSubmit?: (draft?: boolean) => void;
+  onSubmit?: (requestId: number, draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
 }
@@ -171,9 +171,9 @@ export default function PurchaseRequestForm({
         duration: 3000,
       });
 
-      // Use wouter navigate for client-side navigation
-      navigate('/');
-      onSubmit?.(false);
+      if (data?.id) {
+        onSubmit?.(data.id, false);
+      }
     }
   });
 
@@ -289,13 +289,13 @@ export default function PurchaseRequestForm({
       console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
       const response = await submitMutation.mutateAsync(requestData);
 
-      if (response) {
+      if (response?.id) {
         toast({
           title: "Success",
           description: `Request ${draft ? 'saved as draft' : 'submitted'} successfully`,
           variant: "default"
         });
-        onSubmit?.(draft);
+        onSubmit?.(response.id, draft);
       }
     } catch (error) {
       console.error('Error submitting request:', error);

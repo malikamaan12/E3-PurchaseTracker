@@ -1,16 +1,17 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { useToast } from '@/hooks/use-toast';
 
-// Initialize Anthropic with environment variable access
-const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
-// Create Anthropic instance only if API key is available
-const anthropic = anthropicApiKey ? new Anthropic({ apiKey: anthropicApiKey }) : null;
-
-// Log warning if API key is missing
-if (!anthropicApiKey) {
-  console.warn('Warning: VITE_ANTHROPIC_API_KEY is not set. AI-powered error analysis will be limited.');
+// Initialize Anthropic with safer defaults and environment checks
+function getAnthropicInstance() {
+  const apiKey = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_ANTHROPIC_API_KEY : null;
+  if (!apiKey) {
+    console.warn('Warning: VITE_ANTHROPIC_API_KEY is not set. AI-powered error analysis will be limited.');
+    return null;
+  }
+  return new Anthropic({ apiKey });
 }
+
+const anthropic = getAnthropicInstance();
 
 export async function analyzeFormError(formData: any, error: any) {
   try {
@@ -51,11 +52,7 @@ Provide concise, actionable steps.`
       }]
     });
 
-    const analysis = response.content[0].type === 'text' ? response.content[0].text : 
-      "Unable to analyze error. Please check form inputs and try again.";
-    console.log("Claude Analysis:", analysis);
-
-    return analysis;
+    return response.content[0].type === 'text' ? response.content[0].text : "Unable to analyze error. Please check form inputs.";
   } catch (analyzeError) {
     console.error("Error analysis failed:", analyzeError);
     return "Unable to analyze the error. Please check the form inputs and try again.";
@@ -116,6 +113,7 @@ export function useErrorHandler() {
   return async (error: any, context?: string) => {
     console.error(`Error in ${context || 'application'}:`, error);
 
+    // Show direct error message if Anthropic is not available
     if (!anthropic) {
       toast({
         title: "Error",
