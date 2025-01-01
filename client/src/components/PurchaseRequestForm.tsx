@@ -21,10 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Upload, Loader2, Plus } from "lucide-react";
+import { X, Upload, Loader2, Plus, UserPlus } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
+import { useQuery } from "@tanstack/react-query";
 
 // File validation schema with improved error messages
 const fileSchema = z.object({
@@ -48,6 +49,13 @@ type FileWithPreview = {
   preview?: string;
 };
 
+interface Approver {
+  id: number;
+  name: string;
+  department: string;
+  email: string;
+}
+
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
   onSubmit?: (draft?: boolean) => void;
@@ -68,6 +76,21 @@ export default function PurchaseRequestForm({
   const { toast } = useToast();
   const { saveDraft, submitRequest } = usePurchaseRequests();
 
+  // Fetch approvers with proper typing
+  const { data: approvers = [] } = useQuery<Approver[]>({
+    queryKey: ["/api/approvers"],
+  });
+
+  // Group approvers by department for better organization
+  const approversByDepartment = approvers.reduce((acc, approver) => {
+    const dept = approver.department || 'Other';
+    if (!acc[dept]) {
+      acc[dept] = [];
+    }
+    acc[dept].push(approver);
+    return acc;
+  }, {} as Record<string, Approver[]>);
+
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: initialData || {
@@ -80,7 +103,9 @@ export default function PurchaseRequestForm({
       totalEstimatedCost: 0,
       freightAmount: 0,
       vendorId: undefined,
-      subPurposeId: undefined
+      subPurposeId: undefined,
+      mandatoryApprovers: [],
+      optionalApprovers: [],
     }
   });
 
@@ -142,7 +167,7 @@ export default function PurchaseRequestForm({
   };
 
   // Calculate total cost
-  const calculateTotalCost = (items: any[], freightAmount: number) => {
+  const calculateTotalCost = (items: any[] = [], freightAmount: number = 0) => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (item.quantity * item.estimatedCost),
       0
@@ -152,7 +177,7 @@ export default function PurchaseRequestForm({
 
   // Update total cost when items or freight amount changes
   const updateTotalCost = () => {
-    const items = form.getValues("items");
+    const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
     const total = calculateTotalCost(items, freightAmount);
     form.setValue("totalEstimatedCost", total);
@@ -350,6 +375,148 @@ export default function PurchaseRequestForm({
                     <SelectItem value="CNY">CNY</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Approvals Section */}
+        <div className="space-y-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <UserPlus className="w-5 h-5" />
+            Approvals
+          </h2>
+
+          {/* Mandatory Approvers */}
+          <FormField
+            control={form.control}
+            name="mandatoryApprovers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mandatory Approvers</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const currentValues = field.value || [];
+                    if (!currentValues.includes(value)) {
+                      field.onChange([...currentValues, value]);
+                    }
+                  }}
+                  value=""
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select mandatory approvers" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.entries(approversByDepartment).map(([dept, deptApprovers]) => (
+                      <div key={dept}>
+                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                          {dept}
+                        </div>
+                        {deptApprovers.map((approver) => (
+                          <SelectItem
+                            key={approver.id}
+                            value={approver.id.toString()}
+                            disabled={form.watch("optionalApprovers")?.includes(approver.id.toString())}
+                          >
+                            {approver.name} ({approver.department})
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {field.value?.map((approverId: string) => {
+                    const approver = approvers.find(a => a.id.toString() === approverId);
+                    return (
+                      <div
+                        key={approverId}
+                        className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm"
+                      >
+                        {approver?.name} ({approver?.department})
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange(field.value.filter((id: string) => id !== approverId));
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Optional Approvers */}
+          <FormField
+            control={form.control}
+            name="optionalApprovers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Optional Approvers</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const currentValues = field.value || [];
+                    if (!currentValues.includes(value)) {
+                      field.onChange([...currentValues, value]);
+                    }
+                  }}
+                  value=""
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select optional approvers" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.entries(approversByDepartment).map(([dept, deptApprovers]) => (
+                      <div key={dept}>
+                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                          {dept}
+                        </div>
+                        {deptApprovers.map((approver) => (
+                          <SelectItem
+                            key={approver.id}
+                            value={approver.id.toString()}
+                            disabled={form.watch("mandatoryApprovers")?.includes(approver.id.toString())}
+                          >
+                            {approver.name} ({approver.department})
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {field.value?.map((approverId: string) => {
+                    const approver = approvers.find(a => a.id.toString() === approverId);
+                    return (
+                      <div
+                        key={approverId}
+                        className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm"
+                      >
+                        {approver?.name} ({approver?.department})
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange(field.value.filter((id: string) => id !== approverId));
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -587,9 +754,9 @@ export default function PurchaseRequestForm({
         {/* Form Actions */}
         <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
           {onCancel && (
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onCancel}
               className="w-full sm:w-auto order-3 sm:order-1"
             >
@@ -605,8 +772,8 @@ export default function PurchaseRequestForm({
           >
             Save as Draft
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={uploading}
             className="w-full sm:w-auto order-1 sm:order-3"
           >
