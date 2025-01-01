@@ -40,24 +40,44 @@ import {
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
-import { mandatoryDepartments } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
-import { defaultBranding, type TemplateConfig } from '@/lib/pdfTemplates';
+import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface PurchaseRequestWithRelations extends PurchaseRequest {
-  requester: User;
-  approvals: Approval[];
+type TemplateConfig = {
+  branding: typeof defaultBranding;
+  layout: 'compact' | 'bento' | 'classic';
+  showLogo: boolean;
+  headerHeight: number;
+  footerHeight: number;
+};
+
+interface PurchaseRequestWithRelations {
+  id: number;
+  requesterId: number;
+  requester: {
+    id: number;
+    username: string;
+    department: string;
+  };
+  approvals: Array<{
+    id: number;
+    status: string;
+    comments?: string;
+    department: string;
+    approverId: number;
+  }>;
   attachments?: Array<{
     id: number;
     fileName: string;
     fileSize: number;
     fileType: string;
+    fileUrl: string;
   }>;
-  items?: Array<{
+  items: Array<{
     name: string;
     quantity: number;
     estimatedCost: number;
@@ -70,7 +90,7 @@ interface PurchaseRequestWithRelations extends PurchaseRequest {
   status: string;
   priority: string;
   currency: string;
-  freightAmount: string;
+  freightAmount: number;
   purposeType: string;
   subPurpose?: { name: string };
   purpose: string;
@@ -90,13 +110,13 @@ interface RequestCardProps {
 
 export default function RequestCard({
   request,
-  showActions,
-  showApproval,
+  showActions = false,
+  showApproval = false,
   compact = false,
   showItemDescriptions = false,
 }: RequestCardProps) {
   const { user } = useUser();
-  const { updateRequest, createApproval, deleteRequest, submitRequest } = usePurchaseRequests(); // Added submitRequest
+  const { saveDraft, createApproval, submitRequest, deleteRequest } = usePurchaseRequests();
   const [comments, setComments] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [, setLocation] = useLocation();
@@ -154,13 +174,8 @@ export default function RequestCard({
     }).format(amount);
   };
 
-  const freightAmount = Number(request.freightAmount) || 0;
-  const items = request.items?.map(item => ({
-    name: String(item.name || ""),
-    quantity: Number(item.quantity || 1),
-    estimatedCost: Number(item.estimatedCost || 0),
-    description: item.description
-  })) || [];
+  const freightAmount = request.freightAmount || 0;
+  const items = request.items || [];
 
   const itemsTotal = items.reduce(
     (sum, item) => sum + item.quantity * item.estimatedCost,
@@ -175,7 +190,6 @@ export default function RequestCard({
         throw new Error("Request ID is required");
       }
 
-      // Update the request status to pending
       await submitRequest({
         ...request,
         status: "pending",
@@ -190,6 +204,149 @@ export default function RequestCard({
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to submit request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = () => {
+    const canEdit =
+      !request.isLocked &&
+      (request.status === "draft" || request.status === "changes_requested") &&
+      request.requesterId === user?.id;
+
+    if (canEdit) {
+      setLocation(`/requests/${request.id}/edit`);
+    } else {
+      toast({
+        title: "Cannot edit request",
+        description: "You don't have permission to edit this request or it is locked",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      const templateConfig: TemplateConfig = {
+        branding: defaultBranding,
+        layout: 'bento',
+        showLogo: true,
+        headerHeight: 30,
+        footerHeight: 20,
+      };
+
+      const doc = await generateRequestPDF(request, templateConfig);
+      doc.save(`${request.requestNumber}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
+    if (!user?.department) {
+      toast({
+        title: "Error",
+        description: "User department is required for approval",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!request.id) {
+      toast({
+        title: "Error",
+        description: "Invalid request ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createApproval({
+        requestId: request.id,
+        status,
+        comments,
+        department: user.department
+      });
+
+      setComments("");
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+    } catch (error) {
+      console.error('Error in handleApproval:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process approval",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = async (attachmentId: number) => {
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : 'download';
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isPreviewable = (fileType: string) => {
+    return fileType.startsWith('image/');
+  };
+
+  const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+
+  const handleDelete = async (requestId: number) => {
+    try {
+      await deleteRequest(requestId);
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete request",
         variant: "destructive",
       });
     }
@@ -540,7 +697,17 @@ export default function RequestCard({
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => deleteRequest(request.id)}
+                        onClick={() => {
+                          if (request.id) {
+                            handleDelete(request.id);
+                          } else {
+                            toast({
+                              title: "Error",
+                              description: "Invalid request ID",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Delete
@@ -564,138 +731,3 @@ export default function RequestCard({
     </motion.div>
   );
 }
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-async function handleDownload(attachmentId: number) {
-  try {
-    const response = await fetch(`/api/attachments/${attachmentId}`, {
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to download file');
-    }
-
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition
-      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-      : 'download';
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  } catch (error) {
-    console.error('Error downloading file:', error);
-    toast({
-      title: "Error",
-      description: "Failed to download file",
-      variant: "destructive",
-    });
-  }
-};
-
-const isPreviewable = (fileType: string) => {
-  return fileType.startsWith('image/');
-};
-
-async function handleDownloadPDF() {
-  try {
-    const templateConfig: TemplateConfig = {
-      layout: 'bento',
-      headerHeight: 30,
-      footerHeight: 20,
-    };
-
-    const doc = await generateRequestPDF(request, templateConfig);
-    doc.save(`${request.requestNumber}.pdf`);
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    toast({
-      title: "Error",
-      description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
-      variant: "destructive",
-    });
-  }
-}
-
-const handleEdit = () => {
-  const canEdit =
-    !request.isLocked &&
-    (request.status === "draft" || request.status === "changes_requested") &&
-    request.requesterId === user?.id;
-
-  if (canEdit) {
-    setLocation(`/requests/${request.id}/edit`);
-  }
-};
-
-const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
-  if (!user?.department) {
-    toast({
-      title: "Error",
-      description: "User department is required for approval",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  if (!request.id) {
-    toast({
-      title: "Error",
-      description: "Invalid request ID",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  // Validate required fields before making the API call
-  const approvalData = {
-    requestId: request.id,
-    status,
-    comments,
-    department: user.department
-  };
-
-  // Check if all required fields are present
-  if (!approvalData.requestId || !approvalData.status || !approvalData.department) {
-    toast({
-      title: "Error",
-      description: "Missing required fields for approval",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  try {
-    console.log('Attempting approval with:', approvalData);
-
-    await createApproval(approvalData);
-
-    // Clear comments after successful approval
-    setComments("");
-
-    // Invalidate queries to refresh the UI
-    queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-
-  } catch (error) {
-    console.error('Error in handleApproval:', error);
-    toast({
-      title: "Error",
-      description: error instanceof Error ? error.message : "Failed to process approval",
-      variant: "destructive",
-    });
-  }
-};

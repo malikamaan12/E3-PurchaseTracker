@@ -66,27 +66,6 @@ export function usePurchaseRequests() {
 
       return response.json();
     },
-    onMutate: async (newData) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-
-      // Snapshot the previous value
-      const previousRequests = queryClient.getQueryData(["/api/requests"]) as PurchaseRequest[];
-
-      // Optimistically update to the new value
-      queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
-        if (newData.id) {
-          return old.map(request => 
-            request.id === newData.id 
-              ? { ...request, ...newData, status: "draft", updatedAt: new Date().toISOString() }
-              : request
-          );
-        }
-        return old;
-      });
-
-      return { previousRequests };
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
@@ -94,14 +73,40 @@ export function usePurchaseRequests() {
         description: "Draft saved successfully",
       });
     },
-    onError: async (error, _, context) => {
-      // Rollback to the previous value
-      if (context?.previousRequests) {
-        queryClient.setQueryData(["/api/requests"], context.previousRequests);
-      }
-
+    onError: async (error) => {
       await handleError(error, {
         title: "Error saving draft"
+      });
+    }
+  });
+
+  // Delete mutation with proper type safety
+  const deleteMutation = useMutation<void, Error, number>({
+    mutationFn: async (requestId) => {
+      if (!requestId) {
+        throw new Error("Request ID is required for deletion");
+      }
+
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to delete request: ${response.status}`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+    },
+    onError: async (error) => {
+      await handleError(error, {
+        title: "Error deleting request"
       });
     }
   });
@@ -132,20 +137,6 @@ export function usePurchaseRequests() {
 
       return response.json();
     },
-    onMutate: async (newData) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/requests"] });
-      const previousRequests = queryClient.getQueryData(["/api/requests"]) as PurchaseRequest[];
-
-      queryClient.setQueryData<PurchaseRequest[]>(["/api/requests"], (old = []) => {
-        return old.map(request => 
-          request.id === newData.id 
-            ? { ...request, ...newData, status: "pending", updatedAt: new Date().toISOString() }
-            : request
-        );
-      });
-
-      return { previousRequests };
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
@@ -153,11 +144,7 @@ export function usePurchaseRequests() {
         description: "Request submitted successfully",
       });
     },
-    onError: async (error, _, context) => {
-      if (context?.previousRequests) {
-        queryClient.setQueryData(["/api/requests"], context.previousRequests);
-      }
-
+    onError: async (error) => {
       await handleError(error, {
         title: "Error submitting request"
       });
@@ -208,5 +195,6 @@ export function usePurchaseRequests() {
     saveDraft: draftMutation.mutateAsync,
     submitRequest: submitMutation.mutateAsync,
     createApproval: approvalMutation.mutateAsync,
+    deleteRequest: deleteMutation.mutateAsync,
   };
 }
