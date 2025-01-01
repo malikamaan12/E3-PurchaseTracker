@@ -9,9 +9,7 @@ import { Loader2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import BrandingPreview from "./BrandingPreview";
 import BrandMoodBoardGenerator from "./BrandMoodBoardGenerator";
-import type { CompanyBranding } from "@db/schema";
-
-interface BrandingData extends CompanyBranding {}
+import { BrandingData, brandingFormSchema } from "@/types/branding";
 
 type ColorSwatch = {
   id: string;
@@ -52,6 +50,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
   const [footerImageMimeType, setFooterImageMimeType] = useState<string | null>(null);
   const [colorSwatches, setColorSwatches] = useState<ColorSwatch[]>(defaultColors);
   const [selectedStyle, setSelectedStyle] = useState<StyleOption>(styleOptions[0]);
+
   const [formData, setFormData] = useState<BrandingData>({
     companyName: "",
     headerStyle: "modern",
@@ -63,7 +62,8 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
 
   const { data: branding } = useQuery<BrandingData>({
     queryKey: ["/api/branding"],
-    onSuccess: (data) => {
+    enabled: true,
+    onSettled: (data) => {
       if (data) {
         setFormData({
           companyName: data.companyName || "",
@@ -91,7 +91,7 @@ export default function DraggableBrandingForm({ onSuccess }: DraggableBrandingFo
           setFooterImageMimeType(data.footerImageMimeType || "image/png");
         }
       }
-    },
+    }
   });
 
   const updateBranding = useMutation({

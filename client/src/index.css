@@ -1,9 +1,9 @@
+/* Import react-image-gallery styles */
+@import "react-image-gallery/styles/css/image-gallery.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import react-image-gallery styles */
-@import "react-image-gallery/styles/css/image-gallery.css";
 
 @layer base {
   * {
@@ -28,7 +28,7 @@
 
   /* Form Elements */
   .form-focus-ring {
-    @apply focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 transition-shadow duration-200;
+    @apply focus:ring-2 focus:ring-[#7058a3]/20 focus:ring-offset-2 transition-shadow duration-200;
   }
 
   /* Card Animations */
@@ -71,61 +71,44 @@
     @apply border-[#3eb6ba];
   }
 
-  /* Error Animations */
-  .error-bounce-in {
-    animation: errorBounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  /* Back Button Styles */
+  .back-button {
+    @apply flex items-center gap-2 text-[#7058a3] hover:text-[#3eb6ba] transition-colors duration-200;
   }
 
-  .error-shake {
-    animation: errorShake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+  .back-button-icon {
+    @apply w-5 h-5 stroke-current;
   }
 
-  .error-fade-slide {
-    animation: errorFadeSlide 0.3s ease-out;
-  }
-
-  /* Severity-specific animations */
-  .error-critical {
-    animation: criticalPulse 2s infinite;
-  }
-
-  .error-warning {
-    animation: warningBlink 3s infinite;
-  }
-
-  .error-info {
-    animation: infoBounce 0.5s ease-out;
+  /* Form Controls */
+  .form-control {
+    @apply border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]/20;
   }
 }
 
 @layer utilities {
-  /* Responsive Typography */
-  .text-responsive {
-    @apply text-sm sm:text-base lg:text-lg;
+  .text-brand-primary {
+    color: #7058a3;
   }
 
-  .heading-responsive {
-    @apply text-xl sm:text-2xl lg:text-3xl font-bold;
+  .text-brand-secondary {
+    color: #3eb6ba;
   }
 
-  /* Touch Targets */
-  .touch-target {
-    @apply min-h-[44px] min-w-[44px];
+  .bg-brand-primary {
+    background-color: #7058a3;
   }
 
-  /* Smooth Scrolling */
-  .scroll-smooth {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
+  .bg-brand-secondary {
+    background-color: #3eb6ba;
   }
 
-  /* Animation Utilities */
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+  .border-brand-primary {
+    border-color: #7058a3;
   }
 
-  .animate-slide-in {
-    animation: slideIn 0.3s ease-out;
+  .border-brand-secondary {
+    border-color: #3eb6ba;
   }
 }
 

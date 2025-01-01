@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
@@ -16,12 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
+import { X, Upload, Loader2, Plus, AlertTriangle, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
-import { analyzeFormError } from "@/lib/debugUtils";
-import { Dialog } from "@/components/ui/dialog";
+import { analyzeFormError, useErrorHandler } from "@/lib/debugUtils";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 
 // File validation schema
@@ -46,7 +46,6 @@ type FileWithPreview = {
   preview?: string;
 };
 
-// Add this interface inside the existing types section
 interface FileWithMetadata extends FileWithPreview {
   id?: number;
   fileName?: string;
@@ -73,9 +72,9 @@ export default function PurchaseRequestForm({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
-  const [isRecovering, setIsRecovering] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileWithMetadata[]>([]);
+  const handleError = useErrorHandler();
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -119,21 +118,26 @@ export default function PurchaseRequestForm({
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
-      const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
+      try {
+        const response = await fetch('/api/requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+          credentials: 'include'
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit request');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to submit request');
+        }
+
+        return response.json();
+      } catch (error) {
+        handleError(error, 'Request Submission');
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -145,159 +149,48 @@ export default function PurchaseRequestForm({
 
       // Use wouter navigate for client-side navigation
       navigate('/');
-    },
-    onError: async (error: Error) => {
-      console.error('Form submission error:', error);
-
-      // Show initial error toast
-      const errorToast = toast({
-        title: "Error",
-        description: "Analyzing submission error...",
-        variant: "destructive",
-        duration: null, // Keep toast until we get analysis
-      });
-
-      try {
-        // Gather form state and error details for analysis
-        const formState = {
-          values: form.getValues(),
-          errors: form.formState.errors,
-          isDirty: form.formState.isDirty,
-          touchedFields: form.formState.touchedFields,
-        };
-
-        const analysisResponse = await fetch('/api/analyze-submission', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            formData: form.getValues(),
-            error: error.message,
-            formState
-          }),
-          credentials: 'include'
-        });
-
-        if (analysisResponse.ok) {
-          const analysis = await analysisResponse.json();
-
-          // Dismiss loading toast
-          errorToast.dismiss();
-
-          // Show detailed error analysis with recovery options
-          toast({
-            title: "Form Submission Error",
-            description: (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-destructive">
-                  {error.message}
-                </p>
-                {analysis.suggestion && (
-                  <p className="text-sm text-muted-foreground">
-                    Suggestion: {analysis.suggestion}
-                  </p>
-                )}
-                {analysis.autofix && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Auto-fix available
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        // Apply suggested fixes
-                        Object.entries(analysis.autofix).forEach(([field, value]) => {
-                          form.setValue(field as any, value);
-                        });
-                        // Show confirmation
-                        toast({
-                          title: "Changes Applied",
-                          description: "Suggested fixes have been applied to the form",
-                          variant: "default"
-                        });
-                      }}
-                    >
-                      Apply Fix
-                    </Button>
-                  </div>
-                )}
-                {analysis.validationErrors?.length > 0 && (
-                  <ul className="list-disc pl-4 text-sm text-muted-foreground">
-                    {analysis.validationErrors.map((err: string, i: number) => (
-                      <li key={i}>{err}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ),
-            variant: "destructive",
-            duration: 8000,
-          });
-
-        } else {
-          // If analysis fails, show generic error with form state analysis
-          const localAnalysis = await analyzeFormError(form.getValues(), error);
-
-          toast({
-            title: "Error",
-            description: (
-              <div className="space-y-2">
-                <p className="text-sm text-destructive">{error.message}</p>
-                <p className="text-sm text-muted-foreground">{localAnalysis}</p>
-              </div>
-            ),
-            variant: "destructive",
-            duration: 5000,
-          });
-        }
-      } catch (analysisError) {
-        console.error('Error getting analysis:', analysisError);
-        // Show basic error message if analysis fails
-        toast({
-          title: "Error",
-          description: error.message || "Failed to submit request",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
+      onSubmit?.(false);
     }
   });
 
   // File upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await fetch('/api/attachments', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+      try {
+        const response = await fetch('/api/attachments', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
 
-      if (!response.ok) {
-        throw new Error(`Failed to upload files: ${await response.text()}`);
+        if (!response.ok) {
+          throw new Error(`Failed to upload files: ${await response.text()}`);
+        }
+
+        return response.json();
+      } catch (error) {
+        handleError(error, 'File Upload');
+        throw error;
       }
-
-      return response.json();
     }
   });
 
   // Calculate total cost
-  const calculateTotalCost = (items: any[], freightAmount: number) => {
+  const calculateTotalCost = useCallback((items: any[], freightAmount: number) => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)),
       0
     );
     return itemsTotal + Number(freightAmount || 0);
-  };
+  }, []);
 
   // Update total cost
-  const updateTotalCost = () => {
+  const updateTotalCost = useCallback(() => {
     const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
     const total = calculateTotalCost(items, freightAmount);
     form.setValue("totalEstimatedCost", total);
-  };
+  }, [form, calculateTotalCost]);
 
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
@@ -332,18 +225,16 @@ export default function PurchaseRequestForm({
       if (files.length > 0) {
         const formData = new FormData();
         files.forEach(fileObj => {
-          formData.append('files', fileObj.file);
+          if (fileObj.file) {
+            formData.append('files', fileObj.file);
+          }
         });
 
         try {
           attachments = await uploadMutation.mutateAsync(formData);
         } catch (error) {
           console.error('File upload error:', error);
-          toast({
-            title: "Error",
-            description: "Failed to upload files. Please try again.",
-            variant: "destructive"
-          });
+          handleError(error, 'File Upload');
           return;
         }
       }
@@ -366,15 +257,10 @@ export default function PurchaseRequestForm({
       };
 
       console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
-
       await submitMutation.mutateAsync(requestData);
     } catch (error) {
       console.error('Error submitting request:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit request",
-        variant: "destructive"
-      });
+      handleError(error, 'Form Submission');
     }
   };
 
@@ -397,7 +283,7 @@ export default function PurchaseRequestForm({
         fileType: attachment.fileType,
         fileUrl: `/api/attachments/${attachment.id}`,
         preview: attachment.fileType.startsWith('image/') ? `/api/attachments/${attachment.id}` : undefined,
-        file: new File([], attachment.fileName) //Dummy file for size/type
+        file: new File([], attachment.fileName) // Dummy file for size/type
       })));
     }
   }, [initialData]);
@@ -410,6 +296,19 @@ export default function PurchaseRequestForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
+        {/* Back Button */}
+        <div className="flex items-center gap-2 mb-4">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            className="text-[#7058a3] hover:text-[#3eb6ba] transition-colors duration-200"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+
         {/* Basic Information */}
         <div className="space-y-4">
           {/* Title */}
@@ -503,7 +402,6 @@ export default function PurchaseRequestForm({
               </FormItem>
             )}
           />
-
           {/* Sub Purpose */}
           <FormField
             control={form.control}
@@ -870,65 +768,43 @@ export default function PurchaseRequestForm({
           </p>
         </div>
 
-        {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 col-span-full">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={submitMutation.isPending || uploadMutation.isPending}
-              className="w-full sm:w-auto order-3 sm:order-1 border-[#7058a3]/20 text-[#7058a3] hover:bg-[#7058a3]/10"
-            >
-              Cancel
-            </Button>
-          )}
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4 mt-8">
           <Button
             type="button"
             variant="outline"
-            onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
-            disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-2 border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10"
+            onClick={() => handleSubmitRequest(form.getValues(), true)}
+            disabled={submitMutation.isPending}
+            className="border-[#7058a3] text-[#7058a3] hover:bg-[#7058a3]/10"
           >
-            {submitMutation.isPending && uploadMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save as Draft'
+            {submitMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
+            Save as Draft
           </Button>
           <Button
             type="submit"
-            disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-1 sm:order-3 bg-[#7058a3] hover:bg-[#7058a3]/90 text-white"
+            disabled={submitMutation.isPending}
+            className="bg-[#3eb6ba] hover:bg-[#3eb6ba]/90 text-white"
           >
-            {(submitMutation.isPending || uploadMutation.isPending) ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {uploadMutation.isPending ? "Uploading..." : "Submitting..."}
-              </>
-            ) : (
-              'Submit Request'
+            {submitMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
+            Submit Request
           </Button>
         </div>
       </form>
-      {previewOpen && selectedFiles.length > 0 && (
-        <Dialog open={previewOpen} onClose={() => {
-          setPreviewOpen(false);
-          setSelectedFiles([]);
-        }}>
+
+      {/* File Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl">
           <FilePreviewCarousel
             files={selectedFiles}
-            onClose={() => {
-              setPreviewOpen(false);
-              setSelectedFiles([]);
-            }}
+            onClose={() => setPreviewOpen(false)}
+            onBack={() => setSelectedFiles([])}
           />
-        </Dialog>
-      )}
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

@@ -54,10 +54,10 @@ export default function NewPurchaseRequestForm() {
             <Button
               onClick={() => setLocation("/")}
               variant="ghost"
-              className="text-[#7058a3] hover:text-[#7058a3]/90 hover:bg-[#7058a3]/10"
+              className="text-[#7058a3] hover:text-[#7058a3]/90 hover:bg-[#7058a3]/10 transition-colors duration-200"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Dashboard
             </Button>
             <h1 className="text-2xl font-bold text-[#7058a3]">
               New Purchase Request
