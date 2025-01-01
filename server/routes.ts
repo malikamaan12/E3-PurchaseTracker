@@ -198,6 +198,28 @@ export function registerRoutes(app: Express): Server {
         requestData: { ...requestData, items: requestData?.items?.length }
       });
 
+      // Only validate if not a draft
+      if (action !== 'draft') {
+        // Validate request using Anthropic AI
+        const validation = await validatePurchaseRequest(requestData);
+
+        if (!validation.isValid) {
+          return res.status(400).json({
+            message: 'Invalid request data',
+            suggestions: validation.suggestions,
+            risks: validation.risks,
+            priority: validation.priority
+          });
+        }
+
+        // Update priority based on AI analysis if needed
+        if (validation.priority !== requestData.priority) {
+          requestData.priorityScore = Math.round(validation.score * 100);
+          requestData.priorityReason = validation.suggestions.join('. ');
+          requestData.priorityRecommendations = validation.risks;
+        }
+      }
+
       // Generate a unique request number
       const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -232,7 +254,18 @@ export function registerRoutes(app: Express): Server {
       }
 
       console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
-      res.status(201).json(request);
+
+      // Return detailed response
+      res.status(201).json({
+        ...request,
+        message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`,
+        validationDetails: action === 'draft' ? null : {
+          suggestions: validation.suggestions,
+          risks: validation.risks,
+          priority: validation.priority,
+          score: validation.score
+        }
+      });
     } catch (error) {
       console.error('Error creating purchase request:', error);
       next(error);

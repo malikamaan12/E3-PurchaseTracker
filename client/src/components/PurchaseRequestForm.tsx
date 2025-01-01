@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
@@ -54,7 +54,6 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
-  approvers?: any[];
 }
 
 export default function PurchaseRequestForm({
@@ -67,7 +66,10 @@ export default function PurchaseRequestForm({
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const { toast } = useToast();
 
-  // Initialize form with default values
+  // Keep track of filtered sub-purposes
+  const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
+
+  // Initialize form with default values and enhanced validation
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: initialData || {
@@ -79,7 +81,7 @@ export default function PurchaseRequestForm({
         estimatedCost: 0,
         description: ""
       }],
-      purposeType: "E3 EVENT",
+      purposeType: "",
       subPurposeId: undefined,
       priority: "medium",
       currency: "QAR",
@@ -88,6 +90,22 @@ export default function PurchaseRequestForm({
       vendorId: undefined
     }
   });
+
+  // Update filtered sub-purposes when purpose type changes
+  useEffect(() => {
+    const purposeType = form.watch("purposeType");
+    if (purposeType) {
+      const filtered = subPurposes.filter(sp => sp.purpose_type === purposeType);
+      setFilteredSubPurposes(filtered);
+      // Reset sub-purpose selection if current selection is not valid for new purpose type
+      const currentSubPurposeId = form.watch("subPurposeId");
+      if (currentSubPurposeId && !filtered.some(sp => sp.id === currentSubPurposeId)) {
+        form.setValue("subPurposeId", undefined);
+      }
+    } else {
+      setFilteredSubPurposes([]);
+    }
+  }, [form.watch("purposeType"), subPurposes]);
 
   // Create mutation for submitting the request
   const submitMutation = useMutation({
@@ -102,18 +120,28 @@ export default function PurchaseRequestForm({
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Failed to submit request');
       }
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
-        description: "Request submitted successfully",
+        description: data.message || "Request submitted successfully",
         variant: "default"
       });
+
+      // Show validation suggestions if any
+      if (data.validationDetails?.suggestions?.length) {
+        toast({
+          title: "Suggestions for improvement",
+          description: data.validationDetails.suggestions.join('\n'),
+          variant: "default"
+        });
+      }
+
       onSubmit?.();
     },
     onError: (error: Error) => {
@@ -141,54 +169,6 @@ export default function PurchaseRequestForm({
       return response.json();
     }
   });
-
-  // Handle file upload with improved validation and error handling
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const selectedFiles = Array.from(event.target.files || []);
-      if (selectedFiles.length === 0) return;
-
-      // Validate each file
-      await Promise.all(
-        selectedFiles.map(async (file) => {
-          try {
-            await fileSchema.parseAsync({
-              name: file.name,
-              size: file.size,
-              type: file.type
-            });
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              throw new Error(`${file.name}: ${error.errors[0].message}`);
-            }
-            throw error;
-          }
-        })
-      );
-
-      // Create previews for images
-      const filesWithPreviews = await Promise.all(
-        selectedFiles.map(async (file) => {
-          const fileWithPreview: FileWithPreview = { file };
-          if (file.type.startsWith('image/')) {
-            fileWithPreview.preview = URL.createObjectURL(file);
-          }
-          return fileWithPreview;
-        })
-      );
-
-      setFiles((prev) => [...prev, ...filesWithPreviews]);
-    } catch (error) {
-      toast({
-        title: "Error adding file",
-        description: error instanceof Error ? error.message : "Failed to add file",
-        variant: "destructive"
-      });
-    }
-
-    // Clear input value to allow uploading the same file again
-    event.target.value = '';
-  };
 
   // Handle file removal
   const removeFile = (index: number) => {
@@ -219,16 +199,17 @@ export default function PurchaseRequestForm({
     form.setValue("totalEstimatedCost", total);
   };
 
-  // Handle form submission with improved error handling and validation
+  // Handle form submission with improved validation
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
-      // Validate required fields for non-draft submissions
+      // Enhanced client-side validation for non-draft submissions
       if (!draft) {
         const validationErrors = [];
         if (!data.vendorId) validationErrors.push("Please select a vendor");
         if (!data.title?.trim()) validationErrors.push("Title is required");
         if (!data.description?.trim()) validationErrors.push("Description is required");
         if (!data.purposeType) validationErrors.push("Purpose type is required");
+        if (!data.subPurposeId) validationErrors.push("Sub purpose is required");
         if (!data.items?.length || data.items.some(item => !item.name?.trim())) {
           validationErrors.push("At least one item with a name is required");
         }
@@ -384,23 +365,27 @@ export default function PurchaseRequestForm({
                 <Select 
                   onValueChange={(value) => field.onChange(Number(value))} 
                   value={field.value?.toString()}
-                  disabled={!form.watch("purposeType")}
+                  disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select sub purpose" />
+                      <SelectValue placeholder={
+                        !form.watch("purposeType") 
+                          ? "Select purpose type first"
+                          : filteredSubPurposes.length === 0 
+                            ? "No sub purposes available" 
+                            : "Select sub purpose"
+                      } />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {subPurposes
-                      .filter(sp => sp.purpose_type === form.watch("purposeType"))
-                      .map((subPurpose) => (
-                        <SelectItem 
-                          key={subPurpose.id} 
-                          value={String(subPurpose.id)}
-                        >
-                          {subPurpose.name}
-                        </SelectItem>
+                    {filteredSubPurposes.map((subPurpose) => (
+                      <SelectItem 
+                        key={subPurpose.id} 
+                        value={String(subPurpose.id)}
+                      >
+                        {subPurpose.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -600,8 +585,47 @@ export default function PurchaseRequestForm({
                     className="hidden"
                     multiple
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    onChange={handleFileChange}
-                    disabled={uploadMutation.isPending}
+                    onChange={async (event) => {
+                      try {
+                        const selectedFiles = Array.from(event.target.files || []);
+
+                        // Validate each file
+                        await Promise.all(selectedFiles.map(async (file) => {
+                          try {
+                            await fileSchema.parseAsync({
+                              name: file.name,
+                              size: file.size,
+                              type: file.type
+                            });
+                          } catch (error) {
+                            throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
+                          }
+                        }));
+
+                        // Create previews for images
+                        const filesWithPreviews = await Promise.all(
+                          selectedFiles.map(async (file) => {
+                            const fileWithPreview: FileWithPreview = { file };
+                            if (file.type.startsWith('image/')) {
+                              fileWithPreview.preview = URL.createObjectURL(file);
+                            }
+                            return fileWithPreview;
+                          })
+                        );
+
+                        setFiles(prev => [...prev, ...filesWithPreviews]);
+                      } catch (error) {
+                        toast({
+                          title: "Error adding file",
+                          description: error instanceof Error ? error.message : "Failed to add file",
+                          variant: "destructive"
+                        });
+                      }
+
+                      // Clear input value to allow uploading the same file again
+                      event.target.value = '';
+                    }}
+                    disabled={submitMutation.isPending || uploadMutation.isPending}
                   />
                 </label>
               </CardContent>
@@ -644,7 +668,7 @@ export default function PurchaseRequestForm({
                       size="sm"
                       className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       onClick={() => removeFile(index)}
-                      disabled={uploadMutation.isPending}
+                      disabled={submitMutation.isPending || uploadMutation.isPending}
                     >
                       <X className="w-4 h-4" />
                     </Button>

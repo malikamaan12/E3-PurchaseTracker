@@ -128,20 +128,27 @@ export async function validatePurchaseRequest(request: any): Promise<PurchaseReq
       model: MODEL,
       max_tokens: 1024,
       messages: [{
-        role: "user",
+        role: "user", 
         content: `Analyze this purchase request and provide validation insights:
 
         Request Details:
         ${JSON.stringify(request, null, 2)}
 
-        Provide analysis in this exact JSON format:
+        Provide a detailed validation analysis in this exact JSON format:
         {
           "isValid": boolean,
-          "score": number,
-          "suggestions": ["string"],
-          "risks": ["string"],
+          "score": number between 0-1,
+          "suggestions": array of improvement suggestions,
+          "risks": array of potential risks or concerns,
           "priority": "low" | "medium" | "high" | "urgent"
-        }`
+        }
+
+        Consider these validation rules:
+        - Title must be clear and descriptive
+        - Description should explain the purpose and necessity
+        - Items should have clear names and reasonable quantities/costs
+        - Total cost should align with items and purpose
+        - Priority should match the business impact`
       }]
     });
 
@@ -153,8 +160,9 @@ export async function validatePurchaseRequest(request: any): Promise<PurchaseReq
     return JSON.parse(content.text);
   } catch (error) {
     console.error('Purchase request validation failed:', error);
+    // Fail open with warnings to not block valid requests
     return {
-      isValid: true, // Fail open to not block valid requests
+      isValid: true,
       score: 0.5,
       suggestions: ['Manual review recommended due to validation error'],
       risks: ['Automated validation unavailable'],
