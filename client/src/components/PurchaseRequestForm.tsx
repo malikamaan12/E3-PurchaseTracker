@@ -165,10 +165,26 @@ export default function PurchaseRequestForm({
     form.setValue("totalEstimatedCost", total);
   };
 
-  // Handle form submission with improved error handling
+  // Handle form submission with improved error handling and validation
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
       setUploading(true);
+
+      // Validate required fields for non-draft submissions
+      if (!draft) {
+        if (!data.vendorId) {
+          throw new Error("Please select a vendor");
+        }
+        if (!data.title?.trim()) {
+          throw new Error("Title is required");
+        }
+        if (!data.description?.trim()) {
+          throw new Error("Description is required");
+        }
+        if (!data.items?.length || data.items.some(item => !item.name?.trim())) {
+          throw new Error("At least one item with a name is required");
+        }
+      }
 
       // Create FormData for file upload
       const formData = new FormData();
@@ -176,20 +192,23 @@ export default function PurchaseRequestForm({
         formData.append('files', fileObj.file);
       });
 
-      // Upload files
-      const uploadResponse = await fetch('/api/attachments', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+      // Upload files first
+      let uploadedFiles = [];
+      if (files.length > 0) {
+        const uploadResponse = await fetch('/api/attachments', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Failed to upload files: ${await uploadResponse.text()}`);
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload files: ${await uploadResponse.text()}`);
+        }
+
+        uploadedFiles = await uploadResponse.json();
       }
 
-      const uploadedFiles = await uploadResponse.json();
-
-      // Prepare request data with validation
+      // Transform form data
       const requestData = {
         ...data,
         attachments: uploadedFiles,
@@ -219,11 +238,16 @@ export default function PurchaseRequestForm({
         throw new Error(errorText);
       }
 
+      const result = await response.json();
+
+      // Show success message
       toast({
         title: "Success",
         description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
+        variant: "default"
       });
 
+      // Call the onSubmit callback
       onSubmit?.(draft);
     } catch (error) {
       console.error('Error submitting request:', error);
