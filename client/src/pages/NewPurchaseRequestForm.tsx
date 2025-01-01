@@ -1,33 +1,49 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { Vendor } from "@db/schema";
+import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
+import { Loader2 } from "lucide-react";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Fetch vendors for the form
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  // Fetch vendors and subpurposes for the form
+  const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
   });
 
+  const { data: subPurposes = [], isLoading: subPurposesLoading } = useQuery<SubPurpose[]>({
+    queryKey: ["/api/subpurposes"],
+  });
+
+  // Handle successful submission
   const handleSubmit = (draft?: boolean) => {
-    // Show success message
     toast({
       title: "Success",
       description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
+      variant: "default"
     });
 
     // Redirect to the dashboard
     setLocation("/");
   };
 
+  // Handle cancellation
   const handleCancel = () => {
     setLocation("/");
   };
+
+  // Show loading state
+  if (vendorsLoading || subPurposesLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
@@ -38,7 +54,7 @@ export default function NewPurchaseRequestForm() {
           </h1>
 
           <PurchaseRequestForm
-            subPurposes={[]}
+            subPurposes={subPurposes}
             vendors={vendors}
             onSubmit={handleSubmit}
             onCancel={handleCancel}

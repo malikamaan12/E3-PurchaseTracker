@@ -10,20 +10,19 @@ import {
   purchaseRequests,
   approvals,
   fileAttachments,
-  insertPurchaseRequestSchema,
   vendors,
   errorLogs,
   subPurposes,
   accountRequests,
-  insertAccountRequestSchema,
   companyBranding
 } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { AppError, ValidationError } from './utils/errors';
+import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
 import express from 'express';
+import { validatePurchaseRequest } from './utils/anthropic';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -39,13 +38,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG and PDF files are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, PNG, PDF and Word documents are allowed.'));
     }
   }
 });
@@ -58,20 +57,17 @@ const debug = (req: Request, message: string, data?: any) => {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Enhanced sub-purposes endpoint with proper query building and error handling
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  // Enhanced sub-purposes endpoint with proper error handling
+  app.get("/api/subpurposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { purposeType } = req.query;
-      debug(req, 'Fetching sub-purposes', { purposeType });
+      console.log('Fetching subpurposes:', { purposeType });
 
-      let query = db
+      const query = db
         .select({
           id: subPurposes.id,
           name: subPurposes.name,
           purposeType: subPurposes.purpose_type,
-          isFrozen: subPurposes.is_frozen,
-          validFrom: subPurposes.valid_from,
-          validTo: subPurposes.valid_to,
           createdAt: subPurposes.created_at,
           updatedAt: subPurposes.updated_at
         })
@@ -79,25 +75,15 @@ export function registerRoutes(app: Express): Server {
         .orderBy(desc(subPurposes.created_at));
 
       if (purposeType) {
-        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
+        query.where(eq(subPurposes.purpose_type, purposeType as string));
       }
 
       const results = await query;
+      console.log(`Found ${results.length} subpurposes`);
 
-      // Transform the dates into proper format or null
-      const formattedResults = results.map(sp => ({
-        ...sp,
-        validFrom: sp.validFrom ? new Date(sp.validFrom).toISOString() : null,
-        validTo: sp.validTo ? new Date(sp.validTo).toISOString() : null,
-        purposeType: sp.purposeType || 'Unknown',
-        createdAt: new Date(sp.createdAt).toISOString(),
-        updatedAt: new Date(sp.updatedAt).toISOString()
-      }));
-
-      debug(req, `Found ${formattedResults.length} sub-purposes`);
-      res.json(formattedResults);
+      res.json(results);
     } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
+      console.error('Error fetching subpurposes:', error);
       next(error);
     }
   });
@@ -131,6 +117,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+
   // Account requests management
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -162,15 +149,11 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add file upload endpoint before purchase request creation endpoint
+  // Add file upload endpoint with improved error handling
   app.post("/api/attachments", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
       if (!req.files || !Array.isArray(req.files)) {
-        throw new ValidationError('No files uploaded');
+        throw new AppError('No files uploaded', 400);
       }
 
       const uploadedFiles = req.files.map(file => ({
@@ -180,10 +163,10 @@ export function registerRoutes(app: Express): Server {
         fileUrl: `/uploads/${file.filename}`
       }));
 
-      debug(req, 'Files uploaded:', uploadedFiles);
+      console.log('Files uploaded successfully:', uploadedFiles);
       res.status(201).json(uploadedFiles);
     } catch (error) {
-      debug(req, 'Error uploading files:', error);
+      console.error('Error uploading files:', error);
       next(error);
     }
   });
@@ -191,120 +174,43 @@ export function registerRoutes(app: Express): Server {
   // Serve uploaded files
   app.use('/uploads', express.static('uploads'));
 
-
-  // Create purchase request endpoint with proper error handling and draft support
+  // Create purchase request endpoint with improved validation
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
+      const { data: requestData, action } = req.body;
 
-      debug(req, 'Creating purchase request with data:', {
-        body: req.body,
-        user: req.user?.id,
-        action: req.body.action
+      console.log('Creating purchase request:', {
+        action,
+        requestData: { ...requestData, items: requestData?.items?.length }
       });
 
-      // Parse request data with enhanced error handling
-      let requestData;
-      let attachments;
-      try {
-        requestData = req.body.data;
+      // Validate request data using Anthropic
+      const validation = await validatePurchaseRequest(requestData);
 
-        // Handle attachments
-        if (requestData.attachments) {
-          attachments = Array.isArray(requestData.attachments) ? requestData.attachments : [];
-          delete requestData.attachments; // Remove from main request data
-        }
-
-        // Ensure arrays are properly formatted for PostgreSQL JSON columns
-        requestData.items = Array.isArray(requestData.items)
-          ? requestData.items
-          : [];
-
-        requestData.mandatoryApprovers = Array.isArray(requestData.mandatoryApprovers)
-          ? requestData.mandatoryApprovers
-          : [];
-
-        requestData.optionalApprovers = Array.isArray(requestData.optionalApprovers)
-          ? requestData.optionalApprovers
-          : [];
-
-        requestData.priorityRecommendations = Array.isArray(requestData.priorityRecommendations)
-          ? requestData.priorityRecommendations
-          : [];
-
-        debug(req, 'Parsed request data:', requestData);
-      } catch (error) {
-        debug(req, 'Error parsing request data:', error);
-        throw new ValidationError('Invalid request data format');
-      }
-
-      // Add required fields
-      requestData.requesterId = req.user!.id;
-      requestData.requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      requestData.status = req.body.action === 'draft' ? 'draft' : 'pending';
-
-      // For drafts, we'll do partial validation
-      let validationResult;
-      if (req.body.action === 'draft') {
-        // For drafts, only validate the required fields
-        validationResult = insertPurchaseRequestSchema
-          .partial()
-          .safeParse(requestData);
-      } else {
-        // For submission, do full validation
-        validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-      }
-
-      if (!validationResult.success) {
-        debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid request data', {
-          errors: validationResult.error.errors
+      if (!validation.isValid && action !== 'draft') {
+        return res.status(400).json({
+          message: 'Invalid request data',
+          suggestions: validation.suggestions,
+          risks: validation.risks
         });
       }
 
-      // Verify vendor exists
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.id, requestData.vendorId)
-      });
-
-      if (!vendor) {
-        throw new ValidationError('Selected vendor does not exist');
-      }
-
-      // Create purchase request with properly formatted JSON fields
-      const result = await db
+      // Create purchase request
+      const [request] = await db
         .insert(purchaseRequests)
         .values({
-          requestNumber: requestData.requestNumber,
-          requesterId: requestData.requesterId,
-          vendorId: requestData.vendorId,
-          title: requestData.title?.trim() || '',
-          description: requestData.description?.trim() || '',
-          items: JSON.stringify(requestData.items || []),
-          purposeType: requestData.purposeType,
-          subPurposeId: requestData.subPurposeId,
-          priority: requestData.priority || 'medium',
-          currency: requestData.currency || 'QAR',
-          totalEstimatedCost: requestData.totalEstimatedCost || 0,
-          freightAmount: requestData.freightAmount || 0,
-          status: requestData.status,
-          isLocked: false,
-          mandatoryApproversCount: requestData.mandatoryApprovers?.length || 0,
-          mandatoryApprovers: JSON.stringify(requestData.mandatoryApprovers || []),
-          optionalApprovers: JSON.stringify(requestData.optionalApprovers || []),
-          priorityRecommendations: JSON.stringify(requestData.priorityRecommendations || []),
+          ...requestData,
+          status: action === 'draft' ? 'draft' : 'pending',
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
 
-      // After creating the request, add attachments if any
-      if (attachments?.length > 0) {
+      // Handle attachments if any
+      if (requestData.attachments?.length) {
         await db.insert(fileAttachments).values(
-          attachments.map(attachment => ({
-            requestId: result[0].id,
+          requestData.attachments.map((attachment: any) => ({
+            requestId: request.id,
             fileName: attachment.fileName,
             fileType: attachment.fileType,
             fileSize: attachment.fileSize,
@@ -314,25 +220,13 @@ export function registerRoutes(app: Express): Server {
         );
       }
 
-      // Get the created request with attachments
-      const [requestWithAttachments] = await db
-        .select({
-          ...purchaseRequests,
-          attachments: fileAttachments
-        })
-        .from(purchaseRequests)
-        .leftJoin(fileAttachments, eq(fileAttachments.requestId, purchaseRequests.id))
-        .where(eq(purchaseRequests.id, result[0].id))
-        .limit(1);
-
-      debug(req, `Purchase request ${req.body.action === 'draft' ? 'draft saved' : 'submitted'} successfully`, requestWithAttachments);
-      res.status(201).json(requestWithAttachments);
+      console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
+      res.status(201).json(request);
     } catch (error) {
-      debug(req, 'Error creating purchase request:', error);
+      console.error('Error creating purchase request:', error);
       next(error);
     }
   });
-
 
   // Add PUT endpoint for updating requests
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {

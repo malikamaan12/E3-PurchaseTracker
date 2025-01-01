@@ -24,9 +24,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Loader2, Plus } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 
-// Enhanced file validation schema with improved error messages
+// Enhanced file validation schema
 const fileSchema = z.object({
   name: z.string().min(1, "File name is required"),
   size: z.number().max(5 * 1024 * 1024, "File must be smaller than 5MB"),
@@ -57,7 +56,7 @@ interface PurchaseRequestFormProps {
 }
 
 export default function PurchaseRequestForm({
-  subPurposes,
+  subPurposes = [],
   vendors = [],
   onSubmit,
   onCancel,
@@ -66,7 +65,6 @@ export default function PurchaseRequestForm({
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
-  const { saveDraft, submitRequest } = usePurchaseRequests();
 
   // Initialize form with default values
   const form = useForm({
@@ -81,19 +79,20 @@ export default function PurchaseRequestForm({
         description: ""
       }],
       purposeType: "E3 EVENT",
+      subPurposeId: undefined,
       priority: "medium",
       currency: "QAR",
       totalEstimatedCost: 0,
       freightAmount: 0,
-      vendorId: undefined,
-      subPurposeId: undefined
+      vendorId: undefined
     }
   });
 
-  // Handle file upload with improved validation
+  // Handle file upload with improved validation and error handling
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const selectedFiles = Array.from(event.target.files || []);
+      if (selectedFiles.length === 0) return;
 
       // Validate each file
       await Promise.all(
@@ -166,7 +165,7 @@ export default function PurchaseRequestForm({
     form.setValue("totalEstimatedCost", total);
   };
 
-  // Handle form submission
+  // Handle form submission with improved error handling
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
       setUploading(true);
@@ -185,31 +184,47 @@ export default function PurchaseRequestForm({
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload files');
+        throw new Error(`Failed to upload files: ${await uploadResponse.text()}`);
       }
 
       const uploadedFiles = await uploadResponse.json();
 
-      // Prepare request data
+      // Prepare request data with validation
       const requestData = {
         ...data,
         attachments: uploadedFiles,
-        status: draft ? 'draft' : 'pending'
+        status: draft ? 'draft' : 'pending',
+        items: data.items.map(item => ({
+          ...item,
+          quantity: Number(item.quantity),
+          estimatedCost: Number(item.estimatedCost)
+        }))
       };
 
-      // Save request
-      if (draft) {
-        await saveDraft(requestData);
-      } else {
-        await submitRequest(requestData);
-      }
+      // Submit request
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: requestData,
+          action: draft ? 'draft' : 'submit'
+        }),
+        credentials: 'include'
+      });
 
-      onSubmit?.(draft);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
 
       toast({
         title: "Success",
-        description: `Request ${draft ? 'saved as draft' : 'submitted'} successfully`,
+        description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
       });
+
+      onSubmit?.(draft);
     } catch (error) {
       console.error('Error submitting request:', error);
       toast({
@@ -315,6 +330,41 @@ export default function PurchaseRequestForm({
             )}
           />
 
+          {/* Sub Purpose */}
+          <FormField
+            control={form.control}
+            name="subPurposeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sub Purpose</FormLabel>
+                <Select 
+                  onValueChange={(value) => field.onChange(Number(value))} 
+                  value={field.value?.toString()}
+                  disabled={!form.watch("purposeType")}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sub purpose" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {subPurposes
+                      .filter(sp => sp.purpose_type === form.watch("purposeType"))
+                      .map((subPurpose) => (
+                        <SelectItem 
+                          key={subPurpose.id} 
+                          value={String(subPurpose.id)}
+                        >
+                          {subPurpose.name}
+                        </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Priority */}
           <FormField
             control={form.control}
@@ -385,7 +435,7 @@ export default function PurchaseRequestForm({
             </Button>
           </div>
 
-          {form.watch("items")?.map((item, index) => (
+          {form.watch("items")?.map((item: any, index: number) => (
             <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
               <div className="flex-1 space-y-4">
                 <FormField
@@ -470,8 +520,11 @@ export default function PurchaseRequestForm({
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  const currentItems = form.getValues("items") || [];
-                  form.setValue("items", currentItems.filter((_, i) => i !== index));
+                  const currentItems = form.getValues("items");
+                  form.setValue(
+                    "items",
+                    currentItems.filter((_: any, i: number) => i !== index)
+                  );
                   updateTotalCost();
                 }}
                 className="text-red-500 hover:text-red-700"
