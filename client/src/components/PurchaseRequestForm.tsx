@@ -20,7 +20,6 @@ import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
-import { navigationService } from "@/services/navigation";
 
 // File validation schema
 const fileSchema = z.object({
@@ -107,137 +106,90 @@ export default function PurchaseRequestForm({
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit request');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: "Request submitted successfully",
+        variant: "default",
+        duration: 3000,
+      });
+
+      // Immediate navigation to dashboard
+      window.location.href = '/dashboard';
+    },
+    onError: async (error: Error) => {
+      console.error('Form submission error:', error);
+
+      // Show immediate error toast
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive",
+        duration: 5000,
+      });
+
+      // Optional: Get analysis in background without blocking
       try {
-        const response = await fetch('/api/requests', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to submit request');
-        }
-
-        return response.json();
-      } catch (error) {
-        console.error('Submission error:', error);
-
-        // Get intelligent error analysis
         const analysisResponse = await fetch('/api/analyze-submission', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            formData: data,
-            error: error instanceof Error ? error.message : String(error),
-            navigationTarget: '/dashboard',
-            formState: form.formState
+            formData: form.getValues(),
+            error: error.message,
+            formState: form.formState,
           }),
           credentials: 'include'
         });
 
         if (analysisResponse.ok) {
           const analysis = await analysisResponse.json();
-          console.log('Submission analysis:', analysis);
-
           if (analysis.recommendation) {
             toast({
-              title: "Form Submission Error",
+              title: "Recovery Suggestion",
               description: (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>{error instanceof Error ? error.message : String(error)}</span>
-                  </div>
-                  <div className="mt-2">
-                    <p className="font-medium">Suggested Fix:</p>
-                    <p className="text-sm text-muted-foreground">{analysis.recommendation}</p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">{analysis.recommendation}</p>
                   {analysis.autofix && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setIsRecovering(true);
-                        Object.entries(analysis.autofix!).forEach(([field, value]) => {
+                        Object.entries(analysis.autofix).forEach(([field, value]) => {
                           form.setValue(field as any, value);
                         });
-                        setIsRecovering(false);
                       }}
-                      disabled={isRecovering}
                     >
-                      {isRecovering ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Apply Suggested Fix"
-                      )}
+                      Apply Fix
                     </Button>
                   )}
                 </div>
               ),
-              variant: "destructive",
+              variant: "default",
               duration: 8000,
             });
           }
         }
-        throw error;
+      } catch (analysisError) {
+        console.error('Error getting analysis:', analysisError);
       }
-    },
-    onSuccess: async (data) => {
-      toast({
-        title: "Success",
-        description: data.message || "Request submitted successfully",
-        variant: "default"
-      });
-
-      if (onSubmit) {
-        onSubmit();
-      } else {
-        // Use navigation service with comprehensive error handling
-        const navigationSuccess = await navigationService.navigateTo('/dashboard', () => {
-          console.log('Using fallback navigation method...');
-          // Show loading toast during navigation
-          toast({
-            title: "Redirecting...",
-            description: "Please wait while we redirect you to the dashboard",
-            variant: "default",
-          });
-        });
-
-        if (!navigationSuccess) {
-          // If all navigation attempts fail, show error with manual link
-          toast({
-            title: "Navigation Error",
-            description: (
-              <div className="flex flex-col gap-2">
-                <p>Unable to redirect automatically. Please try one of these options:</p>
-                <Button 
-                  variant="link" 
-                  onClick={() => window.location.href = '/dashboard'}
-                >
-                  Click here to go to dashboard
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh the page
-                </Button>
-              </div>
-            ),
-            variant: "destructive",
-            duration: 10000,
-          });
-        }
-      }
-    },
-    onError: (error: Error) => {
-      console.error('Form submission error:', error);
     }
   });
 
