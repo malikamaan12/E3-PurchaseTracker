@@ -20,6 +20,7 @@ import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+import { navigationService } from "@/services/navigation";
 
 // File validation schema
 const fileSchema = z.object({
@@ -144,7 +145,6 @@ export default function PurchaseRequestForm({
           const analysis = await analysisResponse.json();
           console.log('Submission analysis:', analysis);
 
-          // Show recovery suggestions if available
           if (analysis.recommendation) {
             toast({
               title: "Form Submission Error",
@@ -164,8 +164,7 @@ export default function PurchaseRequestForm({
                       size="sm"
                       onClick={() => {
                         setIsRecovering(true);
-                        // Apply suggested fixes
-                        Object.entries(analysis.autofix).forEach(([field, value]) => {
+                        Object.entries(analysis.autofix!).forEach(([field, value]) => {
                           form.setValue(field as any, value);
                         });
                         setIsRecovering(false);
@@ -189,7 +188,7 @@ export default function PurchaseRequestForm({
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({
         title: "Success",
         description: data.message || "Request submitted successfully",
@@ -199,13 +198,41 @@ export default function PurchaseRequestForm({
       if (onSubmit) {
         onSubmit();
       } else {
-        try {
-          console.log('Attempting navigation to dashboard...');
-          navigate("/dashboard");
-          console.log('Navigation successful');
-        } catch (error) {
-          console.error('Navigation error:', error);
-          window.location.href = '/dashboard';
+        // Use navigation service with comprehensive error handling
+        const navigationSuccess = await navigationService.navigateTo('/dashboard', () => {
+          console.log('Using fallback navigation method...');
+          // Show loading toast during navigation
+          toast({
+            title: "Redirecting...",
+            description: "Please wait while we redirect you to the dashboard",
+            variant: "default",
+          });
+        });
+
+        if (!navigationSuccess) {
+          // If all navigation attempts fail, show error with manual link
+          toast({
+            title: "Navigation Error",
+            description: (
+              <div className="flex flex-col gap-2">
+                <p>Unable to redirect automatically. Please try one of these options:</p>
+                <Button 
+                  variant="link" 
+                  onClick={() => window.location.href = '/dashboard'}
+                >
+                  Click here to go to dashboard
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh the page
+                </Button>
+              </div>
+            ),
+            variant: "destructive",
+            duration: 10000,
+          });
         }
       }
     },
