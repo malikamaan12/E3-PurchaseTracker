@@ -102,7 +102,7 @@ export default function PurchaseRequestForm({
     }
   }, [form.watch("purposeType"), subPurposes]);
 
-  // Submit mutation with improved error handling and navigation
+  // Submit mutation
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
@@ -130,13 +130,12 @@ export default function PurchaseRequestForm({
         duration: 3000,
       });
 
-      // Immediate navigation to dashboard
-      window.location.href = '/dashboard';
+      // Use wouter navigate instead of window.location
+      navigate('/');
     },
     onError: async (error: Error) => {
       console.error('Form submission error:', error);
 
-      // Show immediate error toast
       toast({
         title: "Error",
         description: error.message || "Failed to submit request",
@@ -144,7 +143,7 @@ export default function PurchaseRequestForm({
         duration: 5000,
       });
 
-      // Optional: Get analysis in background without blocking
+      // Get analysis in background
       try {
         const analysisResponse = await fetch('/api/analyze-submission', {
           method: 'POST',
