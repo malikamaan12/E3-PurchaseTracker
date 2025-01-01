@@ -21,6 +21,8 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { analyzeFormError } from "@/lib/debugUtils";
+import { Dialog } from "@/components/ui/dialog";
+import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 
 // File validation schema
 const fileSchema = z.object({
@@ -44,6 +46,14 @@ type FileWithPreview = {
   preview?: string;
 };
 
+// Add this interface inside the existing types section
+interface FileWithMetadata extends FileWithPreview {
+  id?: number;
+  fileName?: string;
+  fileType?: string;
+  fileUrl?: string;
+}
+
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
   vendors: Vendor[];
@@ -59,11 +69,13 @@ export default function PurchaseRequestForm({
   onCancel,
   initialData
 }: PurchaseRequestFormProps) {
-  const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [files, setFiles] = useState<FileWithMetadata[]>([]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithMetadata[]>([]);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -377,6 +389,24 @@ export default function PurchaseRequestForm({
     });
   };
 
+  useEffect(() => {
+    if (initialData?.attachments) {
+      setFiles(initialData.attachments.map((attachment: any) => ({
+        id: attachment.id,
+        fileName: attachment.fileName,
+        fileType: attachment.fileType,
+        fileUrl: `/api/attachments/${attachment.id}`,
+        preview: attachment.fileType.startsWith('image/') ? `/api/attachments/${attachment.id}` : undefined,
+        file: new File([], attachment.fileName) //Dummy file for size/type
+      })));
+    }
+  }, [initialData]);
+
+  const handlePreviewFiles = (files: FileWithMetadata[]) => {
+    setSelectedFiles(files);
+    setPreviewOpen(true);
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
@@ -390,8 +420,8 @@ export default function PurchaseRequestForm({
               <FormItem>
                 <FormLabel className="text-[#7058a3] font-medium">Title</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
+                  <Input
+                    {...field}
                     placeholder="Enter request title"
                     className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                   />
@@ -726,7 +756,7 @@ export default function PurchaseRequestForm({
                         // Create previews for images
                         const filesWithPreviews = await Promise.all(
                           selectedFiles.map(async (file) => {
-                            const fileWithPreview: FileWithPreview = { file };
+                            const fileWithPreview: FileWithMetadata = { file };
                             if (file.type.startsWith('image/')) {
                               fileWithPreview.preview = URL.createObjectURL(file);
                             }
@@ -760,39 +790,43 @@ export default function PurchaseRequestForm({
                     key={index}
                     className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0" onClick={() => handlePreviewFiles([file])}>
                       {file.preview ? (
                         <img
                           src={file.preview}
                           alt="preview"
-                          className="w-10 h-10 object-cover rounded-md"
+                          className="w-10 h-10 object-cover rounded-md cursor-pointer"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center">
+                        <div
+                          className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center cursor-pointer"
+                        >
                           <span className="text-xs font-medium text-gray-500">
-                            {file.file.name.split('.').pop()?.toUpperCase()}
+                            {file.fileName?.split('.').pop()?.toUpperCase() || file.file?.name.split('.').pop()?.toUpperCase()}
                           </span>
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.file.name}
+                          {file.fileName || file.file?.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {(file.file.size / 1024 / 1024).toFixed(2)} MB
+                          {file.file ? `${(file.file.size / 1024 / 1024).toFixed(2)} MB` : ''}
                         </p>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => removeFile(index)}
-                      disabled={submitMutation.isPending || uploadMutation.isPending}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    {!file.id && ( // Only show remove button for new files
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => removeFile(index)}
+                        disabled={submitMutation.isPending || uploadMutation.isPending}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -881,6 +915,20 @@ export default function PurchaseRequestForm({
           </Button>
         </div>
       </form>
+      {previewOpen && selectedFiles.length > 0 && (
+        <Dialog open={previewOpen} onClose={() => {
+          setPreviewOpen(false);
+          setSelectedFiles([]);
+        }}>
+          <FilePreviewCarousel
+            files={selectedFiles}
+            onClose={() => {
+              setPreviewOpen(false);
+              setSelectedFiles([]);
+            }}
+          />
+        </Dialog>
+      )}
     </Form>
   );
 }
