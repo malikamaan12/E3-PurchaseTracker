@@ -25,6 +25,7 @@ import { X, Upload, Loader2, Plus } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
+import { useApprovers, type Approver } from "@/hooks/use-approvers";
 
 // File validation schema with improved error messages
 const fileSchema = z.object({
@@ -48,6 +49,14 @@ type FileWithPreview = {
   preview?: string;
 };
 
+// Define item type to fix implicit any issues
+interface RequestItem {
+  name: string;
+  quantity: number;
+  estimatedCost: number;
+  description: string;
+}
+
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
   onSubmit?: (draft?: boolean) => void;
@@ -67,20 +76,23 @@ export default function PurchaseRequestForm({
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const { saveDraft, submitRequest } = usePurchaseRequests();
+  const { data: approvers = [] } = useApprovers();
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: initialData || {
       title: "",
       description: "",
-      items: [],
+      items: [] as RequestItem[],
       purposeType: "E3 EVENT",
       priority: "medium",
       currency: "QAR",
       totalEstimatedCost: 0,
       freightAmount: 0,
       vendorId: undefined,
-      subPurposeId: undefined
+      subPurposeId: undefined,
+      mandatoryApprovers: [],
+      optionalApprovers: []
     }
   });
 
@@ -142,7 +154,7 @@ export default function PurchaseRequestForm({
   };
 
   // Calculate total cost
-  const calculateTotalCost = (items: any[], freightAmount: number) => {
+  const calculateTotalCost = (items: RequestItem[], freightAmount: number) => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (item.quantity * item.estimatedCost),
       0
@@ -152,7 +164,7 @@ export default function PurchaseRequestForm({
 
   // Update total cost when items or freight amount changes
   const updateTotalCost = () => {
-    const items = form.getValues("items");
+    const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
     const total = calculateTotalCost(items, freightAmount);
     form.setValue("totalEstimatedCost", total);
@@ -215,7 +227,7 @@ export default function PurchaseRequestForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
+      <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6 max-w-4xl mx-auto">
         {/* Basic Information */}
         <div className="space-y-4">
           {/* Title */}
@@ -356,6 +368,143 @@ export default function PurchaseRequestForm({
           />
         </div>
 
+        {/* Add Approvers Section */}
+        <div className="space-y-6">
+          <h2 className="text-lg font-semibold">Approvers</h2>
+
+          {/* Mandatory Approvers */}
+          <FormField
+            control={form.control}
+            name="mandatoryApprovers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mandatory Approvers</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const currentValues = field.value || [];
+                    if (!currentValues.includes(Number(value))) {
+                      field.onChange([...currentValues, Number(value)]);
+                    }
+                  }}
+                  value=""
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select mandatory approvers" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {approvers
+                      .filter(approver => approver.isMandatory)
+                      .map((approver) => (
+                        <SelectItem 
+                          key={approver.id} 
+                          value={approver.id.toString()}
+                        >
+                          {approver.username} ({approver.department})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {/* Show selected mandatory approvers */}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {field.value?.map((approverId: number) => {
+                    const approver = approvers.find(a => a.id === approverId);
+                    return approver ? (
+                      <div
+                        key={approverId}
+                        className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm"
+                      >
+                        <span>
+                          {approver.username} ({approver.department})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange(
+                              field.value.filter((id: number) => id !== approverId)
+                            );
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Optional Approvers */}
+          <FormField
+            control={form.control}
+            name="optionalApprovers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Optional Approvers</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const currentValues = field.value || [];
+                    if (!currentValues.includes(Number(value))) {
+                      field.onChange([...currentValues, Number(value)]);
+                    }
+                  }}
+                  value=""
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select optional approvers" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {approvers
+                      .filter(approver => !approver.isMandatory)
+                      .map((approver) => (
+                        <SelectItem 
+                          key={approver.id} 
+                          value={approver.id.toString()}
+                        >
+                          {approver.username} ({approver.department})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {/* Show selected optional approvers */}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {field.value?.map((approverId: number) => {
+                    const approver = approvers.find(a => a.id === approverId);
+                    return approver ? (
+                      <div
+                        key={approverId}
+                        className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm"
+                      >
+                        <span>
+                          {approver.username} ({approver.department})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange(
+                              field.value.filter((id: number) => id !== approverId)
+                            );
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         {/* Items Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -376,55 +525,18 @@ export default function PurchaseRequestForm({
             </Button>
           </div>
 
-          {form.watch("items")?.map((item, index) => (
-            <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
-              <div className="flex-1 space-y-4">
-                <FormField
-                  control={form.control}
-                  name={`items.${index}.name`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Item name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={`items.${index}.description`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Item description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
+          {form.watch("items")?.map((item: RequestItem, index: number) => (
+            <div key={index} className="relative p-4 border rounded-lg bg-card">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 space-y-4">
                   <FormField
                     control={form.control}
-                    name={`items.${index}.quantity`}
+                    name={`items.${index}.name`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quantity</FormLabel>
+                        <FormLabel>Item Name</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="1"
-                            placeholder="Quantity"
-                            onChange={(e) => {
-                              field.onChange(Number(e.target.value));
-                              updateTotalCost();
-                            }}
-                          />
+                          <Input {...field} placeholder="Item name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -433,42 +545,82 @@ export default function PurchaseRequestForm({
 
                   <FormField
                     control={form.control}
-                    name={`items.${index}.estimatedCost`}
+                    name={`items.${index}.description`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cost Per Unit</FormLabel>
+                        <FormLabel>Item Description</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Cost"
-                            onChange={(e) => {
-                              field.onChange(Number(e.target.value));
-                              updateTotalCost();
-                            }}
-                          />
+                          <Textarea {...field} placeholder="Item description" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.quantity`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quantity</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              min="1"
+                              placeholder="Quantity"
+                              onChange={(e) => {
+                                field.onChange(Number(e.target.value));
+                                updateTotalCost();
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.estimatedCost`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cost Per Unit</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Cost"
+                              onChange={(e) => {
+                                field.onChange(Number(e.target.value));
+                                updateTotalCost();
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  const currentItems = form.getValues("items") || [];
-                  form.setValue("items", currentItems.filter((_, i) => i !== index));
-                  updateTotalCost();
-                }}
-                className="text-red-500 hover:text-red-700"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    const currentItems = form.getValues("items") || [];
+                    form.setValue("items", currentItems.filter((_: RequestItem, i: number) => i !== index));
+                    updateTotalCost();
+                  }}
+                  className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
