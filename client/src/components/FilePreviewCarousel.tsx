@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ImageGalleryProps } from "react-image-gallery";
+import type { ReactImageGalleryProps } from "react-image-gallery";
 import ImageGallery from "react-image-gallery";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,12 @@ export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarou
   const [rotation, setRotation] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Filter and map only image files
   const images = files
-    .filter(file => file.fileType?.startsWith('image/') || file.file?.type?.startsWith('image/'))
+    .filter(file => {
+      const fileType = file.fileType || file.file?.type;
+      return fileType?.startsWith('image/');
+    })
     .map(file => ({
       original: file.fileUrl || file.preview || '',
       thumbnail: file.fileUrl || file.preview || '',
@@ -115,7 +119,7 @@ export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarou
                       setCurrentIndex(currentIndex);
                       setRotation(0); // Reset rotation when changing images
                     }}
-                    renderItem={(item: any) => (
+                    renderItem={(item) => (
                       <div
                         style={{
                           transform: `rotate(${rotation}deg)`,

@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import react-image-gallery styles */
+@import "react-image-gallery/styles/css/image-gallery.css";
+
 @layer base {
   * {
     @apply border-border;
@@ -40,6 +43,32 @@
 
   .loading-spin {
     @apply animate-spin text-muted;
+  }
+
+  /* Preview Dialog */
+  .preview-dialog {
+    @apply fixed inset-0 z-50 bg-black/50 flex items-center justify-center;
+  }
+
+  .preview-dialog-content {
+    @apply bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 overflow-hidden;
+  }
+
+  /* Image Gallery Customization */
+  .image-gallery-slide img {
+    @apply max-h-[70vh] object-contain;
+  }
+
+  .image-gallery-thumbnails-wrapper {
+    @apply bg-black/95;
+  }
+
+  .image-gallery-thumbnail.active {
+    @apply border-[#7058a3];
+  }
+
+  .image-gallery-thumbnail:hover {
+    @apply border-[#3eb6ba];
   }
 
   /* Error Animations */
