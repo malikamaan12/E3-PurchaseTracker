@@ -65,11 +65,8 @@ export default function PurchaseRequestForm({
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const { toast } = useToast();
-
-  // Keep track of filtered sub-purposes
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
 
-  // Initialize form with default values and enhanced validation
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: initialData || {
@@ -91,13 +88,14 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // Update filtered sub-purposes when purpose type changes
+  // Filter sub-purposes based on selected purpose type
   useEffect(() => {
     const purposeType = form.watch("purposeType");
     if (purposeType) {
       const filtered = subPurposes.filter(sp => sp.purpose_type === purposeType);
       setFilteredSubPurposes(filtered);
-      // Reset sub-purpose selection if current selection is not valid for new purpose type
+
+      // Reset sub-purpose if not valid for new purpose type
       const currentSubPurposeId = form.watch("subPurposeId");
       if (currentSubPurposeId && !filtered.some(sp => sp.id === currentSubPurposeId)) {
         form.setValue("subPurposeId", undefined);
@@ -107,9 +105,10 @@ export default function PurchaseRequestForm({
     }
   }, [form.watch("purposeType"), subPurposes]);
 
-  // Create mutation for submitting the request
+  // Submit mutation with improved error handling
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log('Submitting data:', data);
       const response = await fetch('/api/requests', {
         method: 'POST',
         headers: {
@@ -120,8 +119,8 @@ export default function PurchaseRequestForm({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || 'Failed to submit request');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit request');
       }
 
       return response.json();
@@ -132,16 +131,6 @@ export default function PurchaseRequestForm({
         description: data.message || "Request submitted successfully",
         variant: "default"
       });
-
-      // Show validation suggestions if any
-      if (data.validationDetails?.suggestions?.length) {
-        toast({
-          title: "Suggestions for improvement",
-          description: data.validationDetails.suggestions.join('\n'),
-          variant: "default"
-        });
-      }
-
       onSubmit?.();
     },
     onError: (error: Error) => {
@@ -153,7 +142,7 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // Create mutation for file uploads
+  // File upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await fetch('/api/attachments', {
@@ -170,18 +159,6 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // Handle file removal
-  const removeFile = (index: number) => {
-    setFiles((prev) => {
-      const newFiles = [...prev];
-      const removed = newFiles.splice(index, 1)[0];
-      if (removed.preview) {
-        URL.revokeObjectURL(removed.preview);
-      }
-      return newFiles;
-    });
-  };
-
   // Calculate total cost
   const calculateTotalCost = (items: any[], freightAmount: number) => {
     const itemsTotal = items.reduce(
@@ -191,7 +168,7 @@ export default function PurchaseRequestForm({
     return itemsTotal + Number(freightAmount || 0);
   };
 
-  // Update total cost when items or freight amount changes
+  // Update total cost
   const updateTotalCost = () => {
     const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
@@ -199,10 +176,10 @@ export default function PurchaseRequestForm({
     form.setValue("totalEstimatedCost", total);
   };
 
-  // Handle form submission with improved validation
+  // Handle form submission
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
-      // Enhanced client-side validation for non-draft submissions
+      // Client-side validation for non-draft submissions
       if (!draft) {
         const validationErrors = [];
         if (!data.vendorId) validationErrors.push("Please select a vendor");
@@ -237,7 +214,7 @@ export default function PurchaseRequestForm({
         attachments = await uploadMutation.mutateAsync(formData);
       }
 
-      // Submit request
+      // Prepare request data
       const requestData = {
         data: {
           ...data,
@@ -260,6 +237,17 @@ export default function PurchaseRequestForm({
         variant: "destructive"
       });
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => {
+      const newFiles = [...prev];
+      const removed = newFiles.splice(index, 1)[0];
+      if (removed.preview) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      return newFiles;
+    });
   };
 
   return (
@@ -734,7 +722,14 @@ export default function PurchaseRequestForm({
             disabled={submitMutation.isPending || uploadMutation.isPending}
             className="w-full sm:w-auto order-2"
           >
-            Save as Draft
+            {submitMutation.isPending && uploadMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save as Draft'
+            )}
           </Button>
           <Button 
             type="submit" 

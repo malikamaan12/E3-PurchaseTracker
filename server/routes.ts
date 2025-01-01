@@ -14,7 +14,8 @@ import {
   errorLogs,
   subPurposes,
   accountRequests,
-  companyBranding
+  companyBranding,
+  insertPurchaseRequestSchema
 } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { AppError, ValidationError, AuthorizationError } from './utils/errors';
@@ -22,7 +23,6 @@ import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
 import express from 'express';
-import { validatePurchaseRequest } from './utils/anthropic';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -56,6 +56,77 @@ const debug = (req: Request, message: string, data?: any) => {
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Create purchase request endpoint with improved validation
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { data: requestData, action } = req.body;
+      console.log('Creating purchase request:', {
+        action,
+        requestData: { ...requestData, items: requestData?.items?.length }
+      });
+
+      // Validate required fields for non-draft submissions
+      if (action !== 'draft') {
+        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+
+        if (!validationResult.success) {
+          return res.status(400).json({
+            message: 'Invalid request data',
+            errors: validationResult.error.format()
+          });
+        }
+      }
+
+      // Generate a unique request number
+      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Prepare request data
+      const finalRequestData = {
+        ...requestData,
+        requestNumber,
+        requesterId: req.user!.id,
+        status: action === 'draft' ? 'draft' : 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Create purchase request
+      const [request] = await db
+        .insert(purchaseRequests)
+        .values(finalRequestData)
+        .returning();
+
+      // Handle attachments if any
+      if (requestData.attachments?.length) {
+        await db.insert(fileAttachments).values(
+          requestData.attachments.map((attachment: any) => ({
+            requestId: request.id,
+            fileName: attachment.fileName,
+            fileType: attachment.fileType,
+            fileSize: attachment.fileSize,
+            fileUrl: attachment.fileUrl,
+            uploadedAt: new Date()
+          }))
+        );
+      }
+
+      console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
+
+      // Return detailed response
+      res.status(201).json({
+        ...request,
+        message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
+      });
+    } catch (error) {
+      console.error('Error creating purchase request:', error);
+      next(error);
+    }
+  });
 
   // Enhanced sub-purposes endpoint with proper error handling and logging
   app.get("/api/subpurposes", async (req: Request, res: Response, next: NextFunction) => {
@@ -184,93 +255,6 @@ export function registerRoutes(app: Express): Server {
 
   // Serve uploaded files
   app.use('/uploads', express.static('uploads'));
-
-  // Create purchase request endpoint with improved validation
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const { data: requestData, action } = req.body;
-      console.log('Creating purchase request:', {
-        action,
-        requestData: { ...requestData, items: requestData?.items?.length }
-      });
-
-      // Only validate if not a draft
-      if (action !== 'draft') {
-        // Validate request using Anthropic AI
-        const validation = await validatePurchaseRequest(requestData);
-
-        if (!validation.isValid) {
-          return res.status(400).json({
-            message: 'Invalid request data',
-            suggestions: validation.suggestions,
-            risks: validation.risks,
-            priority: validation.priority
-          });
-        }
-
-        // Update priority based on AI analysis if needed
-        if (validation.priority !== requestData.priority) {
-          requestData.priorityScore = Math.round(validation.score * 100);
-          requestData.priorityReason = validation.suggestions.join('. ');
-          requestData.priorityRecommendations = validation.risks;
-        }
-      }
-
-      // Generate a unique request number
-      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-      // Prepare request data
-      const finalRequestData = {
-        ...requestData,
-        requestNumber,
-        requesterId: req.user!.id,
-        status: action === 'draft' ? 'draft' : 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Create purchase request
-      const [request] = await db
-        .insert(purchaseRequests)
-        .values(finalRequestData)
-        .returning();
-
-      // Handle attachments if any
-      if (requestData.attachments?.length) {
-        await db.insert(fileAttachments).values(
-          requestData.attachments.map((attachment: any) => ({
-            requestId: request.id,
-            fileName: attachment.fileName,
-            fileType: attachment.fileType,
-            fileSize: attachment.fileSize,
-            fileUrl: attachment.fileUrl,
-            uploadedAt: new Date()
-          }))
-        );
-      }
-
-      console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
-
-      // Return detailed response
-      res.status(201).json({
-        ...request,
-        message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`,
-        validationDetails: action === 'draft' ? null : {
-          suggestions: validation.suggestions,
-          risks: validation.risks,
-          priority: validation.priority,
-          score: validation.score
-        }
-      });
-    } catch (error) {
-      console.error('Error creating purchase request:', error);
-      next(error);
-    }
-  });
 
   // Add PUT endpoint for updating requests
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
