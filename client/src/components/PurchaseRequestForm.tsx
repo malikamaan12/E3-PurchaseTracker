@@ -388,11 +388,15 @@ export default function PurchaseRequestForm({
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Title</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Title</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="Enter request title" />
+                  <Input 
+                    {...field} 
+                    placeholder="Enter request title"
+                    className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
+                  />
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -403,15 +407,15 @@ export default function PurchaseRequestForm({
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Description</FormLabel>
                 <FormControl>
                   <Textarea
                     {...field}
                     placeholder="Enter request description"
-                    className="min-h-[100px]"
+                    className="min-h-[100px] border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                   />
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -425,10 +429,10 @@ export default function PurchaseRequestForm({
             name="vendorId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Vendor</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Vendor</FormLabel>
                 <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
                       <SelectValue placeholder="Select a vendor" />
                     </SelectTrigger>
                   </FormControl>
@@ -440,7 +444,7 @@ export default function PurchaseRequestForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -451,10 +455,10 @@ export default function PurchaseRequestForm({
             name="purposeType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Purpose Type</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Purpose Type</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
                       <SelectValue placeholder="Select purpose type" />
                     </SelectTrigger>
                   </FormControl>
@@ -465,7 +469,7 @@ export default function PurchaseRequestForm({
                     <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -476,14 +480,14 @@ export default function PurchaseRequestForm({
             name="subPurposeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Sub Purpose</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Sub Purpose</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(Number(value))}
                   value={field.value?.toString()}
                   disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
                       <SelectValue placeholder={
                         !form.watch("purposeType")
                           ? "Select purpose type first"
@@ -504,7 +508,7 @@ export default function PurchaseRequestForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -515,10 +519,10 @@ export default function PurchaseRequestForm({
             name="priority"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Priority</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Priority</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                   </FormControl>
@@ -529,7 +533,7 @@ export default function PurchaseRequestForm({
                     <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -540,10 +544,10 @@ export default function PurchaseRequestForm({
             name="currency"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Currency</FormLabel>
+                <FormLabel className="text-[#7058a3] font-medium">Currency</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-[#7058a3]/20 focus:ring-[#3eb6ba]">
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                   </FormControl>
@@ -553,7 +557,7 @@ export default function PurchaseRequestForm({
                     <SelectItem value="CNY">CNY</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage />
+                <FormMessage className="text-red-500" />
               </FormItem>
             )}
           />
@@ -587,11 +591,11 @@ export default function PurchaseRequestForm({
                   name={`items.${index}.name`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Item Name</FormLabel>
+                      <FormLabel className="text-[#7058a3] font-medium">Item Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Item name" />
+                        <Input {...field} placeholder="Item name" className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500" />
                     </FormItem>
                   )}
                 />
@@ -601,11 +605,11 @@ export default function PurchaseRequestForm({
                   name={`items.${index}.description`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Item Description</FormLabel>
+                      <FormLabel className="text-[#7058a3] font-medium">Item Description</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="Item description" />
+                        <Textarea {...field} placeholder="Item description" className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500" />
                     </FormItem>
                   )}
                 />
@@ -616,7 +620,7 @@ export default function PurchaseRequestForm({
                     name={`items.${index}.quantity`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quantity</FormLabel>
+                        <FormLabel className="text-[#7058a3] font-medium">Quantity</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -627,9 +631,10 @@ export default function PurchaseRequestForm({
                               field.onChange(Number(e.target.value));
                               updateTotalCost();
                             }}
+                            className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-500" />
                       </FormItem>
                     )}
                   />
@@ -639,7 +644,7 @@ export default function PurchaseRequestForm({
                     name={`items.${index}.estimatedCost`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cost Per Unit</FormLabel>
+                        <FormLabel className="text-[#7058a3] font-medium">Cost Per Unit</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -651,9 +656,10 @@ export default function PurchaseRequestForm({
                               field.onChange(Number(e.target.value));
                               updateTotalCost();
                             }}
+                            className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-500" />
                       </FormItem>
                     )}
                   />
@@ -800,7 +806,7 @@ export default function PurchaseRequestForm({
           name="freightAmount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Freight Amount</FormLabel>
+              <FormLabel className="text-[#7058a3] font-medium">Freight Amount</FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -812,9 +818,10 @@ export default function PurchaseRequestForm({
                     field.onChange(Number(e.target.value));
                     updateTotalCost();
                   }}
+                  className="border-[#7058a3]/20 focus:border-[#3eb6ba] focus:ring-[#3eb6ba]"
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-red-500" />
             </FormItem>
           )}
         />
@@ -830,14 +837,14 @@ export default function PurchaseRequestForm({
         </div>
 
         {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 col-span-full">
           {onCancel && (
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
               disabled={submitMutation.isPending || uploadMutation.isPending}
-              className="w-full sm:w-auto order-3 sm:order-1"
+              className="w-full sm:w-auto order-3 sm:order-1 border-[#7058a3]/20 text-[#7058a3] hover:bg-[#7058a3]/10"
             >
               Cancel
             </Button>
@@ -847,7 +854,7 @@ export default function PurchaseRequestForm({
             variant="outline"
             onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
             disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-2"
+            className="w-full sm:w-auto order-2 border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10"
           >
             {submitMutation.isPending && uploadMutation.isPending ? (
               <>
@@ -861,7 +868,7 @@ export default function PurchaseRequestForm({
           <Button
             type="submit"
             disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-1 sm:order-3"
+            className="w-full sm:w-auto order-1 sm:order-3 bg-[#7058a3] hover:bg-[#7058a3]/90 text-white"
           >
             {(submitMutation.isPending || uploadMutation.isPending) ? (
               <>
