@@ -27,7 +27,10 @@ export function usePurchaseRequests() {
         },
         body: JSON.stringify({
           action: "draft",
-          data
+          data: {
+            ...data,
+            status: "draft"
+          }
         }),
         credentials: "include",
       });
@@ -65,7 +68,10 @@ export function usePurchaseRequests() {
         },
         body: JSON.stringify({
           action: "submit",
-          data
+          data: {
+            ...data,
+            status: "pending"
+          }
         }),
         credentials: "include",
       });
@@ -93,8 +99,38 @@ export function usePurchaseRequests() {
     }
   });
 
+  // Delete mutation
+  const deleteMutation = useMutation<void, Error, number>({
+    mutationFn: async (requestId) => {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to delete request: ${response.status}`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting request",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   return {
     saveDraft: draftMutation.mutateAsync,
     submitRequest: submitMutation.mutateAsync,
+    deleteRequest: deleteMutation.mutateAsync,
   };
 }
