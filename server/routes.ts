@@ -1728,22 +1728,30 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add new analysis endpoint
+  // Add new route for analyzing form submission errors
   app.post("/api/analyze-submission", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
+      debug(req, 'Analyzing form submission error:', req.body);
+
+      const { formData, error, formState } = req.body;
+
+      // Use Claude to analyze the submission error
       const analysis = await analyzeFormSubmission({
-        formData: req.body.formData,
-        error: req.body.error ? new Error(req.body.error) : undefined,
-        navigationTarget: req.body.navigationTarget,
+        formData,
+        error,
+        formState,
+        requestId: formData?.id,
         userId: req.user?.id
       });
 
+      debug(req, 'Analysis result:', analysis);
       res.json(analysis);
     } catch (error) {
+      debug(req, 'Error analyzing form submission:', error);
       next(error);
     }
   });

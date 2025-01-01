@@ -21,6 +21,8 @@ interface AnalysisResult {
   recommendation: string;
   severity: 'low' | 'medium' | 'high';
   autofix?: Record<string, any>;
+  validationErrors?: string[];
+  suggestion?: string;
 }
 
 export async function analyzeFormSubmission(context: AnalysisContext): Promise<AnalysisResult> {
@@ -28,7 +30,6 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
     const prompt = `Analyze this purchase request form submission context and identify potential issues:
     Form Data: ${JSON.stringify(context.formData, null, 2)}
     Error: ${context.error?.message || 'No error'}
-    Navigation Target: ${context.navigationTarget}
     Form State: ${JSON.stringify(context.formState, null, 2)}
     Request ID: ${context.requestId}
     User ID: ${context.userId}
@@ -44,10 +45,12 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
     Please provide analysis in JSON format with the following structure:
     {
       "issue_detected": boolean,
-      "issue_type": "validation|navigation|data|authentication|other",
+      "issue_type": "validation"|"navigation"|"data"|"authentication"|"other",
       "description": "detailed description of the issue",
       "recommendation": "user-friendly recommendation to fix the issue",
-      "severity": "low|medium|high",
+      "severity": "low"|"medium"|"high",
+      "suggestion": "brief, actionable suggestion for the user",
+      "validationErrors": ["list", "of", "validation", "errors"],
       "autofix": {
         "fieldName": "correctedValue" // Optional: provide automatic fixes for fields
       }
@@ -59,7 +62,13 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
       messages: [{ role: "user", content: prompt }],
     });
 
-    const analysis = JSON.parse(response.content[0].text);
+    // Safely extract content from the response
+    let analysisText = '';
+    if (response.content && Array.isArray(response.content)) {
+      analysisText = response.content.find(block => 'text' in block)?.text || '';
+    }
+
+    const analysis = JSON.parse(analysisText) as AnalysisResult;
 
     // Add default autofix suggestions for common issues
     if (!analysis.autofix) {
@@ -76,15 +85,27 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
       }
     }
 
-    return analysis;
+    // Ensure all required properties are present
+    return {
+      issue_detected: analysis.issue_detected,
+      issue_type: analysis.issue_type,
+      description: analysis.description,
+      recommendation: analysis.recommendation,
+      severity: analysis.severity,
+      autofix: analysis.autofix,
+      validationErrors: analysis.validationErrors || [],
+      suggestion: analysis.suggestion || analysis.recommendation
+    };
   } catch (error) {
     console.error('Error analyzing form submission:', error);
     return {
       issue_detected: true,
-      issue_type: "analysis_error",
+      issue_type: "other", // Changed from "analysis_error" to match the type
       description: "Failed to analyze form submission",
       recommendation: "Please try submitting the form again. If the issue persists, contact support.",
-      severity: "high"
+      severity: "high",
+      validationErrors: [],
+      suggestion: "Please try again or contact support if the issue continues."
     };
   }
 }

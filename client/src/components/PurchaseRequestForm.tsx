@@ -20,6 +20,7 @@ import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+import { analyzeFormError } from "@/lib/debugUtils";
 
 // File validation schema
 const fileSchema = z.object({
@@ -102,7 +103,7 @@ export default function PurchaseRequestForm({
     }
   }, [form.watch("purposeType"), subPurposes]);
 
-  // Submit mutation
+  // Enhanced submit mutation with intelligent error handling
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
@@ -130,21 +131,29 @@ export default function PurchaseRequestForm({
         duration: 3000,
       });
 
-      // Use wouter navigate instead of window.location
+      // Use wouter navigate for client-side navigation
       navigate('/');
     },
     onError: async (error: Error) => {
       console.error('Form submission error:', error);
 
-      toast({
+      // Show initial error toast
+      const errorToast = toast({
         title: "Error",
-        description: error.message || "Failed to submit request",
+        description: "Analyzing submission error...",
         variant: "destructive",
-        duration: 5000,
+        duration: null, // Keep toast until we get analysis
       });
 
-      // Get analysis in background
       try {
+        // Gather form state and error details for analysis
+        const formState = {
+          values: form.getValues(),
+          errors: form.formState.errors,
+          isDirty: form.formState.isDirty,
+          touchedFields: form.formState.touchedFields,
+        };
+
         const analysisResponse = await fetch('/api/analyze-submission', {
           method: 'POST',
           headers: {
@@ -153,41 +162,93 @@ export default function PurchaseRequestForm({
           body: JSON.stringify({
             formData: form.getValues(),
             error: error.message,
-            formState: form.formState,
+            formState
           }),
           credentials: 'include'
         });
 
         if (analysisResponse.ok) {
           const analysis = await analysisResponse.json();
-          if (analysis.recommendation) {
-            toast({
-              title: "Recovery Suggestion",
-              description: (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm text-muted-foreground">{analysis.recommendation}</p>
-                  {analysis.autofix && (
+
+          // Dismiss loading toast
+          errorToast.dismiss();
+
+          // Show detailed error analysis with recovery options
+          toast({
+            title: "Form Submission Error",
+            description: (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-destructive">
+                  {error.message}
+                </p>
+                {analysis.suggestion && (
+                  <p className="text-sm text-muted-foreground">
+                    Suggestion: {analysis.suggestion}
+                  </p>
+                )}
+                {analysis.autofix && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Auto-fix available
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
+                        // Apply suggested fixes
                         Object.entries(analysis.autofix).forEach(([field, value]) => {
                           form.setValue(field as any, value);
+                        });
+                        // Show confirmation
+                        toast({
+                          title: "Changes Applied",
+                          description: "Suggested fixes have been applied to the form",
+                          variant: "default"
                         });
                       }}
                     >
                       Apply Fix
                     </Button>
-                  )}
-                </div>
-              ),
-              variant: "default",
-              duration: 8000,
-            });
-          }
+                  </div>
+                )}
+                {analysis.validationErrors?.length > 0 && (
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground">
+                    {analysis.validationErrors.map((err: string, i: number) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ),
+            variant: "destructive",
+            duration: 8000,
+          });
+
+        } else {
+          // If analysis fails, show generic error with form state analysis
+          const localAnalysis = await analyzeFormError(form.getValues(), error);
+
+          toast({
+            title: "Error",
+            description: (
+              <div className="space-y-2">
+                <p className="text-sm text-destructive">{error.message}</p>
+                <p className="text-sm text-muted-foreground">{localAnalysis}</p>
+              </div>
+            ),
+            variant: "destructive",
+            duration: 5000,
+          });
         }
       } catch (analysisError) {
         console.error('Error getting analysis:', analysisError);
+        // Show basic error message if analysis fails
+        toast({
+          title: "Error",
+          description: error.message || "Failed to submit request",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     }
   });
