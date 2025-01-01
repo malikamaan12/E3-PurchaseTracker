@@ -3,13 +3,11 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
-import { useApprovers } from "@/hooks/use-approvers";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: approvers = [] } = useApprovers();
 
   // Fetch vendors for the form
   const { data: vendors = [] } = useQuery<Vendor[]>({
@@ -44,7 +42,6 @@ export default function NewPurchaseRequestForm() {
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             vendors={vendors}
-            approvers={approvers}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -296,14 +296,23 @@ export const vendorToCategoriesRelations = relations(vendorToCategories, ({ one 
 
 
 // ============= Basic Type Definitions =============
-export type User = typeof users.$inferSelect;
-export type SubPurpose = typeof subPurposes.$inferSelect;
-export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
-export type Approval = typeof approvals.$inferSelect;
-export type FileAttachment = typeof fileAttachments.$inferSelect;
-export type NotificationType = typeof notifications.$inferSelect;
-export type CompanyBranding = typeof companyBranding.$inferSelect;
-export type AccountRequest = typeof accountRequests.$inferSelect;
+export type User = InferModel<typeof users>;
+export type SubPurpose = {
+  id: number;
+  name: string;
+  purpose_type: string;
+  is_frozen: boolean;
+  valid_from: Date | null;
+  valid_to: Date | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+export type PurchaseRequest = InferModel<typeof purchaseRequests>;
+export type Approval = InferModel<typeof approvals>;
+export type FileAttachment = InferModel<typeof fileAttachments>;
+export type NotificationType = InferModel<typeof notifications>;
+export type CompanyBranding = InferModel<typeof companyBranding>;
+export type AccountRequest = InferModel<typeof accountRequests>;
 export type ErrorLog = typeof errorLogs.$inferSelect;
 export type InsertErrorLog = typeof errorLogs.$inferInsert;
 export type LoginCredentials = z.infer<typeof loginSchema>;
@@ -318,6 +327,7 @@ export type InsertVendor = typeof vendors.$inferInsert;
 export type VendorCategory = typeof vendorCategories.$inferSelect;
 export type VendorPerformance = typeof vendorPerformance.$inferSelect;
 export type VendorPayment = typeof vendorPayments.$inferSelect;
+
 
 
 // ============= Validation Schemas =============
