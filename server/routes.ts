@@ -70,23 +70,11 @@ export function registerRoutes(app: Express): Server {
         requestData: { ...requestData, items: requestData?.items?.length }
       });
 
-      // Validate required fields for non-draft submissions
-      if (action !== 'draft') {
-        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
-
-        if (!validationResult.success) {
-          return res.status(400).json({
-            message: 'Invalid request data',
-            errors: validationResult.error.format()
-          });
-        }
-      }
-
       // Generate a unique request number
       const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       // Prepare request data
-      const finalRequestData = {
+      let finalRequestData = {
         ...requestData,
         requestNumber,
         requesterId: req.user!.id,
@@ -94,6 +82,26 @@ export function registerRoutes(app: Express): Server {
         createdAt: new Date(),
         updatedAt: new Date()
       };
+
+      // If saving as draft, make sure required fields are not enforced
+      if (action === 'draft') {
+        // Allow empty or partial data for drafts
+        finalRequestData = {
+          ...finalRequestData,
+          items: finalRequestData.items || [],
+          totalEstimatedCost: finalRequestData.totalEstimatedCost || 0,
+          freightAmount: finalRequestData.freightAmount || 0
+        };
+      } else {
+        // Validate required fields for submissions
+        const validationResult = insertPurchaseRequestSchema.safeParse(requestData);
+        if (!validationResult.success) {
+          return res.status(400).json({
+            message: 'Invalid request data',
+            errors: validationResult.error.format()
+          });
+        }
+      }
 
       // Create purchase request
       const [request] = await db

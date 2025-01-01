@@ -379,10 +379,12 @@ export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   title: z.string()
     .min(1, "Title is required")
-    .max(100, "Title cannot exceed 100 characters"),
+    .max(100, "Title cannot exceed 100 characters")
+    .optional(),
   description: z.string()
     .min(10, "Description must be at least 10 characters")
-    .max(500, "Description cannot exceed 500 characters"),
+    .max(500, "Description cannot exceed 500 characters")
+    .optional(),
   items: z.array(z.object({
     name: z.string()
       .min(1, "Item name is required")
@@ -398,24 +400,27 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     description: z.string()
       .max(200, "Item description cannot exceed 200 characters")
       .optional()
-  })).min(1, "At least one item is required"),
+  })).optional().default([]),
   purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
     required_error: "Purpose type is required",
     invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
-  }),
-  vendorId: z.number().int().positive("Vendor selection is required"),
+  }).optional(),
+  vendorId: z.number().int().positive("Vendor selection is required").optional(),
   subPurposeId: z.number().optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
-  currency: z.enum(["QAR", "USD", "CNY"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  currency: z.enum(["QAR", "USD", "CNY"]).optional(),
   totalEstimatedCost: z.number()
     .multipleOf(0.01, "Total cost can have up to 2 decimal places")
     .min(0, "Total cost cannot be negative")
-    .max(999999999.99, "Total cost is too large"),
+    .max(999999999.99, "Total cost is too large")
+    .optional(),
   freightAmount: z.number()
     .multipleOf(0.01, "Freight amount can have up to 2 decimal places")
     .min(0, "Freight amount cannot be negative")
-    .max(999999999.99, "Freight amount is too large"),
-  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]),
+    .max(999999999.99, "Freight amount is too large")
+    .optional()
+    .default(0),
+  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]).optional(),
   isLocked: z.boolean().optional(),
   mandatoryApproversCount: z.number().int().min(0).optional(),
   requestNumber: z.string().optional(),
