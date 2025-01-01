@@ -54,7 +54,10 @@ export function usePurchaseRequests() {
         },
         body: JSON.stringify({
           action: "draft",
-          data
+          data: {
+            ...data,
+            status: "draft"
+          }
         }),
         credentials: "include",
       });
@@ -76,6 +79,57 @@ export function usePurchaseRequests() {
     onError: async (error) => {
       await handleError(error, {
         title: "Error saving draft"
+      });
+    }
+  });
+
+  // Submit mutation with proper type safety and validation
+  const submitMutation = useMutation<PurchaseRequest, Error, Partial<PurchaseRequest>>({
+    mutationFn: async (data) => {
+      if (!data) {
+        throw new Error("Request data is required");
+      }
+
+      // Validate required fields before submission
+      const requiredFields = ['title', 'description', 'items', 'vendorId', 'purposeType'];
+      const missingFields = requiredFields.filter(field => !data[field]);
+
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "submit",
+          data: {
+            ...data,
+            status: "pending"
+          }
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to submit request: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: "Request submitted successfully",
+      });
+    },
+    onError: async (error) => {
+      await handleError(error, {
+        title: "Error submitting request"
       });
     }
   });
@@ -111,90 +165,12 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Submit mutation with type safety
-  const submitMutation = useMutation<PurchaseRequest, Error, PurchaseRequest>({
-    mutationFn: async (data) => {
-      if (!data.id) {
-        throw new Error("Request ID is required for submission");
-      }
-
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "submit",
-          data
-        }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to submit request: ${response.status}`);
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
-        description: "Request submitted successfully",
-      });
-    },
-    onError: async (error) => {
-      await handleError(error, {
-        title: "Error submitting request"
-      });
-    }
-  });
-
-  // Approval mutation with proper type safety
-  const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
-    mutationFn: async (data) => {
-      if (!data.requestId) {
-        throw new Error("Request ID is required for approval");
-      }
-
-      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to create approval: ${response.status}`);
-      }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
-        description: data.message || "Approval submitted successfully",
-      });
-    },
-    onError: async (error) => {
-      await handleError(error, {
-        title: "Error processing approval"
-      });
-    }
-  });
-
   return {
     requests,
     isLoading,
     error,
     saveDraft: draftMutation.mutateAsync,
     submitRequest: submitMutation.mutateAsync,
-    createApproval: approvalMutation.mutateAsync,
     deleteRequest: deleteMutation.mutateAsync,
   };
 }

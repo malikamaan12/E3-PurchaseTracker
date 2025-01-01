@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
@@ -13,29 +14,50 @@ export default function NewPurchaseRequestForm() {
   // Fetch vendors for the form with proper error handling
   const { data: vendors = [], isLoading: isLoadingVendors, error: vendorError } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Fetch sub-purposes with proper error handling
   const { data: subPurposes = [], isLoading: isLoadingSubPurposes, error: subPurposeError } = useQuery<SubPurpose[]>({
     queryKey: ["/api/sub-purposes"],
+    retry: 3,
+    retryDelay: 1000,
   });
 
-  // Handle any loading states
+  // Handle loading states with a proper loading indicator
   if (isLoadingVendors || isLoadingSubPurposes) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading form data...</p>
+        </div>
       </div>
     );
   }
 
-  // Handle any errors
+  // Handle any errors with a proper error display
   if (vendorError || subPurposeError) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">
-          {vendorError ? "Error loading vendors" : "Error loading sub-purposes"}
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+        <Card className="w-full max-w-md mx-4">
+          <CardContent className="pt-6">
+            <div className="flex mb-4 gap-2">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <h1 className="text-2xl font-bold text-destructive">Error Loading Form</h1>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {vendorError ? "Failed to load vendors." : "Failed to load sub-purposes."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-primary text-primary-foreground rounded-md py-2 hover:bg-primary/90 transition-colors"
+            >
+              Retry
+            </button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

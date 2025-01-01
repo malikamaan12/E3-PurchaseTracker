@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPurchaseRequestSchema, type InsertSubPurpose, type Vendor } from "@db/schema";
@@ -27,6 +27,21 @@ import { useToast } from "@/hooks/use-toast";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useQuery } from "@tanstack/react-query";
 
+interface Approver {
+  id: number;
+  name: string;
+  department: string;
+  email: string;
+}
+
+interface PurchaseRequestFormProps {
+  subPurposes: InsertSubPurpose[];
+  onSubmit?: (draft?: boolean) => void;
+  onCancel?: () => void;
+  initialData?: any;
+  vendors: Vendor[];
+}
+
 // File validation schema with improved error messages
 const fileSchema = z.object({
   name: z.string(),
@@ -49,23 +64,8 @@ type FileWithPreview = {
   preview?: string;
 };
 
-interface Approver {
-  id: number;
-  name: string;
-  department: string;
-  email: string;
-}
-
-interface PurchaseRequestFormProps {
-  subPurposes: InsertSubPurpose[];
-  onSubmit?: (draft?: boolean) => void;
-  onCancel?: () => void;
-  initialData?: any;
-  vendors: Vendor[];
-}
-
 export default function PurchaseRequestForm({
-  subPurposes,
+  subPurposes = [],
   onSubmit,
   onCancel,
   initialData,
@@ -76,19 +76,43 @@ export default function PurchaseRequestForm({
   const { toast } = useToast();
   const { saveDraft, submitRequest } = usePurchaseRequests();
 
-  // Fetch approvers with proper typing and error handling
-  const { data: approvers = [], error: approversError } = useQuery<Approver[]>({
+  // Fetch approvers with proper error handling and retry logic
+  const { data: approvers = [], error: approversError, isLoading: isLoadingApprovers } = useQuery<Approver[]>({
     queryKey: ["/api/approvers"],
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: Infinity
   });
 
-  // Show error if approvers fetch fails
-  if (approversError) {
-    toast({
-      title: "Error",
-      description: "Failed to load approvers. Some features may be limited.",
-      variant: "destructive"
-    });
-  }
+  // Initialize form with proper defaults
+  const form = useForm({
+    resolver: zodResolver(insertPurchaseRequestSchema),
+    defaultValues: {
+      ...initialData || {
+        title: "",
+        description: "",
+        items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
+        purposeType: "E3 EVENT",
+        priority: "medium",
+        currency: "QAR",
+        totalEstimatedCost: 0,
+        freightAmount: 0,
+        mandatoryApprovers: [],
+        optionalApprovers: [],
+      }
+    }
+  });
+
+  // Show error notification only after component mounts
+  useEffect(() => {
+    if (approversError) {
+      toast({
+        title: "Error",
+        description: "Failed to load approvers. Some features may be limited.",
+        variant: "destructive"
+      });
+    }
+  }, [approversError, toast]);
 
   // Group approvers by department for better organization
   const approversByDepartment = approvers.reduce((acc, approver) => {
@@ -99,24 +123,6 @@ export default function PurchaseRequestForm({
     acc[dept].push(approver);
     return acc;
   }, {} as Record<string, Approver[]>);
-
-  const form = useForm({
-    resolver: zodResolver(insertPurchaseRequestSchema),
-    defaultValues: initialData || {
-      title: "",
-      description: "",
-      items: [],
-      purposeType: "E3 EVENT",
-      priority: "medium",
-      currency: "QAR",
-      totalEstimatedCost: 0,
-      freightAmount: 0,
-      vendorId: undefined,
-      subPurposeId: undefined,
-      mandatoryApprovers: [],
-      optionalApprovers: [],
-    }
-  });
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
@@ -175,13 +181,13 @@ export default function PurchaseRequestForm({
     });
   };
 
-  // Calculate total cost
+  // Calculate total cost with proper defaults
   const calculateTotalCost = (items: any[] = [], freightAmount: number = 0) => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (item.quantity * item.estimatedCost),
+      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)),
       0
     );
-    return itemsTotal + freightAmount;
+    return itemsTotal + Number(freightAmount || 0);
   };
 
   // Update total cost when items or freight amount changes
@@ -199,38 +205,33 @@ export default function PurchaseRequestForm({
       // Create FormData for file upload
       const formData = new FormData();
       files.forEach((fileObj) => {
-        formData.append(`files`, fileObj.file);
+        formData.append('files', fileObj.file);
       });
 
       // Upload files first
-      const uploadResponse = await fetch('/api/attachments', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+      if (files.length > 0) {
+        const uploadResponse = await fetch('/api/attachments', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload files');
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload files');
+        }
+
+        const uploadedFiles = await uploadResponse.json();
+        data.attachments = uploadedFiles;
       }
-
-      const uploadedFiles = await uploadResponse.json();
-
-      // Add file data to request data
-      const requestData = {
-        ...data,
-        attachments: uploadedFiles,
-        status: draft ? 'draft' : 'pending'
-      };
 
       // Save request
       if (draft) {
-        await saveDraft(requestData);
+        await saveDraft(data);
       } else {
-        await submitRequest(requestData);
+        await submitRequest(data);
       }
 
       onSubmit?.(draft);
-
       toast({
         title: "Success",
         description: `Request ${draft ? 'saved as draft' : 'submitted'} successfully`,
@@ -247,12 +248,19 @@ export default function PurchaseRequestForm({
     }
   };
 
+  if (isLoadingApprovers) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
         {/* Basic Information */}
         <div className="space-y-4">
-          {/* Title */}
           <FormField
             control={form.control}
             name="title"
@@ -267,7 +275,6 @@ export default function PurchaseRequestForm({
             )}
           />
 
-          {/* Description */}
           <FormField
             control={form.control}
             name="description"
@@ -289,7 +296,6 @@ export default function PurchaseRequestForm({
 
         {/* Vendor and Purpose Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Vendor Selection */}
           <FormField
             control={form.control}
             name="vendorId"
@@ -315,7 +321,6 @@ export default function PurchaseRequestForm({
             )}
           />
 
-          {/* Purpose Type */}
           <FormField
             control={form.control}
             name="purposeType"
@@ -340,7 +345,6 @@ export default function PurchaseRequestForm({
             )}
           />
 
-          {/* Priority */}
           <FormField
             control={form.control}
             name="priority"
@@ -365,7 +369,6 @@ export default function PurchaseRequestForm({
             )}
           />
 
-          {/* Currency */}
           <FormField
             control={form.control}
             name="currency"
@@ -397,7 +400,6 @@ export default function PurchaseRequestForm({
             Approvals
           </h2>
 
-          {/* Mandatory Approvers */}
           <FormField
             control={form.control}
             name="mandatoryApprovers"
@@ -464,7 +466,6 @@ export default function PurchaseRequestForm({
             )}
           />
 
-          {/* Optional Approvers */}
           <FormField
             control={form.control}
             name="optionalApprovers"
@@ -552,7 +553,7 @@ export default function PurchaseRequestForm({
             </Button>
           </div>
 
-          {form.watch("items")?.map((item, index) => (
+          {(form.watch("items") || []).map((item: any, index: number) => (
             <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
               <div className="flex-1 space-y-4">
                 <FormField
@@ -638,7 +639,10 @@ export default function PurchaseRequestForm({
                 variant="ghost"
                 onClick={() => {
                   const currentItems = form.getValues("items") || [];
-                  form.setValue("items", currentItems.filter((_, i) => i !== index));
+                  form.setValue(
+                    "items",
+                    currentItems.filter((_: any, i: number) => i !== index)
+                  );
                   updateTotalCost();
                 }}
                 className="text-red-500 hover:text-red-700"
