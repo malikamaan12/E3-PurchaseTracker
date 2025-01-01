@@ -370,38 +370,41 @@ export default function NewRequest() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <Button
           variant="ghost"
-          className="mb-4 hover:bg-[#7156a2]/10 transition-colors interactive-bounce"
+          className="mb-6 group hover:bg-[#7058a3]/10 transition-all duration-200 rounded-lg"
           onClick={() => setLocation("/")}
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-[#7058a3] font-medium">Back to Dashboard</span>
         </Button>
 
-        <Card className="border-[#35bbba]/20 shadow-lg card-hover">
-          <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
-            <CardTitle className="text-[#191160] heading-responsive">
+        <Card className="border-[#3eb6ba]/20 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className="border-b border-[#3eb6ba]/20 bg-gradient-to-r from-[#7058a3]/5 to-[#3eb6ba]/5">
+            <CardTitle className="text-[#7058a3] text-2xl font-bold">
               Create New Purchase Request
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-6 grid gap-6">
             <Form {...form}>
-              <form className="space-y-8 animate-fade-in" onSubmit={(e) => e.preventDefault()}>
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Purpose Selection</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                      Purpose Selection
+                    </h3>
                     <FormField
                       control={form.control}
                       name="purposeType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Purpose Type</FormLabel>
+                          <FormLabel className="text-[#7058a3]">Purpose Type</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value} name="purposeType" id="purposeType">
                             <FormControl>
-                              <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                              <SelectTrigger className="border-[#7058a3]/20 focus:border-[#7058a3]">
                                 <SelectValue placeholder="Select purpose type" />
                               </SelectTrigger>
                             </FormControl>
@@ -423,7 +426,7 @@ export default function NewRequest() {
                       name="subPurposeId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Sub-purpose</FormLabel>
+                          <FormLabel className="text-[#7058a3]">Sub-purpose</FormLabel>
                           <FormControl>
                             <SubPurposeSelect
                               purposeType={form.watch("purposeType")}
@@ -438,57 +441,63 @@ export default function NewRequest() {
                       )}
                     />
                   </div>
+
+                  <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                      Basic Information
+                    </h3>
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#7058a3]">Request Title</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              id="title"
+                              name="title"
+                              className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[#7058a3]">Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              id="description"
+                              name="description"
+                              className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Basic Information</h3>
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Request Title</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            id="title"
-                            name="title"
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[#191160]">Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            id="description"
-                            name="description"
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-[#191160]">Vendor Information</h3>
+                    <h3 className="text-lg font-semibold text-[#7058a3] flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                      Vendor Information
+                    </h3>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setIsAddVendorOpen(true)}
-                      className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10"
+                      className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add New Vendor
@@ -502,7 +511,7 @@ export default function NewRequest() {
                     id="vendorId"
                   >
                     <FormControl>
-                      <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]">
+                      <SelectTrigger className="border-[#7058a3]/20 focus:border-[#7058a3]">
                         <SelectValue placeholder="Select a vendor" />
                       </SelectTrigger>
                     </FormControl>
@@ -516,9 +525,12 @@ export default function NewRequest() {
                   </Select>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
+                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <h3 className="text-lg font-semibold text-[#191160]">Items</h3>
+                    <h3 className="text-lg font-semibold text-[#7058a3] flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                      Items
+                    </h3>
                     <div className="flex flex-wrap items-center gap-4">
                       <FormField
                         control={form.control}
@@ -527,7 +539,7 @@ export default function NewRequest() {
                           <FormItem>
                             <Select onValueChange={field.onChange} defaultValue={field.value} name="currency" id="currency">
                               <FormControl>
-                                <SelectTrigger className="w-[120px] border-[#7156a2]/20 focus:border-[#7156a2]">
+                                <SelectTrigger className="w-[120px] border-[#7058a3]/20 focus:border-[#7058a3]">
                                   <SelectValue placeholder="Currency" />
                                 </SelectTrigger>
                               </FormControl>
@@ -546,7 +558,7 @@ export default function NewRequest() {
                         type="button"
                         variant="outline"
                         onClick={addItem}
-                        className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce"
+                        className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10 interactive-bounce"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Item
@@ -558,7 +570,7 @@ export default function NewRequest() {
                     {items.map((item, index) => (
                       <div
                         key={index}
-                        className="flex flex-col sm:flex-row gap-4 items-start p-4 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors animate-fade-in"
+                        className="flex flex-col sm:flex-row gap-4 items-start p-4 rounded-lg border border-[#7058a3]/10 hover:border-[#7058a3]/30 transition-colors animate-fade-in"
                       >
                         <div className="flex-1 space-y-2">
                           <Input
@@ -567,7 +579,7 @@ export default function NewRequest() {
                             placeholder="Item name"
                             value={item.name}
                             onChange={(e) => updateItem(index, "name", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
                           />
                           <Textarea
                             id={`item-description-${index}`}
@@ -575,7 +587,7 @@ export default function NewRequest() {
                             placeholder="Item description (optional)"
                             value={item.description || ''}
                             onChange={(e) => updateItem(index, "description", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] h-20 resize-none"
+                            className="border-[#7058a3]/20 focus:border-[#7058a3] h-20 resize-none"
                           />
                         </div>
                         <div className="w-full sm:w-24">
@@ -587,7 +599,7 @@ export default function NewRequest() {
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
                           />
                         </div>
                         <div className="w-full sm:w-32">
@@ -600,11 +612,11 @@ export default function NewRequest() {
                             placeholder="Cost"
                             value={item.estimatedCost}
                             onChange={(e) => updateItem(index, "estimatedCost", e.target.value)}
-                            className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                            className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
                           />
                         </div>
                         <div className="w-full sm:w-32 text-right">
-                          <p className="text-sm text-[#191160]">
+                          <p className="text-sm text-[#7058a3]">
                             {form.watch("currency")} {(item.quantity * item.estimatedCost).toFixed(2)}
                           </p>
                         </div>
@@ -622,9 +634,9 @@ export default function NewRequest() {
                     ))}
                   </div>
 
-                  <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
+                  <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-[#7058a3]/5 to-[#3eb6ba]/5">
                     <FormItem>
-                      <FormLabel className="text-[#191160]">Freight Amount</FormLabel>
+                      <FormLabel className="text-[#7058a3]">Freight Amount</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -634,13 +646,13 @@ export default function NewRequest() {
                           onChange={(e) => setFreightAmount(Number(e.target.value))}
                           id="freightAmount"
                           name="freightAmount"
-                          className="border-[#7156a2]/20 focus:border-[#7156a2] form-focus-ring"
+                          className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
                         />
                       </FormControl>
                     </FormItem>
 
                     <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-[#191160]">
+                      <div className="flex justify-between text-[#7058a3]">
                         <span>Items Total:</span>
                         <span>
                           {form.watch("currency")} {items
@@ -651,15 +663,15 @@ export default function NewRequest() {
                             .toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-[#191160]">
+                      <div className="flex justify-between text-[#7058a3]">
                         <span>Freight Amount:</span>
                         <span>{form.watch("currency")} {freightAmount.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between pt-2 border-t border-[#7156a2]/20">
-                        <span className="text-lg font-semibold text-[#191160]">
+                      <div className="flex justify-between pt-2 border-t border-[#7058a3]/20">
+                        <span className="text-lg font-semibold text-[#7058a3]">
                           Total Estimated Cost:
                         </span>
-                        <span className="text-lg font-bold text-[#7156a2]">
+                        <span className="text-lg font-bold text-[#7058a3]">
                           {form.watch("currency")} {calculateTotalCost().toFixed(2)}
                         </span>
                       </div>
@@ -667,8 +679,11 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Additional Approvers</h3>
+                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                  <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                    <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                    Additional Approvers
+                  </h3>
                   <DepartmentSelect
                     label="Select Departments"
                     onChange={handleDepartmentChange}
@@ -679,18 +694,21 @@ export default function NewRequest() {
                   />
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border border-[#35bbba]/20 animate-slide-in">
-                  <h3 className="text-lg font-semibold text-[#191160] mb-4">Supporting Documents</h3>
+                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                  <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                    <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                    Supporting Documents
+                  </h3>
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-center w-full">
                       <label
                         htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#7156a2]/20 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#7058a3]/20 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
                       >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="h-8 w-8 text-[#7156a2] mb-2" />
-                          <p className="mb-2 text-sm text-[#191160]">
+                          <Upload className="h-8 w-8 text-[#7058a3] mb-2" />
+                          <p className="mb-2 text-sm text-[#7058a3]">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
                           <p className="text-xs text-gray-500">
@@ -714,10 +732,10 @@ export default function NewRequest() {
                         {files.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7156a2]/10"
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7058a3]/10"
                           >
                             <div className="flex items-center space-x-2">
-                              <span className="text-sm text-[#191160]">{file.name}</span>
+                              <span className="text-sm text-[#7058a3]">{file.name}</span>
                               <span className="text-xs text-gray-500">
                                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
                               </span>
@@ -744,14 +762,11 @@ export default function NewRequest() {
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
                     disabled={isSubmitting}
-                    className="border-[#35bbba] text-[#35bbba] hover:bg-[#35bbba]/10 interactive-bounce btn-hover-effect"
-                    id="save-draft-btn"
-                    name="action"
-                    value="draft"
+                    className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10 transition-colors"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
-                        <div className="loading-spin mr-2" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Saving...
                       </div>
                     ) : (
@@ -762,14 +777,11 @@ export default function NewRequest() {
                     type="button"
                     onClick={() => handleSubmit("pending")}
                     disabled={isSubmitting}
-                    className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white interactive-bounce btn-hover-effect"
-                    id="submit-request-btn"
-                    name="action"
-                    value="submit"
+                    className="bg-[#7058a3] hover:bg-[#7058a3]/90 text-white transition-colors"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
-                        <div className="loading-spin mr-2" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Submitting...
                       </div>
                     ) : (
