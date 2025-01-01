@@ -39,9 +39,9 @@ export default function NewPurchaseRequestForm() {
 
           <PurchaseRequestForm
             subPurposes={[]}
+            vendors={vendors}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
-            vendors={vendors}
           />
         </div>
       </div>

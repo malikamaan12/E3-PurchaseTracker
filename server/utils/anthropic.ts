@@ -12,108 +12,153 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export interface PriorityAnalysisResult {
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  score: number;
-  reason: string;
-  recommendations: string[];
+export interface ErrorAnalysisResult {
+  rootCause: {
+    primary: string;
+    contributing: string[];
+    systemLevel: boolean;
+  };
+  impact: {
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    affectedComponents: string[];
+    userImpact: string;
+  };
+  resolution: {
+    immediate: string[];
+    longTerm: string[];
+    prevention: string[];
+  };
+  technical: {
+    components: string[];
+    configuration: Record<string, any>;
+    performance: string;
+  };
 }
 
-export interface PurchaseRequestInput {
-  title: string;
-  description: string;
-  purpose?: string;
-  purposeType: string;
-  totalEstimatedCost: number;
-  items: Array<{
-    name: string;
-    quantity: number;
-    estimatedCost: number;
-    description?: string;
-  }>;
-}
-
-export async function analyzePurchaseRequestPriority(request: PurchaseRequestInput): Promise<PriorityAnalysisResult> {
+export async function analyzeError(error: Error, context: Record<string, any> = {}): Promise<ErrorAnalysisResult> {
   try {
-    // Validate input
-    if (!request.title || !request.description || !request.items?.length) {
-      throw new AppError('Invalid purchase request data', 400, 'warning');
-    }
+    const errorContext = {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      ...context
+    };
 
-    const prompt = `Analyze this purchase request and determine its priority level. Consider:
-- Title: ${request.title}
-- Description: ${request.description}
-- Purpose Type: ${request.purposeType}
-- Total Cost: ${request.totalEstimatedCost}
-- Items:
-${request.items.map(item => `  * ${item.name} (${item.quantity} x ${item.estimatedCost}${item.description ? ` - ${item.description}` : ''})`).join('\n')}
-
-Provide a JSON response with:
-{
-  "priority": "low" | "medium" | "high" | "urgent",
-  "score": number between 0 and 1,
-  "reason": detailed explanation string,
-  "recommendations": array of string suggestions for improvement
-}`;
-
-    const message = await anthropic.messages.create({
+    const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      temperature: 0.7,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{
+        role: "user",
+        content: `As an AI expert in debugging enterprise applications, analyze this error and provide detailed insights:
+
+        Error Details:
+        ${JSON.stringify(errorContext, null, 2)}
+
+        Please provide analysis in this exact JSON format:
+        {
+          "rootCause": {
+            "primary": "string",
+            "contributing": ["string"],
+            "systemLevel": boolean
+          },
+          "impact": {
+            "severity": "critical" | "high" | "medium" | "low",
+            "affectedComponents": ["string"],
+            "userImpact": "string"
+          },
+          "resolution": {
+            "immediate": ["string"],
+            "longTerm": ["string"],
+            "prevention": ["string"]
+          },
+          "technical": {
+            "components": ["string"],
+            "configuration": {},
+            "performance": "string"
+          }
+        }`
+      }]
     });
 
-    // Handle the response content correctly for Claude-3 API
-    const content = message.content[0];
+    const content = response.content[0];
     if (content.type !== 'text') {
-      throw new AppError('Expected text response from Anthropic API', 500, 'error');
+      throw new Error('Expected text response from Anthropic API');
     }
 
-    let response;
-    try {
-      response = JSON.parse(content.text);
-    } catch (parseError) {
-      throw new AppError('Failed to parse Anthropic API response', 500, 'error');
-    }
-
-    // Validate response format
-    if (!response.priority || !response.score || !response.reason || !Array.isArray(response.recommendations)) {
-      throw new AppError('Invalid response format from Anthropic API', 500, 'error');
-    }
-
-    // Validate priority value
-    if (!['low', 'medium', 'high', 'urgent'].includes(response.priority)) {
-      throw new AppError('Invalid priority value from Anthropic API', 500, 'error');
-    }
-
+    return JSON.parse(content.text);
+  } catch (analysisError) {
+    console.error('Error analyzing with Claude:', analysisError);
     return {
-      priority: response.priority,
-      score: Math.max(0, Math.min(1, response.score)), // Ensure score is between 0 and 1
-      reason: response.reason,
-      recommendations: response.recommendations,
+      rootCause: {
+        primary: 'Error analysis failed',
+        contributing: ['AI service unavailable'],
+        systemLevel: false
+      },
+      impact: {
+        severity: 'low',
+        affectedComponents: ['error-analysis'],
+        userImpact: 'No direct user impact'
+      },
+      resolution: {
+        immediate: ['Check error manually'],
+        longTerm: ['Improve error analysis resilience'],
+        prevention: ['Add fallback analysis methods']
+      },
+      technical: {
+        components: ['anthropic-client'],
+        configuration: {},
+        performance: 'degraded'
+      }
     };
-  } catch (error: any) {
-    // Handle specific API errors
-    if (error instanceof AppError) {
-      throw error;
+  }
+}
+
+export interface PurchaseRequestValidationResult {
+  isValid: boolean;
+  score: number;
+  suggestions: string[];
+  risks: string[];
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+export async function validatePurchaseRequest(request: any): Promise<PurchaseRequestValidationResult> {
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: `Analyze this purchase request and provide validation insights:
+
+        Request Details:
+        ${JSON.stringify(request, null, 2)}
+
+        Provide analysis in this exact JSON format:
+        {
+          "isValid": boolean,
+          "score": number,
+          "suggestions": ["string"],
+          "risks": ["string"],
+          "priority": "low" | "medium" | "high" | "urgent"
+        }`
+      }]
+    });
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
     }
 
-    if (error.status === 401) {
-      throw new AppError('Invalid Anthropic API key', 500, 'critical');
-    }
-    if (error.status === 429) {
-      throw new AppError('Anthropic API rate limit exceeded', 429, 'error');
-    }
-    if (error.status === 500) {
-      throw new AppError('Anthropic API server error', 500, 'critical');
-    }
-
-    // Set error details in the AppError's details property
-    const appError = new AppError('Failed to analyze purchase request priority', 500, 'error');
-    appError.details = error.message;
-    appError.code = 'ANTHROPIC_API_ERROR';
-
-    console.error('Anthropic API error:', error);
-    throw appError;
+    return JSON.parse(content.text);
+  } catch (error) {
+    console.error('Purchase request validation failed:', error);
+    return {
+      isValid: true, // Fail open to not block valid requests
+      score: 0.5,
+      suggestions: ['Manual review recommended due to validation error'],
+      risks: ['Automated validation unavailable'],
+      priority: 'medium'
+    };
   }
 }

@@ -26,9 +26,9 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 
-// File validation schema with improved error messages
+// Enhanced file validation schema with improved error messages
 const fileSchema = z.object({
-  name: z.string(),
+  name: z.string().min(1, "File name is required"),
   size: z.number().max(5 * 1024 * 1024, "File must be smaller than 5MB"),
   type: z.string().refine(
     (type) => [
@@ -50,30 +50,36 @@ type FileWithPreview = {
 
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
+  vendors: Vendor[];
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
-  vendors?: Vendor[];
 }
 
 export default function PurchaseRequestForm({
   subPurposes,
+  vendors = [],
   onSubmit,
   onCancel,
-  initialData,
-  vendors = []
+  initialData
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const { saveDraft, submitRequest } = usePurchaseRequests();
 
+  // Initialize form with default values
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
     defaultValues: initialData || {
       title: "",
       description: "",
-      items: [],
+      items: [{
+        name: "",
+        quantity: 1,
+        estimatedCost: 0,
+        description: ""
+      }],
       purposeType: "E3 EVENT",
       priority: "medium",
       currency: "QAR",
@@ -84,10 +90,11 @@ export default function PurchaseRequestForm({
     }
   });
 
+  // Handle file upload with improved validation
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-
     try {
+      const selectedFiles = Array.from(event.target.files || []);
+
       // Validate each file
       await Promise.all(
         selectedFiles.map(async (file) => {
@@ -106,7 +113,7 @@ export default function PurchaseRequestForm({
         })
       );
 
-      // Create preview for images
+      // Create previews for images
       const filesWithPreviews = await Promise.all(
         selectedFiles.map(async (file) => {
           const fileWithPreview: FileWithPreview = { file };
@@ -126,10 +133,11 @@ export default function PurchaseRequestForm({
       });
     }
 
-    // Clear the input value to allow uploading the same file again
+    // Clear input value to allow uploading the same file again
     event.target.value = '';
   };
 
+  // Handle file removal
   const removeFile = (index: number) => {
     setFiles((prev) => {
       const newFiles = [...prev];
@@ -144,20 +152,21 @@ export default function PurchaseRequestForm({
   // Calculate total cost
   const calculateTotalCost = (items: any[], freightAmount: number) => {
     const itemsTotal = items.reduce(
-      (sum, item) => sum + (item.quantity * item.estimatedCost),
+      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)),
       0
     );
-    return itemsTotal + freightAmount;
+    return itemsTotal + Number(freightAmount || 0);
   };
 
   // Update total cost when items or freight amount changes
   const updateTotalCost = () => {
-    const items = form.getValues("items");
+    const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
     const total = calculateTotalCost(items, freightAmount);
     form.setValue("totalEstimatedCost", total);
   };
 
+  // Handle form submission
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
       setUploading(true);
@@ -165,10 +174,10 @@ export default function PurchaseRequestForm({
       // Create FormData for file upload
       const formData = new FormData();
       files.forEach((fileObj) => {
-        formData.append(`files`, fileObj.file);
+        formData.append('files', fileObj.file);
       });
 
-      // Upload files first
+      // Upload files
       const uploadResponse = await fetch('/api/attachments', {
         method: 'POST',
         body: formData,
@@ -181,7 +190,7 @@ export default function PurchaseRequestForm({
 
       const uploadedFiles = await uploadResponse.json();
 
-      // Add file data to request data
+      // Prepare request data
       const requestData = {
         ...data,
         attachments: uploadedFiles,
