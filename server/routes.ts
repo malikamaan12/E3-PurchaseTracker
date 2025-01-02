@@ -24,6 +24,9 @@ import { getNotifications, markNotificationAsRead, createNotification } from './
 import { hash } from 'bcrypt';
 import express from 'express';
 import { analyzeFormSubmission } from './utils/anthropic-analyzer';
+import { vendors as vendorModel, type InsertVendor } from "@db/schema";
+import { insertVendorSchema } from "@db/schema";
+
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -1019,37 +1022,12 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Fetching vendors');
 
       const allVendors = await db
-        .select({
-          id: vendors.id,
-          companyName: vendors.companyName,
-          contactPerson: vendors.contactPerson,
-          contactNumber: vendors.contactNumber,
-          email: vendors.email,
-          address: vendors.address,
-          taxNumber: vendors.taxNumber,
-          registrationNumber: vendors.registrationNumber,
-          bankName: vendors.bankName,
-          accountNumber: vendors.accountNumber,
-          ibanNumber: vendors.ibanNumber,
-          branchName: vendors.branchName,
-          rating: vendors.rating,
-          status: vendors.status,
-          remarks: vendors.remarks,
-          createdAt: vendors.createdAt,
-          updatedAt: vendors.updatedAt
-        })
+        .select()
         .from(vendors)
         .orderBy(desc(vendors.createdAt));
 
-      // Ensure we return an empty array if no vendors found
-      const formattedVendors = allVendors.map(vendor => ({
-        ...vendor,
-        createdAt: vendor.createdAt ? new Date(vendor.createdAt).toISOString() : null,
-        updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt).toISOString() : null
-      }));
-
-      debug(req, `Found ${formattedVendors.length} vendors`);
-      res.json(formattedVendors);
+      debug(req, `Found ${allVendors.length} vendors`);
+      res.json(allVendors);
     } catch (error) {
       debug(req, 'Error fetching vendors:', error);
       next(error);
@@ -1062,23 +1040,33 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Creating new vendor:', req.body);
+      debug(req, 'Creating new vendor - Raw request body:', req.body);
 
-      // Set default category if not provided
-      const vendorData = {
-        ...req.body,
-        category: req.body.category || "general"
-      };
-
-      const validationResult = insertVendorSchema.safeParse(vendorData);
+      // Validate vendor data
+      const validationResult = insertVendorSchema.safeParse(req.body);
 
       if (!validationResult.success) {
         debug(req, 'Validation failed:', validationResult.error);
-        throw new ValidationError('Invalid vendor data', {
-          errors: validationResult.error.errors
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: validationResult.error.format()
         });
       }
 
+      // Check if vendor with same name already exists
+      const [existingVendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.companyName, validationResult.data.companyName))
+        .limit(1);
+
+      if (existingVendor) {
+        return res.status(400).json({
+          message: 'Vendor with this company name already exists'
+        });
+      }
+
+      // Create new vendor
       const [newVendor] = await db
         .insert(vendors)
         .values({
@@ -1096,100 +1084,29 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.patch("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
       const vendorId = parseInt(req.params.id);
-      const updateData = req.body;
+      debug(req, `Fetching vendor details for ID: ${vendorId}`);
 
-      debug(req, 'Updating vendor:', { vendorId, updateData });
-
-      // Validate update data
-      if (!updateData.companyName || !updateData.email || !updateData.contactPerson) {
-        throw new ValidationError('Required fields missing');
-      }
-
-      const [updatedVendor] = await db
-        .update(vendors)
-        .set({
-          ...updateData,
-          updatedAt: new Date()
-        })
+      const [vendor] = await db
+        .select()
+        .from(vendors)
         .where(eq(vendors.id, vendorId))
-        .returning();
+        .limit(1);
 
-      if (!updatedVendor) {
+      if (!vendor) {
         throw new AppError('Vendor not found', 404);
       }
 
-      debug(req, 'Successfully updated vendor:', updatedVendor);
-      res.json(updatedVendor);
+      debug(req, 'Found vendor:', vendor);
+      res.json(vendor);
     } catch (error) {
-      debug(req, 'Error updating vendor:', error);
-      next(error);
-    }
-  });
-
-  app.patch("/api/vendors/:id/status", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const vendorId = parseInt(req.params.id);
-      const { status } = req.body;
-
-      if (!status || !['active', 'blocked', 'frozen'].includes(status)) {
-        throw new ValidationError('Invalid status');
-      }
-
-      const [updatedVendor] = await db
-        .update(vendors)
-        .set({
-          status,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, vendorId))
-        .returning();
-
-      if (!updatedVendor) {
-        throw new AppError('Vendor not found', 404);
-      }
-
-      debug(req, 'Successfully updated vendor status:', updatedVendor);
-      res.json(updatedVendor);
-    } catch (error) {
-      debug(req, 'Error updating vendor status:', error);
-      next(error);
-    }
-  });
-
-  app.delete("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const vendorId = parseInt(req.params.id);
-
-      debug(req, 'Deleting vendor:', vendorId);
-
-      const [deletedVendor] = await db
-        .delete(vendors)
-        .where(eq(vendors.id, vendorId))
-        .returning();
-
-      if (!deletedVendor) {
-        throw new AppError('Vendor not found', 404);
-      }
-
-      debug(req, 'Successfully deleted vendor:', deletedVendor);
-      res.json({ message: 'Vendor deleted successfully' });
-    } catch (error) {
-      debug(req, 'Error deleting vendor:', error);
+      debug(req, 'Error fetching vendor:', error);
       next(error);
     }
   });
