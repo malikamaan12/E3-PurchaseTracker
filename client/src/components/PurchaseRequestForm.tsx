@@ -681,6 +681,16 @@ export default function PurchaseRequestForm({
                     )}
                   />
                 </div>
+
+                {/* Add Item Total Cost Display */}
+                <div className="flex justify-end">
+                  <div className="text-sm">
+                    <span className="font-medium text-muted-foreground">Item Total: </span>
+                    <span className="font-semibold text-[#7058a3]">
+                      {form.watch(`items.${index}.quantity`, 0) * form.watch(`items.${index}.estimatedCost`, 0)} {form.watch('currency')}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <Button
@@ -717,9 +727,9 @@ export default function PurchaseRequestForm({
                 <h3 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h3>
                 <div className="flex flex-wrap gap-2">
                   {['CEO Office', 'Finance', 'Director'].map((dept) => (
-                    <Badge 
-                      key={dept} 
-                      variant="secondary" 
+                    <Badge
+                      key={dept}
+                      variant="secondary"
                       className="bg-[#7058a3]/10 text-[#7058a3] flex items-center"
                     >
                       <AlertTriangle className="w-3 h-3 mr-1" />
