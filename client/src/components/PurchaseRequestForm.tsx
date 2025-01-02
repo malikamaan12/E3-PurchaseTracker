@@ -702,7 +702,6 @@ export default function PurchaseRequestForm({
           ))}
         </div>
 
-        {/* Add right after Items section */}
         {/* Approval Flow Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -717,7 +716,7 @@ export default function PurchaseRequestForm({
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['Finance', 'Management'].map((dept) => (
+                  {['CEO Office', 'Finance', 'Director'].map((dept) => (
                     <Badge 
                       key={dept} 
                       variant="secondary" 
@@ -750,7 +749,7 @@ export default function PurchaseRequestForm({
                           }}
                           value={field.value || []}
                           multiple={true}
-                          excludeDepartments={['Finance', 'Management']}
+                          excludeDepartments={['CEO Office', 'Finance', 'Director']}
                           name="additionalApprovers"
                           id="additionalApprovers"
                         />
