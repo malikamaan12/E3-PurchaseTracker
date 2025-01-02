@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,7 @@ import { useMutation } from "@tanstack/react-query";
 import { analyzeFormError } from "@/lib/debugUtils";
 import { useState as useState2 } from "react";
 import VendorDialog from "./VendorDialog";
+import DepartmentSelect from "./DepartmentSelect";
 
 // File validation schema
 const fileSchema = z.object({
@@ -69,6 +71,7 @@ export default function PurchaseRequestForm({
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
   const [showAddVendor, setShowAddVendor] = useState2(false);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -87,7 +90,8 @@ export default function PurchaseRequestForm({
       currency: "QAR",
       totalEstimatedCost: 0,
       freightAmount: 0,
-      vendorId: undefined
+      vendorId: undefined,
+      additionalApprovers: []
     }
   });
 
@@ -353,7 +357,8 @@ export default function PurchaseRequestForm({
           })),
           totalEstimatedCost: Number(data.totalEstimatedCost),
           freightAmount: Number(data.freightAmount || 0),
-          vendorId: Number(data.vendorId)
+          vendorId: Number(data.vendorId),
+          additionalApprovers: data.additionalApprovers || []
         },
         action: draft ? 'draft' : 'submit'
       };
@@ -697,6 +702,87 @@ export default function PurchaseRequestForm({
           ))}
         </div>
 
+        {/* Add right after Items section */}
+        {/* Approval Flow Section */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+              <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+              Approval Flow
+            </h2>
+          </div>
+
+          <Card className="border-[#35bbba]/20 shadow-sm hover:shadow-md transition-all duration-200">
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['Finance', 'Management'].map((dept) => (
+                    <Badge 
+                      key={dept} 
+                      variant="secondary" 
+                      className="bg-[#7058a3]/10 text-[#7058a3] flex items-center"
+                    >
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      {dept}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  These departments must approve your request
+                </p>
+              </div>
+
+              {/* Optional Approvers */}
+              <div>
+                <h3 className="text-sm font-medium text-[#7058a3] mb-2">Additional Approvers</h3>
+                <FormField
+                  control={form.control}
+                  name="additionalApprovers"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <DepartmentSelect
+                          label=""
+                          onChange={(departments: string[]) => {
+                            field.onChange(departments);
+                            setSelectedDepartments(departments);
+                          }}
+                          value={field.value || []}
+                          multiple={true}
+                          excludeDepartments={['Finance', 'Management']}
+                          name="additionalApprovers"
+                          id="additionalApprovers"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Preview of selected approvers */}
+              {selectedDepartments.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-[#7058a3] mb-2">Selected Additional Approvers</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDepartments.map((dept) => (
+                      <Badge
+                        key={dept}
+                        variant="outline"
+                        className="bg-[#7058a3]/5 text-[#7058a3] border-[#7058a3]/20"
+                      >
+                        {dept}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+
         {/* File Upload Section */}
         <div className="space-y-4">
           <FormLabel className="block text-lg font-medium">Attachments</FormLabel>
@@ -892,8 +978,8 @@ export default function PurchaseRequestForm({
           </Button>
         </div>
         {/* Add VendorDialog */}
-        <VendorDialog 
-          open={showAddVendor} 
+        <VendorDialog
+          open={showAddVendor}
           onOpenChange={setShowAddVendor}
           onVendorCreated={(newVendor) => {
             // Set the newly created vendor as the selected vendor
