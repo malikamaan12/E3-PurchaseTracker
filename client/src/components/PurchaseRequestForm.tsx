@@ -52,6 +52,7 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
+  onVendorCreated?: () => void;
 }
 
 export default function PurchaseRequestForm({
@@ -59,14 +60,15 @@ export default function PurchaseRequestForm({
   vendors = [],
   onSubmit,
   onCancel,
-  initialData
+  initialData,
+  onVendorCreated
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
-  const [showAddVendor, setShowAddVendor] = useState2(false); // Added state for VendorDialog
+  const [showAddVendor, setShowAddVendor] = useState2(false);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -889,6 +891,17 @@ export default function PurchaseRequestForm({
             )}
           </Button>
         </div>
+        {/* Add VendorDialog */}
+        <VendorDialog 
+          open={showAddVendor} 
+          onOpenChange={setShowAddVendor}
+          onVendorCreated={(newVendor) => {
+            // Set the newly created vendor as the selected vendor
+            form.setValue("vendorId", newVendor.id);
+            // Notify parent to refresh vendor list
+            onVendorCreated?.();
+          }}
+        />
       </form>
     </Form>
   );

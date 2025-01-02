@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch vendors and subpurposes for the form
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
@@ -36,6 +37,12 @@ export default function NewPurchaseRequestForm() {
     setLocation("/");
   };
 
+  // Handle vendor creation
+  const handleVendorCreated = () => {
+    // Invalidate and refetch vendors query
+    queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+  };
+
   // Show loading state
   if (vendorsLoading || subPurposesLoading) {
     return (
@@ -58,6 +65,7 @@ export default function NewPurchaseRequestForm() {
             vendors={vendors}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
+            onVendorCreated={handleVendorCreated}
           />
         </div>
       </div>
