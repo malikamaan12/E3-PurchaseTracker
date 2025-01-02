@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { VendorForm } from "@/components/VendorForm";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FilePreview } from "@/components/FilePreview"; 
+import type { File } from "@/types";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -732,7 +734,7 @@ export default function NewRequest() {
                         {files.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7058a3]/10"
+                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7058a3]/10 hover:border-[#7058a3]/30 transition-colors"
                           >
                             <div className="flex items-center space-x-2">
                               <span className="text-sm text-[#7058a3]">{file.name}</span>
@@ -740,15 +742,18 @@ export default function NewRequest() {
                                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
                               </span>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeFile(index)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <FilePreview file={file} />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeFile(index)}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
