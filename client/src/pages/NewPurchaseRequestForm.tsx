@@ -7,6 +7,8 @@ import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
@@ -45,14 +47,154 @@ export default function NewPurchaseRequestForm() {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
 
+  // Generate PDF with enhanced formatting
+  const generatePDF = (formData: any) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+
+    // Header with branding
+    doc.setFillColor(113, 86, 162); // #7156a2
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.text("Purchase Request", pageWidth / 2, 25, { align: "center" });
+
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+
+    // Basic Information Section
+    doc.setFontSize(16);
+    doc.setTextColor(53, 187, 186); // #35bbba
+    doc.text("Request Details", 20, 50);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+
+    // Request information
+    const basicInfo = [
+      ["Title", formData.title || ""],
+      ["Description", formData.description || ""],
+      ["Priority", formData.priority || ""],
+      ["Currency", formData.currency || ""],
+      ["Total Cost", `${formData.totalEstimatedCost || 0}`],
+    ];
+
+    doc.autoTable({
+      startY: 60,
+      head: [],
+      body: basicInfo,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 40 },
+        1: { cellWidth: 130 }
+      },
+    });
+
+    // Items Section
+    const currentY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(16);
+    doc.setTextColor(53, 187, 186);
+    doc.text("Items", 20, currentY);
+    doc.setTextColor(0, 0, 0);
+
+    const itemsTableHead = [["Item Name", "Description", "Quantity", "Unit Cost", "Total"]];
+    const itemsTableBody = formData.items?.map((item: any) => [
+      item.name,
+      item.description,
+      item.quantity,
+      item.estimatedCost,
+      item.quantity * item.estimatedCost
+    ]) || [];
+
+    doc.autoTable({
+      startY: currentY + 10,
+      head: itemsTableHead,
+      body: itemsTableBody,
+      theme: 'striped',
+      headStyles: { fillColor: [113, 86, 162] },
+      styles: { fontSize: 10 },
+    });
+
+    // Approval Flow Section
+    const approvalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(16);
+    doc.setTextColor(53, 187, 186);
+    doc.text("Approval Flow", 20, approvalY);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+
+    const mandatoryApprovers = ["CEO Office", "Finance", "Director"];
+    const additionalApprovers = formData.additionalApprovers || [];
+
+    const approvalInfo = [
+      ["Mandatory Approvers", mandatoryApprovers.join(", ")],
+      ["Additional Approvers", additionalApprovers.join(", ") || "None"]
+    ];
+
+    doc.autoTable({
+      startY: approvalY + 10,
+      head: [],
+      body: approvalInfo,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 40 },
+        1: { cellWidth: 130 }
+      },
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    doc.setFontSize(10);
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 10,
+        { align: "center" }
+      );
+      doc.text(
+        new Date().toLocaleDateString(),
+        20,
+        doc.internal.pageSize.height - 10
+      );
+    }
+
+    return doc;
+  };
+
   // Handle download
   const handleDownload = () => {
-    // Implement download functionality
-    toast({
-      title: "Download Started",
-      description: "Your purchase request details are being downloaded",
-      variant: "default"
-    });
+    const formData = queryClient.getQueryData(["currentFormData"]);
+    if (!formData) {
+      toast({
+        title: "Error",
+        description: "No form data available to download",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const doc = generatePDF(formData);
+      doc.save("purchase-request.pdf");
+
+      toast({
+        title: "Success",
+        description: "Purchase request details have been downloaded",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Show loading state
