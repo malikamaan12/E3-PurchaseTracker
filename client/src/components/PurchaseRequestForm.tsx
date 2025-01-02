@@ -21,6 +21,8 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { analyzeFormError } from "@/lib/debugUtils";
+import { useState as useState2 } from "react";
+import VendorDialog from "./VendorDialog";
 
 // File validation schema
 const fileSchema = z.object({
@@ -64,6 +66,7 @@ export default function PurchaseRequestForm({
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
+  const [showAddVendor, setShowAddVendor] = useState2(false); // Added state for VendorDialog
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -426,20 +429,33 @@ export default function PurchaseRequestForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Vendor</FormLabel>
-                <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a vendor" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {vendors.map((vendor) => (
-                      <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                        {vendor.companyName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a vendor" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vendors.map((vendor) => (
+                          <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                            {vendor.companyName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-shrink-0"
+                    onClick={() => setShowAddVendor(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Vendor
+                  </Button>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
