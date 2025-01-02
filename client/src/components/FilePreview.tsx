@@ -48,6 +48,7 @@ export function FilePreview({ file }: FilePreviewProps) {
         title: "Preview Error",
         description: err.message || "Failed to generate preview",
         variant: "destructive",
+        className: "animate-error",
       });
     } finally {
       setIsLoading(false);
@@ -66,7 +67,7 @@ export function FilePreview({ file }: FilePreviewProps) {
   const renderPreview = () => {
     if (error) {
       return (
-        <div className="text-center p-8 bg-red-50 rounded-lg">
+        <div className="text-center p-8 bg-red-50 rounded-lg animate-fade-in">
           <p className="text-red-500">{error}</p>
         </div>
       );
@@ -85,13 +86,14 @@ export function FilePreview({ file }: FilePreviewProps) {
         <img 
           src={objectUrl} 
           alt={file.name} 
-          className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+          className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg animate-scale"
           onError={() => {
             setError("Failed to load image");
             toast({
               title: "Preview Error",
               description: "Failed to load image",
               variant: "destructive",
+              className: "animate-error",
             });
           }}
         />
@@ -103,13 +105,14 @@ export function FilePreview({ file }: FilePreviewProps) {
         <iframe
           src={objectUrl}
           title={file.name}
-          className="w-full h-[70vh] rounded-lg shadow-lg"
+          className="w-full h-[70vh] rounded-lg shadow-lg animate-scale"
           onError={() => {
             setError("Failed to load PDF");
             toast({
               title: "Preview Error",
               description: "Failed to load PDF",
               variant: "destructive",
+              className: "animate-error",
             });
           }}
         />
@@ -117,11 +120,11 @@ export function FilePreview({ file }: FilePreviewProps) {
     } 
 
     return (
-      <div className="text-center p-8 bg-gray-50 rounded-lg">
+      <div className="text-center p-8 bg-gray-50 rounded-lg animate-fade-in">
         <p className="text-gray-600 mb-4">Preview not available for this file type.</p>
         <Button 
           variant="outline" 
-          className="mt-4 border-[#7058a3] text-[#7058a3] hover:bg-[#7058a3]/10 transition-colors"
+          className="mt-4 border-[#7058a3] text-[#7058a3] hover:bg-[#7058a3]/10 transition-colors interactive-bounce"
           onClick={() => window.open(objectUrl, '_blank')}
         >
           Download to View
@@ -149,7 +152,7 @@ export function FilePreview({ file }: FilePreviewProps) {
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl w-[90vw] p-6">
+        <DialogContent className="max-w-4xl w-[90vw] p-6 animate-scale">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#7058a3]">
               <span className="font-medium">{file.name}</span>
