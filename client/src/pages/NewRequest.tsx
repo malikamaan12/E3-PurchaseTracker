@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { VendorForm } from "@/components/VendorForm";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FilePreview } from "@/components/FilePreview"; 
+import { FilePreview } from "@/components/FilePreview";
 import type { File } from "@/types";
 
 const currencies = [
@@ -499,7 +499,7 @@ export default function NewRequest() {
                       type="button"
                       variant="outline"
                       onClick={() => setIsAddVendorOpen(true)}
-                      className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10"
+                      className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10 transition-colors interactive-bounce"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add New Vendor
@@ -801,11 +801,13 @@ export default function NewRequest() {
       </div>
 
       <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-2xl animate-scale">
           <DialogHeader>
-            <DialogTitle>Add New Vendor</DialogTitle>
+            <DialogTitle className="text-[#7058a3] text-xl font-bold">
+              Add New Vendor
+            </DialogTitle>
           </DialogHeader>
-          <VendorForm onSubmit={handleAddVendor} isLimitedAccess={true} />
+          <VendorForm onSubmit={handleAddVendor} />
         </DialogContent>
       </Dialog>
       {isSubmitting && (
