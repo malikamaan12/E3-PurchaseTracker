@@ -18,11 +18,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Define mandatory approvers
-const mandatoryApprovers = ["CEO Office", "Finance", "Director"];
-
-// All other departments are optional
-const optionalDepartments = [
+// All available departments
+const departments = [
   "Business",
   "Management",
   "Operation",
@@ -50,121 +47,129 @@ const optionalDepartments = [
 interface DepartmentSelectProps {
   label: string;
   onChange: (value: string[]) => void;
+  value?: string[];
   multiple?: boolean;
+  excludeDepartments?: string[];
+  name?: string;
+  id?: string;
 }
 
 export default function DepartmentSelect({
   label,
   onChange,
+  value = [],
   multiple = false,
+  excludeDepartments = [],
+  name,
+  id,
 }: DepartmentSelectProps) {
   const [open, setOpen] = useState(false);
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+
+  const availableDepartments = departments.filter(
+    dept => !excludeDepartments.includes(dept)
+  );
 
   const handleSelect = (department: string) => {
     let newSelection: string[];
     if (multiple) {
-      if (selectedDepartments.includes(department)) {
-        newSelection = selectedDepartments.filter((d) => d !== department);
+      if (value.includes(department)) {
+        newSelection = value.filter((d) => d !== department);
       } else {
-        newSelection = [...selectedDepartments, department];
+        newSelection = [...value, department];
       }
     } else {
       newSelection = [department];
       setOpen(false);
     }
-    setSelectedDepartments(newSelection);
     onChange(newSelection);
   };
 
   return (
     <div className="space-y-4">
-      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-        {label}
-      </label>
+      {label && (
+        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-[#7058a3]">
+          {label}
+        </label>
+      )}
 
-      {/* Display mandatory approvers */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-muted-foreground">
-          Mandatory Approvers:
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {mandatoryApprovers.map((dept) => (
-            <Badge key={dept} variant="secondary" className="bg-muted">
-              <Lock className="w-3 h-3 mr-1" />
-              {dept}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-label={label}
+            className="w-full justify-between border-[#7058a3]/20 hover:border-[#7058a3]/40"
+            name={name}
+            id={id}
+          >
+            {value.length === 0
+              ? "Select departments..."
+              : multiple
+              ? `${value.length} department${value.length === 1 ? '' : 's'} selected`
+              : value[0]}
+            <div className="ml-2 flex gap-1">
+              {value.length > 0 && (
+                <Badge 
+                  variant="secondary" 
+                  className="rounded-sm px-1 font-normal bg-[#7058a3]/10 text-[#7058a3]"
+                >
+                  {value.length}
+                </Badge>
+              )}
+            </div>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full min-w-[300px] p-0" align="start">
+          <Command>
+            <CommandInput 
+              placeholder="Search departments..." 
+              className="h-9"
+            />
+            <CommandEmpty className="py-2 px-4 text-sm">
+              No department found.
+            </CommandEmpty>
+            <ScrollArea className="h-[200px]">
+              <CommandGroup className="p-1">
+                {availableDepartments.map((department) => (
+                  <CommandItem
+                    key={department}
+                    value={department}
+                    onSelect={() => handleSelect(department)}
+                    className="flex items-center gap-2 px-2 py-1.5 cursor-pointer aria-selected:bg-[#7058a3]/10 hover:bg-[#7058a3]/5"
+                  >
+                    <div className={cn(
+                      "flex h-4 w-4 items-center justify-center rounded-sm border border-[#7058a3]/20",
+                      value.includes(department) ? "bg-[#7058a3] text-white" : "opacity-50"
+                    )}>
+                      {value.includes(department) && (
+                        <Check className="h-3 w-3" />
+                      )}
+                    </div>
+                    <span>{department}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </ScrollArea>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {multiple && value.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {value.map((department) => (
+            <Badge
+              key={department}
+              variant="secondary"
+              className="cursor-pointer bg-[#7058a3]/10 text-[#7058a3] hover:bg-[#7058a3]/20 transition-colors"
+              onClick={() => handleSelect(department)}
+            >
+              {department}
+              <span className="ml-1 text-[#7058a3]/70">×</span>
             </Badge>
           ))}
         </div>
-      </div>
-
-      {/* Optional department selection */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-muted-foreground">
-          Additional Approvers:
-        </div>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="w-full justify-between"
-            >
-              {selectedDepartments.length === 0
-                ? "Select additional departments..."
-                : multiple
-                ? `${selectedDepartments.length} selected`
-                : selectedDepartments[0]}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0">
-            <Command>
-              <CommandInput placeholder="Search departments..." />
-              <CommandEmpty>No department found.</CommandEmpty>
-              <ScrollArea className="h-[200px]">
-                <CommandGroup>
-                  {optionalDepartments
-                    .filter(dept => !mandatoryApprovers.includes(dept))
-                    .map((department) => (
-                    <CommandItem
-                      key={department}
-                      onSelect={() => handleSelect(department)}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedDepartments.includes(department)
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {department}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </ScrollArea>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        {multiple && selectedDepartments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {selectedDepartments.map((department) => (
-              <Badge
-                key={department}
-                variant="secondary"
-                className="cursor-pointer hover:bg-muted"
-                onClick={() => handleSelect(department)}
-              >
-                {department}
-                <span className="ml-1 text-muted-foreground">×</span>
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

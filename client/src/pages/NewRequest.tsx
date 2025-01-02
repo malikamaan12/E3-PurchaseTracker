@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FilePreview } from "@/components/FilePreview";
 import type { File } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -694,6 +695,75 @@ export default function NewRequest() {
                     name="additionalApprovers"
                     id="additionalApprovers"
                   />
+                </div>
+
+                {/* New Approval Flow Section */}
+                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                      Approval Flow
+                    </h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Mandatory Approvers */}
+                    <div>
+                      <h4 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h4>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-2">
+                          These departments must approve your request:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {['Finance', 'Management'].map((dept) => (
+                            <Badge key={dept} variant="secondary" className="bg-[#7058a3]/10 text-[#7058a3]">
+                              {dept}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Optional Approvers */}
+                    <div>
+                      <h4 className="text-sm font-medium text-[#7058a3] mb-2">Additional Approvers</h4>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Select additional departments that should review this request:
+                      </p>
+                      <DepartmentSelect
+                        label="Select Departments"
+                        onChange={handleDepartmentChange}
+                        value={selectedDepartments}
+                        multiple={true}
+                        excludeDepartments={['Finance', 'Management']} // Exclude mandatory approvers
+                        name="additionalApprovers"
+                        id="additionalApprovers"
+                      />
+                    </div>
+
+                    {/* Preview of approval flow */}
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-[#7058a3] mb-2">Approval Flow Preview</h4>
+                      <div className="space-y-2">
+                        {[...['Finance', 'Management'], ...selectedDepartments].map((dept, index) => (
+                          <div
+                            key={dept}
+                            className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#7058a3]/10"
+                          >
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#7058a3]/10 text-[#7058a3] text-sm">
+                              {index + 1}
+                            </div>
+                            <span className="text-sm font-medium">{dept}</span>
+                            {index < 2 && (
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                Mandatory
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
