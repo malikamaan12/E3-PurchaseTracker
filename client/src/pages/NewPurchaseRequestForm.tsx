@@ -5,8 +5,7 @@ import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -31,105 +30,109 @@ export default function NewPurchaseRequestForm() {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
 
-  // Generate PDF with enhanced formatting and branding
   const generatePDF = (formData: any) => {
-    const doc = new jsPDF();
+    // Initialize PDF with A4 format
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const margin = 20;
-    let startY = margin;
+    let startY = margin + 40; // Start after header
 
-    // Helper function to add header and footer
     const addHeaderAndFooter = () => {
       try {
-        // Add header image if available
         if (branding?.headerImage) {
-          const headerHeight = pageHeight * 0.15; // 15% of page height
+          console.log("Adding header image");
+          const headerHeight = 30; // Fixed 30mm height for header
           doc.addImage(
-            `data:${branding.headerImageMimeType};base64,${branding.headerImage}`,
-            'JPEG',
-            0,
-            0,
-            pageWidth,
-            headerHeight
+            branding.headerImage,
+            branding.headerImageMimeType || 'JPEG',
+            0, // x
+            0, // y
+            pageWidth, // width
+            headerHeight, // height
+            undefined,
+            'FAST'
           );
-          startY = headerHeight + 10; // Start content after header
           console.log("Header image added successfully");
         }
 
-        // Add footer image if available
         if (branding?.footerImage) {
-          const footerHeight = pageHeight * 0.1; // 10% of page height
+          console.log("Adding footer image");
+          const footerHeight = 20; // Fixed 20mm height for footer
           doc.addImage(
-            `data:${branding.footerImageMimeType};base64,${branding.footerImage}`,
-            'JPEG',
-            0,
-            pageHeight - footerHeight,
-            pageWidth,
-            footerHeight
+            branding.footerImage,
+            branding.footerImageMimeType || 'JPEG',
+            0, // x
+            pageHeight - footerHeight, // y position from bottom
+            pageWidth, // width
+            footerHeight, // height
+            undefined,
+            'FAST'
           );
           console.log("Footer image added successfully");
         }
       } catch (error) {
-        console.error("Error adding header/footer images:", error);
+        console.error("Error adding header/footer:", error);
       }
     };
 
-    // Add header and footer to first page
+    // Add header and footer first
     addHeaderAndFooter();
 
-    // Request information
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Request Number: ${formData.requestNumber || "New Request"}`, margin, startY);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, startY, { align: "right" });
+    // Company Name and Date
+    doc.setFontSize(12);
+    doc.setTextColor(80, 80, 80);
+    doc.text(branding?.companyName || "Company Name", margin, margin + 10);
+    doc.text(new Date().toLocaleDateString(), pageWidth - margin - 30, margin + 10);
 
-    // Basic Information Section
-    doc.setFontSize(14);
-    doc.setTextColor(branding?.primaryColor || "#7156a2");
-    doc.text("Request Details", margin, startY + 20);
+    // Request Details
+    doc.setFontSize(16);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Purchase Request Details", margin, startY);
 
-    // Request information table
+    // Basic Information table
     const basicInfo = [
+      ["Request Number", formData.requestNumber || "New Request"],
       ["Title", formData.title || ""],
       ["Description", formData.description || ""],
       ["Purpose Type", formData.purposeType || ""],
-      ["Sub Purpose", formData.subPurposeName || ""],
       ["Priority", formData.priority || ""],
       ["Currency", formData.currency || ""],
-      ["Total Estimated Cost", `${formData.totalEstimatedCost || 0}`],
-      ["Freight Amount", `${formData.freightAmount || 0}`],
+      ["Total Cost", `${formData.currency} ${formData.totalEstimatedCost || 0}`],
     ];
 
     doc.autoTable({
-      startY: startY + 25,
+      startY: startY + 10,
       head: [],
       body: basicInfo,
-      theme: 'plain',
-      styles: { 
+      theme: 'striped',
+      styles: {
         fontSize: 10,
-        cellPadding: 3,
-        textColor: [50, 50, 50],
+        cellPadding: 5,
       },
       columnStyles: {
         0: { 
           fontStyle: 'bold',
-          cellWidth: 50,
-          fillColor: [branding?.secondaryColor || "#F0F0FA"],
+          cellWidth: 40,
+          fillColor: [240, 240, 250],
         },
-        1: { cellWidth: 120 }
+        1: { cellWidth: 100 }
       },
       margin: { left: margin, right: margin }
     });
 
-    // Items Section
-    const currentY = (doc as any).lastAutoTable.finalY + 10;
+    // Items table
+    const currentY = (doc as any).lastAutoTable.finalY + 15;
     doc.setFontSize(14);
-    doc.setTextColor(branding?.primaryColor || "#7156a2");
     doc.text("Items", margin, currentY);
 
-    const itemsTableHead = [["Item Name", "Description", "Quantity", "Unit Cost", "Total Cost"]];
-    const itemsTableBody = formData.items?.map((item: any) => [
+    const itemHeaders = [["Item Name", "Description", "Quantity", "Unit Cost", "Total"]];
+    const itemsData = formData.items?.map((item: any) => [
       item.name,
       item.description || "",
       item.quantity,
@@ -139,27 +142,24 @@ export default function NewPurchaseRequestForm() {
 
     doc.autoTable({
       startY: currentY + 5,
-      head: itemsTableHead,
-      body: itemsTableBody,
+      head: itemHeaders,
+      body: itemsData,
       theme: 'striped',
-      headStyles: { 
-        fillColor: [
-          parseInt(branding?.primaryColor?.slice(1, 3) || "71", 16),
-          parseInt(branding?.primaryColor?.slice(3, 5) || "56", 16),
-          parseInt(branding?.primaryColor?.slice(5, 7) || "a2", 16)
-        ],
-        textColor: [255, 255, 255],
-      },
-      styles: { 
+      styles: {
         fontSize: 9,
         cellPadding: 5,
       },
+      headStyles: {
+        fillColor: [113, 86, 158], // Primary color
+        textColor: 255,
+        fontStyle: 'bold'
+      },
       columnStyles: {
-        0: { cellWidth: 40 },
+        0: { cellWidth: 50 },
         1: { cellWidth: 60 },
-        2: { cellWidth: 25, halign: 'center' },
+        2: { cellWidth: 20, halign: 'center' },
         3: { cellWidth: 30, halign: 'right' },
-        4: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' }
       },
       margin: { left: margin, right: margin }
     });
@@ -174,7 +174,6 @@ export default function NewPurchaseRequestForm() {
     return doc;
   };
 
-  // Handle download
   const handleDownload = () => {
     const formData = queryClient.getQueryData(["currentFormData"]);
     if (!formData) {
@@ -200,7 +199,6 @@ export default function NewPurchaseRequestForm() {
       toast({
         title: "Success",
         description: "Purchase request details have been downloaded",
-        variant: "default"
       });
     } catch (error) {
       console.error('PDF generation error:', error);
