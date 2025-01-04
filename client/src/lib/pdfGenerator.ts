@@ -1,13 +1,29 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { PurchaseRequestWithRelations } from '@db/schema';
+import { type CompanyBranding } from '@db/schema';
 import { format } from 'date-fns';
-import {
-  type TemplateConfig,
-  defaultBranding,
-  createTileBackground,
-  hexToRgb,
-} from './pdfTemplates';
+
+// Interfaces
+interface TemplateConfig {
+  branding: {
+    name: string;
+    primaryColor: [number, number, number];
+    secondaryColor: [number, number, number];
+    accentColor: [number, number, number];
+    headerStyle: string;
+    logo: string | null;
+    logoMimeType: string | null;
+    headerImage: string | null;
+    headerImageMimeType: string | null;
+    footerImage: string | null;
+    footerImageMimeType: string | null;
+    footerText: string;
+  };
+  layout: 'modern' | 'classic' | 'bento';
+  headerHeight: number;
+  footerHeight: number;
+  showLogo: boolean;
+}
 
 // Enhanced error logging
 const logError = (error: any, context: string) => {
@@ -18,27 +34,40 @@ const logError = (error: any, context: string) => {
   });
 };
 
-// Function to validate base64 data
-function isValidBase64(str: string) {
+// Function to validate base64 data with enhanced logging
+function isValidBase64(str: string | null) {
+  if (!str) {
+    console.warn('No data provided for base64 validation');
+    return false;
+  }
+
   try {
-    return btoa(atob(str)) === str;
+    // Remove data URL prefix if present
+    const base64Data = str.includes('base64,') ? str.split('base64,')[1] : str;
+    return btoa(atob(base64Data)) === base64Data;
   } catch (err) {
+    console.warn('Invalid base64 data:', err);
     return false;
   }
 }
 
-// Enhanced image handling with validation
-function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string, x: number, y: number, width: number, height: number): boolean {
+// Enhanced image handling with validation and logging
+function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
   try {
     if (!imageData) {
       console.warn('No image data provided');
       return false;
     }
 
-    // Check if image data is already base64
+    if (!mimeType) {
+      console.warn('No mime type provided');
+      return false;
+    }
+
+    // Clean and validate image data
     const base64Data = imageData.includes('base64,') ?
       imageData.split('base64,')[1] :
-      isValidBase64(imageData) ? imageData : null;
+      imageData;
 
     if (!base64Data) {
       console.warn('Invalid image data format');
@@ -46,15 +75,16 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string, x
     }
 
     const imgFormat = mimeType.split('/')[1].toUpperCase();
-    const supportedFormats = ['PNG', 'JPEG', 'JPG'];
-
-    if (!supportedFormats.includes(imgFormat)) {
+    if (!['PNG', 'JPEG', 'JPG'].includes(imgFormat)) {
       console.warn(`Unsupported image format: ${imgFormat}`);
       return false;
     }
 
+    const fullImageData = `data:${mimeType};base64,${base64Data}`;
+    console.log(`Adding image: format=${imgFormat}, size=${width}x${height}, position=(${x},${y})`);
+
     doc.addImage(
-      `data:${mimeType};base64,${base64Data}`,
+      fullImageData,
       imgFormat,
       x,
       y,
@@ -64,6 +94,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string, x
       'FAST'
     );
 
+    console.log('Image added successfully');
     return true;
   } catch (error) {
     logError(error, 'addImageToPDF');
@@ -71,42 +102,69 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string, x
   }
 }
 
-// Fetch company branding with enhanced error handling
-async function fetchBranding() {
+// Enhanced branding fetch with proper error handling and logging
+async function fetchBranding(): Promise<TemplateConfig['branding']> {
   try {
+    console.log('Fetching company branding data...');
     const response = await fetch('/api/branding');
+
     if (!response.ok) {
       throw new Error(`Failed to fetch branding: ${response.statusText}`);
     }
-    const branding = await response.json();
-    console.log('Fetched branding:', branding);
 
-    // Validate branding data
-    if (!branding || typeof branding !== 'object') {
-      throw new Error('Invalid branding data received');
-    }
+    const data: CompanyBranding = await response.json();
+    console.log('Received branding data:', {
+      ...data,
+      logo: data.logo ? '[PRESENT]' : '[MISSING]',
+      header_image_url: data.header_image_url ? '[PRESENT]' : '[MISSING]',
+      footer_image_url: data.footer_image_url ? '[PRESENT]' : '[MISSING]'
+    });
 
     return {
-      name: branding.companyName || defaultBranding.name,
-      primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
-      secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
-      accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
-      headerStyle: branding.headerStyle || 'modern',
-      logo: branding.logo || null,
-      logoMimeType: branding.logoMimeType || 'image/png',
-      headerImage: branding.headerImage || null,
-      headerImageMimeType: branding.headerImageMimeType || 'image/png',
-      footerImage: branding.footerImage || null,
-      footerImageMimeType: branding.footerImageMimeType || 'image/png',
-      footerText: branding.footerText || "Confidential - For Internal Use Only"
+      name: data.company_name,
+      primaryColor: hexToRGB(data.primary_color),
+      secondaryColor: hexToRGB(data.secondary_color),
+      accentColor: hexToRGB(data.accent_color),
+      headerStyle: data.header_style,
+      logo: data.logo,
+      logoMimeType: data.logo_mime_type,
+      headerImage: data.header_image_url,
+      headerImageMimeType: data.header_image_mime_type,
+      footerImage: data.footer_image_url,
+      footerImageMimeType: data.footer_image_mime_type,
+      footerText: data.footer_text || "Confidential - For Internal Use Only"
     };
   } catch (error) {
     logError(error, 'fetchBranding');
-    return defaultBranding;
+    console.warn('Using default branding due to error');
+    return {
+      name: "Company Name",
+      primaryColor: [113, 86, 158],
+      secondaryColor: [240, 240, 250],
+      accentColor: [25, 17, 96],
+      headerStyle: "modern",
+      logo: null,
+      logoMimeType: null,
+      headerImage: null,
+      headerImageMimeType: null,
+      footerImage: null,
+      footerImageMimeType: null,
+      footerText: "Confidential - For Internal Use Only"
+    };
   }
 }
 
-// Function to add header with enhanced error handling
+// Helper function to convert hex color to RGB array
+function hexToRGB(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16)
+  ] : [113, 86, 158]; // Default purple color
+}
+
+// Function to add header with enhanced styling and logging
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   const headerHeight = 35;
   console.log('Adding header with config:', {
@@ -181,7 +239,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   return headerHeight;
 }
 
-// Function to add footer with enhanced error handling
+// Function to add footer with enhanced styling and logging
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number) {
   const footerHeight = 25;
   const footerY = pageHeight - footerHeight;

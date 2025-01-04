@@ -1,9 +1,51 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { relations, InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// ============= Tables =============
+// Company Branding table definition
+export const companyBranding = pgTable("company_branding", {
+  id: serial("id").primaryKey(),
+  company_name: text("company_name").notNull(),
+  header_style: text("header_style").notNull().default("modern"),
+  primary_color: text("primary_color").notNull().default("#71569E"),
+  secondary_color: text("secondary_color").notNull().default("#F0F0FA"),
+  accent_color: text("accent_color").notNull().default("#191160"),
+  logo: text("logo"),
+  logo_mime_type: text("logo_mime_type"),
+  header_image_url: text("header_image_url"),
+  header_image_mime_type: text("header_image_mime_type"),
+  footer_image_url: text("footer_image_url"),
+  footer_image_mime_type: text("footer_image_mime_type"),
+  footer_text: text("footer_text"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Base schema for company branding validation
+export const companyBrandingSchema = z.object({
+  company_name: z.string().min(1, "Company name is required"),
+  header_style: z.enum(["modern", "classic", "minimal"]).default("modern"),
+  primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#71569E"),
+  secondary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#F0F0FA"),
+  accent_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#191160"),
+  logo: z.string().nullable(),
+  logo_mime_type: z.string().nullable(),
+  header_image_url: z.string().nullable(),
+  header_image_mime_type: z.string().nullable(),
+  footer_image_url: z.string().nullable(),
+  footer_image_mime_type: z.string().nullable(),
+  footer_text: z.string().nullable(),
+});
+
+// Create insert and select schemas
+export const insertCompanyBrandingSchema = companyBrandingSchema;
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+
+// Type definitions for company branding
+export type CompanyBranding = typeof companyBranding.$inferSelect;
+export type InsertCompanyBranding = z.infer<typeof companyBrandingSchema>;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -117,23 +159,6 @@ export const fileAttachments = pgTable("file_attachments", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
-export const companyBranding = pgTable("company_branding", {
-  id: serial("id").primaryKey(),
-  companyName: text("company_name").notNull(),
-  headerStyle: text("header_style").notNull().default("modern"),
-  primaryColor: text("primary_color").notNull().default("#71569E"),
-  secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
-  accentColor: text("accent_color").notNull().default("#191160"),
-  logo: text("logo"),
-  logoMimeType: text("logo_mime_type"),
-  headerImage: text("header_image"),
-  headerImageMimeType: text("header_image_mime_type"),
-  footerImage: text("footer_image"),
-  footerImageMimeType: text("footer_image_mime_type"),
-  footerText: text("footer_text"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const purchaseApprovers = pgTable("purchase_approvers", {
   id: serial("id").primaryKey(),
@@ -311,7 +336,6 @@ export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
-export type CompanyBranding = InferModel<typeof companyBranding>;
 export type AccountRequest = InferModel<typeof accountRequests>;
 export type ErrorLog = typeof errorLogs.$inferSelect;
 export type InsertErrorLog = typeof errorLogs.$inferInsert;
@@ -327,7 +351,6 @@ export type InsertVendor = typeof vendors.$inferInsert;
 export type VendorCategory = typeof vendorCategories.$inferSelect;
 export type VendorPerformance = typeof vendorPerformance.$inferSelect;
 export type VendorPayment = typeof vendorPayments.$inferSelect;
-
 
 
 // ============= Validation Schemas =============
@@ -492,7 +515,6 @@ export const selectNotificationSchema = createSelectSchema(notifications);
 export const selectPurchaseRequestSchema = createSelectSchema(purchaseRequests);
 export const selectApprovalSchema = createSelectSchema(approvals);
 export const selectFileAttachmentSchema = createSelectSchema(fileAttachments);
-export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 export const selectPurchaseApproverSchema = createSelectSchema(purchaseApprovers);
 
 // Using createSelectSchema for error logs with proper typing
