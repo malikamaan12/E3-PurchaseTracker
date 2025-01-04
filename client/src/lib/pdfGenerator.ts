@@ -34,11 +34,15 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     }
 
     const data: CompanyBranding = await response.json();
+    if (!data) {
+      throw new Error('No branding data received');
+    }
+
     return {
       name: data.company_name || 'Company Name',
-      primaryColor: hexToRGB(data.primary_color),
-      secondaryColor: hexToRGB(data.secondary_color),
-      accentColor: hexToRGB(data.accent_color),
+      primaryColor: hexToRGB(data.primary_color || '#212121'),
+      secondaryColor: hexToRGB(data.secondary_color || '#f5f5f5'),
+      accentColor: hexToRGB(data.accent_color || '#0070c9'),
       headerStyle: data.header_style || 'modern',
       logo: data.logo,
       logoMimeType: data.logo_mime_type,
@@ -100,8 +104,9 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 }
 
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = 45;
+  const headerHeight = 35;
 
+  // Try header image first
   if (config.branding.headerImage) {
     const added = addImageToPDF(
       doc,
@@ -115,9 +120,11 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     if (added) return headerHeight;
   }
 
-  doc.setFillColor(255, 255, 255);
+  // Fallback to styled header
+  doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
+  // Add logo if available
   let logoWidth = 0;
   if (config.branding.logo) {
     const logoAdded = addImageToPDF(
@@ -126,29 +133,32 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
       config.branding.logoMimeType || 'image/png',
       10,
       5,
-      35,
-      35
+      25,
+      25
     );
-    if (logoAdded) logoWidth = 45;
+    if (logoAdded) logoWidth = 35;
   }
 
-  doc.setTextColor(...config.branding.primaryColor);
-  doc.setFontSize(24);
+  // Company name in header
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.name, logoWidth + 10, 25);
+  doc.text(config.branding.name, logoWidth + 10, 20);
 
-  doc.setFontSize(10);
+  // Add date
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const date = format(new Date(), 'PPP');
-  doc.text(date, pageWidth - 15, 20, { align: 'right' });
+  doc.text(date, pageWidth - 15, 15, { align: 'right' });
 
   return headerHeight;
 }
 
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = 35;
+  const footerHeight = 25;
   const footerY = pageHeight - footerHeight;
 
+  // Try footer image first
   if (config.branding.footerImage) {
     const added = addImageToPDF(
       doc,
@@ -162,16 +172,19 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
     if (added) return footerHeight;
   }
 
-  doc.setFillColor(255, 255, 255);
+  // Fallback to styled footer
+  doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, footerY, pageWidth, footerHeight, 'F');
 
-  doc.setTextColor(...config.branding.primaryColor);
+  // Footer text
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 15, { align: 'center' });
+  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
+  // Page number
   const pageNumber = `Page ${doc.internal.getNumberOfPages()}`;
-  doc.text(pageNumber, pageWidth - 15, pageHeight - 15, { align: 'right' });
+  doc.text(pageNumber, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
 }
