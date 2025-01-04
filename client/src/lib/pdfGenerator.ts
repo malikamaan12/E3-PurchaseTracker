@@ -25,20 +25,15 @@ interface TemplateConfig {
   showLogo: boolean;
 }
 
-// Enhanced branding fetch with proper error handling
+// Enhanced branding fetch
 async function fetchBranding(): Promise<TemplateConfig['branding']> {
   try {
-    console.log('Fetching company branding data...');
     const response = await fetch('/api/branding');
-
     if (!response.ok) {
       throw new Error(`Failed to fetch branding: ${response.statusText}`);
     }
 
     const data: CompanyBranding = await response.json();
-    console.log('Received branding data:', data);
-
-    // Validate and transform the data
     return {
       name: data.company_name || 'Company Name',
       primaryColor: hexToRGB(data.primary_color),
@@ -55,7 +50,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
-    // Return default branding if fetch fails
     return {
       name: "Company Name",
       primaryColor: [33, 33, 33],
@@ -73,7 +67,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
   }
 }
 
-// Helper function to convert hex color to RGB array
 function hexToRGB(hex: string): [number, number, number] {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? [
@@ -83,10 +76,8 @@ function hexToRGB(hex: string): [number, number, number] {
   ] : [33, 33, 33];
 }
 
-// Enhanced image handling
 function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
   if (!imageData || !mimeType) {
-    console.warn('Missing image data or mime type');
     return false;
   }
 
@@ -97,7 +88,6 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 
     const imgFormat = mimeType.split('/')[1].toUpperCase();
     if (!['PNG', 'JPEG', 'JPG'].includes(imgFormat)) {
-      console.warn(`Unsupported image format: ${imgFormat}`);
       return false;
     }
 
@@ -109,11 +99,9 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
   }
 }
 
-// Clean header implementation
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
   const headerHeight = 45;
 
-  // Try to add header image if available
   if (config.branding.headerImage) {
     const added = addImageToPDF(
       doc,
@@ -127,11 +115,9 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     if (added) return headerHeight;
   }
 
-  // Fallback to clean header design
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
-  // Add logo if available
   let logoWidth = 0;
   if (config.branding.logo) {
     const logoAdded = addImageToPDF(
@@ -146,13 +132,11 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     if (logoAdded) logoWidth = 45;
   }
 
-  // Company name
   doc.setTextColor(...config.branding.primaryColor);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.text(config.branding.name, logoWidth + 10, 25);
 
-  // Date
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const date = format(new Date(), 'PPP');
@@ -161,12 +145,10 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
   return headerHeight;
 }
 
-// Clean footer implementation
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
   const footerHeight = 35;
   const footerY = pageHeight - footerHeight;
 
-  // Try to add footer image if available
   if (config.branding.footerImage) {
     const added = addImageToPDF(
       doc,
@@ -180,30 +162,24 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
     if (added) return footerHeight;
   }
 
-  // Fallback to clean footer design
   doc.setFillColor(255, 255, 255);
   doc.rect(0, footerY, pageWidth, footerHeight, 'F');
 
-  // Footer text
   doc.setTextColor(...config.branding.primaryColor);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 15, { align: 'center' });
 
-  // Page number
   const pageNumber = `Page ${doc.internal.getNumberOfPages()}`;
   doc.text(pageNumber, pageWidth - 15, pageHeight - 15, { align: 'right' });
 
   return footerHeight;
 }
 
-// Bento box style tile component
 function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y: number, width: number, height: number, config: TemplateConfig) {
-  // Box background
   doc.setFillColor(...config.branding.secondaryColor);
   doc.roundedRect(x, y, width, height, 3, 3, 'F');
 
-  // Title bar
   doc.setFillColor(...config.branding.primaryColor);
   doc.roundedRect(x, y, width, 20, 3, 3, 'F');
   doc.setTextColor(255, 255, 255);
@@ -211,7 +187,6 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFont('helvetica', 'bold');
   doc.text(title.toUpperCase(), x + 8, y + 13);
 
-  // Content
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -248,7 +223,15 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const columnWidth = (contentWidth - margin) / 2;
     const tileHeight = 80;
 
-    // Request Info Tile
+    // Title and Description Tile
+    const titleInfo = [
+      `Title: ${request.title || 'N/A'}`,
+      `Description: ${request.description || 'N/A'}`
+    ];
+    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, tileHeight - 20, config);
+
+    // Request Info and Status
+    yPos += tileHeight;
     const requestInfo = [
       `Request Number: ${request.requestNumber}`,
       `Status: ${request.status.toUpperCase()}`,
@@ -257,27 +240,29 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     ];
     addBentoTile(doc, 'Request Information', requestInfo, margin, yPos, columnWidth, tileHeight, config);
 
-    // Requester Info Tile
-    const requesterInfo = [
-      `Name: ${request.requester?.username || 'N/A'}`,
-      `Department: ${request.requester?.department || 'N/A'}`,
-      `Contact: ${request.requester?.contactNumber || 'N/A'}`,
-      `Email: ${request.requester?.email || 'N/A'}`
+    // Vendor Info
+    const vendorInfo = [
+      `Vendor: ${request.vendor?.name || 'N/A'}`,
+      `Category: ${request.vendor?.category || 'N/A'}`,
+      `Contact: ${request.vendor?.contactPerson || 'N/A'}`,
+      `Email: ${request.vendor?.email || 'N/A'}`
     ];
-    addBentoTile(doc, 'Requester Details', requesterInfo, margin + columnWidth + margin, yPos, columnWidth, tileHeight, config);
+    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin, yPos, columnWidth, tileHeight, config);
 
-    // Purpose Info Tile
+    // Purpose and Sub-Purpose
     yPos += tileHeight + margin;
     const purposeInfo = [
-      `Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
-      `Details: ${request.description || 'N/A'}`
+      `Purpose Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
+      `Sub Purpose: ${request.subPurpose?.name || 'N/A'}`,
+      `Details: ${request.purposeDetails || 'N/A'}`
     ];
     addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, tileHeight - 20, config);
 
     // Items Table
-    yPos += (tileHeight - 20) + margin;
-    const items = request.items.map((item: any) => [
+    yPos += tileHeight;
+    const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
+      item.description || 'N/A',
       item.quantity?.toString() || '0',
       formatCurrency(item.estimatedCost || 0, request.currency),
       formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
@@ -285,12 +270,12 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Item', 'Qty', 'Unit Cost', 'Total']],
+      head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
       body: items,
       foot: [
-        ['', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
-        ['', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
-        ['', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
+        ['', '', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
+        ['', '', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
+        ['', '', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
       headStyles: {
         fillColor: config.branding.primaryColor,
@@ -310,19 +295,48 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       margin: { left: margin, right: margin }
     });
 
-    // Approvals Table
-    if (request.approvals?.length > 0) {
+    // Attachments
+    if (request.attachments?.length > 0) {
       yPos = (doc as any).lastAutoTable.finalY + margin;
+      const attachments = request.attachments.map((attachment: any) => [
+        attachment.fileName || 'N/A',
+        attachment.fileType || 'N/A',
+        formatFileSize(attachment.fileSize || 0),
+        format(new Date(attachment.uploadedAt || new Date()), 'PPP')
+      ]);
 
       autoTable(doc, {
         startY: yPos,
-        head: [['Department', 'Approver', 'Status', 'Comments']],
-        body: request.approvals.map((approval: any) => [
-          approval.department || 'N/A',
-          approval.approver?.username || 'N/A',
-          approval.status.toUpperCase(),
-          approval.comments || '-'
-        ]),
+        head: [['File Name', 'Type', 'Size', 'Uploaded']],
+        body: attachments,
+        headStyles: {
+          fillColor: config.branding.primaryColor,
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250]
+        },
+        margin: { left: margin, right: margin }
+      });
+    }
+
+    // Approvals Flow and Status
+    if (request.approvals?.length > 0) {
+      yPos = (doc as any).lastAutoTable.finalY + margin;
+      const approvals = request.approvals.map((approval: any) => [
+        approval.department || 'N/A',
+        approval.approver?.username || 'N/A',
+        approval.status.toUpperCase(),
+        format(new Date(approval.createdAt || new Date()), 'PPP'),
+        approval.comments || '-'
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Department', 'Approver', 'Status', 'Date', 'Comments']],
+        body: approvals,
         headStyles: {
           fillColor: config.branding.primaryColor,
           textColor: [255, 255, 255],
@@ -374,4 +388,12 @@ function calculateItemsTotal(request: any): number {
 
 function calculateTotalCost(request: any): number {
   return calculateItemsTotal(request) + Number(request.freightAmount || 0);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
