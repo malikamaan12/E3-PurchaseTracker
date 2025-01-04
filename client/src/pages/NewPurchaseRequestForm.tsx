@@ -29,26 +29,8 @@ export default function NewPurchaseRequestForm() {
     queryKey: ["/api/branding"],
   });
 
-  // Handle successful submission
-  const handleSubmit = (draft?: boolean) => {
-    toast({
-      title: "Success",
-      description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
-      variant: "default"
-    });
-
-    // Redirect to the dashboard
-    setLocation("/");
-  };
-
-  // Handle cancellation
-  const handleCancel = () => {
-    setLocation("/");
-  };
-
   // Handle vendor creation
   const handleVendorCreated = () => {
-    // Invalidate and refetch vendors query
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
 
@@ -199,41 +181,6 @@ export default function NewPurchaseRequestForm() {
       margin: { left: margin, right: margin }
     });
 
-    // Approval Flow Section
-    const approvalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(14);
-    doc.setTextColor(branding?.primaryColor || "#7156a2");
-    doc.text("Approval Flow", margin, approvalY);
-
-    const mandatoryApprovers = ["CEO Office", "Finance", "Director"];
-    const additionalApprovers = formData.additionalApprovers || [];
-
-    const approvalInfo = [
-      ["Mandatory Approvers", mandatoryApprovers.join(", ")],
-      ["Additional Approvers", additionalApprovers.join(", ") || "None"]
-    ];
-
-    doc.autoTable({
-      startY: approvalY + 5,
-      head: [],
-      body: approvalInfo,
-      theme: 'plain',
-      styles: { 
-        fontSize: 10,
-        cellPadding: 3,
-        textColor: [50, 50, 50],
-      },
-      columnStyles: {
-        0: { 
-          fontStyle: 'bold',
-          cellWidth: 50,
-          fillColor: [branding?.secondaryColor || "#F0F0FA"],
-        },
-        1: { cellWidth: 120 }
-      },
-      margin: { left: margin, right: margin, bottom: 40 } // Add bottom margin for footer
-    });
-
     // Add header and footer to all pages
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
@@ -257,7 +204,23 @@ export default function NewPurchaseRequestForm() {
     }
 
     try {
-      console.log("Branding data:", branding); // Debug log
+      console.log("Starting PDF generation for request:", {
+        id: formData.id,
+        status: formData.status,
+        items: formData.items?.length
+      });
+
+      // Debug branding data
+      console.log("Fetched branding:", branding);
+      console.log("Using PDF config:", {
+        branding: {
+          name: branding?.companyName,
+          logo: branding?.logo?.substring(0, 100) + '...',
+          headerImage: branding?.headerImage?.substring(0, 100) + '...',
+          footerImage: branding?.footerImage?.substring(0, 100) + '...'
+        }
+      });
+
       const doc = generatePDF(formData);
       doc.save("purchase-request.pdf");
 
@@ -274,6 +237,23 @@ export default function NewPurchaseRequestForm() {
         variant: "destructive"
       });
     }
+  };
+
+  // Handle successful submission
+  const handleSubmit = (draft?: boolean) => {
+    toast({
+      title: "Success",
+      description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
+      variant: "default"
+    });
+
+    // Redirect to the dashboard
+    setLocation("/");
+  };
+
+  // Handle cancellation
+  const handleCancel = () => {
+    setLocation("/");
   };
 
   // Show loading state
