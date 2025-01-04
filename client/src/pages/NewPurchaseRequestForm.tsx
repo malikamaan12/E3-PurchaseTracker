@@ -15,7 +15,6 @@ export default function NewPurchaseRequestForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch vendors and subpurposes for the form
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
   });
@@ -24,12 +23,10 @@ export default function NewPurchaseRequestForm() {
     queryKey: ["/api/subpurposes"],
   });
 
-  // Fetch branding information
   const { data: branding } = useQuery({
     queryKey: ["/api/branding"],
   });
 
-  // Handle vendor creation
   const handleVendorCreated = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
@@ -41,16 +38,6 @@ export default function NewPurchaseRequestForm() {
     const pageHeight = doc.internal.pageSize.height;
     const margin = 20;
     let startY = margin;
-
-    // Helper function to convert base64 to bytes for image
-    const base64ToBytes = (base64: string) => {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    };
 
     // Helper function to add header and footer
     const addHeaderAndFooter = () => {
