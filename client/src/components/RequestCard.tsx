@@ -35,7 +35,8 @@ import {
   Eye,
   FileText,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Building2
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ApprovalFlow from "@/components/ApprovalFlow";
@@ -46,6 +47,7 @@ import { generateRequestPDF } from "@/lib/pdfGenerator";
 import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import { FilePreview } from "@/components/FilePreview";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -135,6 +137,7 @@ export default function RequestCard({
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(false);
   const queryClient = useQueryClient();
+  const [showVendorDetails, setShowVendorDetails] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -366,26 +369,120 @@ export default function RequestCard({
 
   const vendorSection = request.vendor && (
     <div className="space-y-4 pt-4 border-t border-gray-100">
-      <h4 className="font-medium text-gray-900">Vendor Information</h4>
-      <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-        <p className="text-sm">
-          <span className="font-medium">Name:</span> {request.vendor.name || request.vendor.vendorName || 'N/A'}
-        </p>
-        <p className="text-sm">
-          <span className="font-medium">Category:</span> {request.vendor.category || request.vendor.vendorCategory || 'N/A'}
-        </p>
-        <p className="text-sm">
-          <span className="font-medium">Contact Person:</span> {request.vendor.contactPerson || request.vendor.contact || 'N/A'}
-        </p>
-        <p className="text-sm">
-          <span className="font-medium">Email:</span> {request.vendor.email || request.vendor.contactEmail || 'N/A'}
-        </p>
-        <p className="text-sm">
-          <span className="font-medium">Phone:</span> {request.vendor.phone || request.vendor.contactPhone || 'N/A'}
-        </p>
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium text-gray-900 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-gray-500" />
+          Vendor Information
+        </h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowVendorDetails(!showVendorDetails)}
+          className="text-gray-500"
+        >
+          {showVendorDetails ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </Button>
       </div>
+
+      <AnimatePresence>
+        {showVendorDetails && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm">
+                    <span className="font-medium">Name:</span>{" "}
+                    {request.vendor.name || request.vendor.vendorName || 'N/A'}
+                  </p>
+                  <p className="text-sm mt-2">
+                    <span className="font-medium">Category:</span>{" "}
+                    {request.vendor.category || request.vendor.vendorCategory || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm">
+                    <span className="font-medium">Contact Person:</span>{" "}
+                    {request.vendor.contactPerson || request.vendor.contact || 'N/A'}
+                  </p>
+                  <p className="text-sm mt-2">
+                    <span className="font-medium">Email:</span>{" "}
+                    {request.vendor.email || request.vendor.contactEmail || 'N/A'}
+                  </p>
+                  <p className="text-sm mt-2">
+                    <span className="font-medium">Phone:</span>{" "}
+                    {request.vendor.phone || request.vendor.contactPhone || 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
+
+  const renderAttachments = () => {
+    if (!request.attachments || request.attachments.length === 0) return null;
+
+    return (
+      <div className="space-y-4">
+        <h4 className="font-medium text-gray-900">Attachments</h4>
+        <div className="grid gap-2">
+          {request.attachments.map((file) => (
+            <motion.div
+              key={file.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center justify-between p-3 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <FileIcon className="h-5 w-5 text-[#7156a2]" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700 break-all">
+                    {file.fileName}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatFileSize(file.fileSize)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isPreviewable(file.fileType) && (
+                  <FilePreview
+                    file={{
+                      name: file.fileName,
+                      size: file.fileSize,
+                      type: file.fileType,
+                      url: `/api/attachments/${file.id}`
+                    }}
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDownload(file.id)}
+                  className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
+                >
+                  <FileDown className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Download</span>
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   if (compact) {
     const canSubmitDraft = request.status === "draft" &&
@@ -642,62 +739,7 @@ export default function RequestCard({
             </motion.div>
           )}
 
-          {request.attachments && request.attachments.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="font-medium text-gray-900">Attachments</h4>
-              <div className="grid gap-2">
-                {request.attachments.map((file) => (
-                  <motion.div
-                    key={file.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center justify-between p-3 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileIcon className="h-5 w-5 text-[#7156a2]" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 break-all">
-                          {file.fileName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatFileSize(file.fileSize)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isPreviewable(file.fileType) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowPreview(true)}
-                          className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Preview</span>
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownload(file.id)}
-                        className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
-                      >
-                        <FileDown className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Download</span>
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {showPreview && request.attachments && (
-                <FilePreviewCarousel
-                  files={request.attachments.filter(file => isPreviewable(file.fileType))}
-                  onClose={() => setShowPreview(false)}
-                />
-              )}
-            </div>
-          )}
+          {renderAttachments()}
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
             {showActions && request.status === "draft" && (
