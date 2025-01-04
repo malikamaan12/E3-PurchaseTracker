@@ -59,40 +59,48 @@ export default function NewPurchaseRequestForm() {
     const pageHeight = doc.internal.pageSize.height;
     const margin = 20;
 
-    // Helper function to add page
-    const addPage = () => {
-      doc.addPage();
-      addHeaderAndFooter();
-    };
-
     // Helper function to add header and footer
     const addHeaderAndFooter = () => {
+      console.log("Adding header and footer");
+      console.log("Header image:", branding?.headerImage ? "present" : "missing");
+      console.log("Footer image:", branding?.footerImage ? "present" : "missing");
+
       // Add header image if available
       if (branding?.headerImage) {
-        // Calculate header image dimensions to fit width while maintaining aspect ratio
-        const headerHeight = 40; // Fixed header height
-        doc.addImage(
-          `data:${branding.headerImageMimeType};base64,${branding.headerImage}`,
-          'PNG',
-          0,
-          0,
-          pageWidth,
-          headerHeight
-        );
+        try {
+          // Calculate header image dimensions to fit width while maintaining aspect ratio
+          const headerHeight = 40; // Fixed header height
+          doc.addImage(
+            `data:${branding.headerImageMimeType};base64,${branding.headerImage}`,
+            'PNG',
+            0,
+            0,
+            pageWidth,
+            headerHeight
+          );
+          console.log("Header image added successfully");
+        } catch (error) {
+          console.error("Error adding header image:", error);
+        }
       }
 
       // Add footer image if available
       if (branding?.footerImage) {
-        // Calculate footer position and dimensions
-        const footerHeight = 30; // Fixed footer height
-        doc.addImage(
-          `data:${branding.footerImageMimeType};base64,${branding.footerImage}`,
-          'PNG',
-          0,
-          pageHeight - footerHeight,
-          pageWidth,
-          footerHeight
-        );
+        try {
+          // Calculate footer position and dimensions
+          const footerHeight = 30; // Fixed footer height
+          doc.addImage(
+            `data:${branding.footerImageMimeType};base64,${branding.footerImage}`,
+            'PNG',
+            0,
+            pageHeight - footerHeight,
+            pageWidth,
+            footerHeight
+          );
+          console.log("Footer image added successfully");
+        } catch (error) {
+          console.error("Error adding footer image:", error);
+        }
       }
     };
 
@@ -160,8 +168,8 @@ export default function NewPurchaseRequestForm() {
       item.name,
       item.description || "",
       item.quantity,
-      item.estimatedCost,
-      (item.quantity * item.estimatedCost).toFixed(2)
+      `${formData.currency} ${item.estimatedCost}`,
+      `${formData.currency} ${(item.quantity * item.estimatedCost).toFixed(2)}`
     ]) || [];
 
     doc.autoTable({
@@ -249,6 +257,7 @@ export default function NewPurchaseRequestForm() {
     }
 
     try {
+      console.log("Branding data:", branding); // Debug log
       const doc = generatePDF(formData);
       doc.save("purchase-request.pdf");
 
