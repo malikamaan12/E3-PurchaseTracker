@@ -82,8 +82,8 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
   }
 
   try {
-    const base64Data = imageData.includes('base64,') ? 
-      imageData.split('base64,')[1] : 
+    const base64Data = imageData.includes('base64,') ?
+      imageData.split('base64,')[1] :
       imageData;
 
     const imgFormat = mimeType.split('/')[1].toUpperCase();
@@ -177,22 +177,25 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
 }
 
 function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y: number, width: number, height: number, config: TemplateConfig) {
+  // Compact tile with smaller padding
   doc.setFillColor(...config.branding.secondaryColor);
-  doc.roundedRect(x, y, width, height, 3, 3, 'F');
+  doc.roundedRect(x, y, width, height, 2, 2, 'F');
 
+  // Compact header
   doc.setFillColor(...config.branding.primaryColor);
-  doc.roundedRect(x, y, width, 20, 3, 3, 'F');
+  doc.roundedRect(x, y, width, 15, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(title.toUpperCase(), x + 8, y + 13);
+  doc.text(title.toUpperCase(), x + 5, y + 10);
 
+  // Compact content
   doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   content.forEach((text, index) => {
     if (text) {
-      doc.text(text, x + 8, y + 30 + (index * 12));
+      doc.text(text, x + 5, y + 22 + (index * 10));
     }
   });
 }
@@ -203,8 +206,8 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const config: TemplateConfig = {
       branding,
       layout: 'bento',
-      headerHeight: 45,
-      footerHeight: 35,
+      headerHeight: 35, // Reduced header height
+      footerHeight: 25, // Reduced footer height
       showLogo: true,
       ...templateConfig
     };
@@ -212,54 +215,49 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 15;
+    const margin = 10; // Reduced margin
     const contentWidth = pageWidth - (margin * 2);
+    const columnWidth = (contentWidth - margin) / 2;
+    const tileHeight = 50; // Reduced tile height
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    let yPos = headerHeight + margin;
+    let yPos = headerHeight + 5; // Reduced spacing
 
-    // Bento grid layout
-    const columnWidth = (contentWidth - margin) / 2;
-    const tileHeight = 80;
-
-    // Title and Description Tile
+    // Title and Description Tile (full width, compact)
     const titleInfo = [
       `Title: ${request.title || 'N/A'}`,
       `Description: ${request.description || 'N/A'}`
     ];
-    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, tileHeight - 20, config);
+    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, 35, config);
 
-    // Request Info and Status
-    yPos += tileHeight;
+    // Request Info and Vendor Info (side by side)
+    yPos += 40;
     const requestInfo = [
-      `Request Number: ${request.requestNumber}`,
+      `Request #: ${request.requestNumber}`,
       `Status: ${request.status.toUpperCase()}`,
-      `Priority: ${request.priority.toUpperCase()}`,
-      `Created: ${format(new Date(request.createdAt || new Date()), 'PPP')}`
+      `Priority: ${request.priority.toUpperCase()}`
     ];
-    addBentoTile(doc, 'Request Information', requestInfo, margin, yPos, columnWidth, tileHeight, config);
+    addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
 
-    // Vendor Info
     const vendorInfo = [
       `Vendor: ${request.vendor?.name || 'N/A'}`,
-      `Category: ${request.vendor?.category || 'N/A'}`,
       `Contact: ${request.vendor?.contactPerson || 'N/A'}`,
       `Email: ${request.vendor?.email || 'N/A'}`
     ];
-    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin, yPos, columnWidth, tileHeight, config);
+    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
 
-    // Purpose and Sub-Purpose
-    yPos += tileHeight + margin;
+    // Purpose Information (full width, compact)
+    yPos += 50;
     const purposeInfo = [
-      `Purpose Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
+      `Purpose: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
       `Sub Purpose: ${request.subPurpose?.name || 'N/A'}`,
       `Details: ${request.purposeDetails || 'N/A'}`
     ];
-    addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, tileHeight - 20, config);
+    addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
-    // Items Table
-    yPos += tileHeight;
+    // Items Table with optimized spacing
+    yPos += 50;
     const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
       item.description || 'N/A',
@@ -274,77 +272,97 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       body: items,
       foot: [
         ['', '', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
-        ['', '', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
         ['', '', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
       headStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
+        fontSize: 8,
+        fontStyle: 'bold',
+        cellPadding: 2
+      },
+      bodyStyles: {
+        fontSize: 8,
+        cellPadding: 2
       },
       footStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
+        fontSize: 8,
+        fontStyle: 'bold',
+        cellPadding: 2
       },
-      alternateRowStyles: {
-        fillColor: [250, 250, 250]
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 25 }
       },
       margin: { left: margin, right: margin }
     });
 
-    // Attachments
-    if (request.attachments?.length > 0) {
-      yPos = (doc as any).lastAutoTable.finalY + margin;
-      const attachments = request.attachments.map((attachment: any) => [
-        attachment.fileName || 'N/A',
-        attachment.fileType || 'N/A',
-        formatFileSize(attachment.fileSize || 0),
-        format(new Date(attachment.uploadedAt || new Date()), 'PPP')
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['File Name', 'Type', 'Size', 'Uploaded']],
-        body: attachments,
-        headStyles: {
-          fillColor: config.branding.primaryColor,
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold'
-        },
-        alternateRowStyles: {
-          fillColor: [250, 250, 250]
-        },
-        margin: { left: margin, right: margin }
-      });
-    }
-
-    // Approvals Flow and Status
+    // Approvals in compact table
     if (request.approvals?.length > 0) {
-      yPos = (doc as any).lastAutoTable.finalY + margin;
+      yPos = (doc as any).lastAutoTable.finalY + 5;
       const approvals = request.approvals.map((approval: any) => [
         approval.department || 'N/A',
         approval.approver?.username || 'N/A',
         approval.status.toUpperCase(),
-        format(new Date(approval.createdAt || new Date()), 'PPP'),
+        format(new Date(approval.createdAt || new Date()), 'PP'),
         approval.comments || '-'
       ]);
 
       autoTable(doc, {
         startY: yPos,
-        head: [['Department', 'Approver', 'Status', 'Date', 'Comments']],
+        head: [['Dept', 'Approver', 'Status', 'Date', 'Comments']],
         body: approvals,
         headStyles: {
           fillColor: config.branding.primaryColor,
           textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold'
+          fontSize: 8,
+          fontStyle: 'bold',
+          cellPadding: 2
         },
-        alternateRowStyles: {
-          fillColor: [250, 250, 250]
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 'auto' }
+        },
+        margin: { left: margin, right: margin }
+      });
+    }
+
+    // Attachments in compact list
+    if (request.attachments?.length > 0) {
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+      const attachments = request.attachments.map((attachment: any) => [
+        attachment.fileName || 'N/A',
+        attachment.fileType || 'N/A',
+        formatFileSize(attachment.fileSize || 0),
+        format(new Date(attachment.uploadedAt || new Date()), 'PP')
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['File Name', 'Type', 'Size', 'Date']],
+        body: attachments,
+        headStyles: {
+          fillColor: config.branding.primaryColor,
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: 'bold',
+          cellPadding: 2
+        },
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2
         },
         margin: { left: margin, right: margin }
       });
