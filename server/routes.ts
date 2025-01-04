@@ -15,8 +15,10 @@ import {
   subPurposes,
   accountRequests,
   companyBranding,
-  insertPurchaseRequestSchema
+  insertPurchaseRequestSchema,
+  type InsertVendor
 } from "@db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { sql } from 'drizzle-orm';
 import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
@@ -952,8 +954,8 @@ export function registerRoutes(app: Express): Server {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AppError('Admin access required', 403);
       }
-
-      debug(req, 'Fetching account requests...');      const accountRequestsResult = await db
+      debug(req, 'Fetching account requests...');
+      const accountRequestsResult = await db
         .select({
           id: accountRequests.id,
           username: accountRequests.username,
@@ -1787,6 +1789,97 @@ export function registerRoutes(app: Express): Server {
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
 
+
+  // Update the GET /api/requests/:id endpoint
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+
+      // Get request with all related data
+      const [request] = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          items: purchaseRequests.items,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
+          vendorId: purchaseRequests.vendorId,
+          subPurposeId: purchaseRequests.subPurposeId,
+          freightAmount: purchaseRequests.freightAmount,
+          currency: purchaseRequests.currency
+        })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get vendor details if vendorId exists
+      let vendor = null;
+      if (request.vendorId) {
+        const [vendorData] = await db
+          .select()
+          .from(vendors)
+          .where(eq(vendors.id, request.vendorId))
+          .limit(1);
+        vendor = vendorData;
+      }
+
+      // Get sub-purpose details if subPurposeId exists
+      let subPurpose = null;
+      if (request.subPurposeId) {
+        const [subPurposeData] = await db
+          .select()
+          .from(subPurposes)
+          .where(eq(subPurposes.id, request.subPurposeId))
+          .limit(1);
+        subPurpose = subPurposeData;
+      }
+
+      // Get approvals for this request
+      const approvalsList = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Get attachments
+      const attachmentsList = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, requestId));
+
+      // Parse items JSON
+      const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
+
+      // Return complete response
+      res.json({
+        ...request,
+        items,
+        vendor,
+        subPurpose,
+        approvals: approvalsList,
+        attachments: attachmentsList
+      });
+
+    } catch (error) {
+      console.error('Error fetching request:', error);
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
