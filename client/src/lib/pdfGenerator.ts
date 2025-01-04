@@ -45,14 +45,15 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
       headerStyle: data.header_style || 'modern',
       logo: data.logo || null,
       logoMimeType: data.logo_mime_type || null,
-      headerImage: data.header_image_url || null,
+      headerImage: data.header_image || null,
       headerImageMimeType: data.header_image_mime_type || null,
-      footerImage: data.footer_image_url || null,
+      footerImage: data.footer_image || null,
       footerImageMimeType: data.footer_image_mime_type || null,
       footerText: data.footer_text || "Confidential Document"
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
+    // Provide default branding if fetch fails
     return {
       name: "Company Name",
       primaryColor: [33, 33, 33],
@@ -103,7 +104,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 }
 
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = 35;
+  const headerHeight = config.headerHeight;
 
   // Try header image first
   if (config.branding.headerImage) {
@@ -154,7 +155,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
 }
 
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = 25;
+  const footerHeight = config.footerHeight;
   const footerY = pageHeight - footerHeight;
 
   // Try footer image first
@@ -200,16 +201,19 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFont('helvetica', 'bold');
   doc.text(title.toUpperCase(), x + 5, y + 10);
 
-  // Content
+  // Content with text wrapping
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  content.forEach((text, index) => {
+  let contentY = y + 22;
+
+  content.forEach((text) => {
     if (text) {
       const maxWidth = width - 10;
       const lines = doc.splitTextToSize(text, maxWidth);
-      lines.forEach((line: string, lineIndex: number) => {
-        doc.text(line, x + 5, y + 22 + (index * 12) + (lineIndex * 10));
+      lines.forEach((line: string) => {
+        doc.text(line, x + 5, contentY);
+        contentY += 10;
       });
     }
   });
