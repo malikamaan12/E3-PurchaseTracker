@@ -18,51 +18,86 @@ const logError = (error: any, context: string) => {
   });
 };
 
-// Function to add image to PDF with error handling
-function addImageToPDF(doc: jsPDF, imageData: string, mimeType: string, x: number, y: number, width: number, height: number) {
+// Function to validate base64 data
+function isValidBase64(str: string) {
   try {
-    if (imageData) {
-      doc.addImage(
-        `data:${mimeType};base64,${imageData}`,
-        mimeType.split('/')[1].toUpperCase(),
-        x,
-        y,
-        width,
-        height,
-        undefined,
-        'FAST'
-      );
-      return true;
-    }
+    return btoa(atob(str)) === str;
+  } catch (err) {
     return false;
+  }
+}
+
+// Enhanced image handling with validation
+function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string, x: number, y: number, width: number, height: number): boolean {
+  try {
+    if (!imageData) {
+      console.warn('No image data provided');
+      return false;
+    }
+
+    // Check if image data is already base64
+    const base64Data = imageData.includes('base64,') ?
+      imageData.split('base64,')[1] :
+      isValidBase64(imageData) ? imageData : null;
+
+    if (!base64Data) {
+      console.warn('Invalid image data format');
+      return false;
+    }
+
+    const imgFormat = mimeType.split('/')[1].toUpperCase();
+    const supportedFormats = ['PNG', 'JPEG', 'JPG'];
+
+    if (!supportedFormats.includes(imgFormat)) {
+      console.warn(`Unsupported image format: ${imgFormat}`);
+      return false;
+    }
+
+    doc.addImage(
+      `data:${mimeType};base64,${base64Data}`,
+      imgFormat,
+      x,
+      y,
+      width,
+      height,
+      undefined,
+      'FAST'
+    );
+
+    return true;
   } catch (error) {
     logError(error, 'addImageToPDF');
     return false;
   }
 }
 
-// Fetch company branding before generating PDF
+// Fetch company branding with enhanced error handling
 async function fetchBranding() {
   try {
     const response = await fetch('/api/branding');
     if (!response.ok) {
-      console.warn('Failed to fetch branding, using default branding');
-      return defaultBranding;
+      throw new Error(`Failed to fetch branding: ${response.statusText}`);
     }
     const branding = await response.json();
     console.log('Fetched branding:', branding);
+
+    // Validate branding data
+    if (!branding || typeof branding !== 'object') {
+      throw new Error('Invalid branding data received');
+    }
+
     return {
       name: branding.companyName || defaultBranding.name,
       primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
       secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
       accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
       headerStyle: branding.headerStyle || 'modern',
-      logo: branding.logo,
-      logoMimeType: branding.logoMimeType,
-      headerImage: branding.headerImage,
-      headerImageMimeType: branding.headerImageMimeType,
-      footerImage: branding.footerImage,
-      footerImageMimeType: branding.footerImageMimeType,
+      logo: branding.logo || null,
+      logoMimeType: branding.logoMimeType || 'image/png',
+      headerImage: branding.headerImage || null,
+      headerImageMimeType: branding.headerImageMimeType || 'image/png',
+      footerImage: branding.footerImage || null,
+      footerImageMimeType: branding.footerImageMimeType || 'image/png',
       footerText: branding.footerText || "Confidential - For Internal Use Only"
     };
   } catch (error) {
@@ -71,14 +106,20 @@ async function fetchBranding() {
   }
 }
 
-// Function to add header with enhanced styling
+// Function to add header with enhanced error handling
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   const headerHeight = 35;
+  console.log('Adding header with config:', {
+    hasHeaderImage: !!config.branding.headerImage,
+    hasLogo: !!config.branding.logo,
+    headerStyle: config.branding.headerStyle
+  });
 
   // Try to add header image first
   if (config.branding.headerImage) {
+    console.log('Attempting to add header image');
     const added = addImageToPDF(
-      doc, 
+      doc,
       config.branding.headerImage,
       config.branding.headerImageMimeType || 'image/png',
       0,
@@ -86,10 +127,14 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
       pageWidth,
       headerHeight
     );
-    if (added) return headerHeight;
+    if (added) {
+      console.log('Header image added successfully');
+      return headerHeight;
+    }
   }
 
   // Fallback to styled header
+  console.log('Using fallback styled header');
   const brandingColor = config.branding.primaryColor;
 
   // Modern header with gradient effect
@@ -103,8 +148,10 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   }
 
   // Add logo if available
+  let logoWidth = 0;
   if (config.branding.logo) {
-    addImageToPDF(
+    console.log('Attempting to add logo');
+    const logoAdded = addImageToPDF(
       doc,
       config.branding.logo,
       config.branding.logoMimeType || 'image/png',
@@ -113,13 +160,17 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
       25,
       25
     );
+    if (logoAdded) {
+      logoWidth = 35; // Logo width + margin
+      console.log('Logo added successfully');
+    }
   }
 
   // Company name in header
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.name, config.branding.logo ? 40 : 15, headerHeight / 2);
+  doc.text(config.branding.name, 10 + logoWidth, headerHeight / 2);
 
   // Add date
   doc.setFontSize(10);
@@ -130,13 +181,18 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   return headerHeight;
 }
 
-// Function to add footer with enhanced styling
+// Function to add footer with enhanced error handling
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number) {
   const footerHeight = 25;
   const footerY = pageHeight - footerHeight;
+  console.log('Adding footer with config:', {
+    hasFooterImage: !!config.branding.footerImage,
+    footerText: config.branding.footerText
+  });
 
   // Try to add footer image first
   if (config.branding.footerImage) {
+    console.log('Attempting to add footer image');
     const added = addImageToPDF(
       doc,
       config.branding.footerImage,
@@ -146,10 +202,14 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
       pageWidth,
       footerHeight
     );
-    if (added) return footerHeight;
+    if (added) {
+      console.log('Footer image added successfully');
+      return footerHeight;
+    }
   }
 
   // Fallback to styled footer
+  console.log('Using fallback styled footer');
   const brandingColor = config.branding.primaryColor;
 
   // Modern footer with gradient effect
