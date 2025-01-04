@@ -24,6 +24,11 @@ export default function NewPurchaseRequestForm() {
     queryKey: ["/api/subpurposes"],
   });
 
+  // Fetch branding information
+  const { data: branding } = useQuery({
+    queryKey: ["/api/branding"],
+  });
+
   // Handle successful submission
   const handleSubmit = (draft?: boolean) => {
     toast({
@@ -47,82 +52,144 @@ export default function NewPurchaseRequestForm() {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
 
-  // Generate PDF with enhanced formatting
+  // Generate PDF with enhanced formatting and branding
   const generatePDF = (formData: any) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
 
-    // Header with branding
-    doc.setFillColor(113, 86, 162); // #7156a2
-    doc.rect(0, 0, pageWidth, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    // Helper function to add page
+    const addPage = () => {
+      doc.addPage();
+      if (branding?.logo) {
+        // Add header with logo to new page
+        doc.addImage(
+          `data:${branding.logoMimeType};base64,${branding.logo}`,
+          'PNG',
+          margin,
+          10,
+          30,
+          15
+        );
+      }
+    };
+
+    // Add header with logo and company name
+    if (branding?.logo) {
+      doc.addImage(
+        `data:${branding.logoMimeType};base64,${branding.logo}`,
+        'PNG',
+        margin,
+        10,
+        30,
+        15
+      );
+    }
+
+    // Company name and document title
+    doc.setFontSize(20);
+    doc.setTextColor(branding?.primaryColor || "#7156a2");
+    doc.text(branding?.companyName || "Company Name", pageWidth / 2, 15, { align: "center" });
+
+    doc.setFontSize(16);
     doc.text("Purchase Request", pageWidth / 2, 25, { align: "center" });
 
-    // Reset text color
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
+    // Request number and date
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Request Number: ${formData.requestNumber || "New Request"}`, margin, 35);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 35, { align: "right" });
+
+    // Separator line
+    doc.setDrawColor(branding?.accentColor || "#35bbba");
+    doc.line(margin, 40, pageWidth - margin, 40);
 
     // Basic Information Section
-    doc.setFontSize(16);
-    doc.setTextColor(53, 187, 186); // #35bbba
-    doc.text("Request Details", 20, 50);
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
+    doc.setFontSize(14);
+    doc.setTextColor(branding?.primaryColor || "#7156a2");
+    doc.text("Request Details", margin, 50);
 
-    // Request information
+    // Request information table
     const basicInfo = [
       ["Title", formData.title || ""],
       ["Description", formData.description || ""],
+      ["Purpose Type", formData.purposeType || ""],
+      ["Sub Purpose", formData.subPurposeName || ""],
       ["Priority", formData.priority || ""],
       ["Currency", formData.currency || ""],
-      ["Total Cost", `${formData.totalEstimatedCost || 0}`],
+      ["Total Estimated Cost", `${formData.totalEstimatedCost || 0}`],
+      ["Freight Amount", `${formData.freightAmount || 0}`],
     ];
 
     doc.autoTable({
-      startY: 60,
+      startY: 55,
       head: [],
       body: basicInfo,
       theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 3 },
+      styles: { 
+        fontSize: 10,
+        cellPadding: 3,
+        textColor: [50, 50, 50],
+      },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 40 },
-        1: { cellWidth: 130 }
+        0: { 
+          fontStyle: 'bold',
+          cellWidth: 50,
+          fillColor: [branding?.secondaryColor || "#F0F0FA"],
+        },
+        1: { cellWidth: 120 }
       },
     });
 
     // Items Section
     const currentY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(16);
-    doc.setTextColor(53, 187, 186);
-    doc.text("Items", 20, currentY);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setTextColor(branding?.primaryColor || "#7156a2");
+    doc.text("Items", margin, currentY);
 
-    const itemsTableHead = [["Item Name", "Description", "Quantity", "Unit Cost", "Total"]];
+    const itemsTableHead = [
+      ["Item Name", "Description", "Quantity", "Unit Cost", "Total Cost"]
+    ];
     const itemsTableBody = formData.items?.map((item: any) => [
       item.name,
       item.description,
       item.quantity,
       item.estimatedCost,
-      item.quantity * item.estimatedCost
+      (item.quantity * item.estimatedCost).toFixed(2)
     ]) || [];
 
     doc.autoTable({
-      startY: currentY + 10,
+      startY: currentY + 5,
       head: itemsTableHead,
       body: itemsTableBody,
       theme: 'striped',
-      headStyles: { fillColor: [113, 86, 162] },
-      styles: { fontSize: 10 },
+      headStyles: { 
+        fillColor: [
+          parseInt(branding?.primaryColor?.slice(1, 3) || "71", 16),
+          parseInt(branding?.primaryColor?.slice(3, 5) || "56", 16),
+          parseInt(branding?.primaryColor?.slice(5, 7) || "a2", 16)
+        ],
+        textColor: [255, 255, 255],
+      },
+      styles: { 
+        fontSize: 9,
+        cellPadding: 5,
+      },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
+      },
     });
 
     // Approval Flow Section
     const approvalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(16);
-    doc.setTextColor(53, 187, 186);
-    doc.text("Approval Flow", 20, approvalY);
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
+    doc.setFontSize(14);
+    doc.setTextColor(branding?.primaryColor || "#7156a2");
+    doc.text("Approval Flow", margin, approvalY);
 
     const mandatoryApprovers = ["CEO Office", "Finance", "Director"];
     const additionalApprovers = formData.additionalApprovers || [];
@@ -133,33 +200,48 @@ export default function NewPurchaseRequestForm() {
     ];
 
     doc.autoTable({
-      startY: approvalY + 10,
+      startY: approvalY + 5,
       head: [],
       body: approvalInfo,
       theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 3 },
+      styles: { 
+        fontSize: 10,
+        cellPadding: 3,
+        textColor: [50, 50, 50],
+      },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 40 },
-        1: { cellWidth: 130 }
+        0: { 
+          fontStyle: 'bold',
+          cellWidth: 50,
+          fillColor: [branding?.secondaryColor || "#F0F0FA"],
+        },
+        1: { cellWidth: 120 }
       },
     });
 
-    // Footer
+    // Add custom footer to each page
     const pageCount = doc.internal.getNumberOfPages();
-    doc.setFontSize(10);
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setTextColor(128, 128, 128);
+
+      // Footer line
+      const footerY = pageHeight - 20;
+      doc.setDrawColor(branding?.accentColor || "#35bbba");
+      doc.line(margin, footerY, pageWidth - margin, footerY);
+
+      // Footer text
+      doc.setFontSize(8);
+      doc.setTextColor(100);
       doc.text(
-        `Page ${i} of ${pageCount}`,
-        pageWidth / 2,
-        doc.internal.pageSize.height - 10,
-        { align: "center" }
+        branding?.footerText || "Generated by VMS System",
+        margin,
+        pageHeight - 10
       );
       doc.text(
-        new Date().toLocaleDateString(),
-        20,
-        doc.internal.pageSize.height - 10
+        `Page ${i} of ${pageCount}`,
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: "right" }
       );
     }
 
@@ -200,7 +282,7 @@ export default function NewPurchaseRequestForm() {
   // Show loading state
   if (vendorsLoading || subPurposesLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -213,7 +295,7 @@ export default function NewPurchaseRequestForm() {
           <Button 
             variant="ghost" 
             onClick={() => setLocation("/")}
-            className="hover:bg-[#7156a2]/10 transition-colors flex items-center"
+            className="hover:bg-[#7156a2]/10 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -222,7 +304,7 @@ export default function NewPurchaseRequestForm() {
           <Button
             variant="outline"
             onClick={handleDownload}
-            className="hover:bg-[#35bbba]/10 transition-colors flex items-center"
+            className="hover:bg-[#35bbba]/10 transition-colors"
           >
             <Download className="h-4 w-4 mr-2" />
             Download Request
