@@ -247,25 +247,30 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     // Request Info and Vendor Info (side by side)
     yPos += 40;
     const requestInfo = [
-      `Request #: ${request.requestNumber}`,
-      `Status: ${request.status.toUpperCase()}`,
-      `Priority: ${request.priority.toUpperCase()}`
+      `Request #: ${request.requestNumber || 'N/A'}`,
+      `Status: ${(request.status || 'N/A').toUpperCase()}`,
+      `Priority: ${(request.priority || 'N/A').toUpperCase()}`
     ];
     addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
 
+    // Enhanced vendor info access
+    const vendor = request.vendor || {};
     const vendorInfo = [
-      `Vendor: ${request.vendor?.name || 'N/A'}`,
-      `Contact: ${request.vendor?.contactPerson || 'N/A'}`,
-      `Email: ${request.vendor?.email || 'N/A'}`
+      `Vendor: ${vendor.name || vendor.vendorName || 'N/A'}`, // Check both possible property names
+      `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
+      `Contact: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
+      `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`,
+      `Phone: ${vendor.phone || vendor.contactPhone || 'N/A'}`
     ];
     addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
 
-    // Purpose Information (full width, compact)
+    // Purpose Information with enhanced sub-purpose access
     yPos += 50;
+    const subPurpose = request.subPurpose || request.sub_purpose || {};
     const purposeInfo = [
-      `Purpose: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
-      `Sub Purpose: ${request.subPurpose?.name || 'N/A'}`,
-      `Details: ${request.purposeDetails || 'N/A'}`
+      `Purpose: ${(request.purposeType || 'N/A').replace('_', ' ').toUpperCase()}`,
+      `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || request.subPurposeName || 'N/A'}`,
+      `Details: ${request.purposeDetails || request.purpose_details || 'N/A'}`
     ];
     addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
