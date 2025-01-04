@@ -42,7 +42,6 @@ function isValidBase64(str: string | null) {
   }
 
   try {
-    // Remove data URL prefix if present
     const base64Data = str.includes('base64,') ? str.split('base64,')[1] : str;
     return btoa(atob(base64Data)) === base64Data;
   } catch (err) {
@@ -64,7 +63,6 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
       return false;
     }
 
-    // Clean and validate image data
     const base64Data = imageData.includes('base64,') ?
       imageData.split('base64,')[1] :
       imageData;
@@ -81,20 +79,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
     }
 
     const fullImageData = `data:${mimeType};base64,${base64Data}`;
-    console.log(`Adding image: format=${imgFormat}, size=${width}x${height}, position=(${x},${y})`);
-
-    doc.addImage(
-      fullImageData,
-      imgFormat,
-      x,
-      y,
-      width,
-      height,
-      undefined,
-      'FAST'
-    );
-
-    console.log('Image added successfully');
+    doc.addImage(fullImageData, imgFormat, x, y, width, height, undefined, 'FAST');
     return true;
   } catch (error) {
     logError(error, 'addImageToPDF');
@@ -113,12 +98,7 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     }
 
     const data: CompanyBranding = await response.json();
-    console.log('Received branding data:', {
-      ...data,
-      logo: data.logo ? '[PRESENT]' : '[MISSING]',
-      header_image_url: data.header_image_url ? '[PRESENT]' : '[MISSING]',
-      footer_image_url: data.footer_image_url ? '[PRESENT]' : '[MISSING]'
-    });
+    console.log('Received branding data:', data);
 
     return {
       name: data.company_name,
@@ -161,10 +141,10 @@ function hexToRGB(hex: string): [number, number, number] {
     parseInt(result[1], 16),
     parseInt(result[2], 16),
     parseInt(result[3], 16)
-  ] : [113, 86, 158]; // Default purple color
+  ] : [113, 86, 158];
 }
 
-// Function to add header with enhanced styling and logging
+// Function to add header with clean styling
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   const headerHeight = 35;
   console.log('Adding header with config:', {
@@ -175,7 +155,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
 
   // Try to add header image first
   if (config.branding.headerImage) {
-    console.log('Attempting to add header image');
+    console.log('Adding header image');
     const added = addImageToPDF(
       doc,
       config.branding.headerImage,
@@ -185,30 +165,21 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
       pageWidth,
       headerHeight
     );
-    if (added) {
-      console.log('Header image added successfully');
-      return headerHeight;
-    }
+    if (added) return headerHeight;
   }
 
-  // Fallback to styled header
-  console.log('Using fallback styled header');
+  // Fallback to clean styled header
+  console.log('Using clean styled header');
   const brandingColor = config.branding.primaryColor;
 
-  // Modern header with gradient effect
+  // Clean modern header
   doc.setFillColor(brandingColor[0], brandingColor[1], brandingColor[2]);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
-
-  // Add subtle pattern
-  for (let i = 0; i < pageWidth; i += 15) {
-    doc.setFillColor(255, 255, 255, 0.1);
-    doc.rect(i, 0, 10, headerHeight, 'F');
-  }
 
   // Add logo if available
   let logoWidth = 0;
   if (config.branding.logo) {
-    console.log('Attempting to add logo');
+    console.log('Adding logo');
     const logoAdded = addImageToPDF(
       doc,
       config.branding.logo,
@@ -218,10 +189,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
       25,
       25
     );
-    if (logoAdded) {
-      logoWidth = 35; // Logo width + margin
-      console.log('Logo added successfully');
-    }
+    if (logoAdded) logoWidth = 35;
   }
 
   // Company name in header
@@ -239,7 +207,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   return headerHeight;
 }
 
-// Function to add footer with enhanced styling and logging
+// Function to add footer with clean styling
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number) {
   const footerHeight = 25;
   const footerY = pageHeight - footerHeight;
@@ -250,7 +218,7 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
 
   // Try to add footer image first
   if (config.branding.footerImage) {
-    console.log('Attempting to add footer image');
+    console.log('Adding footer image');
     const added = addImageToPDF(
       doc,
       config.branding.footerImage,
@@ -260,25 +228,16 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
       pageWidth,
       footerHeight
     );
-    if (added) {
-      console.log('Footer image added successfully');
-      return footerHeight;
-    }
+    if (added) return footerHeight;
   }
 
-  // Fallback to styled footer
-  console.log('Using fallback styled footer');
+  // Fallback to clean styled footer
+  console.log('Using clean styled footer');
   const brandingColor = config.branding.primaryColor;
 
-  // Modern footer with gradient effect
+  // Clean modern footer
   doc.setFillColor(brandingColor[0], brandingColor[1], brandingColor[2]);
   doc.rect(0, footerY, pageWidth, footerHeight, 'F');
-
-  // Add subtle pattern
-  for (let i = 0; i < pageWidth; i += 15) {
-    doc.setFillColor(255, 255, 255, 0.1);
-    doc.rect(i, footerY, 10, footerHeight, 'F');
-  }
 
   // Footer text
   doc.setTextColor(255, 255, 255);
@@ -287,10 +246,43 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   // Page number
-  const pageNumber = `Page ${doc.getCurrentPageInfo().pageNumber}`;
+  const pageNumber = `Page ${doc.internal.getNumberOfPages()}`;
   doc.text(pageNumber, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
+}
+
+export interface PurchaseRequestWithRelations {
+  id: number;
+  requestNumber: string;
+  title: string;
+  description: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    estimatedCost: number;
+    description?: string;
+  }>;
+  status: string;
+  purposeType: string;
+  priority: string;
+  currency: string;
+  freightAmount?: number;
+  createdAt?: Date;
+  requester?: {
+    username: string;
+    department: string;
+    contactNumber: string;
+    email: string;
+  };
+  approvals?: Array<{
+    department: string;
+    approver?: {
+      username: string;
+    };
+    status: string;
+    comments?: string;
+  }>;
 }
 
 export async function generateRequestPDF(
@@ -304,14 +296,11 @@ export async function generateRequestPDF(
       items: request.items?.length || 0
     });
 
-    // Validate request data
     if (!request || !request.items) {
       throw new Error('Invalid request data - missing required fields');
     }
 
-    // Fetch company branding
     const branding = await fetchBranding();
-
     const config: TemplateConfig = {
       branding,
       layout: 'bento',
@@ -332,26 +321,22 @@ export async function generateRequestPDF(
     const headerHeight = addHeader(doc, config, pageWidth);
     let yPos = headerHeight + 10;
 
-    // Helper function for creating tiles with enhanced styling
+    // Helper function for creating tiles
     const addTile = (title: string, content: string[], y: number, height: number) => {
       try {
-        // Add tile background with subtle gradient
-        doc.setFillColor(config.branding.secondaryColor[0], config.branding.secondaryColor[1], config.branding.secondaryColor[2]);
+        // Clean tile background
+        doc.setFillColor(245, 245, 245);
         doc.rect(margin, y, maxWidth, height, 'F');
 
-        // Add decorative accent
-        doc.setFillColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
-        doc.rect(margin, y, 5, height, 'F');
-
-        // Add title with enhanced styling
+        // Add title
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
         doc.text(title.toUpperCase(), margin + 8, y + 10);
 
-        // Add content with improved formatting
+        // Add content
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(config.branding.accentColor[0], config.branding.accentColor[1], config.branding.accentColor[2]);
+        doc.setTextColor(60, 60, 60);
         doc.setFontSize(10);
         content.forEach((text, index) => {
           if (text) {
@@ -387,39 +372,20 @@ export async function generateRequestPDF(
     yPos += 45;
     const purposeInfo = [
       `Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
-      request.subPurpose ? `Sub Purpose: ${request.subPurpose.name}` : '',
-      `Details: ${request.description || 'N/A'}`,
+      request.description ? `Details: ${request.description}` : '',
     ].filter(Boolean);
     addTile('Purpose Information', purposeInfo, yPos, 35);
 
     // Items Table
     yPos += 40;
-    const tableStyles = {
-      headStyles: {
-        fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]],
-        textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold',
-      },
-      alternateRowStyles: {
-        fillColor: [
-          Math.floor(config.branding.secondaryColor[0] * 0.98),
-          Math.floor(config.branding.secondaryColor[1] * 0.98),
-          Math.floor(config.branding.secondaryColor[2] * 0.98)
-        ],
-      },
-      margin: { left: margin + 8, right: margin + 8 }
-    };
-
-    // Format items data
     const items = request.items.map(item => [
-      item?.name || 'N/A',
-      item?.quantity?.toString() || '0',
-      formatCurrency(item?.estimatedCost || 0, request.currency),
-      formatCurrency((item?.quantity || 0) * (item?.estimatedCost || 0), request.currency)
+      item.name || 'N/A',
+      item.quantity?.toString() || '0',
+      formatCurrency(item.estimatedCost || 0, request.currency),
+      formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
     ]);
 
-    // Add items table
+    // Add items table with clean styling
     autoTable(doc, {
       startY: yPos + 15,
       head: [['Item', 'Qty', 'Unit Cost', 'Total']],
@@ -429,22 +395,29 @@ export async function generateRequestPDF(
         ['', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
         ['', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
-      ...tableStyles,
+      headStyles: {
+        fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248]
+      },
       footStyles: {
-        ...tableStyles.headStyles,
-        fillColor: [
-          Math.floor(config.branding.primaryColor[0] * 0.9),
-          Math.floor(config.branding.primaryColor[1] * 0.9),
-          Math.floor(config.branding.primaryColor[2] * 0.9)
-        ],
-      }
+        fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      margin: { left: margin + 8, right: margin + 8 }
     });
 
     // Approvals Table
     if (request.approvals && request.approvals.length > 0) {
       yPos = (doc as any).lastAutoTable.finalY + 15;
 
-      // Add approvals table
+      // Add approvals table with clean styling
       autoTable(doc, {
         startY: yPos,
         head: [['Department', 'Approver', 'Status', 'Comments']],
@@ -454,7 +427,16 @@ export async function generateRequestPDF(
           approval.status.toUpperCase(),
           approval.comments || '-'
         ]),
-        ...tableStyles,
+        headStyles: {
+          fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]],
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248]
+        },
+        margin: { left: margin + 8, right: margin + 8 },
         columnStyles: {
           0: { cellWidth: 40 },
           1: { cellWidth: 40 },
@@ -512,18 +494,5 @@ function calculateTotalCost(request: PurchaseRequestWithRelations): number {
   } catch (error) {
     logError(error, 'calculateTotalCost');
     return 0;
-  }
-}
-
-function formatFileSize(bytes: number): string {
-  try {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  } catch (error) {
-    logError(error, 'formatFileSize');
-    return '0 Bytes';
   }
 }
