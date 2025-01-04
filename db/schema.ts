@@ -1,5 +1,5 @@
 import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { relations, InferModel } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -46,6 +46,7 @@ export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 export type CompanyBranding = typeof companyBranding.$inferSelect;
 export type InsertCompanyBranding = z.infer<typeof companyBrandingSchema>;
 
+//users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -351,6 +352,7 @@ export type InsertVendor = typeof vendors.$inferInsert;
 export type VendorCategory = typeof vendorCategories.$inferSelect;
 export type VendorPerformance = typeof vendorPerformance.$inferSelect;
 export type VendorPayment = typeof vendorPayments.$inferSelect;
+
 
 
 // ============= Validation Schemas =============
