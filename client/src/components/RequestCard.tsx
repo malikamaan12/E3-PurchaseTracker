@@ -98,6 +98,18 @@ interface PurchaseRequestWithRelations {
   priorityReason?: string;
   priorityScore?: number;
   priorityRecommendations?: string[];
+  vendor?: {
+    name?: string;
+    vendorName?: string;
+    category?: string;
+    vendorCategory?: string;
+    contactPerson?: string;
+    contact?: string;
+    email?: string;
+    contactEmail?: string;
+    phone?: string;
+    contactPhone?: string;
+  };
 }
 
 interface RequestCardProps {
@@ -352,6 +364,29 @@ export default function RequestCard({
     }
   };
 
+  const vendorSection = request.vendor && (
+    <div className="space-y-4 pt-4 border-t border-gray-100">
+      <h4 className="font-medium text-gray-900">Vendor Information</h4>
+      <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+        <p className="text-sm">
+          <span className="font-medium">Name:</span> {request.vendor.name || request.vendor.vendorName || 'N/A'}
+        </p>
+        <p className="text-sm">
+          <span className="font-medium">Category:</span> {request.vendor.category || request.vendor.vendorCategory || 'N/A'}
+        </p>
+        <p className="text-sm">
+          <span className="font-medium">Contact Person:</span> {request.vendor.contactPerson || request.vendor.contact || 'N/A'}
+        </p>
+        <p className="text-sm">
+          <span className="font-medium">Email:</span> {request.vendor.email || request.vendor.contactEmail || 'N/A'}
+        </p>
+        <p className="text-sm">
+          <span className="font-medium">Phone:</span> {request.vendor.phone || request.vendor.contactPhone || 'N/A'}
+        </p>
+      </div>
+    </div>
+  );
+
   if (compact) {
     const canSubmitDraft = request.status === "draft" &&
       request.requesterId === user?.id &&
@@ -560,7 +595,7 @@ export default function RequestCard({
             </div>
             <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose}</p>
           </div>
-
+          {vendorSection}
           <RequestStatusTimeline request={request} />
 
           {showApproval && (

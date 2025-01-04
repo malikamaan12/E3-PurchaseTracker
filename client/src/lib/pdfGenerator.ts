@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { type CompanyBranding } from '@db/schema';
 import { format } from 'date-fns';
@@ -182,18 +182,17 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   // Page number
-  const pageNumber = `Page ${doc.getPageCount()}`;
-  doc.text(pageNumber, pageWidth - 15, pageHeight - 10, { align: 'right' });
+  doc.text(`Page ${(doc as any).internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
 }
 
 function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y: number, width: number, height: number, config: TemplateConfig) {
-  // Compact tile with smaller padding
+  // Background
   doc.setFillColor(...config.branding.secondaryColor);
   doc.roundedRect(x, y, width, height, 2, 2, 'F');
 
-  // Compact header
+  // Header
   doc.setFillColor(...config.branding.primaryColor);
   doc.roundedRect(x, y, width, 15, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
@@ -201,13 +200,17 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFont('helvetica', 'bold');
   doc.text(title.toUpperCase(), x + 5, y + 10);
 
-  // Compact content
+  // Content
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   content.forEach((text, index) => {
     if (text) {
-      doc.text(text, x + 5, y + 22 + (index * 10));
+      const maxWidth = width - 10;
+      const lines = doc.splitTextToSize(text, maxWidth);
+      lines.forEach((line: string, lineIndex: number) => {
+        doc.text(line, x + 5, y + 22 + (index * 12) + (lineIndex * 10));
+      });
     }
   });
 }
@@ -231,13 +234,12 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const margin = 10;
     const contentWidth = pageWidth - (margin * 2);
     const columnWidth = (contentWidth - margin) / 2;
-    const tileHeight = 50;
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
     let yPos = headerHeight + 5;
 
-    // Title and Description Tile (full width, compact)
+    // Title and Description
     const titleInfo = [
       `Title: ${request.title || 'N/A'}`,
       `Description: ${request.description || 'N/A'}`
@@ -321,74 +323,8 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       margin: { left: margin, right: margin }
     });
 
-    // Approvals in compact table
-    if (request.approvals?.length > 0) {
-      yPos = (doc as any).lastAutoTable.finalY + 5;
-      const approvals = request.approvals.map((approval: any) => [
-        approval.department || 'N/A',
-        approval.approver?.username || 'N/A',
-        (approval.status || 'N/A').toUpperCase(),
-        format(new Date(approval.createdAt || new Date()), 'PP'),
-        approval.comments || '-'
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Dept', 'Approver', 'Status', 'Date', 'Comments']],
-        body: approvals,
-        headStyles: {
-          fillColor: config.branding.primaryColor,
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: 'bold',
-          cellPadding: 2
-        },
-        bodyStyles: {
-          fontSize: 8,
-          cellPadding: 2
-        },
-        columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 'auto' }
-        },
-        margin: { left: margin, right: margin }
-      });
-    }
-
-    // Attachments in compact list
-    if (request.attachments?.length > 0) {
-      yPos = (doc as any).lastAutoTable.finalY + 5;
-      const attachments = request.attachments.map((attachment: any) => [
-        attachment.fileName || 'N/A',
-        attachment.fileType || 'N/A',
-        formatFileSize(attachment.fileSize || 0),
-        format(new Date(attachment.uploadedAt || new Date()), 'PP')
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [['File Name', 'Type', 'Size', 'Date']],
-        body: attachments,
-        headStyles: {
-          fillColor: config.branding.primaryColor,
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: 'bold',
-          cellPadding: 2
-        },
-        bodyStyles: {
-          fontSize: 8,
-          cellPadding: 2
-        },
-        margin: { left: margin, right: margin }
-      });
-    }
-
     // Add footer to all pages
-    const pageCount = doc.getPageCount();
+    const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       addFooter(doc, config, pageWidth, pageHeight);
