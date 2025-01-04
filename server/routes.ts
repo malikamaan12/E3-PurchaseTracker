@@ -17,16 +17,18 @@ import {
   companyBranding,
   insertPurchaseRequestSchema
 } from "@db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { sql } from 'drizzle-orm';
 import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
 import express from 'express';
-import { analyzeFormSubmission } from './utils/anthropic-analyzer';
-import { vendors as vendorModel, type InsertVendor } from "@db/schema";
-import { insertVendorSchema } from "@db/schema";
+import { Anthropic } from '@anthropic-ai/sdk';
 
+// Configure Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -61,12 +63,12 @@ const debug = (req: Request, message: string, data?: any) => {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Add this route near the beginning of the registerRoutes function
+  // Enhanced branding endpoint with better error handling
   app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
     try {
       debug(_req, 'Fetching company branding');
 
-      const [branding] = await db
+      const brandingResult = await db
         .select({
           company_name: companyBranding.company_name,
           header_style: companyBranding.header_style,
@@ -84,23 +86,26 @@ export function registerRoutes(app: Express): Server {
           updated_at: companyBranding.updated_at
         })
         .from(companyBranding)
+        .orderBy(sql`${companyBranding.created_at} DESC`)
         .limit(1);
+
+      const branding = brandingResult[0];
 
       if (!branding) {
         debug(_req, 'No branding found, using defaults');
         return res.json({
-          company_name: "Company Name",
+          company_name: "Events & Entertainment Enterprises",
           header_style: "modern",
-          primary_color: "#212121",
-          secondary_color: "#f5f5f5",
-          accent_color: "#0070c9",
+          primary_color: "#71569E",
+          secondary_color: "#F0F0FA",
+          accent_color: "#191160",
           logo: null,
           logo_mime_type: null,
           header_image: null,
           header_image_mime_type: null,
           footer_image: null,
           footer_image_mime_type: null,
-          footer_text: "Confidential Document",
+          footer_text: "Designed with ❤️ by E3",
           created_at: new Date(),
           updated_at: new Date()
         });
@@ -948,8 +953,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Admin access required', 403);
       }
 
-      debug(req, 'Fetching account requests...');
-      const accountRequestsResult = await db
+      debug(req, 'Fetching account requests...');      const accountRequestsResult = await db
         .select({
           id: accountRequests.id,
           username: accountRequests.username,
