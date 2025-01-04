@@ -25,7 +25,6 @@ interface TemplateConfig {
   showLogo: boolean;
 }
 
-// Enhanced branding fetch
 async function fetchBranding(): Promise<TemplateConfig['branding']> {
   try {
     const response = await fetch('/api/branding');
@@ -44,12 +43,12 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
       secondaryColor: hexToRGB(data.secondary_color || '#f5f5f5'),
       accentColor: hexToRGB(data.accent_color || '#0070c9'),
       headerStyle: data.header_style || 'modern',
-      logo: data.logo,
-      logoMimeType: data.logo_mime_type,
-      headerImage: data.header_image_url,
-      headerImageMimeType: data.header_image_mime_type,
-      footerImage: data.footer_image_url,
-      footerImageMimeType: data.footer_image_mime_type,
+      logo: data.logo || null,
+      logoMimeType: data.logo_mime_type || null,
+      headerImage: data.header_image_url || null,
+      headerImageMimeType: data.header_image_mime_type || null,
+      footerImage: data.footer_image_url || null,
+      footerImageMimeType: data.footer_image_mime_type || null,
       footerText: data.footer_text || "Confidential Document"
     };
   } catch (error) {
@@ -126,7 +125,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
 
   // Add logo if available
   let logoWidth = 0;
-  if (config.branding.logo) {
+  if (config.branding.logo && config.showLogo) {
     const logoAdded = addImageToPDF(
       doc,
       config.branding.logo,
@@ -183,7 +182,7 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   // Page number
-  const pageNumber = `Page ${doc.internal.getNumberOfPages()}`;
+  const pageNumber = `Page ${doc.getPageCount()}`;
   doc.text(pageNumber, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
@@ -215,12 +214,13 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
 
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
+    console.log('Generating PDF for request:', request);
     const branding = await fetchBranding();
     const config: TemplateConfig = {
       branding,
       layout: 'bento',
-      headerHeight: 35, // Reduced header height
-      footerHeight: 25, // Reduced footer height
+      headerHeight: 35,
+      footerHeight: 25,
       showLogo: true,
       ...templateConfig
     };
@@ -228,14 +228,14 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 10; // Reduced margin
+    const margin = 10;
     const contentWidth = pageWidth - (margin * 2);
     const columnWidth = (contentWidth - margin) / 2;
-    const tileHeight = 50; // Reduced tile height
+    const tileHeight = 50;
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    let yPos = headerHeight + 5; // Reduced spacing
+    let yPos = headerHeight + 5;
 
     // Title and Description Tile (full width, compact)
     const titleInfo = [
@@ -253,12 +253,12 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     ];
     addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
 
-    // Enhanced vendor info access
+    // Enhanced vendor info access with proper null checks
     const vendor = request.vendor || {};
     const vendorInfo = [
-      `Vendor: ${vendor.name || vendor.vendorName || 'N/A'}`, // Check both possible property names
+      `Vendor Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
       `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
-      `Contact: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
+      `Contact Person: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
       `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`,
       `Phone: ${vendor.phone || vendor.contactPhone || 'N/A'}`
     ];
@@ -268,9 +268,9 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     yPos += 50;
     const subPurpose = request.subPurpose || request.sub_purpose || {};
     const purposeInfo = [
-      `Purpose: ${(request.purposeType || 'N/A').replace('_', ' ').toUpperCase()}`,
+      `Purpose Type: ${(request.purposeType || 'N/A').replace(/_/g, ' ').toUpperCase()}`,
       `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || request.subPurposeName || 'N/A'}`,
-      `Details: ${request.purposeDetails || request.purpose_details || 'N/A'}`
+      `Purpose Details: ${request.purposeDetails || request.purpose || request.purpose_details || 'N/A'}`
     ];
     addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
@@ -290,6 +290,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       body: items,
       foot: [
         ['', '', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
+        ['', '', '', 'Freight Amount:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
         ['', '', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
       headStyles: {
@@ -326,7 +327,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       const approvals = request.approvals.map((approval: any) => [
         approval.department || 'N/A',
         approval.approver?.username || 'N/A',
-        approval.status.toUpperCase(),
+        (approval.status || 'N/A').toUpperCase(),
         format(new Date(approval.createdAt || new Date()), 'PP'),
         approval.comments || '-'
       ]);
@@ -387,7 +388,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     }
 
     // Add footer to all pages
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = doc.getPageCount();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       addFooter(doc, config, pageWidth, pageHeight);

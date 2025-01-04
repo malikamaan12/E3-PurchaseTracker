@@ -1,19 +1,48 @@
-import type { PurchaseRequest } from "@db/schema";
+import type { PurchaseRequest, Vendor, SubPurpose } from "@db/schema";
 
 interface RequestError extends Error {
   status?: number;
   code?: string;
 }
 
-export async function createRequest(data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
+interface CreateRequestData {
+  title: string;
+  description: string;
+  status: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    description?: string;
+    estimatedCost: number;
+  }>;
+  vendorId?: number;
+  purposeType: string;
+  subPurposeId?: number;
+  priority: string;
+  freightAmount?: number;
+  currency?: string;
+  attachments?: Array<{
+    id: number;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+  }>;
+}
+
+export async function createRequest(data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
+    console.log('Creating request with data:', data);
+
     // Ensure arrays are properly formatted
     const formattedData = {
       ...data,
       items: data.items || [],
-      mandatoryApprovers: data.mandatoryApprovers || [],
-      optionalApprovers: data.optionalApprovers || [],
-      priorityRecommendations: data.priorityRecommendations || []
+      attachments: data.attachments || [],
+      vendorId: data.vendorId || null,
+      subPurposeId: data.subPurposeId || null,
+      freightAmount: data.freightAmount || 0,
+      currency: data.currency || 'QAR'
     };
 
     const response = await fetch("/api/requests", {
@@ -50,21 +79,54 @@ export async function createRequest(data: Partial<PurchaseRequest>): Promise<Pur
   }
 }
 
+export async function getRequest(id: number): Promise<PurchaseRequest> {
+  try {
+    console.log('Fetching request:', id);
+
+    const response = await fetch(`/api/requests/${id}?include=vendor,subPurpose,attachments,approvals`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch request';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('Received request data:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching request:', error);
+    throw error;
+  }
+}
+
 export async function updateRequest({
   id,
   data,
 }: {
   id: number;
-  data: Partial<PurchaseRequest>;
+  data: Partial<CreateRequestData>;
 }): Promise<PurchaseRequest> {
   try {
+    console.log('Updating request:', id, 'with data:', data);
+
     // Ensure arrays are properly formatted
     const formattedData = {
       ...data,
       items: data.items || [],
-      mandatoryApprovers: data.mandatoryApprovers || [],
-      optionalApprovers: data.optionalApprovers || [],
-      priorityRecommendations: data.priorityRecommendations || []
+      attachments: data.attachments || [],
+      vendorId: data.vendorId || null,
+      subPurposeId: data.subPurposeId || null,
+      freightAmount: data.freightAmount || 0,
+      currency: data.currency || 'QAR'
     };
 
     const response = await fetch(`/api/requests/${id}`, {
@@ -95,7 +157,7 @@ export async function updateRequest({
   }
 }
 
-export async function saveDraft(id: number, data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
+export async function saveDraft(id: number, data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
     // Basic validation for draft
     if (!data.title && !data.description && (!data.items || data.items.length === 0)) {
@@ -117,7 +179,7 @@ export async function saveDraft(id: number, data: Partial<PurchaseRequest>): Pro
   }
 }
 
-export async function submitRequest(id: number, data: Partial<PurchaseRequest>): Promise<PurchaseRequest> {
+export async function submitRequest(id: number, data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
     // Validate required fields for submission
     const validationErrors = [];
@@ -156,22 +218,29 @@ export async function submitRequest(id: number, data: Partial<PurchaseRequest>):
 }
 
 export async function deleteRequest(id: number): Promise<void> {
-  const response = await fetch(`/api/requests/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
+  try {
+    console.log('Deleting request:', id);
 
-  if (!response.ok) {
-    let errorMessage = 'Failed to delete request';
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorMessage;
-    } catch {
-      const errorText = await response.text();
-      errorMessage = errorText || errorMessage;
+    const response = await fetch(`/api/requests/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to delete request';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
-    throw new Error(errorMessage);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error('Delete request error:', error);
+    throw error;
+  }
 }
