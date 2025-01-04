@@ -5,8 +5,6 @@ import { format } from 'date-fns';
 import {
   type TemplateConfig,
   defaultBranding,
-  //applyHeaderStyle, // Removed - replaced by addHeader
-  //applyFooterStyle, // Removed - replaced by addFooter
   createTileBackground,
   hexToRgb,
 } from './pdfTemplates';
@@ -19,6 +17,29 @@ const logError = (error: any, context: string) => {
     data: error
   });
 };
+
+// Function to add image to PDF with error handling
+function addImageToPDF(doc: jsPDF, imageData: string, mimeType: string, x: number, y: number, width: number, height: number) {
+  try {
+    if (imageData) {
+      doc.addImage(
+        `data:${mimeType};base64,${imageData}`,
+        mimeType.split('/')[1].toUpperCase(),
+        x,
+        y,
+        width,
+        height,
+        undefined,
+        'FAST'
+      );
+      return true;
+    }
+    return false;
+  } catch (error) {
+    logError(error, 'addImageToPDF');
+    return false;
+  }
+}
 
 // Fetch company branding before generating PDF
 async function fetchBranding() {
@@ -36,7 +57,13 @@ async function fetchBranding() {
       secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
       accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
       headerStyle: branding.headerStyle || 'modern',
-      footerText: "Confidential - For Internal Use Only"
+      logo: branding.logo,
+      logoMimeType: branding.logoMimeType,
+      headerImage: branding.headerImage,
+      headerImageMimeType: branding.headerImageMimeType,
+      footerImage: branding.footerImage,
+      footerImageMimeType: branding.footerImageMimeType,
+      footerText: branding.footerText || "Confidential - For Internal Use Only"
     };
   } catch (error) {
     logError(error, 'fetchBranding');
@@ -47,6 +74,22 @@ async function fetchBranding() {
 // Function to add header with enhanced styling
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
   const headerHeight = 35;
+
+  // Try to add header image first
+  if (config.branding.headerImage) {
+    const added = addImageToPDF(
+      doc, 
+      config.branding.headerImage,
+      config.branding.headerImageMimeType || 'image/png',
+      0,
+      0,
+      pageWidth,
+      headerHeight
+    );
+    if (added) return headerHeight;
+  }
+
+  // Fallback to styled header
   const brandingColor = config.branding.primaryColor;
 
   // Modern header with gradient effect
@@ -59,11 +102,24 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
     doc.rect(i, 0, 10, headerHeight, 'F');
   }
 
+  // Add logo if available
+  if (config.branding.logo) {
+    addImageToPDF(
+      doc,
+      config.branding.logo,
+      config.branding.logoMimeType || 'image/png',
+      10,
+      5,
+      25,
+      25
+    );
+  }
+
   // Company name in header
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.name, 15, headerHeight / 2);
+  doc.text(config.branding.name, config.branding.logo ? 40 : 15, headerHeight / 2);
 
   // Add date
   doc.setFontSize(10);
@@ -78,6 +134,22 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number) {
   const footerHeight = 25;
   const footerY = pageHeight - footerHeight;
+
+  // Try to add footer image first
+  if (config.branding.footerImage) {
+    const added = addImageToPDF(
+      doc,
+      config.branding.footerImage,
+      config.branding.footerImageMimeType || 'image/png',
+      0,
+      footerY,
+      pageWidth,
+      footerHeight
+    );
+    if (added) return footerHeight;
+  }
+
+  // Fallback to styled footer
   const brandingColor = config.branding.primaryColor;
 
   // Modern footer with gradient effect
@@ -127,6 +199,7 @@ export async function generateRequestPDF(
       layout: 'bento',
       headerHeight: templateConfig.headerHeight || 35,
       footerHeight: templateConfig.footerHeight || 25,
+      showLogo: !!branding.logo
     };
 
     console.log('Using PDF config:', config);
@@ -175,6 +248,7 @@ export async function generateRequestPDF(
 
     // Request Info Tile
     const requestInfo = [
+      `Request Number: ${request.requestNumber}`,
       `Status: ${request.status.toUpperCase().replace('_', ' ')}`,
       `Priority: ${request.priority.toUpperCase()}`,
       `Created: ${format(new Date(request.createdAt || new Date()), 'PPp')}`,
@@ -196,7 +270,7 @@ export async function generateRequestPDF(
     const purposeInfo = [
       `Type: ${request.purposeType.replace('_', ' ').toUpperCase()}`,
       request.subPurpose ? `Sub Purpose: ${request.subPurpose.name}` : '',
-      `Details: ${request.purpose || 'N/A'}`,
+      `Details: ${request.description || 'N/A'}`,
     ].filter(Boolean);
     addTile('Purpose Information', purposeInfo, yPos, 35);
 
@@ -232,8 +306,45 @@ export async function generateRequestPDF(
       startY: yPos + 15,
       head: [['Item', 'Qty', 'Unit Cost', 'Total']],
       body: items,
+      foot: [
+        ['', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
+        ['', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
+        ['', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
+      ],
       ...tableStyles,
+      footStyles: {
+        ...tableStyles.headStyles,
+        fillColor: [
+          Math.floor(config.branding.primaryColor[0] * 0.9),
+          Math.floor(config.branding.primaryColor[1] * 0.9),
+          Math.floor(config.branding.primaryColor[2] * 0.9)
+        ],
+      }
     });
+
+    // Approvals Table
+    if (request.approvals && request.approvals.length > 0) {
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+
+      // Add approvals table
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Department', 'Approver', 'Status', 'Comments']],
+        body: request.approvals.map(approval => [
+          approval.department || 'N/A',
+          approval.approver?.username || 'N/A',
+          approval.status.toUpperCase(),
+          approval.comments || '-'
+        ]),
+        ...tableStyles,
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 'auto' }
+        }
+      });
+    }
 
     // Add footer to all pages
     const pageCount = doc.internal.getNumberOfPages();
