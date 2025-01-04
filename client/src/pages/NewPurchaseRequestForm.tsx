@@ -6,8 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { generateRequestPDF } from "@/lib/pdfGenerator";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
@@ -30,151 +29,7 @@ export default function NewPurchaseRequestForm() {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
   };
 
-  const generatePDF = (formData: any) => {
-    // Initialize PDF with A4 format
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 20;
-    let startY = margin + 40; // Start after header
-
-    const addHeaderAndFooter = () => {
-      try {
-        if (branding?.headerImage) {
-          console.log("Adding header image");
-          const headerHeight = 30; // Fixed 30mm height for header
-          doc.addImage(
-            branding.headerImage,
-            branding.headerImageMimeType || 'JPEG',
-            0, // x
-            0, // y
-            pageWidth, // width
-            headerHeight, // height
-            undefined,
-            'FAST'
-          );
-          console.log("Header image added successfully");
-        }
-
-        if (branding?.footerImage) {
-          console.log("Adding footer image");
-          const footerHeight = 20; // Fixed 20mm height for footer
-          doc.addImage(
-            branding.footerImage,
-            branding.footerImageMimeType || 'JPEG',
-            0, // x
-            pageHeight - footerHeight, // y position from bottom
-            pageWidth, // width
-            footerHeight, // height
-            undefined,
-            'FAST'
-          );
-          console.log("Footer image added successfully");
-        }
-      } catch (error) {
-        console.error("Error adding header/footer:", error);
-      }
-    };
-
-    // Add header and footer first
-    addHeaderAndFooter();
-
-    // Company Name and Date
-    doc.setFontSize(12);
-    doc.setTextColor(80, 80, 80);
-    doc.text(branding?.companyName || "Company Name", margin, margin + 10);
-    doc.text(new Date().toLocaleDateString(), pageWidth - margin - 30, margin + 10);
-
-    // Request Details
-    doc.setFontSize(16);
-    doc.setTextColor(60, 60, 60);
-    doc.text("Purchase Request Details", margin, startY);
-
-    // Basic Information table
-    const basicInfo = [
-      ["Request Number", formData.requestNumber || "New Request"],
-      ["Title", formData.title || ""],
-      ["Description", formData.description || ""],
-      ["Purpose Type", formData.purposeType || ""],
-      ["Priority", formData.priority || ""],
-      ["Currency", formData.currency || ""],
-      ["Total Cost", `${formData.currency} ${formData.totalEstimatedCost || 0}`],
-    ];
-
-    doc.autoTable({
-      startY: startY + 10,
-      head: [],
-      body: basicInfo,
-      theme: 'striped',
-      styles: {
-        fontSize: 10,
-        cellPadding: 5,
-      },
-      columnStyles: {
-        0: { 
-          fontStyle: 'bold',
-          cellWidth: 40,
-          fillColor: [240, 240, 250],
-        },
-        1: { cellWidth: 100 }
-      },
-      margin: { left: margin, right: margin }
-    });
-
-    // Items table
-    const currentY = (doc as any).lastAutoTable.finalY + 15;
-    doc.setFontSize(14);
-    doc.text("Items", margin, currentY);
-
-    const itemHeaders = [["Item Name", "Description", "Quantity", "Unit Cost", "Total"]];
-    const itemsData = formData.items?.map((item: any) => [
-      item.name,
-      item.description || "",
-      item.quantity,
-      `${formData.currency} ${item.estimatedCost}`,
-      `${formData.currency} ${(item.quantity * item.estimatedCost).toFixed(2)}`
-    ]) || [];
-
-    doc.autoTable({
-      startY: currentY + 5,
-      head: itemHeaders,
-      body: itemsData,
-      theme: 'striped',
-      styles: {
-        fontSize: 9,
-        cellPadding: 5,
-      },
-      headStyles: {
-        fillColor: [113, 86, 158], // Primary color
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 60 },
-        2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 30, halign: 'right' },
-        4: { cellWidth: 30, halign: 'right' }
-      },
-      margin: { left: margin, right: margin }
-    });
-
-    // Add header and footer to all pages
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      addHeaderAndFooter();
-    }
-
-    return doc;
-  };
-
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const formData = queryClient.getQueryData(["currentFormData"]);
     if (!formData) {
       toast({
@@ -186,15 +41,10 @@ export default function NewPurchaseRequestForm() {
     }
 
     try {
-      console.log("Starting PDF generation with branding:", {
-        headerImage: branding?.headerImage ? "present" : "missing",
-        headerMimeType: branding?.headerImageMimeType,
-        footerImage: branding?.footerImage ? "present" : "missing",
-        footerMimeType: branding?.footerImageMimeType
-      });
+      console.log("Starting PDF generation with branding:", branding);
 
-      const doc = generatePDF(formData);
-      doc.save("purchase-request.pdf");
+      const doc = await generateRequestPDF(formData);
+      doc.save(`${formData.title || 'purchase-request'}.pdf`);
 
       toast({
         title: "Success",

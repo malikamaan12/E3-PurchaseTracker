@@ -5,11 +5,10 @@ import { format } from 'date-fns';
 import {
   type TemplateConfig,
   defaultBranding,
-  applyHeaderStyle,
-  applyFooterStyle,
+  //applyHeaderStyle, // Removed - replaced by addHeader
+  //applyFooterStyle, // Removed - replaced by addFooter
   createTileBackground,
   hexToRgb,
-  type Color
 } from './pdfTemplates';
 
 // Enhanced error logging
@@ -31,30 +30,77 @@ async function fetchBranding() {
     }
     const branding = await response.json();
     console.log('Fetched branding:', branding);
-    return branding;
+    return {
+      name: branding.companyName || defaultBranding.name,
+      primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
+      secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
+      accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
+      headerStyle: branding.headerStyle || 'modern',
+      footerText: "Confidential - For Internal Use Only"
+    };
   } catch (error) {
     logError(error, 'fetchBranding');
     return defaultBranding;
   }
 }
 
-// Function to add image to PDF
-function addImageToPDF(doc: jsPDF, imageData: string, x: number, y: number, width: number, height: number) {
-  try {
-    if (imageData) {
-      doc.addImage(
-        `data:image/png;base64,${imageData}`,
-        'PNG',
-        x,
-        y,
-        width,
-        height
-      );
-    }
-  } catch (error) {
-    logError(error, 'addImageToPDF');
-    console.warn('Failed to add image to PDF');
+// Function to add header with enhanced styling
+function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number) {
+  const headerHeight = 35;
+  const brandingColor = config.branding.primaryColor;
+
+  // Modern header with gradient effect
+  doc.setFillColor(brandingColor[0], brandingColor[1], brandingColor[2]);
+  doc.rect(0, 0, pageWidth, headerHeight, 'F');
+
+  // Add subtle pattern
+  for (let i = 0; i < pageWidth; i += 15) {
+    doc.setFillColor(255, 255, 255, 0.1);
+    doc.rect(i, 0, 10, headerHeight, 'F');
   }
+
+  // Company name in header
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(config.branding.name, 15, headerHeight / 2);
+
+  // Add date
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const date = format(new Date(), 'PPP');
+  doc.text(date, pageWidth - 15, headerHeight / 2, { align: 'right' });
+
+  return headerHeight;
+}
+
+// Function to add footer with enhanced styling
+function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number) {
+  const footerHeight = 25;
+  const footerY = pageHeight - footerHeight;
+  const brandingColor = config.branding.primaryColor;
+
+  // Modern footer with gradient effect
+  doc.setFillColor(brandingColor[0], brandingColor[1], brandingColor[2]);
+  doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+
+  // Add subtle pattern
+  for (let i = 0; i < pageWidth; i += 15) {
+    doc.setFillColor(255, 255, 255, 0.1);
+    doc.rect(i, footerY, 10, footerHeight, 'F');
+  }
+
+  // Footer text
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  // Page number
+  const pageNumber = `Page ${doc.getCurrentPageInfo().pageNumber}`;
+  doc.text(pageNumber, pageWidth - 15, pageHeight - 10, { align: 'right' });
+
+  return footerHeight;
 }
 
 export async function generateRequestPDF(
@@ -77,22 +123,8 @@ export async function generateRequestPDF(
     const branding = await fetchBranding();
 
     const config: TemplateConfig = {
-      branding: branding ? {
-        name: branding.companyName || defaultBranding.name,
-        logo: branding.logo,
-        logoMimeType: branding.logoMimeType || 'image/png',
-        headerImage: branding.headerImage,
-        headerImageMimeType: branding.headerImageMimeType || 'image/png',
-        footerImage: branding.footerImage,
-        footerImageMimeType: branding.footerImageMimeType || 'image/png',
-        primaryColor: hexToRgb(branding.primaryColor) || defaultBranding.primaryColor,
-        secondaryColor: hexToRgb(branding.secondaryColor) || defaultBranding.secondaryColor,
-        accentColor: hexToRgb(branding.accentColor) || defaultBranding.accentColor,
-        headerStyle: branding.headerStyle || 'modern',
-        footerText: branding.footerText || 'Confidential - For Internal Use Only'
-      } : defaultBranding,
+      branding,
       layout: 'bento',
-      showLogo: !!branding?.logo,
       headerHeight: templateConfig.headerHeight || 35,
       footerHeight: templateConfig.footerHeight || 25,
     };
@@ -105,18 +137,20 @@ export async function generateRequestPDF(
     const margin = 15;
     const maxWidth = pageWidth - (margin * 2);
 
-    // Apply header with custom image if available
-    if (config.branding.headerImage) {
-      addImageToPDF(doc, config.branding.headerImage, 0, 0, pageWidth, config.headerHeight);
-    } else {
-      const headerHeight = applyHeaderStyle(doc, config, pageWidth);
-      console.log('Header applied at height:', headerHeight);
-    }
+    // Add header
+    const headerHeight = addHeader(doc, config, pageWidth);
+    let yPos = headerHeight + 10;
 
     // Helper function for creating tiles with enhanced styling
     const addTile = (title: string, content: string[], y: number, height: number) => {
       try {
-        createTileBackground(doc, config, margin, y, maxWidth, height);
+        // Add tile background with subtle gradient
+        doc.setFillColor(config.branding.secondaryColor[0], config.branding.secondaryColor[1], config.branding.secondaryColor[2]);
+        doc.rect(margin, y, maxWidth, height, 'F');
+
+        // Add decorative accent
+        doc.setFillColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
+        doc.rect(margin, y, 5, height, 'F');
 
         // Add title with enhanced styling
         doc.setFontSize(12);
@@ -124,17 +158,12 @@ export async function generateRequestPDF(
         doc.setTextColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
         doc.text(title.toUpperCase(), margin + 8, y + 10);
 
-        // Add subtle divider
-        doc.setDrawColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
-        doc.setLineWidth(0.2);
-        doc.line(margin + 8, y + 13, margin + maxWidth - 16, y + 13);
-
         // Add content with improved formatting
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(config.branding.accentColor[0], config.branding.accentColor[1], config.branding.accentColor[2]);
         doc.setFontSize(10);
         content.forEach((text, index) => {
-          if (text) { // Only render non-empty text
+          if (text) {
             doc.text(text, margin + 8, y + 22 + (index * 6));
           }
         });
@@ -143,8 +172,6 @@ export async function generateRequestPDF(
         throw error;
       }
     };
-
-    let yPos = config.branding.headerImage ? config.headerHeight + 10 :  (applyHeaderStyle(doc, config, pageWidth) + 10);
 
     // Request Info Tile
     const requestInfo = [
@@ -173,154 +200,46 @@ export async function generateRequestPDF(
     ].filter(Boolean);
     addTile('Purpose Information', purposeInfo, yPos, 35);
 
-    // Items Table Tile
+    // Items Table
     yPos += 40;
-    try {
-      createTileBackground(doc, config, margin, yPos, maxWidth, 75);
-
-      // Add title for items section
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
-      doc.text('ITEMS & COSTS', margin + 8, yPos + 10);
-
-      const items = request.items.map(item => {
-        if (!item) {
-          console.warn('Found undefined item in request:', request.id);
-          return ['N/A', '0', '0', '0'];
-        }
-        return [
-          item.name || 'N/A',
-          item.quantity?.toString() || '0',
-          formatCurrency(item.estimatedCost || 0, request.currency),
-          formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
-        ];
-      });
-
-      console.log('Processing items for table:', items);
-
-      // Enhanced table styling
-      autoTable(doc, {
-        startY: yPos + 15,
-        margin: { left: margin + 8, right: margin + 8 },
-        head: [['Item', 'Qty', 'Unit Cost', 'Total']],
-        body: items,
-        foot: [
-          ['', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
-          ['', '', 'Freight:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
-          ['', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
+    const tableStyles = {
+      headStyles: {
+        fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [
+          Math.floor(config.branding.secondaryColor[0] * 0.98),
+          Math.floor(config.branding.secondaryColor[1] * 0.98),
+          Math.floor(config.branding.secondaryColor[2] * 0.98)
         ],
-        theme: 'grid',
-        styles: {
-          fontSize: 9,
-          cellPadding: 3,
-        },
-        headStyles: {
-          fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]] as Color,
-          textColor: [255, 255, 255],
-          fontSize: 10,
-          fontStyle: 'bold',
-        },
-        footStyles: {
-          fillColor: [
-            Math.floor(config.branding.secondaryColor[0] * 0.95),
-            Math.floor(config.branding.secondaryColor[1] * 0.95),
-            Math.floor(config.branding.secondaryColor[2] * 0.95)
-          ] as Color,
-          textColor: config.branding.accentColor as Color,
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
-        alternateRowStyles: {
-          fillColor: [
-            Math.floor(config.branding.secondaryColor[0] * 0.98),
-            Math.floor(config.branding.secondaryColor[1] * 0.98),
-            Math.floor(config.branding.secondaryColor[2] * 0.98)
-          ] as Color,
-        },
-      });
-    } catch (error) {
-      logError(error, 'itemsTable');
-      throw error;
-    }
+      },
+      margin: { left: margin + 8, right: margin + 8 }
+    };
 
-    // Approvals Tile
-    yPos += 80;
-    if (request.approvals && request.approvals.length > 0) {
-      try {
-        createTileBackground(doc, config, margin, yPos, maxWidth, 50);
+    // Format items data
+    const items = request.items.map(item => [
+      item?.name || 'N/A',
+      item?.quantity?.toString() || '0',
+      formatCurrency(item?.estimatedCost || 0, request.currency),
+      formatCurrency((item?.quantity || 0) * (item?.estimatedCost || 0), request.currency)
+    ]);
 
-        // Add title for approvals section
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]);
-        doc.text('APPROVAL STATUS', margin + 8, yPos + 10);
+    // Add items table
+    autoTable(doc, {
+      startY: yPos + 15,
+      head: [['Item', 'Qty', 'Unit Cost', 'Total']],
+      body: items,
+      ...tableStyles,
+    });
 
-        const approvalData = request.approvals.map(approval => [
-          approval.department || 'N/A',
-          approval.status?.toUpperCase() || 'PENDING',
-          approval.isMandatory ? 'Yes' : 'No',
-          approval.comments || '-',
-        ]);
-
-        // Enhanced approvals table
-        autoTable(doc, {
-          startY: yPos + 15,
-          margin: { left: margin + 8, right: margin + 8 },
-          head: [['Department', 'Status', 'Mandatory', 'Comments']],
-          body: approvalData,
-          theme: 'grid',
-          styles: {
-            fontSize: 9,
-            cellPadding: 3,
-          },
-          headStyles: {
-            fillColor: [config.branding.primaryColor[0], config.branding.primaryColor[1], config.branding.primaryColor[2]] as Color,
-            textColor: [255, 255, 255],
-            fontSize: 10,
-            fontStyle: 'bold',
-          },
-          alternateRowStyles: {
-            fillColor: [
-              Math.floor(config.branding.secondaryColor[0] * 0.98),
-              Math.floor(config.branding.secondaryColor[1] * 0.98),
-              Math.floor(config.branding.secondaryColor[2] * 0.98)
-            ] as Color,
-          },
-          columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 30 },
-            2: { cellWidth: 25 },
-            3: { cellWidth: 'auto' },
-          },
-        });
-      } catch (error) {
-        logError(error, 'approvalsTable');
-        throw error;
-      }
-    }
-
-    // Attachments Tile
-    yPos += 55;
-    if (request.attachments && request.attachments.length > 0) {
-      const attachmentsList = request.attachments.map(
-        file => `• ${file.fileName || 'Unnamed'} (${formatFileSize(file.fileSize || 0)})`
-      );
-      addTile('Attached Files', attachmentsList, yPos, 35);
-    }
-
-    // Apply footer with custom image if available
-    if (config.branding.footerImage) {
-      addImageToPDF(
-        doc,
-        config.branding.footerImage,
-        0,
-        pageHeight - config.footerHeight,
-        pageWidth,
-        config.footerHeight
-      );
-    } else {
-      applyFooterStyle(doc, config, pageWidth, pageHeight);
+    // Add footer to all pages
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      addFooter(doc, config, pageWidth, pageHeight);
     }
 
     console.log('PDF generation completed successfully');
