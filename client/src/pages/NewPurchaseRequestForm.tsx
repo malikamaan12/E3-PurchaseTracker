@@ -40,49 +40,51 @@ export default function NewPurchaseRequestForm() {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const margin = 20;
+    let startY = margin;
+
+    // Helper function to convert base64 to bytes for image
+    const base64ToBytes = (base64: string) => {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    };
 
     // Helper function to add header and footer
     const addHeaderAndFooter = () => {
-      console.log("Adding header and footer");
-      console.log("Header image:", branding?.headerImage ? "present" : "missing");
-      console.log("Footer image:", branding?.footerImage ? "present" : "missing");
-
-      // Add header image if available
-      if (branding?.headerImage) {
-        try {
-          // Calculate header image dimensions to fit width while maintaining aspect ratio
-          const headerHeight = 40; // Fixed header height
+      try {
+        // Add header image if available
+        if (branding?.headerImage) {
+          const headerHeight = pageHeight * 0.15; // 15% of page height
           doc.addImage(
             `data:${branding.headerImageMimeType};base64,${branding.headerImage}`,
-            'PNG',
+            'JPEG',
             0,
             0,
             pageWidth,
             headerHeight
           );
+          startY = headerHeight + 10; // Start content after header
           console.log("Header image added successfully");
-        } catch (error) {
-          console.error("Error adding header image:", error);
         }
-      }
 
-      // Add footer image if available
-      if (branding?.footerImage) {
-        try {
-          // Calculate footer position and dimensions
-          const footerHeight = 30; // Fixed footer height
+        // Add footer image if available
+        if (branding?.footerImage) {
+          const footerHeight = pageHeight * 0.1; // 10% of page height
           doc.addImage(
             `data:${branding.footerImageMimeType};base64,${branding.footerImage}`,
-            'PNG',
+            'JPEG',
             0,
             pageHeight - footerHeight,
             pageWidth,
             footerHeight
           );
           console.log("Footer image added successfully");
-        } catch (error) {
-          console.error("Error adding footer image:", error);
         }
+      } catch (error) {
+        console.error("Error adding header/footer images:", error);
       }
     };
 
@@ -92,17 +94,13 @@ export default function NewPurchaseRequestForm() {
     // Request information
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Request Number: ${formData.requestNumber || "New Request"}`, margin, 50);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 50, { align: "right" });
-
-    // Separator line
-    doc.setDrawColor(branding?.accentColor || "#35bbba");
-    doc.line(margin, 55, pageWidth - margin, 55);
+    doc.text(`Request Number: ${formData.requestNumber || "New Request"}`, margin, startY);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, startY, { align: "right" });
 
     // Basic Information Section
     doc.setFontSize(14);
     doc.setTextColor(branding?.primaryColor || "#7156a2");
-    doc.text("Request Details", margin, 65);
+    doc.text("Request Details", margin, startY + 20);
 
     // Request information table
     const basicInfo = [
@@ -117,7 +115,7 @@ export default function NewPurchaseRequestForm() {
     ];
 
     doc.autoTable({
-      startY: 70,
+      startY: startY + 25,
       head: [],
       body: basicInfo,
       theme: 'plain',
@@ -134,7 +132,7 @@ export default function NewPurchaseRequestForm() {
         },
         1: { cellWidth: 120 }
       },
-      margin: { top: 70, bottom: 40 } // Adjust margins to account for header/footer
+      margin: { left: margin, right: margin }
     });
 
     // Items Section
@@ -143,9 +141,7 @@ export default function NewPurchaseRequestForm() {
     doc.setTextColor(branding?.primaryColor || "#7156a2");
     doc.text("Items", margin, currentY);
 
-    const itemsTableHead = [
-      ["Item Name", "Description", "Quantity", "Unit Cost", "Total Cost"]
-    ];
+    const itemsTableHead = [["Item Name", "Description", "Quantity", "Unit Cost", "Total Cost"]];
     const itemsTableBody = formData.items?.map((item: any) => [
       item.name,
       item.description || "",
@@ -204,21 +200,11 @@ export default function NewPurchaseRequestForm() {
     }
 
     try {
-      console.log("Starting PDF generation for request:", {
-        id: formData.id,
-        status: formData.status,
-        items: formData.items?.length
-      });
-
-      // Debug branding data
-      console.log("Fetched branding:", branding);
-      console.log("Using PDF config:", {
-        branding: {
-          name: branding?.companyName,
-          logo: branding?.logo?.substring(0, 100) + '...',
-          headerImage: branding?.headerImage?.substring(0, 100) + '...',
-          footerImage: branding?.footerImage?.substring(0, 100) + '...'
-        }
+      console.log("Starting PDF generation with branding:", {
+        headerImage: branding?.headerImage ? "present" : "missing",
+        headerMimeType: branding?.headerImageMimeType,
+        footerImage: branding?.footerImage ? "present" : "missing",
+        footerMimeType: branding?.footerImageMimeType
       });
 
       const doc = generatePDF(formData);
@@ -239,24 +225,19 @@ export default function NewPurchaseRequestForm() {
     }
   };
 
-  // Handle successful submission
   const handleSubmit = (draft?: boolean) => {
     toast({
       title: "Success",
       description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
       variant: "default"
     });
-
-    // Redirect to the dashboard
     setLocation("/");
   };
 
-  // Handle cancellation
   const handleCancel = () => {
     setLocation("/");
   };
 
-  // Show loading state
   if (vendorsLoading || subPurposesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
