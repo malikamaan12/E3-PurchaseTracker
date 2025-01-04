@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
+import PreviewPDF from "@/components/PreviewPDF";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 import { Loader2 } from "lucide-react";
@@ -14,6 +15,8 @@ export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [headerPosition, setHeaderPosition] = useState({ x: 0, y: 0 });
+  const [footerPosition, setFooterPosition] = useState({ x: 0, y: 0 });
 
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
@@ -27,11 +30,14 @@ export default function NewPurchaseRequestForm() {
     queryKey: ["/api/branding"],
   });
 
-  const handleVendorCreated = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+  const handlePositionChange = (type: 'header' | 'footer', position: { x: number, y: number }) => {
+    if (type === 'header') {
+      setHeaderPosition(position);
+    } else {
+      setFooterPosition(position);
+    }
   };
 
-  // Generate PDF with enhanced formatting and branding
   const generatePDF = (formData: any) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -39,36 +45,34 @@ export default function NewPurchaseRequestForm() {
     const margin = 20;
     let startY = margin;
 
-    // Helper function to add header and footer
+    // Helper function to add header and footer with custom positions
     const addHeaderAndFooter = () => {
       try {
-        // Add header image if available
         if (branding?.headerImage) {
-          const headerHeight = pageHeight * 0.15; // 15% of page height
+          const headerHeight = pageHeight * 0.15;
           doc.addImage(
             `data:${branding.headerImageMimeType};base64,${branding.headerImage}`,
             'JPEG',
-            0,
-            0,
+            headerPosition.x,
+            headerPosition.y,
             pageWidth,
             headerHeight
           );
-          startY = headerHeight + 10; // Start content after header
-          console.log("Header image added successfully");
+          startY = headerHeight + headerPosition.y + 10;
+          console.log("Header image added successfully at position:", headerPosition);
         }
 
-        // Add footer image if available
         if (branding?.footerImage) {
-          const footerHeight = pageHeight * 0.1; // 10% of page height
+          const footerHeight = pageHeight * 0.1;
           doc.addImage(
             `data:${branding.footerImageMimeType};base64,${branding.footerImage}`,
             'JPEG',
-            0,
-            pageHeight - footerHeight,
+            footerPosition.x,
+            pageHeight - footerHeight + footerPosition.y,
             pageWidth,
             footerHeight
           );
-          console.log("Footer image added successfully");
+          console.log("Footer image added successfully at position:", footerPosition);
         }
       } catch (error) {
         console.error("Error adding header/footer images:", error);
@@ -174,7 +178,6 @@ export default function NewPurchaseRequestForm() {
     return doc;
   };
 
-  // Handle download
   const handleDownload = () => {
     const formData = queryClient.getQueryData(["currentFormData"]);
     if (!formData) {
@@ -187,11 +190,11 @@ export default function NewPurchaseRequestForm() {
     }
 
     try {
-      console.log("Starting PDF generation with branding:", {
+      console.log("Starting PDF generation with branding and positions:", {
+        headerPosition,
+        footerPosition,
         headerImage: branding?.headerImage ? "present" : "missing",
-        headerMimeType: branding?.headerImageMimeType,
-        footerImage: branding?.footerImage ? "present" : "missing",
-        footerMimeType: branding?.footerImageMimeType
+        footerImage: branding?.footerImage ? "present" : "missing"
       });
 
       const doc = generatePDF(formData);
@@ -200,7 +203,6 @@ export default function NewPurchaseRequestForm() {
       toast({
         title: "Success",
         description: "Purchase request details have been downloaded",
-        variant: "default"
       });
     } catch (error) {
       console.error('PDF generation error:', error);
@@ -256,23 +258,42 @@ export default function NewPurchaseRequestForm() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border border-[#35bbba]/20">
-          <div className="border-b border-[#7156a2]/10 pb-4 mb-6">
-            <h1 className="text-2xl font-bold text-[#7156a2]">
-              New Purchase Request
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Fill in the details below to create a new purchase request
-            </p>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-6 border border-[#35bbba]/20">
+            <div className="border-b border-[#7156a2]/10 pb-4 mb-6">
+              <h1 className="text-2xl font-bold text-[#7156a2]">
+                New Purchase Request
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Fill in the details below to create a new purchase request
+              </p>
+            </div>
+
+            <PurchaseRequestForm
+              subPurposes={subPurposes}
+              vendors={vendors}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+              onVendorCreated={handleVendorCreated}
+            />
           </div>
 
-          <PurchaseRequestForm
-            subPurposes={subPurposes}
-            vendors={vendors}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            onVendorCreated={handleVendorCreated}
-          />
+          <div className="bg-white rounded-lg shadow-md p-6 border border-[#35bbba]/20">
+            <div className="border-b border-[#7156a2]/10 pb-4 mb-6">
+              <h2 className="text-xl font-bold text-[#7156a2]">
+                PDF Preview
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Preview how your PDF will look and adjust header/footer positions
+              </p>
+            </div>
+
+            <PreviewPDF 
+              branding={branding}
+              formData={queryClient.getQueryData(["currentFormData"])}
+              onPositionChange={handlePositionChange}
+            />
+          </div>
         </div>
       </div>
     </div>
