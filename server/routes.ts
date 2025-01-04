@@ -61,6 +61,59 @@ const debug = (req: Request, message: string, data?: any) => {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Add this route near the beginning of the registerRoutes function
+  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(_req, 'Fetching company branding');
+
+      const [branding] = await db
+        .select({
+          company_name: companyBranding.company_name,
+          header_style: companyBranding.header_style,
+          primary_color: companyBranding.primary_color,
+          secondary_color: companyBranding.secondary_color,
+          accent_color: companyBranding.accent_color,
+          logo: companyBranding.logo,
+          logo_mime_type: companyBranding.logo_mime_type,
+          header_image: companyBranding.header_image_url,
+          header_image_mime_type: companyBranding.header_image_mime_type,
+          footer_image: companyBranding.footer_image_url,
+          footer_image_mime_type: companyBranding.footer_image_mime_type,
+          footer_text: companyBranding.footer_text,
+          created_at: companyBranding.created_at,
+          updated_at: companyBranding.updated_at
+        })
+        .from(companyBranding)
+        .limit(1);
+
+      if (!branding) {
+        debug(_req, 'No branding found, using defaults');
+        return res.json({
+          company_name: "Company Name",
+          header_style: "modern",
+          primary_color: "#212121",
+          secondary_color: "#f5f5f5",
+          accent_color: "#0070c9",
+          logo: null,
+          logo_mime_type: null,
+          header_image: null,
+          header_image_mime_type: null,
+          footer_image: null,
+          footer_image_mime_type: null,
+          footer_text: "Confidential Document",
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+      }
+
+      debug(_req, 'Successfully fetched branding');
+      res.json(branding);
+    } catch (error) {
+      debug(_req, 'Error fetching branding:', error);
+      next(error);
+    }
+  });
+
   // Update the create purchase request endpoint
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -968,12 +1021,12 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       // Update request status
-      awaitdb
+      await db
         .update(accountRequests)
         .set({ status: 'approved' })
         .where(eq(accountRequests.id, requestId));
 
-      res.json({        message: 'Account request approved',
+      res.json({ message: 'Account request approved',
         user: {
           id: newUser.id,
           username: newUser.username,
@@ -1421,7 +1474,7 @@ export function registerRoutes(app: Express): Server {
       const footerImage = processFile(files.footerImage?.[0]);
 
       // Get other form data
-      const { 
+      const {
         companyName,
         headerStyle = 'modern',
         primaryColor = '#71569E',
@@ -1726,124 +1779,10 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add branding routes
-  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
-    try {
-      const [branding] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.createdAt))
-        .limit(1);
+  // Remove Redundant Branding Routes
+  // app.get("/api/branding", ...); // Removed
+  // app.post("/api/branding", ...); // Removed
 
-      if (!branding) {
-        return res.json({
-          companyName: "Events & Entertainment Enterprises",
-          headerStyle: "modern",
-          primaryColor: "#71569E",
-          secondaryColor: "#F0F0FA",
-          accentColor: "#191160",
-          footerText: "Confidential - For Internal Use Only",
-        });
-      }
-
-      // Sanitize and validate image data
-      const sanitizedBranding = {
-        ...branding,
-        logo: branding.logo ? branding.logo.toString() : null,
-        headerImage: branding.header_image_url ? branding.header_image_url.toString() : null,
-        footerImage: branding.footer_image_url ? branding.footer_image_url.toString() : null,
-        logoMimeType: branding.logo_mime_type || 'image/png',
-        headerImageMimeType: branding.header_image_mime_type || 'image/png',
-        footerImageMimeType: branding.footer_image_mime_type || 'image/png',
-      };
-
-      console.log('Returning branding data:', {
-        ...sanitizedBranding,
-        logo: sanitizedBranding.logo ? 'present' : 'missing',
-        headerImage: sanitizedBranding.headerImage ? 'present' : 'missing',
-        footerImage: sanitizedBranding.footerImage ? 'present' : 'missing'
-      });
-
-      res.json(sanitizedBranding);
-    } catch (error) {
-      console.error('Error fetching branding:', error);
-      next(error);
-    }
-  });
-
-  // Add POST endpoint for updating branding
-  app.post("/api/branding", upload.fields([
-    { name: 'logo', maxCount: 1 },
-    { name: 'headerImage', maxCount: 1 },
-    { name: 'footerImage', maxCount: 1 }
-  ]), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const { companyName, headerStyle, primaryColor, secondaryColor, accentColor, footerText } = req.body;
-
-      // Process and validate uploaded files
-      const processFile = (file: Express.Multer.File | undefined) => {
-        if (!file) return { data: null, mimeType: null };
-
-        if (!['image/jpeg', 'image/png', 'image/svg+xml'].includes(file.mimetype)) {
-          throw new ValidationError('Invalid file type. Only JPEG, PNG and SVG files are allowed.');
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-          throw new ValidationError('File size must be less than 5MB');
-        }
-
-        return {
-          data: file.buffer.toString('base64'),
-          mimeType: file.mimetype
-        };
-      };
-
-      const logo = files.logo?.[0];
-      const headerImage = files.headerImage?.[0];
-      const footerImage = files.footerImage?.[0];
-
-      const logoData = processFile(logo);
-      const headerImageData = processFile(headerImage);
-      const footerImageData = processFile(footerImage);
-
-      // Update branding data
-      const [updatedBranding] = await db
-        .insert(companyBranding)
-        .values({
-          companyName,
-          headerStyle,
-          primaryColor,
-          secondaryColor,
-          accentColor,
-          footerText,
-          logo: logoData.data,
-          logo_mime_type: logoData.mimeType,
-          header_image_url: headerImageData.data,
-          header_image_mime_type: headerImageData.mimeType,
-          footer_image_url: footerImageData.data,
-          footer_image_mime_type: footerImageData.mimeType,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
-
-      console.log('Updated branding:', {
-        ...updatedBranding,
-        logo: updatedBranding.logo ? 'present' : 'missing',
-        headerImage: updatedBranding.header_image_url ? 'present' : 'missing',
-        footerImage: updatedBranding.footer_image_url ? 'present' : 'missing'
-      });
-
-      res.status(201).json({
-        message: 'Branding updated successfully',
-        branding: updatedBranding
-      });
-    } catch (error) {
-      console.error('Error updating branding:', error);
-      next(error);
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;

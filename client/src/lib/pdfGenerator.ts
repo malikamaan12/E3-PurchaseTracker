@@ -32,10 +32,8 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
       throw new Error(`Failed to fetch branding: ${response.statusText}`);
     }
 
-    const data: CompanyBranding = await response.json();
-    if (!data) {
-      throw new Error('No branding data received');
-    }
+    const data = await response.json();
+    console.log('Branding data received:', data);
 
     return {
       name: data.company_name || 'Company Name',
@@ -53,7 +51,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
-    // Provide default branding if fetch fails
     return {
       name: "Company Name",
       primaryColor: [33, 33, 33],
@@ -221,8 +218,15 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
 
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
-    console.log('Generating PDF for request:', request);
+    console.log('Starting PDF generation for request:', {
+      id: request.id,
+      status: request.status,
+      items: request.items?.length
+    });
+
     const branding = await fetchBranding();
+    console.log('Using PDF config:', { branding });
+
     const config: TemplateConfig = {
       branding,
       layout: 'bento',
@@ -241,6 +245,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
+    console.log('Header applied at height:', headerHeight);
     let yPos = headerHeight + 5;
 
     // Title and Description
@@ -248,10 +253,10 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       `Title: ${request.title || 'N/A'}`,
       `Description: ${request.description || 'N/A'}`
     ];
-    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, 35, config);
+    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, 45, config);
 
     // Request Info and Vendor Info (side by side)
-    yPos += 40;
+    yPos += 50;
     const requestInfo = [
       `Request #: ${request.requestNumber || 'N/A'}`,
       `Status: ${(request.status || 'N/A').toUpperCase()}`,
@@ -262,7 +267,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     // Enhanced vendor info access with proper null checks
     const vendor = request.vendor || {};
     const vendorInfo = [
-      `Vendor Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
+      `Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
       `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
       `Contact Person: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
       `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`,
@@ -270,17 +275,17 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     ];
     addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
 
-    // Purpose Information with enhanced sub-purpose access
+    // Purpose Information
     yPos += 50;
     const subPurpose = request.subPurpose || request.sub_purpose || {};
     const purposeInfo = [
-      `Purpose Type: ${(request.purposeType || 'N/A').replace(/_/g, ' ').toUpperCase()}`,
-      `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || request.subPurposeName || 'N/A'}`,
-      `Purpose Details: ${request.purposeDetails || request.purpose || request.purpose_details || 'N/A'}`
+      `Purpose Type: ${(request.purposeType || 'N/A').toUpperCase()}`,
+      `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || 'N/A'}`,
+      `Details: ${request.purposeDetails || request.purpose || 'N/A'}`
     ];
     addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
-    // Items Table with optimized spacing
+    // Items Table
     yPos += 50;
     const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
@@ -289,6 +294,8 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       formatCurrency(item.estimatedCost || 0, request.currency),
       formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
     ]);
+
+    console.log('Processing items for table:', items);
 
     autoTable(doc, {
       startY: yPos,
@@ -334,6 +341,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       addFooter(doc, config, pageWidth, pageHeight);
     }
 
+    console.log('PDF generation completed successfully');
     return doc;
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -342,11 +350,11 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 }
 
 // Helper functions
-function formatCurrency(amount: number, currency: string = 'USD'): string {
+function formatCurrency(amount: number, currency: string = 'QAR'): string {
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: currency || 'QAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
