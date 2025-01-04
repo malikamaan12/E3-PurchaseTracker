@@ -38,6 +38,11 @@ export default function NewPurchaseRequestForm() {
     }
   };
 
+  // Handle vendor creation
+  const handleVendorCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+  };
+
   const generatePDF = (formData: any) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
