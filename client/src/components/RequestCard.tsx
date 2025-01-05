@@ -48,16 +48,6 @@ import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useCompanyBranding } from '@/hooks/use-company-branding';
 
 type TemplateConfig = {
@@ -261,22 +251,35 @@ export default function RequestCard({
         throw new Error('Branding data not available');
       }
 
-      // Transform branding data to match the expected format
+      // Convert hex colors to RGB arrays for PDF generation
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [
+          parseInt(result[1], 16),
+          parseInt(result[2], 16),
+          parseInt(result[3], 16)
+        ] : null;
+      };
+
+      // Transform branding data with proper color conversions
       const formattedBranding = {
         companyName: brandingData.companyName,
-        primaryColor: brandingData.primaryColor,
-        secondaryColor: brandingData.secondaryColor,
-        accentColor: brandingData.accentColor,
-        headerStyle: brandingData.headerStyle || 'modern',
+        primaryColor: hexToRgb(brandingData.primaryColor) || [113, 86, 158], // Default purple if conversion fails
+        secondaryColor: hexToRgb(brandingData.secondaryColor) || [240, 240, 250],
+        accentColor: hexToRgb(brandingData.accentColor) || [25, 17, 96],
         footerText: brandingData.footerText || 'Confidential Document',
         logo: brandingData.logo,
         logoMimeType: brandingData.logoMimeType,
-        headerImageUrl: brandingData.headerImageUrl,
-        footerImageUrl: brandingData.footerImageUrl,
+        headerImage: brandingData.headerImageUrl,
+        headerImageMimeType: brandingData.headerImageMimeType,
+        footerImage: brandingData.footerImageUrl,
+        footerImageMimeType: brandingData.footerImageMimeType,
       };
 
-      // Generate PDF with formatted branding data
-      const doc = await generateRequestPDF(request, formattedBranding);
+      // Generate PDF with properly formatted branding data
+      const doc = await generateRequestPDF(request, {
+        branding: formattedBranding
+      });
 
       // Save the PDF
       doc.save(`${request.requestNumber}.pdf`);
