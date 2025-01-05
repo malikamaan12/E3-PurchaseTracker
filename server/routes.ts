@@ -17,7 +17,9 @@ import {
   insertPurchaseRequestSchema,
   type InsertVendor,
   insertAccountRequestSchema,
-  insertErrorLogSchema
+  insertErrorLogSchema,
+  companyBranding,
+  insertCompanyBrandingSchema,
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { sql } from 'drizzle-orm';
@@ -979,7 +981,8 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Error fetching vendors:', error);
       next(error);
     }
-  });app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+  });
+  app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
@@ -1271,58 +1274,25 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get company branding settings
-  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Fetching company branding data...');
-
-      const [branding] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.createdAt))
-        .limit(1);
-
-      if (!branding) {
-        console.log('No branding found, returning defaults');
-        return res.json({
-          companyName: "Events & Entertainment Enterprises",
-          headerStyle: "modern",
-          primaryColor: "#71569E",
-          secondaryColor: "#F0F0FA",
-          accentColor: "#191160",
-          footerText: "Confidential - For Internal Use Only",
-        });
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
       }
 
-      // Clean and validate image data
-      const sanitizedBranding = {
-        id: branding.id,
-        companyName: branding.company_name,
-        headerStyle: branding.header_style || 'modern',
-        primaryColor: branding.primary_color || '#71569E',
-        secondaryColor: branding.secondary_color || '#F0F0FA',
-        accentColor: branding.accent_color || '#191160',
-        logo: branding.logo ? branding.logo.toString() : null,
-        logoMimeType: branding.logo_mime_type || 'image/png',
-        headerImage: branding.header_image_url ? branding.header_image_url.toString() : null,
-        headerImageMimeType: branding.header_image_mime_type || 'image/png',
-        footerImage: branding.footer_image_url ? branding.footer_image_url.toString() : null,
-        footerImageMimeType: branding.footer_image_mime_type || 'image/png',
-        footerText: branding.footer_text || "Confidential - For Internal Use Only",
-        createdAt: branding.created_at,
-        updatedAt: branding.updated_at
-      };
+      // Only admins can access branding settings
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
 
-      // Log what we're sending back (excluding image data for brevity)
-      console.log('Returning branding data:', {
-        ...sanitizedBranding,
-        logo: sanitizedBranding.logo ? '[PRESENT]' : '[MISSING]',
-        headerImage: sanitizedBranding.headerImage ? '[PRESENT]' : '[MISSING]',
-        footerImage: sanitizedBranding.footerImage ? '[PRESENT]' : '[MISSING]',
-      });
+      const [settings] = await db
+        .select()
+        .from(companyBranding)
+        .orderBy(desc(companyBranding.updatedAt))
+        .limit(1);
 
-      res.json(sanitizedBranding);
+      res.json(settings || null);
     } catch (error) {
-      console.error('Error fetching branding:', error);
       next(error);
     }
   });
@@ -1334,88 +1304,79 @@ export function registerRoutes(app: Express): Server {
     { name: 'footerImage', maxCount: 1 }
   ]), async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Processing branding update request...');
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const formData = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       // Process uploaded files
-      const processFile = (file: Express.Multer.File | undefined) => {
-        if (!file) {
-          console.log('No file provided');
-          return { data: null, mimeType: null };
-        }
-
-        console.log(`Processing file: ${file.fieldname}, type: ${file.mimetype}, size: ${file.size}`);
-
-        if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
-          throw new Error(`Invalid file type: ${file.mimetype}. Only JPEG and PNG allowed.`);
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error('File size must be less than 5MB');
-        }
-
-        return {
-          data: file.buffer.toString('base64'),
-          mimeType: file.mimetype
-        };
+      const processFile = (fieldName: string) => {
+        const file = files[fieldName]?.[0];
+        if (!file) return null;
+        return file.buffer.toString('base64');
       };
 
-      // Process each file type
-      const logo = processFile(files.logo?.[0]);
-      const headerImage = processFile(files.headerImage?.[0]);
-      const footerImage = processFile(files.footerImage?.[0]);
+      // Parse JSON strings back to objects
+      if (typeof formData.headerConfig === 'string') {
+        formData.headerConfig = JSON.parse(formData.headerConfig);
+      }
+      if (typeof formData.footerConfig === 'string') {
+        formData.footerConfig = JSON.parse(formData.footerConfig);
+      }
 
-      // Get other form data
-      const {
-        companyName,
-        headerStyle = 'modern',
-        primaryColor = '#71569E',
-        secondaryColor = '#F0F0FA',
-        accentColor = '#191160',
-        footerText = 'Confidential - For Internal Use Only'
-      } = req.body;
+      // Add file data to form data
+      const logo = processFile('logo');
+      const headerImage = processFile('headerImage');
+      const footerImage = processFile('footerImage');
 
-      console.log('Updating branding with data:', {
-        companyName,
-        headerStyle,
-        hasLogo: !!logo.data,
-        hasHeaderImage: !!headerImage.data,
-        hasFooterImage: !!footerImage.data
-      });
+      const brandingData = {
+        companyName: formData.companyName,
+        description: formData.description,
+        primaryColor: formData.primaryColor,
+        secondaryColor: formData.secondaryColor,
+        accentColor: formData.accentColor,
+        fontFamily: formData.fontFamily,
+        theme: formData.theme,
+        headerConfig: formData.headerConfig,
+        footerConfig: formData.footerConfig,
+        logo: logo || formData.logo,
+        logoMimeType: files.logo?.[0]?.mimetype || formData.logoMimeType,
+        headerImage: headerImage || formData.headerImage,
+        headerImageMimeType: files.headerImage?.[0]?.mimetype || formData.headerImageMimeType,
+        footerImage: footerImage || formData.footerImage,
+        footerImageMimeType: files.footerImage?.[0]?.mimetype || formData.footerImageMimeType,
+        updatedAt: new Date()
+      };
 
-      // Update database
-      const [updatedBranding] = await db
-        .insert(companyBranding)
-        .values({
-          company_name: companyName,
-          header_style: headerStyle,
-          primary_color: primaryColor,
-          secondary_color: secondaryColor,
-          accent_color: accentColor,
-          footer_text: footerText,
-          logo: logo.data,
-          logo_mime_type: logo.mimeType,
-          header_image_url: headerImage.data,
-          header_image_mime_type: headerImage.mimeType,
-          footer_image_url: footerImage.data,
-          footer_image_mime_type: footerImage.mimeType,
-          created_at: new Date(),
-          updated_at: new Date()
-        })
-        .returning();
+      // Get existing branding record if any
+      const [existingBranding] = await db
+        .select()
+        .from(companyBranding)
+        .orderBy(desc(companyBranding.updatedAt))
+        .limit(1);
 
-      console.log('Successfully updated branding');
-      res.status(201).json({
-        message: 'Branding updated successfully',
-        branding: {
-          ...updatedBranding,
-          logo: updatedBranding.logo ? '[PRESENT]' : '[MISSING]',
-          headerImage: updatedBranding.header_image_url ? '[PRESENT]' : '[MISSING]',
-          footerImage: updatedBranding.footer_image_url ? '[PRESENT]' : '[MISSING]'
-        }
-      });
+      let updatedBranding;
+
+      if (existingBranding) {
+        [updatedBranding] = await db
+          .update(companyBranding)
+          .set(brandingData)
+          .where(eq(companyBranding.id, existingBranding.id))
+          .returning();
+      } else {
+        [updatedBranding] = await db
+          .insert(companyBranding)
+          .values({
+            ...brandingData,
+            createdAt: new Date()
+          })
+          .returning();
+      }
+
+      res.json(updatedBranding);
     } catch (error) {
-      console.error('Error updating branding:', error);
       next(error);
     }
   });
@@ -1593,80 +1554,6 @@ export function registerRoutes(app: Express): Server {
       res.status(201).json(errorLog);
     } catch (error) {
       debug(req, 'Error logging error:', error);
-      next(error);
-    }
-  });
-
-  // Add branding route handler
-  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(_req, 'Fetching company branding settings');
-
-      const [settings] = await db
-        .select({
-          id: companyBranding.id,
-          companyName: companyBranding.companyName,
-          headerStyle: companyBranding.headerStyle,
-          primaryColor: companyBranding.primaryColor,
-          secondaryColor: companyBranding.secondaryColor,
-          accentColor: companyBranding.accentColor,
-          logo: companyBranding.logo,
-          logoMimeType: companyBranding.logoMimeType,
-          footerText: companyBranding.footerText,
-          createdAt: companyBranding.createdAt,
-          updatedAt: companyBranding.updatedAt
-        })
-        .from(companyBranding)
-        .limit(1);
-
-      if (!settings) {
-        // Return default branding if no settings exist
-        return res.json({
-          companyName: 'Default Company',
-          headerStyle: 'modern',
-          primaryColor: '#71569E',
-          secondaryColor: '#F0F0FA',
-          accentColor: '#191160',
-          logo: null,
-          logoMimeType: null,
-          footerText: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      debug(_req, 'Found branding settings:', settings);
-      res.json(settings);
-    } catch (error) {
-      debug(_req, 'Error fetching branding settings:', error);
-      next(error);
-    }
-  });
-
-  // Add new route for analyzing form submission errors
-  app.post("/api/analyze-submission", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Analyzing form submission error:', req.body);
-
-      const { formData, error, formState } = req.body;
-
-      // Use Claude to analyze the submission error
-      const analysis = await analyzeFormSubmission({
-        formData,
-        error,
-        formState,
-        requestId: formData?.id,
-        userId: req.user?.id
-      });
-
-      debug(req, 'Analysis result:', analysis);
-      res.json(analysis);
-    } catch (error) {
-      debug(req, 'Error analyzing form submission:', error);
       next(error);
     }
   });

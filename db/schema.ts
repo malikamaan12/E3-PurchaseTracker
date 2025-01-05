@@ -1,7 +1,110 @@
-import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
 import { relations, type InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Company Branding table with enhanced PDF and style management
+export const companyBranding = pgTable("company_branding", {
+  id: serial("id").primaryKey(),
+  // Basic company info
+  companyName: text("company_name").notNull(),
+  description: text("description"),
+
+  // Theme configuration
+  primaryColor: text("primary_color").notNull().default("#71569E"),
+  secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
+  accentColor: text("accent_color").notNull().default("#191160"),
+  fontFamily: text("font_family").notNull().default("Arial"),
+  theme: text("theme").notNull().default("light"),
+
+  // Header configuration
+  headerConfig: jsonb("header_config").$type<{
+    style: "modern" | "classic" | "minimal";
+    textAlignment: "left" | "center" | "right";
+    showLogo: boolean;
+    showDate: boolean;
+    showPageNumber: boolean;
+    customText: string;
+    fontSize: number;
+  }>().notNull().default({
+    style: "modern",
+    textAlignment: "left",
+    showLogo: true,
+    showDate: true,
+    showPageNumber: true,
+    customText: "",
+    fontSize: 12
+  }),
+
+  // Footer configuration
+  footerConfig: jsonb("footer_config").$type<{
+    showLogo: boolean;
+    textAlignment: "left" | "center" | "right";
+    showPageNumber: boolean;
+    showCopyright: boolean;
+    customText: string;
+    fontSize: number;
+  }>().notNull().default({
+    showLogo: false,
+    textAlignment: "center",
+    showPageNumber: true,
+    showCopyright: true,
+    customText: "",
+    fontSize: 10
+  }),
+
+  // Assets
+  logo: text("logo"),
+  logoMimeType: text("logo_mime_type"),
+  headerImage: text("header_image"),
+  headerImageMimeType: text("header_image_mime_type"),
+  footerImage: text("footer_image"),
+  footerImageMimeType: text("footer_image_mime_type"),
+
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Branding validation schemas
+const headerConfigSchema = z.object({
+  style: z.enum(["modern", "classic", "minimal"]).default("modern"),
+  textAlignment: z.enum(["left", "center", "right"]).default("left"),
+  showLogo: z.boolean().default(true),
+  showDate: z.boolean().default(true),
+  showPageNumber: z.boolean().default(true),
+  customText: z.string().optional(),
+  fontSize: z.number().min(8).max(24).default(12)
+});
+
+const footerConfigSchema = z.object({
+  showLogo: z.boolean().default(false),
+  textAlignment: z.enum(["left", "center", "right"]).default("center"),
+  showPageNumber: z.boolean().default(true),
+  showCopyright: z.boolean().default(true),
+  customText: z.string().optional(),
+  fontSize: z.number().min(8).max(24).default(10)
+});
+
+export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
+  companyName: z.string().min(1, "Company name is required"),
+  description: z.string().optional(),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  fontFamily: z.string(),
+  theme: z.enum(["light", "dark"]),
+  headerConfig: headerConfigSchema,
+  footerConfig: footerConfigSchema,
+});
+
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+
+// Type definitions
+export type CompanyBranding = InferModel<typeof companyBranding>;
+export type InsertCompanyBranding = z.infer<typeof insertCompanyBrandingSchema>;
+export type HeaderConfig = z.infer<typeof headerConfigSchema>;
+export type FooterConfig = z.infer<typeof footerConfigSchema>;
 
 //users table
 export const users = pgTable("users", {
@@ -302,7 +405,6 @@ export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
 export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
-
 
 
 // ============= Validation Schemas =============
