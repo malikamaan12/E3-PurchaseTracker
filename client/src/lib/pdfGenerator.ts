@@ -66,7 +66,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
-    // Return default branding
     return {
       companyName: "Company Name",
       primaryColor: [113, 86, 158], // #71569E
@@ -107,7 +106,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 }
 
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = config.headerHeight || 35;
+  const headerHeight = config.headerHeight || 45; // Increased height to match reference
 
   // Try header image first
   if (config.branding.headerImage) {
@@ -127,6 +126,12 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
   doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
+  // Add gradient effect
+  const gradientHeight = headerHeight / 3;
+  doc.setFillColor(...config.branding.secondaryColor.map(c => Math.min(c + 20, 255)) as [number, number, number]);
+  doc.setGState(new doc.GState({ opacity: 0.1 }));
+  doc.rect(0, headerHeight - gradientHeight, pageWidth, gradientHeight, 'F');
+
   // Add logo if available
   let logoWidth = 0;
   if (config.branding.logo && config.showLogo) {
@@ -136,29 +141,29 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
       config.branding.logoMimeType || 'image/png',
       10,
       5,
-      25,
-      25
+      35,
+      35
     );
-    if (logoAdded) logoWidth = 35;
+    if (logoAdded) logoWidth = 45;
   }
 
   // Company name in header
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.companyName, logoWidth + 10, 20);
+  doc.text(config.branding.companyName, logoWidth + 10, 28);
 
-  // Add date
-  doc.setFontSize(9);
+  // Add date and request number
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const date = format(new Date(), 'PPP');
-  doc.text(date, pageWidth - 15, 15, { align: 'right' });
+  doc.text(date, pageWidth - 15, 20, { align: 'right' });
 
   return headerHeight;
 }
 
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = config.footerHeight || 25;
+  const footerHeight = config.footerHeight || 35; // Increased height to match reference
   const footerY = pageHeight - footerHeight;
 
   // Try footer image first
@@ -179,14 +184,21 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, footerY, pageWidth, footerHeight, 'F');
 
+  // Add gradient effect
+  const gradientHeight = footerHeight / 3;
+  doc.setFillColor(...config.branding.secondaryColor.map(c => Math.min(c + 20, 255)) as [number, number, number]);
+  doc.setGState(new doc.GState({ opacity: 0.1 }));
+  doc.rect(0, footerY, pageWidth, gradientHeight, 'F');
+
   // Footer text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 20, { align: 'center' });
 
   // Page number
-  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
+  doc.setFontSize(10);
+  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 15, { align: 'right' });
 
   return footerHeight;
 }
@@ -205,36 +217,75 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const config: TemplateConfig = {
       branding,
       layout: templateConfig.layout || 'modern',
-      headerHeight: templateConfig.headerHeight || 35,
-      footerHeight: templateConfig.footerHeight || 25,
+      headerHeight: templateConfig.headerHeight || 45,
+      footerHeight: templateConfig.footerHeight || 35,
       showLogo: templateConfig.showLogo ?? true,
     };
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 10;
+    const margin = 15;
     const contentWidth = pageWidth - (margin * 2);
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
     let yPos = headerHeight + margin;
 
-    // Title and Description
+    // Request Details Section
     doc.setTextColor(...config.branding.accentColor);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Request Details", margin, yPos);
+    yPos += 10;
+
+    // Basic Information
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+
+    const basicInfo = [
+      [`Request Number: ${request.requestNumber || 'N/A'}`, `Status: ${request.status?.toUpperCase() || 'N/A'}`],
+      [`Created Date: ${format(new Date(request.createdAt), 'PP')}`, `Priority: ${request.priority?.toUpperCase() || 'N/A'}`],
+      [`Department: ${request.requester?.department || 'N/A'}`]
+    ];
+
+    basicInfo.forEach(line => {
+      doc.text(line[0], margin, yPos);
+      if (line[1]) {
+        doc.text(line[1], margin + contentWidth/2, yPos);
+      }
+      yPos += 8;
+    });
+
+    // Title and Description
+    yPos += 5;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(request.title || 'Untitled Request', margin, yPos);
+    doc.setTextColor(...config.branding.primaryColor);
+    doc.text("Title", margin, yPos);
+    yPos += 8;
 
-    yPos += 10;
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(request.title || 'N/A', margin, yPos);
+    yPos += 15;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...config.branding.primaryColor);
+    doc.text("Description", margin, yPos);
+    yPos += 8;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
     const description = doc.splitTextToSize(request.description || 'No description provided', contentWidth);
     doc.text(description, margin, yPos);
+    yPos += description.length * 7 + 15;
 
-    yPos += description.length * 7 + margin;
-
-    // Request Details
+    // Items Table
     const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
       item.quantity?.toString() || '0',
@@ -252,17 +303,33 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       headStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold'
+        fontSize: 11,
+        fontStyle: 'bold',
+        cellPadding: 8
       },
       footStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
+        fontSize: 11,
+        fontStyle: 'bold',
+        cellPadding: 8
+      },
+      bodyStyles: {
         fontSize: 10,
-        fontStyle: 'bold'
+        cellPadding: 6
+      },
+      alternateRowStyles: {
+        fillColor: [...config.branding.secondaryColor.map(c => Math.min(c + 5, 255))] as [number, number, number]
       },
       theme: 'grid',
-      margin: { left: margin, right: margin }
+      margin: { left: margin, right: margin },
+      styles: {
+        cellWidth: 'auto',
+        fontSize: 10,
+        textColor: [60, 60, 60],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1
+      }
     });
 
     // Add footer to all pages
@@ -300,12 +367,4 @@ function calculateTotalCost(request: any): number {
     (sum: number, item: any) => sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)),
     0
   );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
