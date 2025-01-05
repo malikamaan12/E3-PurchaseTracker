@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { InsertAccountRequest } from "@db/schema";
+import type { AccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -31,7 +31,7 @@ const formItemVariants = {
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const form = useForm<InsertAccountRequest>({
+  const form = useForm<AccountRequest>({
     resolver: zodResolver(insertAccountRequestSchema),
     defaultValues: {
       role: "user",
@@ -41,7 +41,7 @@ export default function AccountRequestForm() {
     mode: "onBlur",
   });
 
-  const onSubmit = async (data: InsertAccountRequest) => {
+  const onSubmit = async (data: AccountRequest) => {
     try {
       setIsLoading(true);
       console.log('Submitting form data:', data);

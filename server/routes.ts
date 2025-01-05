@@ -16,21 +16,40 @@ import {
   accountRequests,
   companyBranding,
   insertPurchaseRequestSchema,
-  type InsertVendor
+  type InsertVendor,
+  insertAccountRequestSchema
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { sql } from 'drizzle-orm';
-import { AppError, ValidationError, AuthorizationError } from './utils/errors';
-import { analyzeError } from './utils/error-analysis';
-import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
-import { hash } from 'bcrypt';
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
+import bcrypt from 'bcrypt';
 
-// Configure Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+// Error Classes
+class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+
+class AppError extends Error {
+  status: number;
+  constructor(message: string, status: number = 500) {
+    super(message);
+    this.name = 'AppError';
+    this.status = status;
+  }
+}
+
+class ValidationError extends Error {
+  details: any;
+  constructor(message: string, details: any) {
+    super(message);
+    this.name = 'ValidationError';
+    this.details = details;
+  }
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -57,14 +76,128 @@ const upload = multer({
   }
 });
 
-// Debug logging utility
+// Utility functions
 const debug = (req: Request, message: string, data?: any) => {
   console.log(`[${req.method} ${req.path}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+};
+
+const createNotification = async (userId: number, title: string, message: string, type: string, linkId?: number) => {
+  return await db.insert(notifications).values({
+    userId,
+    title,
+    message,
+    type,
+    link: linkId ? `/requests/${linkId}` : undefined,
+    createdAt: new Date(),
+    isRead: false
+  }).returning();
 };
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('Error:', err);
+
+    if (err instanceof ValidationError) {
+      return res.status(400).json({
+        message: err.message,
+        details: err.details
+      });
+    }
+
+    if (err instanceof DatabaseError) {
+      return res.status(500).json({
+        message: 'Database error occurred',
+        error: err.message
+      });
+    }
+
+    if (err instanceof AppError) {
+      return res.status(err.status).json({
+        message: err.message
+      });
+    }
+
+    res.status(500).json({
+      message: 'Internal server error',
+      error: err.message
+    });
+  });
+
+  // Account Request endpoint with proper error handling
+  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Received account request:', {
+        ...req.body,
+        password: '[REDACTED]'
+      });
+
+      // Validate the request data
+      const validationResult = insertAccountRequestSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        debug(req, 'Validation failed:', validationResult.error);
+        throw new ValidationError('Invalid input data', validationResult.error.format());
+      }
+
+      // Check for existing username
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, validationResult.data.username))
+        .limit(1);
+
+      if (existingUser) {
+        throw new ValidationError('Username already exists', {
+          username: ['Username is already taken']
+        });
+      }
+
+      // Hash password before storing
+      const hashedPassword = await bcrypt.hash(validationResult.data.password, 10);
+
+      // Create the account request
+      const [newRequest] = await db
+        .insert(accountRequests)
+        .values({
+          ...validationResult.data,
+          password: hashedPassword,
+          status: 'pending'
+        })
+        .returning();
+
+      debug(req, 'Account request created successfully:', newRequest.id);
+
+      // Notify admins about new account request
+      const admins = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.role, 'admin'),
+          eq(users.isActive, true)
+        ));
+
+      // Create notifications for admins
+      await Promise.all(admins.map(admin =>
+        createNotification(
+          admin.id,
+          'New Account Request',
+          `New account request from ${newRequest.username} for ${newRequest.department} department`,
+          'account_request'
+        )
+      ));
+
+      res.status(201).json({
+        message: 'Account request submitted successfully',
+        requestId: newRequest.id
+      });
+    } catch (error) {
+      debug(req, 'Error processing account request:', error);
+      next(error);
+    }
+  });
   // Enhanced branding endpoint with better error handling
   app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
     try {
@@ -605,119 +738,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account Request endpoint
-  app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Received account request:', {
-        ...req.body,
-        password: '[REDACTED]'
-      });
-
-      // Transform the request data to match our schema
-      const requestData = {
-        ...req.body,
-        status: 'pending'
-      };
-
-      debug(req, 'Validating request data');
-      const validationResult = insertAccountRequestSchema.safeParse(requestData);
-
-      if (!validationResult.success) {
-        debug(req, 'Validation failed:', validationResult.error);
-        return res.status(400).json({
-          message: 'Validation failed',
-          errors: validationResult.error.format()
-        });
-      }
-
-      // Check for existing username
-      const [existingRequest] = await db
-        .select()
-        .from(accountRequests)
-        .where(eq(accountRequests.username, validationResult.data.username))
-        .limit(1);
-
-      if (existingRequest) {
-        debug(req, 'Username already exists in requests');
-        return res.status(400).json({
-          message: 'An account request with this username already exists'
-        });
-      }
-
-      // Check in users table
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, validationResult.data.username))
-        .limit(1);
-
-      if (existingUser) {
-        debug(req, 'Username exists in users table');
-        return res.status(400).json({
-          message: 'Username already exists'
-        });
-      }
-
-      // Hash password and create request
-      const hashedPassword = await hash(validationResult.data.password, 10);
-      const [newRequest] = await db
-        .insert(accountRequests)
-        .values({
-          ...validationResult.data,
-          password: hashedPassword
-        })
-        .returning();
-
-      // Get all admin users
-      const admins = await db
-        .select()
-        .from(users)
-        .where(and(
-          eq(users.role, 'admin'),
-          eq(users.isActive, true)
-        ));
-
-      // Get all approvers
-      const approvers = await db
-        .select()
-        .from(users)
-        .where(and(
-          eq(users.role, 'approver'),
-          eq(users.isActive, true)
-        ));
-
-      // Create notifications for admins and approvers
-      const createNotifications = async () => {
-        const notificationPromises = [...admins, ...approvers].map(user =>
-          db.insert(notifications).values({
-            userId: user.id,
-            title: 'New Account Request',
-            message: `New account request from ${newRequest.username} for ${newRequest.department} department`,
-            type: 'account_request',
-            isRead: false,
-            link: '/admin/account-requests',
-            createdAt: new Date()
-          })
-        );
-
-        await Promise.all(notificationPromises);
-      };
-
-      // Send notifications asynchronously
-      createNotifications().catch(error => {
-        console.error('Error creating notifications:', error);
-      });
-
-      debug(req, 'Account request created:', newRequest.id);
-      res.status(201).json({
-        message: 'Account request submitted successfully',
-        requestId: newRequest.id
-      });
-    } catch (error) {
-      debug(req, 'Error processing account request:', error);
-      next(error);
-    }
-  });
+  // Account Request endpoint with proper error handling (already included above)
 
   // Update the GET /api/requests endpoint
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
@@ -948,36 +969,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Account requests management
-  app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
-      debug(req, 'Fetching account requests...');
-      const accountRequestsResult = await db
-        .select({
-          id: accountRequests.id,
-          username: accountRequests.username,
-          email: accountRequests.email,
-          department: accountRequests.department,
-          role: accountRequests.role,
-          status: accountRequests.status,
-          contact_number: accountRequests.contact_number,
-          createdAt: accountRequests.createdAt,
-          updatedAt: accountRequests.updatedAt
-        })
-        .from(accountRequests)
-        .orderBy(desc(accountRequests.createdAt));
-
-      debug(req, `Found ${accountRequestsResult.length} account requests`);
-      res.json(accountRequestsResult);
-    } catch (error) {
-      debug(req, 'Error fetching account requests:', error);
-      next(error);
-    }
-  });
-
+  // Account requests management (already included above)
   app.post("/api/admin/account-requests/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
@@ -1017,7 +1009,7 @@ export function registerRoutes(app: Express): Server {
         .insert(users)
         .values({
           username: accountRequest.username,
-          password: accountRequest.password, // Password is already properly hashed
+          password: accountRequest.password, // // Password is already properly hashed
           email: accountRequest.email,
           contact_number: accountRequest.contact_number,
           department: accountRequest.department,
@@ -1196,7 +1188,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash the new password
-      const hashedPassword = await hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
 
       // Update user password
       const [updatedUser] = await db

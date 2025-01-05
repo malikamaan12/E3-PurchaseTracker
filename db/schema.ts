@@ -1,5 +1,5 @@
 import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, type InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -43,7 +43,7 @@ export const insertCompanyBrandingSchema = companyBrandingSchema;
 export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
 
 // Type definitions for company branding
-export type CompanyBranding = typeof companyBranding.$inferSelect;
+export type CompanyBranding = InferModel<typeof companyBranding>;
 export type InsertCompanyBranding = z.infer<typeof companyBrandingSchema>;
 
 //users table
@@ -73,6 +73,7 @@ export const accountRequests = pgTable("account_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+//notifications table
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -323,35 +324,26 @@ export const vendorToCategoriesRelations = relations(vendorToCategories, ({ one 
 
 // ============= Basic Type Definitions =============
 export type User = InferModel<typeof users>;
-export type SubPurpose = {
-  id: number;
-  name: string;
-  purpose_type: string;
-  is_frozen: boolean;
-  valid_from: Date | null;
-  valid_to: Date | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+export type SubPurpose = InferModel<typeof subPurposes>;
 export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
 export type AccountRequest = InferModel<typeof accountRequests>;
-export type ErrorLog = typeof errorLogs.$inferSelect;
-export type InsertErrorLog = typeof errorLogs.$inferInsert;
+export type ErrorLog = InferModel<typeof errorLogs>;
+export type InsertErrorLog = InferModel<typeof errorLogs, "insert">;
 export type LoginCredentials = z.infer<typeof loginSchema>;
-export type InsertUser = typeof users.$inferInsert;
-export type SelectUser = typeof users.$inferSelect;
-export type InsertNotification = typeof notifications.$inferInsert;
-export type SelectNotification = typeof notifications.$inferSelect;
-export type PurchaseApprover = typeof purchaseApprovers.$inferSelect;
-export type InsertSubPurpose = typeof subPurposes.$inferInsert;
-export type Vendor = typeof vendors.$inferSelect;
-export type InsertVendor = typeof vendors.$inferInsert;
-export type VendorCategory = typeof vendorCategories.$inferSelect;
-export type VendorPerformance = typeof vendorPerformance.$inferSelect;
-export type VendorPayment = typeof vendorPayments.$inferSelect;
+export type InsertUser = InferModel<typeof users, "insert">;
+export type SelectUser = InferModel<typeof users, "select">;
+export type InsertNotification = InferModel<typeof notifications, "insert">;
+export type SelectNotification = InferModel<typeof notifications, "select">;
+export type PurchaseApprover = InferModel<typeof purchaseApprovers>;
+export type InsertSubPurpose = InferModel<typeof subPurposes, "insert">;
+export type Vendor = InferModel<typeof vendors>;
+export type InsertVendor = InferModel<typeof vendors, "insert">;
+export type VendorCategory = InferModel<typeof vendorCategories>;
+export type VendorPerformance = InferModel<typeof vendorPerformance>;
+export type VendorPayment = InferModel<typeof vendorPayments>;
 
 
 
