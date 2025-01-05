@@ -441,6 +441,10 @@ export function registerRoutes(app: Express): Server {
         whereConditions.push(eq(accountRequests.role, role));
       }
 
+      // Debug log for query construction
+      debug(req, 'Constructed where conditions:', whereConditions);
+
+      // Execute the query with proper type safety
       const accountRequestsResult = await db
         .select({
           id: accountRequests.id,
@@ -458,6 +462,18 @@ export function registerRoutes(app: Express): Server {
         .orderBy(desc(accountRequests.createdAt));
 
       debug(req, `Found ${accountRequestsResult.length} account requests`);
+
+      // Debug log for results
+      debug(req, 'Account requests after filtering:',
+        accountRequestsResult.map(r => ({
+          id: r.id,
+          username: r.username,
+          status: r.status,
+          department: r.department,
+          role: r.role
+        }))
+      );
+
       res.json(accountRequestsResult);
     } catch (error) {
       debug(req, 'Error fetching account requests:', error);
