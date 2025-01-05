@@ -261,8 +261,22 @@ export default function RequestCard({
         throw new Error('Branding data not available');
       }
 
-      // Generate PDF with branding data
-      const doc = await generateRequestPDF(request, brandingData);
+      // Transform branding data to match the expected format
+      const formattedBranding = {
+        companyName: brandingData.companyName,
+        primaryColor: brandingData.primaryColor,
+        secondaryColor: brandingData.secondaryColor,
+        accentColor: brandingData.accentColor,
+        headerStyle: brandingData.headerStyle || 'modern',
+        footerText: brandingData.footerText || 'Confidential Document',
+        logo: brandingData.logo,
+        logoMimeType: brandingData.logoMimeType,
+        headerImageUrl: brandingData.headerImageUrl,
+        footerImageUrl: brandingData.footerImageUrl,
+      };
+
+      // Generate PDF with formatted branding data
+      const doc = await generateRequestPDF(request, formattedBranding);
 
       // Save the PDF
       doc.save(`${request.requestNumber}.pdf`);

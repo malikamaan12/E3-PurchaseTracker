@@ -6,65 +6,45 @@ import { z } from "zod";
 // Company Branding table with enhanced PDF and style management
 export const companyBranding = pgTable("company_branding", {
   id: serial("id").primaryKey(),
-  // Basic company info
   companyName: text("company_name").notNull(),
-  description: text("description"),
-
-  // Theme configuration
   primaryColor: text("primary_color").notNull().default("#71569E"),
   secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
   accentColor: text("accent_color").notNull().default("#191160"),
-  fontFamily: text("font_family").notNull().default("Arial"),
-  theme: text("theme").notNull().default("light"),
-
-  // Header configuration
-  headerConfig: jsonb("header_config").$type<{
-    style: "modern" | "classic" | "minimal";
-    textAlignment: "left" | "center" | "right";
-    showLogo: boolean;
-    showDate: boolean;
-    showPageNumber: boolean;
-    customText: string;
-    fontSize: number;
-  }>().notNull().default({
-    style: "modern",
-    textAlignment: "left",
-    showLogo: true,
-    showDate: true,
-    showPageNumber: true,
-    customText: "",
-    fontSize: 12
-  }),
-
-  // Footer configuration
-  footerConfig: jsonb("footer_config").$type<{
-    showLogo: boolean;
-    textAlignment: "left" | "center" | "right";
-    showPageNumber: boolean;
-    showCopyright: boolean;
-    customText: string;
-    fontSize: number;
-  }>().notNull().default({
-    showLogo: false,
-    textAlignment: "center",
-    showPageNumber: true,
-    showCopyright: true,
-    customText: "",
-    fontSize: 10
-  }),
+  headerStyle: text("header_style"),
+  footerText: text("footer_text"),
 
   // Assets
   logo: text("logo"),
   logoMimeType: text("logo_mime_type"),
-  headerImage: text("header_image"),
+  headerImageUrl: text("header_image_url"),
   headerImageMimeType: text("header_image_mime_type"),
-  footerImage: text("footer_image"),
+  footerImageUrl: text("footer_image_url"),
   footerImageMimeType: text("footer_image_mime_type"),
 
   // Metadata
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Update the validation schema
+export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
+  companyName: z.string().min(1, "Company name is required"),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  headerStyle: z.string().optional(),
+  footerText: z.string().optional(),
+  logo: z.string().optional(),
+  logoMimeType: z.string().optional(),
+  headerImageUrl: z.string().optional(),
+  headerImageMimeType: z.string().optional(),
+  footerImageUrl: z.string().optional(),
+  footerImageMimeType: z.string().optional(),
+});
+
+export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+export type CompanyBranding = typeof companyBranding.$inferSelect;
+export type InsertCompanyBranding = z.infer<typeof insertCompanyBrandingSchema>;
 
 // Branding validation schemas
 const headerConfigSchema = z.object({
@@ -86,7 +66,7 @@ const footerConfigSchema = z.object({
   fontSize: z.number().min(8).max(24).default(10)
 });
 
-export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
+export const insertCompanyBrandingSchemaOLD = createInsertSchema(companyBranding, {
   companyName: z.string().min(1, "Company name is required"),
   description: z.string().optional(),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
@@ -98,11 +78,11 @@ export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
   footerConfig: footerConfigSchema,
 });
 
-export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
+export const selectCompanyBrandingSchemaOLD = createSelectSchema(companyBranding);
 
 // Type definitions
-export type CompanyBranding = InferModel<typeof companyBranding>;
-export type InsertCompanyBranding = z.infer<typeof insertCompanyBrandingSchema>;
+export type CompanyBrandingOLD = InferModel<typeof companyBranding>;
+export type InsertCompanyBrandingOLD = z.infer<typeof insertCompanyBrandingSchemaOLD>;
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;
 export type FooterConfig = z.infer<typeof footerConfigSchema>;
 
