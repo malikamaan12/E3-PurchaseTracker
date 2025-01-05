@@ -4,6 +4,7 @@ import { db } from "@db";
 import multer from "multer";
 import path from "path";
 import { setupAuth } from "./auth";
+import express from 'express';
 import {
   users,
   notifications,
@@ -16,110 +17,183 @@ import {
   accountRequests,
   companyBranding,
   insertPurchaseRequestSchema,
+  insertAccountRequestSchema,
+  insertErrorLogSchema,
+  insertVendorSchema,
   type InsertVendor
 } from "@db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { AppError, ValidationError, AuthorizationError } from './utils/errors';
-import { analyzeError } from './utils/error-analysis';
+import { AppError, ValidationError } from './utils/errors';
+import { analyzeError, analyzeFormSubmission } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
 import { hash } from 'bcrypt';
-import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 
-// Configure Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+// Debug logging utility
+function debug(req: Request, message: string, data?: any) {
+  console.log(`[${req.method} ${req.path}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+}
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+export function registerRoutes(app: Express): Server {
+  setupAuth(app);
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, PDF and Word documents are allowed.'));
+  // Configure multer for file uploads
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      cb(null, uploadsDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+      cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
     }
-  }
-});
+  });
 
-// Enhanced branding endpoint with better error handling
-app.get("/api/branding/current", async (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    const brandingResult = await db
-      .select({
-        company_name: companyBranding.company_name,
-        header_style: companyBranding.header_style,
-        primary_color: companyBranding.primary_color,
-        secondary_color: companyBranding.secondary_color,
-        accent_color: companyBranding.accent_color,
-        logo: companyBranding.logo,
-        logo_mime_type: companyBranding.logo_mime_type,
-        header_image_url: companyBranding.header_image_url,
-        header_image_mime_type: companyBranding.header_image_mime_type,
-        footer_image_url: companyBranding.footer_image_url,
-        footer_image_mime_type: companyBranding.footer_image_mime_type,
-        footer_text: companyBranding.footer_text
-      })
-      .from(companyBranding)
-      .orderBy(desc(companyBranding.created_at))
-      .limit(1);
-
-    const branding = brandingResult[0];
-
-    if (!branding) {
-      return res.json({
-        company_name: "Events & Entertainment Enterprises",
-        header_style: "modern",
-        primary_color: "#71569E",
-        secondary_color: "#F0F0FA",
-        accent_color: "#191160",
-        logo: null,
-        logo_mime_type: null,
-        header_image_url: null,
-        header_image_mime_type: null,
-        footer_image_url: null,
-        footer_image_mime_type: null,
-        footer_text: "Designed with ❤️ by E3"
-      });
+  const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (_req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only JPEG, PNG, PDF and Word documents are allowed.'));
+      }
     }
+  });
 
-    res.json(branding);
-  } catch (error) {
-    next(error);
-  }
-});
+  // Enhanced branding endpoint with better error handling
+  app.get("/api/branding/current", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const brandingResult = await db
+        .select({
+          company_name: companyBranding.company_name,
+          header_style: companyBranding.header_style,
+          primary_color: companyBranding.primary_color,
+          secondary_color: companyBranding.secondary_color,
+          accent_color: companyBranding.accent_color,
+          logo: companyBranding.logo,
+          logo_mime_type: companyBranding.logo_mime_type,
+          header_image_url: companyBranding.header_image_url,
+          header_image_mime_type: companyBranding.header_image_mime_type,
+          footer_image_url: companyBranding.footer_image_url,
+          footer_image_mime_type: companyBranding.footer_image_mime_type,
+          footer_text: companyBranding.footer_text,
+          created_at: companyBranding.created_at,
+          updated_at: companyBranding.updated_at
+        })
+        .from(companyBranding)
+        .orderBy(sql`${companyBranding.created_at} DESC`)
+        .limit(1);
 
-// Create purchase request endpoint with enhanced vendor detail handling
-app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+      const branding = brandingResult[0];
+
+      if (!branding) {
+        return res.json({
+          company_name: "Events & Entertainment Enterprises",
+          header_style: "modern",
+          primary_color: "#71569E",
+          secondary_color: "#F0F0FA",
+          accent_color: "#191160",
+          logo: null,
+          logo_mime_type: null,
+          header_image_url: null,
+          header_image_mime_type: null,
+          footer_image_url: null,
+          footer_image_mime_type: null,
+          footer_text: "Designed with ❤️ by E3"
+        });
+      }
+
+      res.json(branding);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Enhanced vendor routes
+  app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const allVendors = await db
+        .select()
+        .from(vendors)
+        .orderBy(sql`${vendors.created_at} DESC`);
+
+      res.json(allVendors);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      const vendorId = parseInt(req.params.id);
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, vendorId))
+        .limit(1);
+
+      if (!vendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      res.json(vendor);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Enhanced file upload and preview endpoints
+  app.post("/api/attachments", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.files || !Array.isArray(req.files)) {
+        throw new AppError('No files uploaded', 400);
+      }
+
+      const uploadedFiles = req.files.map(file => ({
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        fileUrl: `/uploads/${file.filename}`,
+        previewUrl: file.mimetype.startsWith('image/') ? `/uploads/${file.filename}` : null
+      }));
+
+      res.status(201).json(uploadedFiles);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Serve uploaded files with proper headers for preview
+  app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
+    const fileType = req.path.split('.').pop()?.toLowerCase();
+    if (fileType === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    express.static('uploads')(req, res, next);
+  });
+
+  // Create purchase request endpoint with enhanced vendor detail handling
+  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
       const { data: requestData, action } = req.body;
-      console.log('Creating purchase request:', {
-        action,
-        requestData
-      });
+      debug(req, 'Creating purchase request:', { action, requestData });
 
-      // Generate a unique request number
       const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      // Prepare request data
       let finalRequestData = {
         ...requestData,
         requestNumber,
@@ -130,7 +204,6 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         items: JSON.stringify(Array.isArray(requestData.items) ? requestData.items : [])
       };
 
-      // If saving as draft, allow partial data
       if (action === 'draft') {
         finalRequestData = {
           ...finalRequestData,
@@ -139,14 +212,12 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           freightAmount: finalRequestData.freightAmount || 0
         };
       } else {
-        // Validate required fields for submissions
         const validationResult = insertPurchaseRequestSchema.safeParse({
           ...requestData,
-          items: requestData.items || [] 
+          items: requestData.items || []
         });
 
         if (!validationResult.success) {
-          console.error('Validation failed:', validationResult.error.format());
           return res.status(400).json({
             message: 'Invalid request data',
             errors: validationResult.error.format()
@@ -154,13 +225,11 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         }
       }
 
-      // Create purchase request with vendor details
       const [request] = await db
         .insert(purchaseRequests)
         .values(finalRequestData)
         .returning();
 
-      // Handle attachments
       if (requestData.attachments?.length) {
         await db.insert(fileAttachments).values(
           requestData.attachments.map((attachment: any) => ({
@@ -174,14 +243,12 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         );
       }
 
-      // Get vendor details for the response
       const [vendor] = await db
         .select()
         .from(vendors)
         .where(eq(vendors.id, request.vendorId))
         .limit(1);
 
-      // Return detailed response
       res.status(201).json({
         ...request,
         items: Array.isArray(requestData.items) ? requestData.items : [],
@@ -189,163 +256,103 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
       });
     } catch (error) {
-      console.error('Error creating purchase request:', error);
       next(error);
     }
-});
+  });
 
-// Enhanced attachment upload endpoint with preview support
-app.post("/api/attachments", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.files || !Array.isArray(req.files)) {
-      throw new AppError('No files uploaded', 400);
-    }
-
-    const uploadedFiles = req.files.map(file => ({
-      fileName: file.originalname,
-      fileType: file.mimetype,
-      fileSize: file.size,
-      fileUrl: `/uploads/${file.filename}`,
-      previewUrl: file.mimetype.startsWith('image/') ? `/uploads/${file.filename}` : null
-    }));
-
-    res.status(201).json(uploadedFiles);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Serve uploaded files with proper headers for preview
-app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
-  const fileType = req.path.split('.').pop()?.toLowerCase();
-  if (fileType === 'pdf') {
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');
-  }
-  express.static('uploads')(req, res, next);
-});
-
-// Enhanced vendor routes
-app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const vendorsList = await db
-      .select()
-      .from(vendors)
-      .orderBy(desc(vendors.created_at));
-
-    res.json(vendorsList);
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const vendorId = parseInt(req.params.id);
-    const [vendor] = await db
-      .select()
-      .from(vendors)
-      .where(eq(vendors.id, vendorId))
-      .limit(1);
-
-    if (!vendor) {
-      return res.status(404).json({ message: "Vendor not found" });
-    }
-
-    res.json(vendor);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Update the create purchase request endpoint
-app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+  // Enhanced approval workflow
+  app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const { data: requestData, action } = req.body;
-      console.log('Creating purchase request:', {
-        action,
-        requestData
-      });
+      const requestId = parseInt(req.params.requestId);
+      const { status, comments, department } = req.body;
 
-      // Generate a unique request number
-      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
 
-      // Ensure items is an array before stringifying
-      const items = Array.isArray(requestData.items) ? requestData.items : [];
-
-      // Prepare request data
-      let finalRequestData = {
-        ...requestData,
-        requestNumber,
-        requesterId: req.user!.id,
-        status: action === 'draft' ? 'draft' : 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Properly stringify the items array
-        items: JSON.stringify(items)
-      };
-
-      // If saving as draft, make sure required fields are not enforced
-      if (action === 'draft') {
-        // Allow empty or partial data for drafts
-        finalRequestData = {
-          ...finalRequestData,
-          items: finalRequestData.items || '[]',
-          totalEstimatedCost: finalRequestData.totalEstimatedCost || 0,
-          freightAmount: finalRequestData.freightAmount || 0
-        };
-      } else {
-        // Validate required fields for submissions
-        const validationResult = insertPurchaseRequestSchema.safeParse({
-          ...requestData,
-          items: items // Pass the original array for validation
-        });
-
-        if (!validationResult.success) {
-          console.error('Validation failed:', validationResult.error.format());
-          return res.status(400).json({
-            message: 'Invalid request data',
-            errors: validationResult.error.format()
-          });
-        }
+      if (!request) {
+        throw new AppError('Request not found', 404);
       }
 
-      console.log('Final request data:', JSON.stringify(finalRequestData, null, 2));
+      // Define mandatory departments
+      const mandatoryDepartments = ['CEO Office', 'Director', 'Finance'];
+      const isMandatoryApprover = mandatoryDepartments.includes(department);
 
-      // Create purchase request
-      const [request] = await db
-        .insert(purchaseRequests)
-        .values(finalRequestData)
+      const [approval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status,
+          comments: comments || null,
+          department,
+          isMandatory: isMandatoryApprover,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning();
 
-      // Handle attachments if any
-      if (requestData.attachments?.length) {
-        await db.insert(fileAttachments).values(
-          requestData.attachments.map((attachment: any) => ({
-            requestId: request.id,
-            fileName: attachment.fileName,
-            fileType: attachment.fileType,
-            fileSize: attachment.fileSize,
-            fileUrl: attachment.fileUrl,
-            uploadedAt: new Date()
-          }))
+      // Get all approvals for this request
+      const allApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Check if all mandatory approvers have approved
+      const mandatoryApprovals = allApprovals.filter(a =>
+        mandatoryDepartments.includes(a.department)
+      );
+
+      const allMandatoryApproved = mandatoryDepartments.every(dept =>
+        mandatoryApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // Update request status based on approvals
+      let requestStatus = request.status;
+      let isLocked = request.isLocked;
+
+      if (status === 'rejected') {
+        requestStatus = 'rejected';
+        isLocked = true;
+      } else if (status === 'changes_requested') {
+        requestStatus = 'changes_requested';
+        isLocked = false;
+      } else if (allMandatoryApproved) {
+        requestStatus = 'approved';
+        isLocked = true;
+      }
+
+      if (requestStatus !== request.status || isLocked !== request.isLocked) {
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: requestStatus,
+            isLocked,
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+        await createNotification(
+          request.requesterId,
+          `Request ${status}`,
+          `Your request has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
+          'request',
+          requestId
         );
       }
 
-      console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
-
-      // Return detailed response with parsed items
       res.status(201).json({
-        ...request,
-        items: items, // Return the original array
-        message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
+        approval,
+        requestStatus,
+        isLocked
       });
     } catch (error) {
-      console.error('Error creating purchase request:', error);
       next(error);
     }
   });
@@ -366,7 +373,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           updated_at: subPurposes.updated_at
         })
         .from(subPurposes)
-        .orderBy(desc(subPurposes.created_at));
+        .orderBy(sql`${subPurposes.created_at} DESC`);
 
       if (purposeType) {
         query = query.where(eq(subPurposes.purpose_type, purposeType as string));
@@ -411,7 +418,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           updated_at: subPurposes.updated_at
         })
         .from(subPurposes)
-        .orderBy(desc(subPurposes.created_at));
+        .orderBy(sql`${subPurposes.created_at} DESC`);
 
       debug(req, `Found ${allSubPurposes.length} sub-purposes`);
       res.json(allSubPurposes);
@@ -443,7 +450,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           updatedAt: accountRequests.updatedAt
         })
         .from(accountRequests)
-        .orderBy(desc(accountRequests.createdAt));
+        .orderBy(sql`${accountRequests.createdAt} DESC`);
 
       debug(req, `Found ${accountRequestsResult.length} account requests`);
       res.json(accountRequestsResult);
@@ -695,7 +702,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           updatedAt: users.updatedAt
         })
         .from(users)
-        .orderBy(desc(users.createdAt));
+        .orderBy(sql`${users.createdAt} DESC`);
 
       debug(req, `Found ${allUsers.length} users`);
       res.json(allUsers);
@@ -713,11 +720,11 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
 
       let query = db
         .select({
-          id: purchaseApprovers.id,
-          departmentId: purchaseApprovers.departmentId,
-          approverId: purchaseApprovers.approverId,
-          isMandatory: purchaseApprovers.isMandatory,
-          level: purchaseApprovers.level,
+          id: approvals.id,
+          department: approvals.department,
+          approverId: approvals.approverId,
+          isMandatory: approvals.isMandatory,
+          level: approvals.level,
           approver: {
             id: users.id,
             username: users.username,
@@ -725,20 +732,20 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
             department: users.department,
           },
         })
-        .from(purchaseApprovers)
-        .innerJoin(users, eq(users.id, purchaseApprovers.approverId))
+        .from(approvals)
+        .innerJoin(users, eq(users.id, approvals.approverId))
         .where(eq(users.isActive, true));
 
       if (department) {
-        query = query.where(eq(purchaseApprovers.departmentId, department as string));
+        query = query.where(eq(approvals.department, department as string));
       }
 
-      const approvers = await query.orderBy(purchaseApprovers.level);
+      const approvers = await query.orderBy(approvals.level);
       debug(req, `Found ${approvers.length} approvers`);
       res.json(approvers);
     } catch (error) {
       debug(req, 'Error fetching approvers:', error);
-      next(new DatabaseError('Failed to fetch approvers'));
+      next(new AppError('Failed to fetch approvers', 500));
     }
   });
 
@@ -888,7 +895,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         })
         .from(purchaseRequests)
         .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
-        .orderBy(desc(purchaseRequests.createdAt));
+        .orderBy(sql`${purchaseRequests.createdAt} DESC`);
 
       debug(req, 'Raw requests data:', JSON.stringify(requests, null, 2));
 
@@ -994,7 +1001,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
         .insert(approvals)
         .values({
           requestId,
-          approverId: req.user.id,
+          approverId: req.user!.id,
           status,
           comments: comments || null,
           department,
@@ -1101,7 +1108,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
           updatedAt: accountRequests.updatedAt
         })
         .from(accountRequests)
-        .orderBy(desc(accountRequests.createdAt));
+        .orderBy(sql`${accountRequests.createdAt} DESC`);
 
       debug(req, `Found ${accountRequestsResult.length} account requests`);
       res.json(accountRequestsResult);
@@ -1216,7 +1223,7 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
       const allVendors = await db
         .select()
         .from(vendors)
-        .orderBy(desc(vendors.createdAt));
+        .orderBy(sql`${vendors.createdAt} DESC`);
 
       debug(req, `Found ${allVendors.length} vendors`);
       res.json(allVendors);
@@ -1520,256 +1527,165 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
   // Get company branding settings
   app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Fetching company branding data...');
+      debug(_req, 'Fetching company branding settings');
 
-      const [branding] = await db
-        .select()
+      const [settings] = await db
+        .select({
+          id: companyBranding.id,
+          companyName: companyBranding.companyName,
+          headerStyle: companyBranding.headerStyle,
+          primaryColor: companyBranding.primaryColor,
+          secondaryColor: companyBranding.secondaryColor,
+          accentColor: companyBranding.accentColor,
+          logo: companyBranding.logo,
+          logoMimeType: companyBranding.logoMimeType,
+          footerText: companyBranding.footerText,
+          createdAt: companyBranding.createdAt,
+          updatedAt: companyBranding.updatedAt
+        })
         .from(companyBranding)
-        .orderBy(desc(companyBranding.createdAt))
         .limit(1);
 
-      if (!branding) {
-        console.log('No branding found, returning defaults');
+      if (!settings) {
+        // Return default branding if no settings exist
         return res.json({
-          companyName: "Events & Entertainment Enterprises",
-          headerStyle: "modern",
-          primaryColor: "#71569E",
-          secondaryColor: "#F0F0FA",
-          accentColor: "#191160",
-          footerText: "Confidential - For Internal Use Only",
+          companyName: 'Default Company',
+          headerStyle: 'modern',
+          primaryColor: '#71569E',
+          secondaryColor: '#F0F0FA',
+          accentColor: '#191160',
+          logo: null,
+          logoMimeType: null,
+          footerText: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
       }
 
-      // Clean and validate image data
-      const sanitizedBranding = {
-        id: branding.id,
-        companyName: branding.company_name,
-        headerStyle: branding.header_style || 'modern',
-        primaryColor: branding.primary_color || '#71569E',
-        secondaryColor: branding.secondary_color || '#F0F0FA',
-        accentColor: branding.accent_color || '#191160',
-        logo: branding.logo ? branding.logo.toString() : null,
-        logoMimeType: branding.logo_mime_type || 'image/png',
-        headerImage: branding.header_image_url ? branding.header_image_url.toString() : null,
-        headerImageMimeType: branding.header_image_mime_type || 'image/png',
-        footerImage: branding.footer_image_url ? branding.footer_image_url.toString() : null,
-        footerImageMimeType: branding.footer_image_mime_type || 'image/png',
-        footerText: branding.footer_text || "Confidential - For Internal Use Only",
-        createdAt: branding.created_at,
-        updatedAt: branding.updated_at
-      };
-
-      // Log what we're sending back (excluding image data for brevity)
-      console.log('Returning branding data:', {
-        ...sanitizedBranding,
-        logo: sanitizedBranding.logo ? '[PRESENT]' : '[MISSING]',
-        headerImage: sanitizedBranding.headerImage ? '[PRESENT]' : '[MISSING]',
-        footerImage: sanitizedBranding.footerImage ? '[PRESENT]' : '[MISSING]',
-      });
-
-      res.json(sanitizedBranding);
+      debug(_req, 'Found branding settings:', settings);
+      res.json(settings);
     } catch (error) {
-      console.error('Error fetching branding:', error);
+      debug(_req, 'Error fetching branding settings:', error);
       next(error);
     }
   });
 
-  // Add POST endpoint for updating branding with enhanced file handling
-  app.post("/api/branding", upload.fields([
-    { name: 'logo', maxCount: 1 },
-    { name: 'headerImage', maxCount: 1 },
-    { name: 'footerImage', maxCount: 1 }
-  ]), async (req: Request, res: Response, next: NextFunction) => {
+  // Add new route for analyzing form submission errors
+  app.post("/api/analyze-submission", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log('Processing branding update request...');
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
-      // Process uploaded files
-      const processFile = (file: Express.Multer.File | undefined) => {
-        if (!file) {
-          console.log('No file provided');
-          return { data: null, mimeType: null };
-        }
+      debug(req, 'Analyzing form submission error:', req.body);
 
-        console.log(`Processing file: ${file.fieldname}, type: ${file.mimetype}, size: ${file.size}`);
+      const { formData, error, formState } = req.body;
 
-        if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
-          throw new Error(`Invalid file type: ${file.mimetype}. Only JPEG and PNG allowed.`);
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error('File size must be less than 5MB');
-        }
-
-        return {
-          data: file.buffer.toString('base64'),
-          mimeType: file.mimetype
-        };
-      };
-
-      // Process each file type
-      const logo = processFile(files.logo?.[0]);
-      const headerImage = processFile(files.headerImage?.[0]);
-      const footerImage = processFile(files.footerImage?.[0]);
-
-      // Get other form data
-      const {
-        companyName,
-        headerStyle = 'modern',
-        primaryColor = '#71569E',
-        secondaryColor = '#F0F0FA',
-        accentColor = '#191160',
-        footerText = 'Confidential - For Internal Use Only'
-      } = req.body;
-
-      console.log('Updating branding with data:', {
-        companyName,
-        headerStyle,
-        hasLogo: !!logo.data,
-        hasHeaderImage: !!headerImage.data,
-        hasFooterImage: !!footerImage.data
+      // Use Claude to analyze the submission error
+      const analysis = await analyzeFormSubmission({
+        formData,
+        error,
+        formState,
+        requestId: formData?.id,
+        userId: req.user?.id
       });
 
-      // Update database
-      const [updatedBranding] = await db
-        .insert(companyBranding)
-        .values({
-          company_name: companyName,
-          header_style: headerStyle,
-          primary_color: primaryColor,
-          secondary_color: secondaryColor,
-          accent_color: accentColor,
-          footer_text: footerText,
-          logo: logo.data,
-          logo_mime_type: logo.mimeType,
-          header_image_url: headerImage.data,
-          header_image_mime_type: headerImage.mimeType,
-          footer_image_url: footerImage.data,
-          footer_image_mime_type: footerImage.mimeType,
-          created_at: new Date(),
-          updated_at: new Date()
+      debug(req, 'Analysis result:', analysis);
+      res.json(analysis);
+    } catch (error) {
+      debug(req, 'Error analyzing form submission:', error);
+      next(error);
+    }
+  });
+
+
+  // Update the GET /api/requests/:id endpoint
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+
+      // Get request with all related data
+      const [request] = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          items: purchaseRequests.items,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
+          vendorId: purchaseRequests.vendorId,
+          subPurposeId: purchaseRequests.subPurposeId,
+          freightAmount: purchaseRequests.freightAmount,
+          currency: purchaseRequests.currency
         })
-        .returning();
-
-      console.log('Successfully updated branding');
-      res.status(201).json({
-        message: 'Branding updated successfully',
-        branding: {
-          ...updatedBranding,
-          logo: updatedBranding.logo ? '[PRESENT]' : '[MISSING]',
-          headerImage: updatedBranding.header_image_url ? '[PRESENT]' : '[MISSING]',
-          footerImage: updatedBranding.footer_image_url ? '[PRESENT]' : '[MISSING]'
-        }
-      });
-    } catch (error) {
-      console.error('Error updating branding:', error);
-      next(error);
-    }
-  });
-
-  // Get notifications endpoint
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const userNotifications = await db
-        .select()
-        .from(notifications)
-        .where(eq(notifications.userId, req.user!.id))
-        .orderBy(desc(notifications.createdAt));
-
-      res.json(userNotifications);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Mark notification as read endpoint
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const notificationId = parseInt(req.params.id);
-
-      // Verify notification belongs to user
-      const [notification] = await db
-        .select()
-        .from(notifications)
-        .where(and(
-          eq(notifications.id, notificationId),
-          eq(notifications.userId, req.user!.id)
-        ))
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
         .limit(1);
 
-      if (!notification) {
-        throw new AppError('Notification not found', 404);
+      if (!request) {
+        throw new AppError('Request not found', 404);
       }
 
-      // Update notification
-      await db
-        .update(notifications)
-        .set({ isRead: true })
-        .where(eq(notifications.id, notificationId));
-
-      res.json({ message: 'Notification marked as read' });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Add mood board generation endpoint
-  app.post("/api/branding/generate-mood-board", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+      // Get vendor details if vendorId exists
+      let vendor = null;
+      if (request.vendorId) {
+        const [vendorData] = await db
+          .select()
+          .from(vendors)
+          .where(eq(vendors.id, request.vendorId))
+          .limit(1);
+        vendor = vendorData;
       }
 
-      const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
-
-      if (!companyName || !primaryColor) {
-        throw new ValidationError('Company name and primary color are required');
+      // Get sub-purpose details if subPurposeId exists
+      let subPurpose = null;
+      if (request.subPurposeId) {
+        const [subPurposeData] = await db
+          .select()
+          .from(subPurposes)
+          .where(eq(subPurposes.id, request.subPurposeId))
+          .limit(1);
+        subPurpose = subPurposeData;
       }
 
-      const prompt = `Create a brand mood board for a company named "${companyName}". 
-        The brand colors are:
-        - Primary: ${primaryColor}
-        - Secondary: ${secondaryColor || 'not specified'}
-        - Accent: ${accentColor || 'not specified'}
+      // Get approvals for this request
+      const approvalsList = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
 
-        Generate a mood board that reflects the company's brand identity, incorporating these colors
-        and creating a cohesive visual theme. The mood board should include elements that represent
-        the brand's personality and values.`;
+      // Get attachments
+      const attachmentsList = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, requestId));
 
-      const message = await anthropic.messages.create({
-        model: "claude-3-opus-20240229",
-        max_tokens: 4096,
-        messages: [{
-          role: "user",
-          content: prompt
-        }],
-      });
+      // Parse items JSON
+      const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
 
-      const suggestions = message.content[0].text;
-
+      // Return complete response
       res.json({
-        success: true,
-        suggestions,
-        moodBoard: {
-          companyName,
-          colors: {
-            primary: primaryColor,
-            secondary: secondaryColor,
-            accent: accentColor
-          },
-          timestamp: new Date().toISOString()
-        }
+        ...request,
+        items,
+        vendor,
+        subPurpose,
+        approvals: approvalsList,
+        attachments: attachmentsList
       });
 
     } catch (error) {
+      console.error('Error fetching request:', error);
       next(error);
     }
   });
@@ -1918,98 +1834,158 @@ app.post("/api/requests", async (req: Request, res: Response, next: NextFunction
     }
   });
 
-  // Remove Redundant Branding Routes
-  // app.get("/api/branding", ...); // Removed
-  // app.post("/api/branding", ...); // Removed
-
-
-  // Update the GET /api/requests/:id endpoint
-  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+  // Get notifications endpoint
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const requestId = parseInt(req.params.id);
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user!.id))
+        .orderBy(sql`${notifications.createdAt} DESC`);
 
-      // Get request with all related data
-      const [request] = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          items: purchaseRequests.items,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          purposeType: purchaseRequests.purposeType,
-          priority: purchaseRequests.priority,
-          isLocked: purchaseRequests.isLocked,
-          vendorId: purchaseRequests.vendorId,
-          subPurposeId: purchaseRequests.subPurposeId,
-          freightAmount: purchaseRequests.freightAmount,
-          currency: purchaseRequests.currency
-        })
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, requestId))
+      res.json(userNotifications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Mark notification as read endpoint
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+
+      // Verify notification belongs to user
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, req.user!.id)
+        ))
         .limit(1);
 
-      if (!request) {
-        throw new AppError('Request not found', 404);
+      if (!notification) {
+        throw new AppError('Notification not found', 404);
       }
 
-      // Get vendor details if vendorId exists
-      let vendor = null;
-      if (request.vendorId) {
-        const [vendorData] = await db
-          .select()
-          .from(vendors)
-          .where(eq(vendors.id, request.vendorId))
-          .limit(1);
-        vendor = vendorData;
+      // Update notification
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, notificationId));
+
+      res.json({ message: 'Notification marked as read' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add mood board generation endpoint
+  app.post("/api/branding/generate-mood-board", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
       }
 
-      // Get sub-purpose details if subPurposeId exists
-      let subPurpose = null;
-      if (request.subPurposeId) {
-        const [subPurposeData] = await db
-          .select()
-          .from(subPurposes)
-          .where(eq(subPurposes.id, request.subPurposeId))
-          .limit(1);
-        subPurpose = subPurposeData;
+      const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
+
+      if (!companyName || !primaryColor) {
+        throw new ValidationError('Company name and primary color are required');
       }
 
-      // Get approvals for this request
-      const approvalsList = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId));
+      const prompt = `Create a brand mood board for a company named "${companyName}". 
+        The brand colors are:
+        - Primary: ${primaryColor}
+        - Secondary: ${secondaryColor || 'not specified'}
+        - Accent: ${accentColor || 'not specified'}
 
-      // Get attachments
-      const attachmentsList = await db
-        .select()
-        .from(fileAttachments)
-        .where(eq(fileAttachments.requestId, requestId));
+        Generate a mood board that reflects the company's brand identity, incorporating these colors
+        and creating a cohesive visual theme. The mood board should include elements that represent
+        the brand's personality and values.`;
 
-      // Parse items JSON
-      const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
+      const message = await anthropic.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 4096,
+        messages: [{
+          role: "user",
+          content: prompt
+        }],
+      });
 
-      // Return complete response
+      const suggestions = message.content[0].text;
+
       res.json({
-        ...request,
-        items,
-        vendor,
-        subPurpose,
-        approvals: approvalsList,
-        attachments: attachmentsList
+        success: true,
+        suggestions,
+        moodBoard: {
+          companyName,
+          colors: {
+            primary: primaryColor,
+            secondary: secondaryColor,
+            accent: accentColor
+          },
+          timestamp: new Date().toISOString()
+        }
       });
 
     } catch (error) {
-      console.error('Error fetching request:', error);
+      next(error);
+    }
+  });
+
+  // Enhanced branding endpoint with better error handling
+  app.get("/api/branding/current", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const brandingResult = await db
+        .select({
+          company_name: companyBranding.company_name,
+          header_style: companyBranding.header_style,
+          primary_color: companyBranding.primary_color,
+          secondary_color: companyBranding.secondary_color,
+          accent_color: companyBranding.accent_color,
+          logo: companyBranding.logo,
+          logo_mime_type: companyBranding.logo_mime_type,
+          header_image_url: companyBranding.header_image_url,
+          header_image_mime_type: companyBranding.header_image_mime_type,
+          footer_image_url: companyBranding.footer_image_url,
+          footer_image_mime_type: companyBranding.footer_image_mime_type,
+          footer_text: companyBranding.footer_text,
+          created_at: companyBranding.created_at,
+          updated_at: companyBranding.updated_at
+        })
+        .from(companyBranding)
+        .orderBy(sql`${companyBranding.created_at} DESC`)
+        .limit(1);
+
+      const branding = brandingResult[0];
+
+      if (!branding) {
+        return res.json({
+          company_name: "Events & Entertainment Enterprises",
+          header_style: "modern",
+          primary_color: "#71569E",
+          secondary_color: "#F0F0FA",
+          accent_color: "#191160",
+          logo: null,
+          logo_mime_type: null,
+          header_image_url: null,
+          header_image_mime_type: null,
+          footer_image_url: null,
+          footer_image_mime_type: null,
+          footer_text: "Designed with ❤️ by E3"
+        });
+      }
+
+      res.json(branding);
+    } catch (error) {
       next(error);
     }
   });
