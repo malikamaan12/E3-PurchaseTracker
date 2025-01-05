@@ -151,6 +151,7 @@ export default function RequestCard({
   const [showVendorDetails, setShowVendorDetails] = useState(false);
   const [showRequestChangesDialog, setShowRequestChangesDialog] = useState(false);
   const [changeRequestComments, setChangeRequestComments] = useState("");
+  const { data: brandingData } = useCompanyBranding();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -256,9 +257,11 @@ export default function RequestCard({
 
   const handleDownloadPDF = async () => {
     try {
-      const { data: brandingData } = useCompanyBranding();
+      if (!brandingData) {
+        throw new Error('Branding data not available');
+      }
 
-      // Generate PDF on the client side
+      // Generate PDF with branding data
       const doc = await generateRequestPDF(request, brandingData);
 
       // Save the PDF
