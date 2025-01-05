@@ -3,49 +3,6 @@ import { relations, type InferModel } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Company Branding table definition
-export const companyBranding = pgTable("company_branding", {
-  id: serial("id").primaryKey(),
-  company_name: text("company_name").notNull(),
-  header_style: text("header_style").notNull().default("modern"),
-  primary_color: text("primary_color").notNull().default("#71569E"),
-  secondary_color: text("secondary_color").notNull().default("#F0F0FA"),
-  accent_color: text("accent_color").notNull().default("#191160"),
-  logo: text("logo"),
-  logo_mime_type: text("logo_mime_type"),
-  header_image_url: text("header_image_url"),
-  header_image_mime_type: text("header_image_mime_type"),
-  footer_image_url: text("footer_image_url"),
-  footer_image_mime_type: text("footer_image_mime_type"),
-  footer_text: text("footer_text"),
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow(),
-});
-
-// Base schema for company branding validation
-export const companyBrandingSchema = z.object({
-  company_name: z.string().min(1, "Company name is required"),
-  header_style: z.enum(["modern", "classic", "minimal"]).default("modern"),
-  primary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#71569E"),
-  secondary_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#F0F0FA"),
-  accent_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format").default("#191160"),
-  logo: z.string().nullable(),
-  logo_mime_type: z.string().nullable(),
-  header_image_url: z.string().nullable(),
-  header_image_mime_type: z.string().nullable(),
-  footer_image_url: z.string().nullable(),
-  footer_image_mime_type: z.string().nullable(),
-  footer_text: z.string().nullable(),
-});
-
-// Create insert and select schemas
-export const insertCompanyBrandingSchema = companyBrandingSchema;
-export const selectCompanyBrandingSchema = createSelectSchema(companyBranding);
-
-// Type definitions for company branding
-export type CompanyBranding = InferModel<typeof companyBranding>;
-export type InsertCompanyBranding = z.infer<typeof companyBrandingSchema>;
-
 //users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -60,6 +17,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+//accountRequests table
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),

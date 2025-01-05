@@ -14,7 +14,6 @@ import {
   errorLogs,
   subPurposes,
   accountRequests,
-  companyBranding,
   insertPurchaseRequestSchema,
   type InsertVendor,
   insertAccountRequestSchema,
@@ -199,62 +198,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-  // Enhanced branding endpoint with better error handling
-  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(_req, 'Fetching company branding');
-
-      const brandingResult = await db
-        .select({
-          company_name: companyBranding.company_name,
-          header_style: companyBranding.header_style,
-          primary_color: companyBranding.primary_color,
-          secondary_color: companyBranding.secondary_color,
-          accent_color: companyBranding.accent_color,
-          logo: companyBranding.logo,
-          logo_mime_type: companyBranding.logo_mime_type,
-          header_image: companyBranding.header_image_url,
-          header_image_mime_type: companyBranding.header_image_mime_type,
-          footer_image: companyBranding.footer_image_url,
-          footer_image_mime_type: companyBranding.footer_image_mime_type,
-          footer_text: companyBranding.footer_text,
-          created_at: companyBranding.created_at,
-          updated_at: companyBranding.updated_at
-        })
-        .from(companyBranding)
-        .orderBy(sql`${companyBranding.created_at} DESC`)
-        .limit(1);
-
-      const branding = brandingResult[0];
-
-      if (!branding) {
-        debug(_req, 'No branding found, using defaults');
-        return res.json({
-          company_name: "Events & Entertainment Enterprises",
-          header_style: "modern",
-          primary_color: "#71569E",
-          secondary_color: "#F0F0FA",
-          accent_color: "#191160",
-          logo: null,
-          logo_mime_type: null,
-          header_image: null,
-          header_image_mime_type: null,
-          footer_image: null,
-          footer_image_mime_type: null,
-          footer_text: "Designed with ❤️ by E3",
-          created_at: new Date(),
-          updated_at: new Date()
-        });
-      }
-
-      debug(_req, 'Successfully fetched branding');
-      res.json(branding);
-    } catch (error) {
-      debug(_req, 'Error fetching branding:', error);
-      next(error);
-    }
-  });
-
   // Update the create purchase request endpoint
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1036,9 +979,7 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Error fetching vendors:', error);
       next(error);
     }
-  });
-
-  app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+  });app.post("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);

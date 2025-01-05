@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
@@ -289,12 +288,11 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
           <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
           <TabsTrigger value="sub-purposes">Sub-purposes</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="department-analytics">
             <BarChart className="h-4 w-4 mr-2" />
             Department Analytics
@@ -658,21 +656,6 @@ export default function AdminPanel() {
                   </Form>
                 </DialogContent>
               </Dialog>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Branding Tab */}
-        <TabsContent value="branding">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Branding</CardTitle>
-              <CardDescription>
-                Customize your company's branding settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DraggableBrandingForm />
             </CardContent>
           </Card>
         </TabsContent>
