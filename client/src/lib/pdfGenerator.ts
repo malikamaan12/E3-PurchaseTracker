@@ -17,10 +17,23 @@ interface TemplateConfig {
     footerImage: string | null;
     footerImageMimeType: string | null;
   };
-  layout: 'modern' | 'classic' | 'bento';
-  headerHeight: number;
-  footerHeight: number;
-  showLogo: boolean;
+  layout?: 'modern' | 'classic' | 'bento';
+  headerHeight?: number;
+  footerHeight?: number;
+  showLogo?: boolean;
+}
+
+function hexToRGB(hex: string): [number, number, number] {
+  // Remove the hash if it exists
+  hex = hex.replace(/^#/, '');
+
+  // Parse the hex values
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+
+  // Return as RGB tuple
+  return [r, g, b];
 }
 
 async function fetchBranding(): Promise<TemplateConfig['branding']> {
@@ -33,21 +46,27 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     const data = await response.json();
     console.log('Branding data received:', data);
 
+    // Convert hex colors to RGB
+    const primaryColor = hexToRGB(data.primaryColor);
+    const secondaryColor = hexToRGB(data.secondaryColor);
+    const accentColor = hexToRGB(data.accentColor);
+
     return {
       companyName: data.companyName || 'Company Name',
-      primaryColor: hexToRGB(data.primaryColor || '#71569E'),
-      secondaryColor: hexToRGB(data.secondaryColor || '#F0F0FA'),
-      accentColor: hexToRGB(data.accentColor || '#191160'),
+      primaryColor,
+      secondaryColor,
+      accentColor,
       footerText: data.footerText || "Confidential Document",
       logo: data.logo || null,
       logoMimeType: data.logoMimeType || null,
-      headerImage: data.headerImage || null,
+      headerImage: data.headerImageUrl || null,
       headerImageMimeType: data.headerImageMimeType || null,
-      footerImage: data.footerImage || null,
+      footerImage: data.footerImageUrl || null,
       footerImageMimeType: data.footerImageMimeType || null,
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
+    // Return default branding
     return {
       companyName: "Company Name",
       primaryColor: [113, 86, 158], // #71569E
@@ -64,15 +83,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
   }
 }
 
-function hexToRGB(hex: string): [number, number, number] {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [
-    parseInt(result[1], 16),
-    parseInt(result[2], 16),
-    parseInt(result[3], 16)
-  ] : [113, 86, 158]; // Default to #71569E if invalid
-}
-
 function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
   if (!imageData || !mimeType) {
     return false;
@@ -80,15 +90,15 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 
   try {
     const base64Data = imageData.includes('base64,') ?
-      imageData.split('base64,')[1] :
-      imageData;
+      imageData :
+      `data:${mimeType};base64,${imageData}`;
 
     const imgFormat = mimeType.split('/')[1].toUpperCase();
     if (!['PNG', 'JPEG', 'JPG'].includes(imgFormat)) {
       return false;
     }
 
-    doc.addImage(`data:${mimeType};base64,${base64Data}`, imgFormat, x, y, width, height);
+    doc.addImage(base64Data, imgFormat, x, y, width, height);
     return true;
   } catch (error) {
     console.error('Error adding image to PDF:', error);
@@ -97,7 +107,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 }
 
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = config.headerHeight;
+  const headerHeight = config.headerHeight || 35;
 
   // Try header image first
   if (config.branding.headerImage) {
@@ -148,7 +158,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
 }
 
 function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = config.footerHeight;
+  const footerHeight = config.footerHeight || 25;
   const footerY = pageHeight - footerHeight;
 
   // Try footer image first
@@ -181,37 +191,6 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   return footerHeight;
 }
 
-function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y: number, width: number, height: number, config: TemplateConfig) {
-  // Background with secondary color
-  doc.setFillColor(...config.branding.secondaryColor);
-  doc.roundedRect(x, y, width, height, 2, 2, 'F');
-
-  // Header with primary color
-  doc.setFillColor(...config.branding.primaryColor);
-  doc.roundedRect(x, y, width, 15, 2, 2, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text(title.toUpperCase(), x + 5, y + 10);
-
-  // Content with accent color for text
-  doc.setTextColor(...config.branding.accentColor);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  let contentY = y + 22;
-
-  content.forEach((text) => {
-    if (text) {
-      const maxWidth = width - 10;
-      const lines = doc.splitTextToSize(text, maxWidth);
-      lines.forEach((line: string) => {
-        doc.text(line, x + 5, contentY);
-        contentY += 10;
-      });
-    }
-  });
-}
-
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
     console.log('Starting PDF generation for request:', {
@@ -225,11 +204,10 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     const config: TemplateConfig = {
       branding,
-      layout: 'bento',
-      headerHeight: 35,
-      footerHeight: 25,
-      showLogo: true,
-      ...templateConfig
+      layout: templateConfig.layout || 'modern',
+      headerHeight: templateConfig.headerHeight || 35,
+      footerHeight: templateConfig.footerHeight || 25,
+      showLogo: templateConfig.showLogo ?? true,
     };
 
     const doc = new jsPDF();
@@ -237,78 +215,53 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const pageHeight = doc.internal.pageSize.height;
     const margin = 10;
     const contentWidth = pageWidth - (margin * 2);
-    const columnWidth = (contentWidth - margin) / 2;
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    console.log('Header applied at height:', headerHeight);
-    let yPos = headerHeight + 5;
+    let yPos = headerHeight + margin;
 
     // Title and Description
-    const titleInfo = [
-      `Title: ${request.title || 'N/A'}`,
-      `Description: ${request.description || 'N/A'}`
-    ];
-    addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, 45, config);
+    doc.setTextColor(...config.branding.accentColor);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.title || 'Untitled Request', margin, yPos);
 
-    // Request Info and Vendor Info (side by side)
-    yPos += 50;
-    const requestInfo = [
-      `Request #: ${request.requestNumber || 'N/A'}`,
-      `Status: ${(request.status || 'N/A').toUpperCase()}`,
-      `Priority: ${(request.priority || 'N/A').toUpperCase()}`
-    ];
-    addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
+    yPos += 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const description = doc.splitTextToSize(request.description || 'No description provided', contentWidth);
+    doc.text(description, margin, yPos);
 
-    const vendor = request.vendor || {};
-    const vendorInfo = [
-      `Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
-      `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
-      `Contact: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
-      `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`
-    ];
-    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
+    yPos += description.length * 7 + margin;
 
-    // Items Table
-    yPos += 50;
+    // Request Details
     const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
-      item.description || 'N/A',
       item.quantity?.toString() || '0',
       formatCurrency(item.estimatedCost || 0, request.currency),
       formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
     ]);
 
-    console.log('Processing items for table:', items);
-
     autoTable(doc, {
       startY: yPos,
-      head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
+      head: [['Item', 'Quantity', 'Unit Cost', 'Total']],
       body: items,
       foot: [
-        ['', '', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
-        ['', '', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
+        ['', '', 'Total:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
       headStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 8,
-        fontStyle: 'bold',
-        cellPadding: 2
-      },
-      bodyStyles: {
-        fontSize: 8,
-        cellPadding: 2,
-        textColor: config.branding.accentColor
+        fontSize: 10,
+        fontStyle: 'bold'
       },
       footStyles: {
         fillColor: config.branding.primaryColor,
         textColor: [255, 255, 255],
-        fontSize: 8,
-        fontStyle: 'bold',
-        cellPadding: 2
+        fontSize: 10,
+        fontStyle: 'bold'
       },
-      theme: 'plain',
+      theme: 'grid',
       margin: { left: margin, right: margin }
     });
 
@@ -342,15 +295,11 @@ function formatCurrency(amount: number, currency: string = 'QAR'): string {
   }
 }
 
-function calculateItemsTotal(request: any): number {
+function calculateTotalCost(request: any): number {
   return (request.items || []).reduce(
     (sum: number, item: any) => sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)),
     0
   );
-}
-
-function calculateTotalCost(request: any): number {
-  return calculateItemsTotal(request);
 }
 
 function formatFileSize(bytes: number): string {
