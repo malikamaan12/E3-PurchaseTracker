@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus, BarChart } from "lucide-react";
+import { ArrowLeft, Check, X, Plus, BarChart, Palette } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -61,6 +61,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import CompanyBrandingForm from "@/components/CompanyBrandingForm";
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -288,7 +289,7 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
           <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
@@ -296,6 +297,10 @@ export default function AdminPanel() {
           <TabsTrigger value="department-analytics">
             <BarChart className="h-4 w-4 mr-2" />
             Department Analytics
+          </TabsTrigger>
+          <TabsTrigger value="branding">
+            <Palette className="h-4 w-4 mr-2" />
+            Branding
           </TabsTrigger>
         </TabsList>
 
@@ -671,6 +676,21 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <DepartmentDashboard />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Branding Tab */}
+        <TabsContent value="branding">
+          <Card>
+            <CardHeader>
+              <CardTitle>Company Branding</CardTitle>
+              <CardDescription>
+                Manage company branding, document templates, and visual identity settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CompanyBrandingForm />
             </CardContent>
           </Card>
         </TabsContent>
