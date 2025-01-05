@@ -179,7 +179,7 @@ export default function Dashboard() {
   );
 
   const changesRequestedRequests = visibleRequests.filter(
-    (r) => r?.status === "changes_requested"
+    (r) => r?.status === "changes_requested" || (r?.approvals && r?.approvals.some(a => a.status === "changes_requested"))
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {

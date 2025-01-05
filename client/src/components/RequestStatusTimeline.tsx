@@ -145,7 +145,9 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                       {status.status === 'pending' && request.status === 'pending' && request.approvals && (
                         <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4 animate-slide-in">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
-                          {request.approvals.map((approval: any) => (
+                          {request.approvals
+                            .filter(approval => approval.status === 'pending' || approval.status === 'approved')
+                            .map((approval: any) => (
                             <div 
                               key={approval.id} 
                               className={cn(
@@ -156,12 +158,8 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                               <div className="flex-shrink-0">
                                 {approval.status === 'pending' ? (
                                   <Clock className="h-5 w-5 text-blue-500" />
-                                ) : approval.status === 'approved' ? (
-                                  <CheckCircle className="h-5 w-5 text-green-500" />
-                                ) : approval.status === 'changes_requested' ? (
-                                  <PencilLine className="h-5 w-5 text-orange-500" />
                                 ) : (
-                                  <XCircle className="h-5 w-5 text-red-500" />
+                                  <CheckCircle className="h-5 w-5 text-green-500" />
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -176,8 +174,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                  {approval.status === 'changes_requested' ? 'Changes Requested' : 
-                                    approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                                  {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
                                 </p>
                                 {approval.comments && (
                                   <p className="text-sm text-gray-600 mt-1 italic">
