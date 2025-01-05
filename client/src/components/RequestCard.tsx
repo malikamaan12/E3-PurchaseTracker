@@ -48,6 +48,16 @@ import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -138,6 +148,8 @@ export default function RequestCard({
   const [showPreview, setShowPreview] = useState(false);
   const queryClient = useQueryClient();
   const [showVendorDetails, setShowVendorDetails] = useState(false);
+  const [showRequestChangesDialog, setShowRequestChangesDialog] = useState(false);
+  const [changeRequestComments, setChangeRequestComments] = useState("");
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -283,15 +295,26 @@ export default function RequestCard({
     }
 
     try {
+      const commentsToUse = status === "changes_requested" ? changeRequestComments : comments;
+
       await createApproval({
         requestId: request.id,
         status,
-        comments,
+        comments: commentsToUse,
         department: user.department
       });
 
       setComments("");
+      setChangeRequestComments("");
+      setShowRequestChangesDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+
+      toast({
+        title: "Success",
+        description: status === "changes_requested"
+          ? "Changes requested successfully"
+          : `Request ${status} successfully`,
+      });
     } catch (error) {
       console.error('Error in handleApproval:', error);
       toast({
@@ -341,12 +364,12 @@ export default function RequestCard({
   };
 
   const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
 
   const handleDelete = async (requestId: number) => {
@@ -697,16 +720,74 @@ export default function RequestCard({
 
           {showApproval && (
             <div className="space-y-4 pt-4 border-t border-gray-100">
-              <ApprovalFlow
-                approvals={request.approvals}
-                requestId={request.id}
-                requesterId={request.requesterId}
-                status={request.status}
-                onApprovalUpdate={() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-                  queryClient.invalidateQueries({ queryKey: [`/api/requests/${request.id}`] });
-                }}
-              />
+              <h3 className="text-lg font-medium">Approval Actions</h3>
+              <div className="space-y-4">
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="comments" className="text-sm font-medium">
+                    Comments
+                  </label>
+                  <Textarea
+                    id="comments"
+                    value={comments}
+                    onChange={(e) => setComments(e.target.value)}
+                    placeholder="Add any comments about your decision..."
+                    className="min-h-[100px]"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Dialog open={showRequestChangesDialog} onOpenChange={setShowRequestChangesDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="bg-orange-50 text-orange-600 hover:bg-orange-100">
+                        Request Changes
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Request Changes</DialogTitle>
+                        <DialogDescription>
+                          Specify what changes are needed for this request.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Textarea
+                          value={changeRequestComments}
+                          onChange={(e) => setChangeRequestComments(e.target.value)}
+                          placeholder="Describe the changes needed..."
+                          className="min-h-[150px]"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setShowRequestChangesDialog(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleApproval("changes_requested")}
+                          className="bg-orange-600 hover:bg-orange-700"
+                          disabled={!changeRequestComments.trim()}
+                        >
+                          Submit Change Request
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    variant="outline"
+                    className="bg-red-50 text-red-600 hover:bg-red-100"
+                    onClick={() => handleApproval("rejected")}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => handleApproval("approved")}
+                  >
+                    Approve
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
