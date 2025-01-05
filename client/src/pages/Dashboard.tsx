@@ -5,13 +5,6 @@ import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
 import { Loader2 } from "lucide-react";
@@ -84,31 +77,18 @@ interface RequestData {
 export default function Dashboard() {
   const { user, logout } = useUser();
   const { requests = [], isLoading, error } = usePurchaseRequests();
-  const { preferences, updatePreferences, resetFilters } = useDashboardPreferences();
+  const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  // For debugging
-  console.log('Current user:', user);
-  console.log('All requests:', requests);
-
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [purposeTypeFilter, setPurposeTypeFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Reset filters when component mounts or user changes
+  // Reset search when component mounts or user changes
   useEffect(() => {
     if (user) {
-      console.log('Resetting filters for user:', user.username);
-      setDepartmentFilter("all");
-      setPurposeTypeFilter("all");
-      setPriorityFilter("all");
       setSearchQuery("");
-      resetFilters();
     }
-  }, [user, resetFilters]);
+  }, [user]);
 
   const isSpecialRole = useMemo(() => {
     const hasSpecialRole = user?.role === "admin" ||
@@ -117,7 +97,6 @@ export default function Dashboard() {
       user?.department === "Director" ||
       user?.department === "Finance";
 
-    console.log('User special role status:', hasSpecialRole);
     return hasSpecialRole;
   }, [user?.role, user?.department]);
 
@@ -160,67 +139,47 @@ export default function Dashboard() {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
 
-  const filterRequests = (requestList: RequestData[]): RequestData[] => {
-    if (!Array.isArray(requestList)) return [];
-
-    return requestList.filter((r) => {
-      if (!r) return false;
-
-      const matchesDepartment =
-        departmentFilter === "all" || r.requester?.department === departmentFilter;
-      const matchesPurposeType =
-        purposeTypeFilter === "all" || r.purposeType === purposeTypeFilter;
-      const matchesPriority =
-        priorityFilter === "all" || r.priority === priorityFilter;
-      const matchesSearch =
-        !searchQuery ||
-        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return (
-        matchesDepartment &&
-        matchesPurposeType &&
-        matchesPriority &&
-        matchesSearch
-      );
-    });
-  };
-
   // Get all requests visible to the user based on their role
   const visibleRequests: RequestData[] = useMemo(() => {
     if (!Array.isArray(requests)) return [];
 
-    if (isAdmin || isApprover || isSpecialRole) {
-      return requests as RequestData[];
-    }
+    const filteredRequests = isAdmin || isApprover || isSpecialRole
+      ? requests
+      : requests.filter((r) => r?.requesterId === user?.id);
 
-    // Regular users can only see their own requests
-    return (requests as RequestData[]).filter((r) => r?.requesterId === user?.id);
-  }, [requests, isAdmin, isApprover, isSpecialRole, user?.id]);
+    if (!searchQuery) return filteredRequests;
 
-  const myDrafts = filterRequests(
-    visibleRequests.filter((r) => r?.requesterId === user?.id && r?.status === "draft")
+    return filteredRequests.filter((r) => {
+      const matchesSearch =
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [requests, isAdmin, isApprover, isSpecialRole, user?.id, searchQuery]);
+
+  const myDrafts = visibleRequests.filter(
+    (r) => r?.requesterId === user?.id && r?.status === "draft"
   );
 
-  const mySubmittedRequests = filterRequests(
-    visibleRequests.filter((r) => r?.requesterId === user?.id && r?.status !== "draft")
+  const mySubmittedRequests = visibleRequests.filter(
+    (r) => r?.requesterId === user?.id && r?.status !== "draft"
   );
 
-  const pendingRequests = filterRequests(
-    visibleRequests.filter((r) => r?.status === "pending")
+  const pendingRequests = visibleRequests.filter(
+    (r) => r?.status === "pending"
   );
 
-  const approvedRequests = filterRequests(
-    visibleRequests.filter((r) => r?.status === "approved")
+  const approvedRequests = visibleRequests.filter(
+    (r) => r?.status === "approved"
   );
 
-  const rejectedRequests = filterRequests(
-    visibleRequests.filter((r) => r?.status === "rejected")
+  const rejectedRequests = visibleRequests.filter(
+    (r) => r?.status === "rejected"
   );
 
-  const changesRequestedRequests = filterRequests(
-    visibleRequests.filter((r) => r?.status === "changes_requested")
+  const changesRequestedRequests = visibleRequests.filter(
+    (r) => r?.status === "changes_requested"
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -321,6 +280,7 @@ export default function Dashboard() {
              Array.isArray(request.items) &&
              request.items.length > 0;
     };
+
     return (
       <Table>
         <TableHeader>
@@ -339,14 +299,6 @@ export default function Dashboard() {
           {requests.map((request) => {
             if (!request) return null;
 
-            const canSubmitDraft = (request: RequestData) => {
-              return request.status === "draft" &&
-                     request.requesterId === user?.id &&
-                     request.title &&
-                     request.description &&
-                     Array.isArray(request.items) &&
-                     request.items.length > 0;
-            };
             return (
               <TableRow key={request.id}>
                 <TableCell className="font-medium">
@@ -471,16 +423,14 @@ export default function Dashboard() {
     );
   };
 
-  const draftRequestsReadyToSubmit = filterRequests(
-    visibleRequests.filter(
-      (r) =>
-        r?.requesterId === user?.id &&
-        r?.status === "draft" &&
-        r?.title &&
-        r?.description &&
-        Array.isArray(r?.items) &&
-        r?.items.length > 0
-    )
+  const draftRequestsReadyToSubmit = visibleRequests.filter(
+    (r) =>
+      r?.requesterId === user?.id &&
+      r?.status === "draft" &&
+      r?.title &&
+      r?.description &&
+      Array.isArray(r?.items) &&
+      r?.items.length > 0
   );
 
   const handleNotificationClick = (
@@ -490,31 +440,6 @@ export default function Dashboard() {
       setLocation(notification.link);
     }
   };
-
-  const departments = useMemo(() => {
-    if (!Array.isArray(requests)) return [];
-    const deptSet = new Set<string>();
-    requests.forEach((r) => {
-      if (r.requester?.department) {
-        deptSet.add(r.requester.department);
-      }
-    });
-    return Array.from(deptSet);
-  }, [requests]);
-
-  const purposeTypes = useMemo(() => {
-    if (!Array.isArray(requests)) return [];
-    const typeSet = new Set<string>();
-    requests.forEach((r) => {
-      if (r.purposeType) {
-        typeSet.add(r.purposeType);
-      }
-    });
-    return Array.from(typeSet);
-  }, [requests]);
-
-  const priorities = ["low", "medium", "high", "urgent"];
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -563,8 +488,8 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <div className="relative">
+            <div className="flex justify-between gap-4">
+              <div className="relative flex-1">
                 <Input
                   placeholder="Search requests..."
                   value={searchQuery}
@@ -573,63 +498,6 @@ export default function Dashboard() {
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
               </div>
-              <Select
-                value={departmentFilter}
-                onValueChange={setDepartmentFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={purposeTypeFilter}
-                onValueChange={setPurposeTypeFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Purpose" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Purposes</SelectItem>
-                  {purposeTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type.replace("_", " ").toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  {priorities.map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priority.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDepartmentFilter("all");
-                  setPurposeTypeFilter("all");
-                  setPriorityFilter("all");
-                  setSearchQuery("");
-                }}
-              >
-                Clear Filters
-              </Button>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary">
@@ -761,10 +629,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
-                        {renderRequestsTable(
-                          filterRequests(requests || []),
-                          true
-                        )}
+                        {renderRequestsTable(visibleRequests, true)}
                       </div>
                     )}
                   </CardContent>

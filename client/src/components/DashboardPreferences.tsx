@@ -31,9 +31,6 @@ interface DashboardPreferences {
   defaultView: "my-requests" | "all-requests" | "pending" | "approved";
   showDrafts: boolean;
   showPriorityIndicators: boolean;
-  defaultDepartmentFilter: string;
-  defaultPurposeFilter: string;
-  defaultPriorityFilter: string;
 }
 
 export default function DashboardPreferences({
@@ -170,76 +167,6 @@ export default function DashboardPreferences({
                     onUpdate({ showPriorityIndicators: checked })
                   }
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Default Filters</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Department</Label>
-                <Select
-                  value={preferences.defaultDepartmentFilter}
-                  onValueChange={(value) =>
-                    onUpdate({ defaultDepartmentFilter: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    <SelectItem value="Management">Management</SelectItem>
-                    <SelectItem value="Business">Business</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                    <SelectItem value="Support">Support</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Purpose Type</Label>
-                <Select
-                  value={preferences.defaultPurposeFilter}
-                  onValueChange={(value) =>
-                    onUpdate({ defaultPurposeFilter: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Purposes</SelectItem>
-                    <SelectItem value="event">Event</SelectItem>
-                    <SelectItem value="project">Project</SelectItem>
-                    <SelectItem value="mall">Mall</SelectItem>
-                    <SelectItem value="business_growth">Business Growth</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select
-                  value={preferences.defaultPriorityFilter}
-                  onValueChange={(value) =>
-                    onUpdate({ defaultPriorityFilter: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
