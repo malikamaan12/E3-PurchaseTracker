@@ -185,9 +185,8 @@ export default function AdminPanel() {
     },
   });
 
-  // Update the form submission handler
+  // Handle form submission
   const handleSubmit = form.handleSubmit((data) => {
-    // Format dates properly before submission
     const formattedData = {
       ...data,
       valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : null,
@@ -232,6 +231,7 @@ export default function AdminPanel() {
     },
   });
 
+  // Fetch sub-purposes
   const { data: subPurposes = [], isLoading: isLoadingSubPurposes } = useQuery<SubPurpose[]>({
     queryKey: ["/api/admin/sub-purposes"],
     queryFn: async () => {
@@ -497,20 +497,12 @@ export default function AdminPanel() {
                         </TableCell>
                         <TableCell>
                           {subPurpose.valid_from
-                            ? new Date(subPurpose.valid_from).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric'
-                            })
+                            ? new Date(subPurpose.valid_from).toLocaleDateString()
                             : "N/A"}
                         </TableCell>
                         <TableCell>
                           {subPurpose.valid_to
-                            ? new Date(subPurpose.valid_to).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric'
-                            })
+                            ? new Date(subPurpose.valid_to).toLocaleDateString()
                             : "N/A"}
                         </TableCell>
                         <TableCell>
