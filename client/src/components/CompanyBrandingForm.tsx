@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export default function CompanyBrandingForm() {
   });
 
   // Update form defaults when data is loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (brandingSettings) {
       form.reset(brandingSettings);
     }
