@@ -21,9 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download, Share2 } from "lucide-react";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#6366F1'];
 
@@ -31,6 +33,8 @@ export default function DepartmentDashboard() {
   const [selectedVendor, setSelectedVendor] = useState<string>("all");
   const [selectedPurpose, setSelectedPurpose] = useState<string>("all");
   const [selectedSubPurpose, setSelectedSubPurpose] = useState<string>("all");
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   const { requests, isLoading } = usePurchaseRequests();
 
@@ -103,6 +107,134 @@ export default function DepartmentDashboard() {
     return Object.entries(data).map(([name, value]) => ({ name, value }));
   }, [filteredRequests]);
 
+  // Export functions
+  const prepareExportData = () => {
+    return filteredRequests.map(request => ({
+      'Request ID': request.id,
+      'Title': request.title,
+      'Status': request.status,
+      'Purpose': request.purposeType,
+      'Total Amount': request.totalEstimatedCost,
+      'Created At': new Date(request.createdAt).toLocaleDateString(),
+      'Vendor': vendors.find(v => v.id === request.vendorId)?.name || 'N/A',
+      'Sub Purpose': subPurposes.find(sp => sp.id === request.subPurposeId)?.name || 'N/A'
+    }));
+  };
+
+  const exportToExcel = async () => {
+    try {
+      setIsExporting(true);
+      const exportData = prepareExportData();
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Add summary sheet
+      const summaryData = [
+        { Metric: 'Total Requests', Value: stats.total },
+        { Metric: 'Approved', Value: stats.approved },
+        { Metric: 'Rejected', Value: stats.rejected },
+        { Metric: 'Pending', Value: stats.pending },
+        { Metric: 'Draft', Value: stats.draft },
+        { Metric: 'Total Amount', Value: stats.totalAmount },
+      ];
+      const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+
+      // Add worksheets to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Requests");
+      XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
+
+      // Generate Excel file
+      XLSX.writeFile(wb, `department_dashboard_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      toast({
+        title: "Export Successful",
+        description: "Dashboard data has been exported to Excel",
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export dashboard data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportToCSV = async () => {
+    try {
+      setIsExporting(true);
+      const exportData = prepareExportData();
+      const csv = [
+        Object.keys(exportData[0]).join(','), // Header
+        ...exportData.map(row => Object.values(row).join(',')) // Data rows
+      ].join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('hidden', '');
+      a.setAttribute('href', url);
+      a.setAttribute('download', `department_dashboard_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Successful",
+        description: "Dashboard data has been exported to CSV",
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export dashboard data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const shareInsights = async () => {
+    try {
+      // Get the current dashboard state including filters
+      const dashboardState = {
+        filters: {
+          vendor: selectedVendor,
+          purpose: selectedPurpose,
+          subPurpose: selectedSubPurpose
+        },
+        stats,
+        statusData,
+        purposeData
+      };
+
+      // Create a shareable URL with state
+      const stateParam = encodeURIComponent(JSON.stringify(dashboardState));
+      const shareableUrl = `${window.location.origin}/department-dashboard?state=${stateParam}`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareableUrl);
+
+      toast({
+        title: "Share Link Copied",
+        description: "Dashboard link has been copied to clipboard",
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      toast({
+        title: "Share Failed",
+        description: "Failed to generate share link",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -113,7 +245,45 @@ export default function DepartmentDashboard() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-8">Department Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Department Dashboard</h1>
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            onClick={exportToExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={exportToCSV}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={shareInsights}
+            className="flex items-center gap-2"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
