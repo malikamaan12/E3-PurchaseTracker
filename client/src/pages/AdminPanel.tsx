@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
-import { analyzeFormStateIssue } from "@/services/anthropicService";
 import {
   Card,
   CardContent,
@@ -89,13 +88,14 @@ export default function AdminPanel() {
   // Initialize form with validation schema
   const filterForm = useForm<AccountRequestFilters>({
     resolver: zodResolver(filterSchema),
-    defaultValues: {
-      status: '',
-      department: '',
-      role: ''
-    },
+    defaultValues: filters,
     mode: 'onChange'
   });
+
+  // Synchronize form values with filters state
+  useEffect(() => {
+    filterForm.reset(filters);
+  }, [filters]);
 
   // Fetch account requests with filters
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
@@ -104,7 +104,6 @@ export default function AdminPanel() {
       const [_, currentFilters] = queryKey;
       const queryParams = new URLSearchParams();
 
-      // Only add non-empty filters
       Object.entries(currentFilters).forEach(([key, value]) => {
         if (value && value !== '') {
           queryParams.append(key, value);
@@ -114,6 +113,7 @@ export default function AdminPanel() {
       const response = await fetch(`/api/admin/account-requests?${queryParams.toString()}`, {
         credentials: 'include'
       });
+
       if (!response.ok) throw new Error('Failed to fetch account requests');
       return response.json() as Promise<AccountRequest[]>;
     },
@@ -133,7 +133,11 @@ export default function AdminPanel() {
   // Clear filters
   const clearFilters = () => {
     setFilters({});
-    filterForm.reset();
+    filterForm.reset({
+      status: '',
+      department: '',
+      role: ''
+    });
     setIsFilterDialogOpen(false);
   };
 
