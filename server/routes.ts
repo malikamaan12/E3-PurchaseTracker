@@ -1692,6 +1692,77 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add branding management endpoints
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      debug(req, 'Fetching company branding data');
+
+      const [brandingData] = await db
+        .select()
+        .from(companyBranding)
+        .orderBy(desc(companyBranding.createdAt))
+        .limit(1);
+
+      if (!brandingData) {
+        // Return default branding if none exists
+        return res.json({
+          companyName: "Events & Entertainment Enterprises",
+          primaryColor: "#71569E",
+          secondaryColor: "#F0F0FA",
+          accentColor: "#191160",
+          headerStyle: "modern",
+          footerText: "Designed with ❤️ by E3",
+          logo: null,
+          logoMimeType: null,
+          headerImageUrl: null,
+          headerImageMimeType: null,
+          footerImageUrl: null,
+          footerImageMimeType: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+
+      debug(req, 'Found branding data:', brandingData);
+      res.json(brandingData);
+    } catch (error) {
+      debug(req, 'Error fetching branding data:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      debug(req, 'Creating/updating company branding');
+
+      const validationResult = insertCompanyBrandingSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid branding data', validationResult.error.format());
+      }
+
+      // Create new branding record
+      const [newBranding] = await db
+        .insert(companyBranding)
+        .values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+
+      debug(req, 'Branding updated successfully:', newBranding.id);
+      res.status(201).json(newBranding);
+    } catch (error) {
+      debug(req, 'Error updating branding:', error);
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

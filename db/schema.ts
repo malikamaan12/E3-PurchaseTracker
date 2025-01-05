@@ -10,15 +10,15 @@ export const companyBranding = pgTable("company_branding", {
   primaryColor: text("primary_color").notNull().default("#71569E"),
   secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
   accentColor: text("accent_color").notNull().default("#191160"),
-  headerStyle: text("header_style"),
-  footerText: text("footer_text"),
+  headerStyle: text("header_style").notNull().default("modern"),
+  footerText: text("footer_text").notNull().default("Confidential Document"),
 
-  // Assets
-  logo: text("logo"),
+  // Assets with proper handling
+  logo: text("logo"), // Base64 encoded image
   logoMimeType: text("logo_mime_type"),
-  headerImageUrl: text("header_image_url"),
+  headerImageUrl: text("header_image_url"), // Base64 encoded image
   headerImageMimeType: text("header_image_mime_type"),
-  footerImageUrl: text("footer_image_url"),
+  footerImageUrl: text("footer_image_url"), // Base64 encoded image
   footerImageMimeType: text("footer_image_mime_type"),
 
   // Metadata
@@ -26,14 +26,14 @@ export const companyBranding = pgTable("company_branding", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Update the validation schema
+// Update the validation schema for company branding
 export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
   companyName: z.string().min(1, "Company name is required"),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
-  headerStyle: z.string().optional(),
-  footerText: z.string().optional(),
+  headerStyle: z.enum(["modern", "classic", "minimal"]).default("modern"),
+  footerText: z.string().min(1, "Footer text is required"),
   logo: z.string().optional(),
   logoMimeType: z.string().optional(),
   headerImageUrl: z.string().optional(),
@@ -385,6 +385,7 @@ export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
 export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
+
 
 
 // ============= Validation Schemas =============

@@ -23,9 +23,24 @@ const brandingFormSchema = z.object({
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
   footerText: z.string().min(1, "Footer text is required"),
+  headerStyle: z.string().default('modern'),
 });
 
 type BrandingFormValues = z.infer<typeof brandingFormSchema>;
+
+// Helper function to convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result.split(',')[1]); // Remove the data:image/jpeg;base64, part
+      }
+    };
+    reader.onerror = error => reject(error);
+  });
+};
 
 export default function CompanyBrandingForm() {
   const { toast } = useToast();
@@ -54,45 +69,77 @@ export default function CompanyBrandingForm() {
       secondaryColor: "#F0F0FA",
       accentColor: "#191160",
       footerText: "Confidential Document",
+      headerStyle: "modern",
     },
   });
 
   // Update form defaults when data is loaded
   useEffect(() => {
     if (brandingSettings) {
-      form.reset(brandingSettings);
+      form.reset({
+        companyName: brandingSettings.companyName,
+        primaryColor: brandingSettings.primaryColor,
+        secondaryColor: brandingSettings.secondaryColor,
+        accentColor: brandingSettings.accentColor,
+        footerText: brandingSettings.footerText,
+        headerStyle: brandingSettings.headerStyle || 'modern',
+      });
     }
   }, [brandingSettings, form]);
 
-  // Handle file change
+  // Handle file change with proper validation
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, setter: (file: File | null) => void) => {
     const file = event.target.files?.[0] || null;
-    if (file && (file.type === "image/jpeg" || file.type === "image/png")) {
-      if (file.size <= 5 * 1024 * 1024) { // 5MB limit
-        setter(file);
+    if (file) {
+      if (file.type === "image/jpeg" || file.type === "image/png") {
+        if (file.size <= 5 * 1024 * 1024) { // 5MB limit
+          setter(file);
+          toast({
+            title: "File selected",
+            description: `${file.name} has been selected`,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "File size must be less than 5MB",
+            variant: "destructive",
+          });
+        }
       } else {
         toast({
           title: "Error",
-          description: "File size must be less than 5MB",
+          description: "Please upload a valid JPEG or PNG file",
           variant: "destructive",
         });
       }
-    } else {
-      toast({
-        title: "Error",
-        description: "Please upload a valid JPEG or PNG file",
-        variant: "destructive",
-      });
     }
   };
 
-  // Update branding mutation
+  // Update branding mutation with proper file handling
   const updateBranding = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (values: BrandingFormValues) => {
+      // Convert files to base64 if they exist
+      const logoBase64 = logoFile ? await fileToBase64(logoFile) : null;
+      const headerBase64 = headerFile ? await fileToBase64(headerFile) : null;
+      const footerBase64 = footerFile ? await fileToBase64(footerFile) : null;
+
+      const requestData = {
+        ...values,
+        logo: logoBase64,
+        logoMimeType: logoFile?.type,
+        headerImageUrl: headerBase64,
+        headerImageMimeType: headerFile?.type,
+        footerImageUrl: footerBase64,
+        footerImageMimeType: footerFile?.type,
+      };
+
       const response = await fetch("/api/branding", {
         method: "POST",
         credentials: "include",
-        body: data,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
@@ -119,16 +166,7 @@ export default function CompanyBrandingForm() {
 
   // Form submission handler
   const onSubmit = (values: BrandingFormValues) => {
-    const formData = new FormData();
-    Object.entries(values).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    if (logoFile) formData.append("logo", logoFile);
-    if (headerFile) formData.append("headerImage", headerFile);
-    if (footerFile) formData.append("footerImage", footerFile);
-
-    updateBranding.mutate(formData);
+    updateBranding.mutate(values);
   };
 
   if (isLoading) {
