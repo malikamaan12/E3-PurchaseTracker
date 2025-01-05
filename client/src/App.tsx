@@ -10,6 +10,7 @@ import AdminPanel from "./pages/AdminPanel";
 import ErrorDashboard from "./pages/ErrorDashboard";
 import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
+import DepartmentDashboard from "./pages/DepartmentDashboard";
 import { NotFound } from "@/components/NotFound";
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
       <Route path="/new-request" component={NewPurchaseRequestForm} />
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
+      <Route path="/department-dashboard" component={DepartmentDashboard} />
 
       {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
