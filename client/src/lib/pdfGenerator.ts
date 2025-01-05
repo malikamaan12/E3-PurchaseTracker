@@ -25,32 +25,40 @@ interface TemplateConfig {
   showLogo: boolean;
 }
 
+interface VendorDetails {
+  companyName: string;
+  contactPerson: string;
+  contactNumber: string;
+  email: string;
+  address: string;
+  category: string;
+}
+
 async function fetchBranding(): Promise<TemplateConfig['branding']> {
   try {
-    const response = await fetch('/api/branding');
+    const response = await fetch('/api/branding/current');
     if (!response.ok) {
       throw new Error(`Failed to fetch branding: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log('Branding data received:', data);
-
     return {
-      name: data.company_name || 'Company Name',
-      primaryColor: hexToRGB(data.primary_color || '#212121'),
-      secondaryColor: hexToRGB(data.secondary_color || '#f5f5f5'),
-      accentColor: hexToRGB(data.accent_color || '#0070c9'),
-      headerStyle: data.header_style || 'modern',
-      logo: data.logo || null,
-      logoMimeType: data.logo_mime_type || null,
-      headerImage: data.header_image || null,
-      headerImageMimeType: data.header_image_mime_type || null,
-      footerImage: data.footer_image || null,
-      footerImageMimeType: data.footer_image_mime_type || null,
+      name: data.company_name,
+      primaryColor: hexToRGB(data.primary_color),
+      secondaryColor: hexToRGB(data.secondary_color),
+      accentColor: hexToRGB(data.accent_color),
+      headerStyle: data.header_style,
+      logo: data.logo,
+      logoMimeType: data.logo_mime_type,
+      headerImage: data.header_image_url,
+      headerImageMimeType: data.header_image_mime_type,
+      footerImage: data.footer_image_url,
+      footerImageMimeType: data.footer_image_mime_type,
       footerText: data.footer_text || "Confidential Document"
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
+    // Fallback branding
     return {
       name: "Company Name",
       primaryColor: [33, 33, 33],
@@ -69,7 +77,7 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
 }
 
 function hexToRGB(hex: string): [number, number, number] {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '#212121');
   return result ? [
     parseInt(result[1], 16),
     parseInt(result[2], 16),
@@ -83,16 +91,7 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
   }
 
   try {
-    const base64Data = imageData.includes('base64,') ?
-      imageData.split('base64,')[1] :
-      imageData;
-
-    const imgFormat = mimeType.split('/')[1].toUpperCase();
-    if (!['PNG', 'JPEG', 'JPG'].includes(imgFormat)) {
-      return false;
-    }
-
-    doc.addImage(`data:${mimeType};base64,${base64Data}`, imgFormat, x, y, width, height);
+    doc.addImage(imageData, mimeType.split('/')[1].toUpperCase(), x, y, width, height);
     return true;
   } catch (error) {
     console.error('Error adding image to PDF:', error);
@@ -103,12 +102,12 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
 function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
   const headerHeight = config.headerHeight;
 
-  // Try header image first
+  // Add header image if available
   if (config.branding.headerImage) {
     const added = addImageToPDF(
       doc,
       config.branding.headerImage,
-      config.branding.headerImageMimeType || 'image/png',
+      config.branding.headerImageMimeType,
       0,
       0,
       pageWidth,
@@ -117,7 +116,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     if (added) return headerHeight;
   }
 
-  // Fallback to styled header
+  // Fallback header style
   doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
@@ -127,7 +126,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     const logoAdded = addImageToPDF(
       doc,
       config.branding.logo,
-      config.branding.logoMimeType || 'image/png',
+      config.branding.logoMimeType,
       10,
       5,
       25,
@@ -136,7 +135,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
     if (logoAdded) logoWidth = 35;
   }
 
-  // Company name in header
+  // Add company name
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
@@ -155,12 +154,12 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   const footerHeight = config.footerHeight;
   const footerY = pageHeight - footerHeight;
 
-  // Try footer image first
+  // Add footer image if available
   if (config.branding.footerImage) {
     const added = addImageToPDF(
       doc,
       config.branding.footerImage,
-      config.branding.footerImageMimeType || 'image/png',
+      config.branding.footerImageMimeType,
       0,
       footerY,
       pageWidth,
@@ -169,18 +168,18 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
     if (added) return footerHeight;
   }
 
-  // Fallback to styled footer
+  // Fallback footer style
   doc.setFillColor(...config.branding.primaryColor);
   doc.rect(0, footerY, pageWidth, footerHeight, 'F');
 
-  // Footer text
+  // Add footer text
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-  // Page number
-  doc.text(`Page ${(doc as any).internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
+  // Add page number
+  doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
 }
@@ -190,7 +189,7 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFillColor(...config.branding.secondaryColor);
   doc.roundedRect(x, y, width, height, 2, 2, 'F');
 
-  // Header
+  // Title
   doc.setFillColor(...config.branding.primaryColor);
   doc.roundedRect(x, y, width, 15, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
@@ -198,7 +197,7 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFont('helvetica', 'bold');
   doc.text(title.toUpperCase(), x + 5, y + 10);
 
-  // Content with text wrapping
+  // Content
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -218,15 +217,9 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
 
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
-    console.log('Starting PDF generation for request:', {
-      id: request.id,
-      status: request.status,
-      items: request.items?.length
-    });
+    console.log('Starting PDF generation for request:', request);
 
     const branding = await fetchBranding();
-    console.log('Using PDF config:', { branding });
-
     const config: TemplateConfig = {
       branding,
       layout: 'bento',
@@ -245,7 +238,6 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    console.log('Header applied at height:', headerHeight);
     let yPos = headerHeight + 5;
 
     // Title and Description
@@ -255,33 +247,33 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     ];
     addBentoTile(doc, 'Request Details', titleInfo, margin, yPos, contentWidth, 45, config);
 
-    // Request Info and Vendor Info (side by side)
+    // Request Info and Status
     yPos += 50;
     const requestInfo = [
       `Request #: ${request.requestNumber || 'N/A'}`,
       `Status: ${(request.status || 'N/A').toUpperCase()}`,
-      `Priority: ${(request.priority || 'N/A').toUpperCase()}`
+      `Priority: ${(request.priority || 'N/A').toUpperCase()}`,
+      `Created: ${format(new Date(request.createdAt || new Date()), 'PPP')}`
     ];
-    addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
+    addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 55, config);
 
-    // Enhanced vendor info access with proper null checks
+    // Vendor Details
     const vendor = request.vendor || {};
     const vendorInfo = [
-      `Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
-      `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
-      `Contact Person: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
-      `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`,
-      `Phone: ${vendor.phone || vendor.contactPhone || 'N/A'}`
+      `Company: ${vendor.companyName || 'N/A'}`,
+      `Contact: ${vendor.contactPerson || 'N/A'}`,
+      `Phone: ${vendor.contactNumber || 'N/A'}`,
+      `Email: ${vendor.email || 'N/A'}`,
+      `Category: ${vendor.category || 'N/A'}`
     ];
-    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
+    addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 55, config);
 
     // Purpose Information
-    yPos += 50;
-    const subPurpose = request.subPurpose || request.sub_purpose || {};
+    yPos += 60;
     const purposeInfo = [
       `Purpose Type: ${(request.purposeType || 'N/A').toUpperCase()}`,
-      `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || 'N/A'}`,
-      `Details: ${request.purposeDetails || request.purpose || 'N/A'}`
+      `Sub Purpose: ${request.subPurpose?.name || 'N/A'}`,
+      `Priority Reason: ${request.priorityReason || 'N/A'}`
     ];
     addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
@@ -294,8 +286,6 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       formatCurrency(item.estimatedCost || 0, request.currency),
       formatCurrency((item.quantity || 0) * (item.estimatedCost || 0), request.currency)
     ]);
-
-    console.log('Processing items for table:', items);
 
     autoTable(doc, {
       startY: yPos,
@@ -335,7 +325,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     });
 
     // Add footer to all pages
-    const pageCount = (doc as any).internal.getNumberOfPages();
+    const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       addFooter(doc, config, pageWidth, pageHeight);

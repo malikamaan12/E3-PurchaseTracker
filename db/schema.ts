@@ -73,6 +73,24 @@ export const accountRequests = pgTable("account_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Account request validation schema
+export const insertAccountRequestSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email format"),
+  contact_number: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  department: z.string().min(1, "Department is required"),
+  role: z.enum(["user", "approver", "admin"]).default("user"),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+});
+
+// Export type for account requests
+export type AccountRequest = typeof accountRequests.$inferSelect;
+export type InsertAccountRequest = z.infer<typeof insertAccountRequestSchema>;
+
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -303,6 +321,7 @@ export const vendorRelations = relations(vendors, ({ many }) => ({
   categories: many(vendorToCategories),
   performance: many(vendorPerformance),
   payments: many(vendorPayments),
+  purchaseRequests: many(purchaseRequests)
 }));
 
 export const vendorCategoryRelations = relations(vendorCategories, ({ many }) => ({
@@ -337,7 +356,7 @@ export type PurchaseRequest = InferModel<typeof purchaseRequests>;
 export type Approval = InferModel<typeof approvals>;
 export type FileAttachment = InferModel<typeof fileAttachments>;
 export type NotificationType = InferModel<typeof notifications>;
-export type AccountRequest = InferModel<typeof accountRequests>;
+export type AccountRequest = typeof accountRequests.$inferSelect;
 export type ErrorLog = typeof errorLogs.$inferSelect;
 export type InsertErrorLog = typeof errorLogs.$inferInsert;
 export type LoginCredentials = z.infer<typeof loginSchema>;
@@ -387,20 +406,6 @@ export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   updated_at: z.coerce.date().optional()
 });
 
-export const insertAccountRequestSchema = createInsertSchema(accountRequests, {
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  email: z.string().email("Invalid email format"),
-  contact_number: z.string()
-    .min(8, "Contact number must be at least 8 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  department: z.string().min(1, "Department is required"),
-  role: z.enum(["user", "approver", "admin"]).default("user"),
-  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
-});
-
-// Update PurchaseRequest schema to use the same purpose types
 export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, {
   title: z.string()
     .min(1, "Title is required")
@@ -462,7 +467,7 @@ export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers
   level: z.number().int().min(1).max(5),
 });
 
-// Update the vendor schema validation
+// Vendor schemas with enhanced validation
 export const insertVendorSchema = createInsertSchema(vendors, {
   companyName: z.string().min(2, "Company name must be at least 2 characters"),
   contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
@@ -566,3 +571,25 @@ export const mandatoryDepartments = [
 ] as const;
 
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
+
+// Update purchase request schema to include vendor relation
+export const purchaseRequestSchema = z.object({
+  requestNumber: z.string(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  vendorId: z.number().int().positive("Vendor selection is required"),
+  items: z.array(z.object({
+    name: z.string().min(1, "Item name is required"),
+    quantity: z.number().positive("Quantity must be positive"),
+    estimatedCost: z.number().min(0, "Cost cannot be negative"),
+    description: z.string().optional()
+  })).min(1, "At least one item is required"),
+  purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"]),
+  subPurposeId: z.number().optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
+  totalEstimatedCost: z.number().min(0, "Total cost cannot be negative"),
+  freightAmount: z.number().min(0, "Freight amount cannot be negative").default(0),
+  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested"]).default("draft"),
+  isLocked: z.boolean().default(false)
+});

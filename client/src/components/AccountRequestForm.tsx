@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { InsertAccountRequest } from "@db/schema";
+import type { AccountRequest } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -9,8 +9,8 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
-import { FormErrorTooltip } from "@/components/ui/form-error-tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,16 +22,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { insertAccountRequestSchema, mandatoryDepartments } from "@db/schema";
 import { motion } from "framer-motion";
+import type { z } from "zod";
 
 const formItemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
 };
 
+type FormData = z.infer<typeof insertAccountRequestSchema>;
+
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const form = useForm<InsertAccountRequest>({
+  const form = useForm<FormData>({
     resolver: zodResolver(insertAccountRequestSchema),
     defaultValues: {
       role: "user",
@@ -41,7 +44,7 @@ export default function AccountRequestForm() {
     mode: "onBlur",
   });
 
-  const onSubmit = async (data: InsertAccountRequest) => {
+  const onSubmit = async (data: FormData) => {
     try {
       setIsLoading(true);
       console.log('Submitting form data:', data);
@@ -60,14 +63,13 @@ export default function AccountRequestForm() {
         credentials: "include",
       });
 
-      const responseData = await response.json();
-
       if (!response.ok) {
+        const responseData = await response.text();
         console.error('Form submission error:', responseData);
-        throw new Error(responseData.message || 'Failed to submit account request');
+        throw new Error(responseData || 'Failed to submit account request');
       }
 
-      console.log('Form submitted successfully:', responseData);
+      console.log('Form submitted successfully');
 
       toast({
         title: "Success",
@@ -87,9 +89,6 @@ export default function AccountRequestForm() {
       setIsLoading(false);
     }
   };
-
-  // Log form errors whenever they change
-  console.log('Current form errors:', form.formState.errors);
 
   return (
     <Form {...form}>
@@ -111,12 +110,12 @@ export default function AccountRequestForm() {
               control={form.control}
               name="username"
               render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>Username</FormLabel>
+                <FormItem>
+                  <FormLabel htmlFor={field.name}>Username</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input id={field.name} {...field} />
                   </FormControl>
-                  <FormErrorTooltip message={form.formState.errors.username?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -127,12 +126,12 @@ export default function AccountRequestForm() {
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>Password</FormLabel>
+                <FormItem>
+                  <FormLabel htmlFor={field.name}>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" {...field} />
+                    <Input id={field.name} type="password" {...field} />
                   </FormControl>
-                  <FormErrorTooltip message={form.formState.errors.password?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -143,12 +142,12 @@ export default function AccountRequestForm() {
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>Email</FormLabel>
+                <FormItem>
+                  <FormLabel htmlFor={field.name}>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" {...field} />
+                    <Input id={field.name} type="email" {...field} />
                   </FormControl>
-                  <FormErrorTooltip message={form.formState.errors.email?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -159,12 +158,12 @@ export default function AccountRequestForm() {
               control={form.control}
               name="contact_number"
               render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel>Contact Number</FormLabel>
+                <FormItem>
+                  <FormLabel htmlFor={field.name}>Contact Number</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter contact number" />
+                    <Input id={field.name} {...field} placeholder="Enter contact number" />
                   </FormControl>
-                  <FormErrorTooltip message={form.formState.errors.contact_number?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -175,11 +174,11 @@ export default function AccountRequestForm() {
               control={form.control}
               name="department"
               render={({ field }) => (
-                <FormItem className="relative">
+                <FormItem>
                   <FormLabel>Department</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger id="department-select">
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                     </FormControl>
@@ -191,7 +190,7 @@ export default function AccountRequestForm() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormErrorTooltip message={form.formState.errors.department?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -202,11 +201,11 @@ export default function AccountRequestForm() {
               control={form.control}
               name="role"
               render={({ field }) => (
-                <FormItem className="relative">
+                <FormItem>
                   <FormLabel>Role</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger id="role-select">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                     </FormControl>
@@ -216,7 +215,7 @@ export default function AccountRequestForm() {
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormErrorTooltip message={form.formState.errors.role?.message} />
+                  <FormMessage />
                 </FormItem>
               )}
             />

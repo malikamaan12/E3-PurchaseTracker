@@ -18,8 +18,7 @@ import {
   insertPurchaseRequestSchema,
   type InsertVendor
 } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from "drizzle-orm";
 import { AppError, ValidationError, AuthorizationError } from './utils/errors';
 import { analyzeError } from './utils/error-analysis';
 import { getNotifications, markNotificationAsRead, createNotification } from './utils/notifications';
@@ -57,72 +56,210 @@ const upload = multer({
   }
 });
 
-// Debug logging utility
-const debug = (req: Request, message: string, data?: any) => {
-  console.log(`[${req.method} ${req.path}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
-};
+// Enhanced branding endpoint with better error handling
+app.get("/api/branding/current", async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const brandingResult = await db
+      .select({
+        company_name: companyBranding.company_name,
+        header_style: companyBranding.header_style,
+        primary_color: companyBranding.primary_color,
+        secondary_color: companyBranding.secondary_color,
+        accent_color: companyBranding.accent_color,
+        logo: companyBranding.logo,
+        logo_mime_type: companyBranding.logo_mime_type,
+        header_image_url: companyBranding.header_image_url,
+        header_image_mime_type: companyBranding.header_image_mime_type,
+        footer_image_url: companyBranding.footer_image_url,
+        footer_image_mime_type: companyBranding.footer_image_mime_type,
+        footer_text: companyBranding.footer_text
+      })
+      .from(companyBranding)
+      .orderBy(desc(companyBranding.created_at))
+      .limit(1);
 
-export function registerRoutes(app: Express): Server {
-  setupAuth(app);
+    const branding = brandingResult[0];
 
-  // Enhanced branding endpoint with better error handling
-  app.get("/api/branding", async (_req: Request, res: Response, next: NextFunction) => {
+    if (!branding) {
+      return res.json({
+        company_name: "Events & Entertainment Enterprises",
+        header_style: "modern",
+        primary_color: "#71569E",
+        secondary_color: "#F0F0FA",
+        accent_color: "#191160",
+        logo: null,
+        logo_mime_type: null,
+        header_image_url: null,
+        header_image_mime_type: null,
+        footer_image_url: null,
+        footer_image_mime_type: null,
+        footer_text: "Designed with ❤️ by E3"
+      });
+    }
+
+    res.json(branding);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create purchase request endpoint with enhanced vendor detail handling
+app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      debug(_req, 'Fetching company branding');
-
-      const brandingResult = await db
-        .select({
-          company_name: companyBranding.company_name,
-          header_style: companyBranding.header_style,
-          primary_color: companyBranding.primary_color,
-          secondary_color: companyBranding.secondary_color,
-          accent_color: companyBranding.accent_color,
-          logo: companyBranding.logo,
-          logo_mime_type: companyBranding.logo_mime_type,
-          header_image: companyBranding.header_image_url,
-          header_image_mime_type: companyBranding.header_image_mime_type,
-          footer_image: companyBranding.footer_image_url,
-          footer_image_mime_type: companyBranding.footer_image_mime_type,
-          footer_text: companyBranding.footer_text,
-          created_at: companyBranding.created_at,
-          updated_at: companyBranding.updated_at
-        })
-        .from(companyBranding)
-        .orderBy(sql`${companyBranding.created_at} DESC`)
-        .limit(1);
-
-      const branding = brandingResult[0];
-
-      if (!branding) {
-        debug(_req, 'No branding found, using defaults');
-        return res.json({
-          company_name: "Events & Entertainment Enterprises",
-          header_style: "modern",
-          primary_color: "#71569E",
-          secondary_color: "#F0F0FA",
-          accent_color: "#191160",
-          logo: null,
-          logo_mime_type: null,
-          header_image: null,
-          header_image_mime_type: null,
-          footer_image: null,
-          footer_image_mime_type: null,
-          footer_text: "Designed with ❤️ by E3",
-          created_at: new Date(),
-          updated_at: new Date()
-        });
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
       }
 
-      debug(_req, 'Successfully fetched branding');
-      res.json(branding);
+      const { data: requestData, action } = req.body;
+      console.log('Creating purchase request:', {
+        action,
+        requestData
+      });
+
+      // Generate a unique request number
+      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Prepare request data
+      let finalRequestData = {
+        ...requestData,
+        requestNumber,
+        requesterId: req.user!.id,
+        status: action === 'draft' ? 'draft' : 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: JSON.stringify(Array.isArray(requestData.items) ? requestData.items : [])
+      };
+
+      // If saving as draft, allow partial data
+      if (action === 'draft') {
+        finalRequestData = {
+          ...finalRequestData,
+          items: finalRequestData.items || '[]',
+          totalEstimatedCost: finalRequestData.totalEstimatedCost || 0,
+          freightAmount: finalRequestData.freightAmount || 0
+        };
+      } else {
+        // Validate required fields for submissions
+        const validationResult = insertPurchaseRequestSchema.safeParse({
+          ...requestData,
+          items: requestData.items || [] 
+        });
+
+        if (!validationResult.success) {
+          console.error('Validation failed:', validationResult.error.format());
+          return res.status(400).json({
+            message: 'Invalid request data',
+            errors: validationResult.error.format()
+          });
+        }
+      }
+
+      // Create purchase request with vendor details
+      const [request] = await db
+        .insert(purchaseRequests)
+        .values(finalRequestData)
+        .returning();
+
+      // Handle attachments
+      if (requestData.attachments?.length) {
+        await db.insert(fileAttachments).values(
+          requestData.attachments.map((attachment: any) => ({
+            requestId: request.id,
+            fileName: attachment.fileName,
+            fileType: attachment.fileType,
+            fileSize: attachment.fileSize,
+            fileUrl: attachment.fileUrl,
+            uploadedAt: new Date()
+          }))
+        );
+      }
+
+      // Get vendor details for the response
+      const [vendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, request.vendorId))
+        .limit(1);
+
+      // Return detailed response
+      res.status(201).json({
+        ...request,
+        items: Array.isArray(requestData.items) ? requestData.items : [],
+        vendor,
+        message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
+      });
     } catch (error) {
-      debug(_req, 'Error fetching branding:', error);
+      console.error('Error creating purchase request:', error);
       next(error);
     }
-  });
+});
 
-  // Update the create purchase request endpoint
-  app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+// Enhanced attachment upload endpoint with preview support
+app.post("/api/attachments", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.files || !Array.isArray(req.files)) {
+      throw new AppError('No files uploaded', 400);
+    }
+
+    const uploadedFiles = req.files.map(file => ({
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      fileUrl: `/uploads/${file.filename}`,
+      previewUrl: file.mimetype.startsWith('image/') ? `/uploads/${file.filename}` : null
+    }));
+
+    res.status(201).json(uploadedFiles);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Serve uploaded files with proper headers for preview
+app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
+  const fileType = req.path.split('.').pop()?.toLowerCase();
+  if (fileType === 'pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+  }
+  express.static('uploads')(req, res, next);
+});
+
+// Enhanced vendor routes
+app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const vendorsList = await db
+      .select()
+      .from(vendors)
+      .orderBy(desc(vendors.created_at));
+
+    res.json(vendorsList);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const vendorId = parseInt(req.params.id);
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, vendorId))
+      .limit(1);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json(vendor);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update the create purchase request endpoint
+app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
@@ -616,7 +753,9 @@ export function registerRoutes(app: Express): Server {
       // Transform the request data to match our schema
       const requestData = {
         ...req.body,
-        status: 'pending'
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       debug(req, 'Validating request data');
@@ -626,7 +765,10 @@ export function registerRoutes(app: Express): Server {
         debug(req, 'Validation failed:', validationResult.error);
         return res.status(400).json({
           message: 'Validation failed',
-          errors: validationResult.error.format()
+          errors: validationResult.error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message
+          }))
         });
       }
 
@@ -658,15 +800,22 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      // Hash password and create request
+      // Hash password
       const hashedPassword = await hash(validationResult.data.password, 10);
+
+      // Create request
       const [newRequest] = await db
         .insert(accountRequests)
         .values({
           ...validationResult.data,
-          password: hashedPassword
+          password: hashedPassword,
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
         })
         .returning();
+
+      debug(req, 'Account request created:', newRequest.id);
 
       // Get all admin users
       const admins = await db
@@ -677,38 +826,22 @@ export function registerRoutes(app: Express): Server {
           eq(users.isActive, true)
         ));
 
-      // Get all approvers
-      const approvers = await db
-        .select()
-        .from(users)
-        .where(and(
-          eq(users.role, 'approver'),
-          eq(users.isActive, true)
-        ));
-
-      // Create notifications for admins and approvers
-      const createNotifications = async () => {
-        const notificationPromises = [...admins, ...approvers].map(user =>
-          db.insert(notifications).values({
-            userId: user.id,
-            title: 'New Account Request',
-            message: `New account request from ${newRequest.username} for ${newRequest.department} department`,
-            type: 'account_request',
-            isRead: false,
-            link: '/admin/account-requests',
-            createdAt: new Date()
-          })
-        );
-
-        await Promise.all(notificationPromises);
-      };
+      // Create notifications for admins
+      const notificationPromises = admins.map(admin =>
+        createNotification(
+          admin.id,
+          'New Account Request',
+          `New account request from ${newRequest.username} for ${newRequest.department} department`,
+          'account_request',
+          newRequest.id
+        )
+      );
 
       // Send notifications asynchronously
-      createNotifications().catch(error => {
+      Promise.all(notificationPromises).catch(error => {
         console.error('Error creating notifications:', error);
       });
 
-      debug(req, 'Account request created:', newRequest.id);
       res.status(201).json({
         message: 'Account request submitted successfully',
         requestId: newRequest.id
