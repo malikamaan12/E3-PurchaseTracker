@@ -30,24 +30,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -90,9 +78,14 @@ export default function AdminPanel() {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState<AccountRequestFilters>({});
 
-  // Fetch account requests
-  const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery<AccountRequest[]>({
-    queryKey: ["/api/admin/account-requests", filters],
+  // Filter form
+  const filterForm = useForm<AccountRequestFilters>({
+    defaultValues: filters
+  });
+
+  // Fetch account requests with filters
+  const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
+    queryKey: ["/api/admin/account-requests", filters] as const,
     queryFn: async () => {
       const queryParams = new URLSearchParams();
       if (filters.status) queryParams.append('status', filters.status);
@@ -103,23 +96,25 @@ export default function AdminPanel() {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch account requests');
-      return response.json();
-    }
-  });
-
-  // Filter form
-  const filterForm = useForm<AccountRequestFilters>({
-    defaultValues: filters
+      return response.json() as Promise<AccountRequest[]>;
+    },
+    placeholderData: [] // Use this instead of keepPreviousData
   });
 
   const handleFilterSubmit = (data: AccountRequestFilters) => {
-    setFilters(data);
+    // Remove empty values to avoid unnecessary URL parameters
+    const cleanedFilters = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value && value !== '')
+    );
+    setFilters(cleanedFilters as AccountRequestFilters);
     setIsFilterDialogOpen(false);
+    filterForm.reset(cleanedFilters); // Update form with cleaned values
   };
 
   const clearFilters = () => {
     setFilters({});
     filterForm.reset({});
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
   };
 
   // Account request management
@@ -179,77 +174,7 @@ export default function AdminPanel() {
     },
   });
 
-  // Create sub-purpose mutation
-  const createSubPurpose = useMutation({
-    mutationFn: async (data: z.infer<typeof insertSubPurposeSchema>) => {
-      const res = await fetch("/api/admin/sub-purposes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
-      setIsSubPurposeDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Sub-purpose created successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Toggle sub-purpose freeze status
-  const toggleSubPurposeFreeze = useMutation({
-    mutationFn: async ({ id, isFrozen }: { id: number; isFrozen: boolean }) => {
-      const res = await fetch(`/api/admin/sub-purposes/${id}/toggle-freeze`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isFrozen }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
-      toast({
-        title: "Success",
-        description: "Sub-purpose status updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Add role update mutation
+  // Update role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
       const res = await fetch(`/api/admin/users/${userId}/update-role`, {
@@ -303,7 +228,54 @@ export default function AdminPanel() {
       valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : null,
       valid_to: data.valid_to ? new Date(data.valid_to).toISOString() : null,
     };
-    createSubPurpose.mutate(formattedData);
+    createSubPurpose.mutate(formattedData as z.infer<typeof insertSubPurposeSchema>);
+  });
+
+  // Create sub-purpose mutation
+  const createSubPurpose = useMutation({
+    mutationFn: async (data: z.infer<typeof insertSubPurposeSchema>) => {
+      const res = await fetch("/api/admin/sub-purposes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
+      setIsSubPurposeDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Sub-purpose created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { data: subPurposes = [], isLoading: isLoadingSubPurposes } = useQuery<SubPurpose[]>({
+    queryKey: ["/api/admin/sub-purposes"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/sub-purposes", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch sub-purposes");
+      return response.json();
+    },
   });
 
   return (
@@ -325,21 +297,6 @@ export default function AdminPanel() {
           <TabsTrigger value="sub-purposes">Sub-purposes</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
         </TabsList>
-
-        {/* User Management Tab */}
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                Manage user accounts, roles, and access
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Account Requests Tab */}
         <TabsContent value="requests">
@@ -566,7 +523,10 @@ export default function AdminPanel() {
                     />
 
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsFilterDialogOpen(false)}>
+                      <Button type="button" variant="outline" onClick={() => {
+                        setIsFilterDialogOpen(false);
+                        filterForm.reset(filters); // Reset to current filters if canceled
+                      }}>
                         Cancel
                       </Button>
                       <Button type="submit">Apply Filters</Button>
@@ -574,6 +534,21 @@ export default function AdminPanel() {
                   </form>
                 </DialogContent>
               </Dialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* User Management Tab */}
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>
+                Manage user accounts, roles, and access
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserManagement />
             </CardContent>
           </Card>
         </TabsContent>
