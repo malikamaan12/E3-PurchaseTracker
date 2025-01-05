@@ -78,20 +78,22 @@ export default function AdminPanel() {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState<AccountRequestFilters>({});
 
-  // Filter form with proper state management
+  // Initialize form with empty values
   const filterForm = useForm<AccountRequestFilters>({
-    defaultValues: filters,
-    values: filters, // Keep form values in sync with filters state
+    defaultValues: {
+      status: '',
+      department: '',
+      role: ''
+    }
   });
 
   // Fetch account requests with filters
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
-    queryKey: ["/api/admin/account-requests", filters] as const,
+    queryKey: ["/api/admin/account-requests", filters],
     queryFn: async ({ queryKey }) => {
       const [_, currentFilters] = queryKey;
       const queryParams = new URLSearchParams();
 
-      // Only add non-empty filters to query params
       Object.entries(currentFilters).forEach(([key, value]) => {
         if (value && value !== '') {
           queryParams.append(key, value);
@@ -104,12 +106,10 @@ export default function AdminPanel() {
       if (!response.ok) throw new Error('Failed to fetch account requests');
       return response.json() as Promise<AccountRequest[]>;
     },
-    placeholderData: [] // Use this instead of keepPreviousData
   });
 
   // Handle filter form submission
   const handleFilterSubmit = (data: AccountRequestFilters) => {
-    // Remove empty values to avoid unnecessary URL parameters
     const cleanedFilters = Object.fromEntries(
       Object.entries(data).filter(([_, value]) => value && value !== '')
     ) as AccountRequestFilters;
@@ -120,14 +120,9 @@ export default function AdminPanel() {
 
   // Clear filters
   const clearFilters = () => {
-    const emptyFilters = {
-      status: '',
-      department: '',
-      role: ''
-    };
     setFilters({});
-    filterForm.reset(emptyFilters);
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
+    filterForm.reset();
+    setIsFilterDialogOpen(false);
   };
 
   // Account request management
@@ -395,7 +390,7 @@ export default function AdminPanel() {
                         <TableCell>
                           {request.status === "pending" ? (
                             <Select
-                              defaultValue={request.role}
+                              value={request.role}
                               onValueChange={(value) => {
                                 updateRoleMutation.mutate({
                                   userId: request.id,
@@ -496,8 +491,8 @@ export default function AdminPanel() {
                         <FormItem>
                           <FormLabel>Status</FormLabel>
                           <Select
+                            value={field.value}
                             onValueChange={field.onChange}
-                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -523,8 +518,8 @@ export default function AdminPanel() {
                         <FormItem>
                           <FormLabel>Department</FormLabel>
                           <Select
+                            value={field.value}
                             onValueChange={field.onChange}
-                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -552,8 +547,8 @@ export default function AdminPanel() {
                         <FormItem>
                           <FormLabel>Role</FormLabel>
                           <Select
+                            value={field.value}
                             onValueChange={field.onChange}
-                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -746,8 +741,8 @@ export default function AdminPanel() {
                           <FormItem>
                             <FormLabel>Purpose Type</FormLabel>
                             <Select
+                              value={field.value}
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
