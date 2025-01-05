@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
+import DepartmentDashboard from "@/pages/DepartmentDashboard";
 import {
   Card,
   CardContent,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus } from "lucide-react";
+import { ArrowLeft, Check, X, Plus, BarChart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -288,12 +289,16 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
           <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
           <TabsTrigger value="sub-purposes">Sub-purposes</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
+          <TabsTrigger value="department-analytics">
+            <BarChart className="h-4 w-4 mr-2" />
+            Department Analytics
+          </TabsTrigger>
         </TabsList>
 
         {/* Account Requests Tab */}
@@ -671,6 +676,22 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Department Analytics Tab */}
+        <TabsContent value="department-analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Department Analytics</CardTitle>
+              <CardDescription>
+                View and analyze department-wise request statistics and insights
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DepartmentDashboard />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
     </div>
   );
