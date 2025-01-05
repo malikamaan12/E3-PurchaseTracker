@@ -17,7 +17,8 @@ import {
   companyBranding,
   insertPurchaseRequestSchema,
   type InsertVendor,
-  insertAccountRequestSchema
+  insertAccountRequestSchema,
+  insertErrorLogSchema
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { sql } from 'drizzle-orm';
@@ -418,14 +419,28 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-  // Account requests management
+  // Account requests management - UPDATED
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AppError('Admin access required', 403);
       }
 
-      debug(req, 'Fetching account requests...');
+      const { status, department, role } = req.query;
+      debug(req, 'Fetching account requests with filters:', { status, department, role });
+
+      // Build the where clause based on filters
+      const whereConditions = [];
+      if (status && typeof status === 'string') {
+        whereConditions.push(eq(accountRequests.status, status));
+      }
+      if (department && typeof department === 'string') {
+        whereConditions.push(eq(accountRequests.department, department));
+      }
+      if (role && typeof role === 'string') {
+        whereConditions.push(eq(accountRequests.role, role));
+      }
+
       const accountRequestsResult = await db
         .select({
           id: accountRequests.id,
@@ -439,6 +454,7 @@ export function registerRoutes(app: Express): Server {
           updatedAt: accountRequests.updatedAt
         })
         .from(accountRequests)
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
         .orderBy(desc(accountRequests.createdAt));
 
       debug(req, `Found ${accountRequestsResult.length} account requests`);
@@ -804,7 +820,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add approval endpoint with proper validation and mandatory approver logic
+  // Add approval endpoint with proper validation and mandatory approver logic - UPDATED
   app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -828,8 +844,9 @@ export function registerRoutes(app: Express): Server {
 
       // Validate required fields
       if (!requestId || !status || !department) {
-        debug(req, 'Validation failed - missing fields:', { requestId, status, department });
-        throw new ValidationError('Missing required fields: requestId, status, and department are required');
+        throw new ValidationError('Missing required fields', {
+          message: 'requestId, status, and department are required'
+        });
       }
 
       // Check if request exists and get requester info
@@ -859,24 +876,6 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request is locked', 403);
       }
 
-      // Define mandatory departments
-      const mandatoryDepartments = ['CEO Office', 'Director', 'Finance'];
-      const isMandatoryApprover = mandatoryDepartments.includes(department);
-
-      // Check for existing approval from this department
-      const [existingApproval] = await db
-        .select()
-        .from(approvals)
-        .where(and(
-          eq(approvals.requestId, requestId),
-          eq(approvals.department, department)
-        ))
-        .limit(1);
-
-      if (existingApproval) {
-        throw new AppError('Department has already provided approval', 400);
-      }
-
       // Create the approval record
       const [approval] = await db
         .insert(approvals)
@@ -886,82 +885,20 @@ export function registerRoutes(app: Express): Server {
           status,
           comments: comments || null,
           department,
-          isMandatory: isMandatoryApprover,
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
 
-      // Get all approvals for this request to check status
-      const allApprovals = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId));
-
-      // Check if all mandatory approvers have approved
-      const mandatoryApprovals = allApprovals.filter(a =>
-        mandatoryDepartments.includes(a.department)
-      );
-
-      const allMandatoryApproved = mandatoryDepartments.every(dept =>
-        mandatoryApprovals.some(a => a.department === dept && a.status === 'approved')
-      );
-
-      // Update request status based on approvals
-      let requestStatus = request.status;
-      let isLocked = request.isLocked;
-
-      if (status === 'rejected') {
-        requestStatus = 'rejected';
-        isLocked = true;
-      } else if (status === 'changes_requested') {
-        requestStatus = 'changes_requested';
-        isLocked = false;
-      } else if (allMandatoryApproved) {
-        requestStatus = 'approved';
-        isLocked = true;
-      }
-
-      debug(req, 'Status update check:', {
-        currentStatus: request.status,
-        newStatus: requestStatus,
-        currentlyLocked: request.isLocked,
-        willBeLocked: isLocked
-      });
-
-      // Update request status if changed
-      if (requestStatus !== request.status || isLocked !== request.isLocked) {
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: requestStatus,
-            isLocked,
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-        // Create notification for the requester
-        await createNotification(
-          request.requesterId,
-          `Request ${status}`,
-          `Your request "${request.title}" has been ${status} by ${department}${comments ? `: ${comments}` : ''}`,
-          'request',
-          requestId
-        );
-      }
-
       debug(req, 'Approval created successfully:', {
         approvalId: approval.id,
-        requestStatus,
-        isLocked,
-        statusChanged: requestStatus !== request.status
+        requestStatus: request.status,
+        isLocked: request.isLocked
       });
 
       res.status(201).json({
         ...approval,
-        requestStatus,
-        isLocked,
-        message: `Approval submitted successfully${requestStatus !== request.status ? `. Request status updated to ${requestStatus}` : ''}`
+        message: `Approval submitted successfully`
       });
     } catch (error) {
       debug(req, 'Error creating approval:', error);

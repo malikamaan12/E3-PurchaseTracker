@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus } from "lucide-react";
+import { ArrowLeft, Check, X, Plus, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -74,6 +74,12 @@ import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 
+// Add filter interface
+interface AccountRequestFilters {
+  status?: string;
+  department?: string;
+  role?: string;
+}
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -81,28 +87,40 @@ export default function AdminPanel() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("users");
   const [isSubPurposeDialogOpen, setIsSubPurposeDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<AccountRequestFilters>({});
 
   // Fetch account requests
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery<AccountRequest[]>({
-    queryKey: ["/api/admin/account-requests"],
+    queryKey: ["/api/admin/account-requests", filters],
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append('status', filters.status);
+      if (filters.department) queryParams.append('department', filters.department);
+      if (filters.role) queryParams.append('role', filters.role);
+
+      const response = await fetch(`/api/admin/account-requests?${queryParams.toString()}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch account requests');
+      return response.json();
+    }
   });
 
-  // Fetch sub-purposes
-  const { data: subPurposes = [], isLoading: isLoadingSubPurposes } = useQuery<SubPurpose[]>({
-    queryKey: ["/api/admin/sub-purposes"],
+  // Filter form
+  const filterForm = useForm<AccountRequestFilters>({
+    defaultValues: filters
   });
 
-  // Form for creating sub-purpose
-  const form = useForm<z.infer<typeof insertSubPurposeSchema>>({
-    resolver: zodResolver(insertSubPurposeSchema),
-    defaultValues: {
-      name: "",
-      purpose_type: "E3 EVENT",
-      is_frozen: false,
-      valid_from: undefined,
-      valid_to: undefined,
-    },
-  });
+  const handleFilterSubmit = (data: AccountRequestFilters) => {
+    setFilters(data);
+    setIsFilterDialogOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFilters({});
+    filterForm.reset({});
+  };
 
   // Account request management
   const approveAccountRequest = useMutation({
@@ -119,7 +137,7 @@ export default function AdminPanel() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
       toast({
         title: "Success",
         description: "Account request approved successfully",
@@ -146,7 +164,7 @@ export default function AdminPanel() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
       toast({
         title: "Success",
         description: "Account request rejected successfully",
@@ -250,7 +268,7 @@ export default function AdminPanel() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
       toast({
         title: "Success",
         description: "User role updated successfully",
@@ -262,6 +280,18 @@ export default function AdminPanel() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Form for creating sub-purpose
+  const form = useForm<z.infer<typeof insertSubPurposeSchema>>({
+    resolver: zodResolver(insertSubPurposeSchema),
+    defaultValues: {
+      name: "",
+      purpose_type: "E3 EVENT",
+      is_frozen: false,
+      valid_from: undefined,
+      valid_to: undefined,
     },
   });
 
@@ -315,10 +345,25 @@ export default function AdminPanel() {
         <TabsContent value="requests">
           <Card>
             <CardHeader>
-              <CardTitle>Account Requests</CardTitle>
-              <CardDescription>
-                Manage pending account creation requests
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Account Requests</CardTitle>
+                  <CardDescription>
+                    Manage pending account creation requests
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {(filters.status || filters.department || filters.role) && (
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                  )}
+                  <Button onClick={() => setIsFilterDialogOpen(true)}>
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingRequests ? (
@@ -428,6 +473,107 @@ export default function AdminPanel() {
                   </TableBody>
                 </Table>
               )}
+
+              {/* Filter Dialog */}
+              <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Filter Account Requests</DialogTitle>
+                    <DialogDescription>
+                      Filter requests by status, department, or role
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form onSubmit={filterForm.handleSubmit(handleFilterSubmit)} className="space-y-4">
+                    <FormField
+                      control={filterForm.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">All</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={filterForm.control}
+                      name="department"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Department</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select department" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">All</SelectItem>
+                              <SelectItem value="IT">IT</SelectItem>
+                              <SelectItem value="HR">HR</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Marketing">Marketing</SelectItem>
+                              <SelectItem value="Operations">Operations</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={filterForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Role</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select role" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">All</SelectItem>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="approver">Approver</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsFilterDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">Apply Filters</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
