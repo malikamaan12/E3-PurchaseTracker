@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
+import { analyzeFormStateIssue } from "@/services/anthropicService";
 import {
   Card,
   CardContent,
@@ -69,6 +70,13 @@ interface AccountRequestFilters {
   role?: string;
 }
 
+// Create a schema for the filters
+const filterSchema = z.object({
+  status: z.string().optional(),
+  department: z.string().optional(),
+  role: z.string().optional(),
+});
+
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -78,13 +86,15 @@ export default function AdminPanel() {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState<AccountRequestFilters>({});
 
-  // Initialize form with empty values
+  // Initialize form with validation schema
   const filterForm = useForm<AccountRequestFilters>({
+    resolver: zodResolver(filterSchema),
     defaultValues: {
       status: '',
       department: '',
       role: ''
-    }
+    },
+    mode: 'onChange'
   });
 
   // Fetch account requests with filters
@@ -94,6 +104,7 @@ export default function AdminPanel() {
       const [_, currentFilters] = queryKey;
       const queryParams = new URLSearchParams();
 
+      // Only add non-empty filters
       Object.entries(currentFilters).forEach(([key, value]) => {
         if (value && value !== '') {
           queryParams.append(key, value);
@@ -109,7 +120,8 @@ export default function AdminPanel() {
   });
 
   // Handle filter form submission
-  const handleFilterSubmit = (data: AccountRequestFilters) => {
+  const handleFilterSubmit = async (data: AccountRequestFilters) => {
+    // Remove empty values
     const cleanedFilters = Object.fromEntries(
       Object.entries(data).filter(([_, value]) => value && value !== '')
     ) as AccountRequestFilters;
@@ -483,103 +495,114 @@ export default function AdminPanel() {
                     </DialogDescription>
                   </DialogHeader>
 
-                  <form onSubmit={filterForm.handleSubmit(handleFilterSubmit)} className="space-y-4">
-                    <FormField
-                      control={filterForm.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">All</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="rejected">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <Form {...filterForm}>
+                    <form onSubmit={filterForm.handleSubmit(handleFilterSubmit)} className="space-y-4">
+                      <FormField
+                        control={filterForm.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select
+                              value={field.value ?? ''}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                filterForm.trigger("status");
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">All</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={filterForm.control}
-                      name="department"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Department</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select department" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">All</SelectItem>
-                              <SelectItem value="IT">IT</SelectItem>
-                              <SelectItem value="HR">HR</SelectItem>
-                              <SelectItem value="Finance">Finance</SelectItem>
-                              <SelectItem value="Marketing">Marketing</SelectItem>
-                              <SelectItem value="Operations">Operations</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={filterForm.control}
+                        name="department"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Department</FormLabel>
+                            <Select
+                              value={field.value ?? ''}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                filterForm.trigger("department");
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select department" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">All</SelectItem>
+                                <SelectItem value="IT">IT</SelectItem>
+                                <SelectItem value="HR">HR</SelectItem>
+                                <SelectItem value="Finance">Finance</SelectItem>
+                                <SelectItem value="Marketing">Marketing</SelectItem>
+                                <SelectItem value="Operations">Operations</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={filterForm.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">All</SelectItem>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="approver">Approver</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={filterForm.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select
+                              value={field.value ?? ''}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                filterForm.trigger("role");
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">All</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="approver">Approver</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsFilterDialogOpen(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit">Apply Filters</Button>
-                    </DialogFooter>
-                  </form>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsFilterDialogOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit">Apply Filters</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
                 </DialogContent>
               </Dialog>
             </CardContent>
