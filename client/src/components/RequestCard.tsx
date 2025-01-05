@@ -58,6 +58,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useCompanyBranding } from '@/hooks/use-company-branding';
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -255,33 +256,23 @@ export default function RequestCard({
 
   const handleDownloadPDF = async () => {
     try {
-      const response = await fetch(`/api/requests/${request.id}/pdf`, {
-        credentials: 'include'
+      const { data: brandingData } = useCompanyBranding();
+
+      // Generate PDF on the client side
+      const doc = await generateRequestPDF(request, brandingData);
+
+      // Save the PDF
+      doc.save(`${request.requestNumber}.pdf`);
+
+      toast({
+        title: "Success",
+        description: "PDF downloaded successfully",
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
-      }
-
-      // Create a blob from the PDF stream
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-
-      // Create a temporary link and trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${request.requestNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error generating PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to download PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
         variant: "destructive",
       });
     }

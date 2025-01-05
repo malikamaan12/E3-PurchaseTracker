@@ -22,11 +22,9 @@ import {
   insertCompanyBrandingSchema,
 } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { sql } from 'drizzle-orm';
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
-import { generateRequestPDF } from '../client/src/lib/pdfGenerator';
 
 
 // Error Classes
@@ -1657,78 +1655,43 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add new route for PDF download
-  app.get("/api/requests/:id/pdf", async (req: Request, res: Response, next: NextFunction) => {
+  // Removed PDF generation endpoint
+
+  // Add branding endpoint
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const requestId = parseInt(req.params.id);
-      debug(req, 'Generating PDF for request:', requestId);
-
-      // Fetch the request with all related data
-      const [request] = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          items: purchaseRequests.items,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          purposeType: purchaseRequests.purposeType,
-          priority: purchaseRequests.priority,
-          isLocked: purchaseRequests.isLocked,
-          vendor: {
-            id: vendors.id,
-            name: vendors.name,
-            category: vendors.category,
-            contactPerson: vendors.contactPerson,
-            email: vendors.email
-          }
-        })
-        .from(purchaseRequests)
-        .leftJoin(vendors, eq(vendors.id, purchaseRequests.vendorId))
-        .where(eq(purchaseRequests.id, requestId))
-        .limit(1);
-
-      if (!request) {
-        throw new AppError('Request not found', 404);
-      }
-
-      // Get branding settings
       const [branding] = await db
         .select()
         .from(companyBranding)
         .orderBy(desc(companyBranding.updatedAt))
         .limit(1);
 
-      // Set proper headers for PDF download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="request-${request.requestNumber}.pdf"`);
+      if (!branding) {
+        return res.json({
+          companyName: 'Company Name',
+          primaryColor: '#71569E',
+          secondaryColor: '#F0F0FA',
+          accentColor: '#191160',
+          footerText: 'Confidential Document',
+          logo: null,
+          logoMimeType: null,
+          headerImage: null,
+          headerImageMimeType: null,
+          footerImage: null,
+          footerImageMimeType: null
+        });
+      }
 
-      // Parse items from JSON string if needed
-      const parsedRequest = {
-        ...request,
-        items: typeof request.items === 'string' ? JSON.parse(request.items) : request.items
-      };
-
-      // Return the PDF buffer
-      res.send(Buffer.from(generatePDFBuffer(parsedRequest, branding)));
-
+      res.json(branding);
     } catch (error) {
-      debug(req, 'Error generating PDF:', error);
       next(error);
     }
   });
 
   const httpServer = createServer(app);
   return httpServer;
-}
-
-async function generatePDFBuffer(request: any, branding: any): Promise<string> {
-  const doc = await generateRequestPDF(request, branding);
-  return doc.output('arraybuffer');
 }
