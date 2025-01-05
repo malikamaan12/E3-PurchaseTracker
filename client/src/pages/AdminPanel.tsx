@@ -78,19 +78,25 @@ export default function AdminPanel() {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState<AccountRequestFilters>({});
 
-  // Filter form
+  // Filter form with proper state management
   const filterForm = useForm<AccountRequestFilters>({
-    defaultValues: filters
+    defaultValues: filters,
+    values: filters, // Keep form values in sync with filters state
   });
 
   // Fetch account requests with filters
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
     queryKey: ["/api/admin/account-requests", filters] as const,
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
+      const [_, currentFilters] = queryKey;
       const queryParams = new URLSearchParams();
-      if (filters.status) queryParams.append('status', filters.status);
-      if (filters.department) queryParams.append('department', filters.department);
-      if (filters.role) queryParams.append('role', filters.role);
+
+      // Only add non-empty filters to query params
+      Object.entries(currentFilters).forEach(([key, value]) => {
+        if (value && value !== '') {
+          queryParams.append(key, value);
+        }
+      });
 
       const response = await fetch(`/api/admin/account-requests?${queryParams.toString()}`, {
         credentials: 'include'
@@ -101,19 +107,26 @@ export default function AdminPanel() {
     placeholderData: [] // Use this instead of keepPreviousData
   });
 
+  // Handle filter form submission
   const handleFilterSubmit = (data: AccountRequestFilters) => {
     // Remove empty values to avoid unnecessary URL parameters
     const cleanedFilters = Object.fromEntries(
       Object.entries(data).filter(([_, value]) => value && value !== '')
-    );
-    setFilters(cleanedFilters as AccountRequestFilters);
+    ) as AccountRequestFilters;
+
+    setFilters(cleanedFilters);
     setIsFilterDialogOpen(false);
-    filterForm.reset(cleanedFilters); // Update form with cleaned values
   };
 
+  // Clear filters
   const clearFilters = () => {
+    const emptyFilters = {
+      status: '',
+      department: '',
+      role: ''
+    };
     setFilters({});
-    filterForm.reset({});
+    filterForm.reset(emptyFilters);
     queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
   };
 
@@ -277,6 +290,40 @@ export default function AdminPanel() {
       return response.json();
     },
   });
+
+  const toggleSubPurposeFreeze = useMutation({
+    mutationFn: async ({ id, isFrozen }: { id: number; isFrozen: boolean }) => {
+      const res = await fetch(`/api/admin/sub-purposes/${id}/freeze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isFrozen }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
+      toast({
+        title: "Success",
+        description: "Sub-purpose status updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
 
   return (
     <div className="container mx-auto py-8">
@@ -450,7 +497,7 @@ export default function AdminPanel() {
                           <FormLabel>Status</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -464,6 +511,7 @@ export default function AdminPanel() {
                               <SelectItem value="rejected">Rejected</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -476,7 +524,7 @@ export default function AdminPanel() {
                           <FormLabel>Department</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -492,6 +540,7 @@ export default function AdminPanel() {
                               <SelectItem value="Operations">Operations</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -504,7 +553,7 @@ export default function AdminPanel() {
                           <FormLabel>Role</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value || ''}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -518,15 +567,19 @@ export default function AdminPanel() {
                               <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
 
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => {
-                        setIsFilterDialogOpen(false);
-                        filterForm.reset(filters); // Reset to current filters if canceled
-                      }}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsFilterDialogOpen(false);
+                        }}
+                      >
                         Cancel
                       </Button>
                       <Button type="submit">Apply Filters</Button>
@@ -619,19 +672,19 @@ export default function AdminPanel() {
                         <TableCell>
                           {subPurpose.valid_from
                             ? new Date(subPurpose.valid_from).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
                             : "N/A"}
                         </TableCell>
                         <TableCell>
                           {subPurpose.valid_to
                             ? new Date(subPurpose.valid_to).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
                             : "N/A"}
                         </TableCell>
                         <TableCell>
