@@ -75,76 +75,6 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
   }
 }
 
-function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = 60;
-  const margin = 15;
-  const imageHeight = 45;
-
-  if (config.branding.headerImage) {
-    addImageToPDF(
-      doc,
-      config.branding.headerImage,
-      config.branding.headerImageMimeType || 'image/png',
-      margin,
-      margin,
-      pageWidth - (margin * 2),
-      imageHeight
-    );
-  } else {
-    // Add company name
-    doc.setTextColor(60, 60, 60);
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text(config.branding.companyName, margin + 45, margin + 30);
-
-    // Add logo if available
-    if (config.branding.logo && config.showLogo) {
-      addImageToPDF(
-        doc,
-        config.branding.logo,
-        config.branding.logoMimeType || 'image/png',
-        margin,
-        margin,
-        40,
-        40
-      );
-    }
-  }
-
-  return headerHeight;
-}
-
-function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = 30;
-  const margin = 15;
-  const footerY = pageHeight - footerHeight;
-
-  if (config.branding.footerImage) {
-    addImageToPDF(
-      doc,
-      config.branding.footerImage,
-      config.branding.footerImageMimeType || 'image/png',
-      margin,
-      footerY,
-      pageWidth - (margin * 2),
-      footerHeight - margin
-    );
-  } else {
-    // Add footer text
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 20, { align: 'center' });
-  }
-
-  // Add page number
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(10);
-  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 20, pageHeight - 20, { align: 'right' });
-
-  return footerHeight;
-}
-
 function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
   if (!imageData || !mimeType) return false;
 
@@ -164,6 +94,51 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
   }
 }
 
+function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
+  const headerHeight = 70;
+  const margin = 20;
+
+  // Add company name on the right side
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+
+  // Add logo if available
+  if (config.branding.logo && config.showLogo) {
+    addImageToPDF(
+      doc,
+      config.branding.logo,
+      config.branding.logoMimeType || 'image/png',
+      margin,
+      margin,
+      40,
+      40
+    );
+    doc.text(config.branding.companyName, margin + 50, margin + 25);
+  } else {
+    doc.text(config.branding.companyName, margin, margin + 25);
+  }
+
+  return headerHeight;
+}
+
+function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
+  const footerHeight = 40;
+  const footerY = pageHeight - footerHeight;
+  const margin = 20;
+
+  // Add footer text
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - margin, { align: 'center' });
+
+  // Add page number
+  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - margin, pageHeight - margin, { align: 'right' });
+
+  return footerHeight;
+}
+
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
     const branding = await fetchBranding();
@@ -172,64 +147,61 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const config: TemplateConfig = {
       branding,
       layout: templateConfig.layout || 'modern',
-      headerHeight: 60,
-      footerHeight: 30,
+      headerHeight: 70,
+      footerHeight: 40,
       showLogo: templateConfig.showLogo ?? true,
     };
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 15;
+    const margin = 20;
     const contentWidth = pageWidth - (margin * 2);
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    let yPos = headerHeight;
+    let yPos = headerHeight + 10;
 
     // Request Purpose & Priority Section
     doc.setFillColor(245, 245, 250);
-    doc.roundedRect(margin, yPos, contentWidth, 35, 3, 3, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 40, 3, 3, 'F');
 
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text("Request Purpose & Priority", margin + 10, yPos + 15);
+    doc.text("Request Purpose & Priority", margin + 10, yPos + 20);
 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Purpose Type: ${request.purposeType || 'N/A'}`, margin + 10, yPos + 30);
-    doc.text(`Sub-purpose: ${request.subPurpose?.name || 'N/A'}`, margin + contentWidth/2, yPos + 30);
+    doc.text(`Purpose Type: ${request.purposeType || 'N/A'}`, margin + 10, yPos + 35);
+    doc.text(`Sub-purpose: ${request.subPurpose?.name || 'N/A'}`, margin + contentWidth/2, yPos + 35);
 
-    yPos += 45;
+    yPos += 50;
 
     // Basic Information Section
     doc.setFillColor(245, 245, 250);
-    doc.roundedRect(margin, yPos, contentWidth, 45, 3, 3, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 50, 3, 3, 'F');
 
     doc.setFont('helvetica', 'bold');
-    doc.text("Basic Information", margin + 10, yPos + 15);
+    doc.text("Basic Information", margin + 10, yPos + 20);
 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Request Title: ${request.title || 'N/A'}`, margin + 10, yPos + 30);
+    doc.text(`Request Title: ${request.title || 'N/A'}`, margin + 10, yPos + 35);
 
-    // Split description into multiple lines if needed
+    // Handle description with proper line breaks
     const descriptionLines = doc.splitTextToSize(
       `Description: ${request.description || 'N/A'}`,
-      contentWidth - 20
+      contentWidth - 40
     );
-    descriptionLines.forEach((line: string, index: number) => {
-      if (index < 2) { // Limit to 2 lines to ensure it fits
-        doc.text(line, margin + 10, yPos + 30 + (index * 7));
-      }
+    descriptionLines.slice(0, 2).forEach((line: string, index: number) => {
+      doc.text(line, margin + 10, yPos + 35 + ((index + 1) * 10));
     });
 
-    yPos += 55;
+    yPos += 60;
 
     // Items Table
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text("Items", margin, yPos);
-    yPos += 10;
+    doc.text("Items", margin, yPos + 10);
 
     const items = (request.items || []).map((item: any) => [
       item.name || 'N/A',
@@ -243,7 +215,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const totalCost = itemsTotal + freightAmount;
 
     autoTable(doc, {
-      startY: yPos,
+      startY: yPos + 20,
       head: [['Item', 'Quantity', 'Unit Cost', 'Total']],
       body: items,
       foot: [
