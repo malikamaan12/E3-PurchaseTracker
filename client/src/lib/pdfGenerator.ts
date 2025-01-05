@@ -75,6 +75,76 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
   }
 }
 
+function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
+  const headerHeight = 60;
+  const margin = 15;
+  const imageHeight = 45;
+
+  if (config.branding.headerImage) {
+    addImageToPDF(
+      doc,
+      config.branding.headerImage,
+      config.branding.headerImageMimeType || 'image/png',
+      margin,
+      margin,
+      pageWidth - (margin * 2),
+      imageHeight
+    );
+  } else {
+    // Add company name
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(config.branding.companyName, margin + 45, margin + 30);
+
+    // Add logo if available
+    if (config.branding.logo && config.showLogo) {
+      addImageToPDF(
+        doc,
+        config.branding.logo,
+        config.branding.logoMimeType || 'image/png',
+        margin,
+        margin,
+        40,
+        40
+      );
+    }
+  }
+
+  return headerHeight;
+}
+
+function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
+  const footerHeight = 30;
+  const margin = 15;
+  const footerY = pageHeight - footerHeight;
+
+  if (config.branding.footerImage) {
+    addImageToPDF(
+      doc,
+      config.branding.footerImage,
+      config.branding.footerImageMimeType || 'image/png',
+      margin,
+      footerY,
+      pageWidth - (margin * 2),
+      footerHeight - margin
+    );
+  } else {
+    // Add footer text
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 20, { align: 'center' });
+  }
+
+  // Add page number
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(10);
+  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 20, pageHeight - 20, { align: 'right' });
+
+  return footerHeight;
+}
+
 function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
   if (!imageData || !mimeType) return false;
 
@@ -94,47 +164,6 @@ function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | 
   }
 }
 
-function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): number {
-  const headerHeight = 50;
-
-  // Add logo if available
-  if (config.branding.logo && config.showLogo) {
-    addImageToPDF(
-      doc,
-      config.branding.logo,
-      config.branding.logoMimeType || 'image/png',
-      10,
-      5,
-      40,
-      40
-    );
-  }
-
-  // Add company name
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.companyName, 60, 30);
-
-  return headerHeight;
-}
-
-function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHeight: number): number {
-  const footerHeight = 25;
-  const footerY = pageHeight - footerHeight;
-
-  // Add footer text
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 15, { align: 'center' });
-
-  // Add page number
-  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 20, pageHeight - 15, { align: 'right' });
-
-  return footerHeight;
-}
-
 export async function generateRequestPDF(request: any, templateConfig: Partial<TemplateConfig> = {}) {
   try {
     const branding = await fetchBranding();
@@ -143,8 +172,8 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const config: TemplateConfig = {
       branding,
       layout: templateConfig.layout || 'modern',
-      headerHeight: 50,
-      footerHeight: 25,
+      headerHeight: 60,
+      footerHeight: 30,
       showLogo: templateConfig.showLogo ?? true,
     };
 
@@ -156,7 +185,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     // Add header
     const headerHeight = addHeader(doc, config, pageWidth);
-    let yPos = headerHeight + 20;
+    let yPos = headerHeight;
 
     // Request Purpose & Priority Section
     doc.setFillColor(245, 245, 250);
@@ -189,10 +218,12 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       contentWidth - 20
     );
     descriptionLines.forEach((line: string, index: number) => {
-      doc.text(line, margin + 10, yPos + 30 + index * 7);
+      if (index < 2) { // Limit to 2 lines to ensure it fits
+        doc.text(line, margin + 10, yPos + 30 + (index * 7));
+      }
     });
 
-    yPos += 55 + (descriptionLines.length - 1) * 7;
+    yPos += 55;
 
     // Items Table
     doc.setFontSize(12);
