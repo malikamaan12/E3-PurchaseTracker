@@ -16,7 +16,10 @@ export async function analyzeFormStateIssue(formCode: string): Promise<string> {
       }]
     });
 
-    return response.content[0].text;
+    // Safely access the content text
+    const content = response.content[0];
+    return typeof content === 'object' && 'text' in content ? content.text : 'No analysis available';
+
   } catch (error) {
     console.error('Error analyzing form state:', error);
     throw error;

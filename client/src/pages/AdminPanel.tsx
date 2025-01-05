@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import DraggableBrandingForm from "@/components/DraggableBrandingForm";
 import UserManagement from "@/components/UserManagement";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus, Filter } from "lucide-react";
+import { ArrowLeft, Check, X, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -62,55 +62,18 @@ import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 
-// Add filter interface
-interface AccountRequestFilters {
-  status?: string;
-  department?: string;
-  role?: string;
-}
-
-// Create a schema for the filters
-const filterSchema = z.object({
-  status: z.string().optional(),
-  department: z.string().optional(),
-  role: z.string().optional(),
-});
-
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("users");
   const [isSubPurposeDialogOpen, setIsSubPurposeDialogOpen] = useState(false);
-  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-  const [filters, setFilters] = useState<AccountRequestFilters>({});
 
-  // Initialize form with validation schema
-  const filterForm = useForm<AccountRequestFilters>({
-    resolver: zodResolver(filterSchema),
-    defaultValues: filters,
-    mode: 'onChange'
-  });
-
-  // Synchronize form values with filters state
-  useEffect(() => {
-    filterForm.reset(filters);
-  }, [filters]);
-
-  // Fetch account requests with filters
+  // Fetch account requests
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
-    queryKey: ["/api/admin/account-requests", filters],
-    queryFn: async ({ queryKey }) => {
-      const [_, currentFilters] = queryKey;
-      const queryParams = new URLSearchParams();
-
-      Object.entries(currentFilters).forEach(([key, value]) => {
-        if (value && value !== '') {
-          queryParams.append(key, value);
-        }
-      });
-
-      const response = await fetch(`/api/admin/account-requests?${queryParams.toString()}`, {
+    queryKey: ["/api/admin/account-requests"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/account-requests", {
         credentials: 'include'
       });
 
@@ -118,28 +81,6 @@ export default function AdminPanel() {
       return response.json() as Promise<AccountRequest[]>;
     },
   });
-
-  // Handle filter form submission
-  const handleFilterSubmit = async (data: AccountRequestFilters) => {
-    // Remove empty values
-    const cleanedFilters = Object.fromEntries(
-      Object.entries(data).filter(([_, value]) => value && value !== '')
-    ) as AccountRequestFilters;
-
-    setFilters(cleanedFilters);
-    setIsFilterDialogOpen(false);
-  };
-
-  // Clear filters
-  const clearFilters = () => {
-    setFilters({});
-    filterForm.reset({
-      status: '',
-      department: '',
-      role: ''
-    });
-    setIsFilterDialogOpen(false);
-  };
 
   // Account request management
   const approveAccountRequest = useMutation({
@@ -156,7 +97,7 @@ export default function AdminPanel() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
       toast({
         title: "Success",
         description: "Account request approved successfully",
@@ -183,7 +124,7 @@ export default function AdminPanel() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
       toast({
         title: "Success",
         description: "Account request rejected successfully",
@@ -217,7 +158,7 @@ export default function AdminPanel() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests", filters] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-requests"] });
       toast({
         title: "Success",
         description: "User role updated successfully",
@@ -335,7 +276,6 @@ export default function AdminPanel() {
     },
   });
 
-
   return (
     <div className="container mx-auto py-8">
       <Button
@@ -360,25 +300,10 @@ export default function AdminPanel() {
         <TabsContent value="requests">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Account Requests</CardTitle>
-                  <CardDescription>
-                    Manage pending account creation requests
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {(filters.status || filters.department || filters.role) && (
-                    <Button variant="outline" onClick={clearFilters}>
-                      Clear Filters
-                    </Button>
-                  )}
-                  <Button onClick={() => setIsFilterDialogOpen(true)}>
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                </div>
-              </div>
+              <CardTitle>Account Requests</CardTitle>
+              <CardDescription>
+                Manage pending account creation requests
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingRequests ? (
@@ -488,127 +413,6 @@ export default function AdminPanel() {
                   </TableBody>
                 </Table>
               )}
-
-              {/* Filter Dialog */}
-              <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Filter Account Requests</DialogTitle>
-                    <DialogDescription>
-                      Filter requests by status, department, or role
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <Form {...filterForm}>
-                    <form onSubmit={filterForm.handleSubmit(handleFilterSubmit)} className="space-y-4">
-                      <FormField
-                        control={filterForm.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Status</FormLabel>
-                            <Select
-                              value={field.value ?? ''}
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                filterForm.trigger("status");
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="">All</SelectItem>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="approved">Approved</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={filterForm.control}
-                        name="department"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Department</FormLabel>
-                            <Select
-                              value={field.value ?? ''}
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                filterForm.trigger("department");
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select department" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="">All</SelectItem>
-                                <SelectItem value="IT">IT</SelectItem>
-                                <SelectItem value="HR">HR</SelectItem>
-                                <SelectItem value="Finance">Finance</SelectItem>
-                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                <SelectItem value="Operations">Operations</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={filterForm.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Role</FormLabel>
-                            <Select
-                              value={field.value ?? ''}
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                filterForm.trigger("role");
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="">All</SelectItem>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="approver">Approver</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setIsFilterDialogOpen(false);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="submit">Apply Filters</Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -798,12 +602,10 @@ export default function AdminPanel() {
                               <Input
                                 type="datetime-local"
                                 {...field}
-                                value={field.value || ''}
+                                value={field.value ?? ''}
                                 onChange={(e) => {
                                   const date = e.target.value;
-                                  if (!date || !isNaN(Date.parse(date))) {
-                                    field.onChange(date);
-                                  }
+                                  field.onChange(date);
                                 }}
                               />
                             </FormControl>
@@ -825,12 +627,10 @@ export default function AdminPanel() {
                               <Input
                                 type="datetime-local"
                                 {...field}
-                                value={field.value || ''}
+                                value={field.value ?? ''}
                                 onChange={(e) => {
                                   const date = e.target.value;
-                                  if (!date || !isNaN(Date.parse(date))) {
-                                    field.onChange(date);
-                                  }
+                                  field.onChange(date);
                                 }}
                               />
                             </FormControl>
@@ -871,7 +671,7 @@ export default function AdminPanel() {
             <CardHeader>
               <CardTitle>Company Branding</CardTitle>
               <CardDescription>
-                Customize your company branding with an intuitive drag and drop interface
+                Customize your company's branding settings
               </CardDescription>
             </CardHeader>
             <CardContent>
