@@ -255,21 +255,33 @@ export default function RequestCard({
 
   const handleDownloadPDF = async () => {
     try {
-      const templateConfig: TemplateConfig = {
-        branding: defaultBranding,
-        layout: 'bento',
-        showLogo: true,
-        headerHeight: 30,
-        footerHeight: 20,
-      };
+      const response = await fetch(`/api/requests/${request.id}/pdf`, {
+        credentials: 'include'
+      });
 
-      const doc = await generateRequestPDF(request, templateConfig);
-      doc.save(`${request.requestNumber}.pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Create a blob from the PDF stream
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary link and trigger download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${request.requestNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error downloading PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: "Failed to download PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
         variant: "destructive",
       });
     }
