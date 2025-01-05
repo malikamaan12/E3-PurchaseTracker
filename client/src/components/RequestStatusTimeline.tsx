@@ -8,7 +8,8 @@ import {
   AlertTriangle,
   ArrowRight,
   UserCircle2,
-  Clock
+  Clock,
+  PencilLine
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { PurchaseRequestWithRelations } from "@db/schema";
@@ -23,7 +24,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   const statusFlow = [
     { status: 'draft', label: 'Draft', date: request.createdAt },
     { status: 'pending', label: 'Pending Approval', date: request.updatedAt },
-    { status: 'changes_requested', label: 'Changes Requested' },
+    { status: 'changes_requested', label: 'Changes Requested', date: request.statusChangedAt },
     { status: 'approved', label: 'Approved' },
     { status: 'rejected', label: 'Rejected' }
   ];
@@ -68,10 +69,22 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   const getStatusIcon = (status: string, isCurrent: boolean, isPast: boolean) => {
     if (status === 'approved' && isPast) return <CheckCircle className="h-6 w-6 text-green-500" />;
     if (status === 'rejected' && isPast) return <XCircle className="h-6 w-6 text-red-500" />;
-    if (status === 'changes_requested' && isPast) return <AlertTriangle className="h-6 w-6 text-orange-500" />;
+    if (status === 'changes_requested' && (isPast || isCurrent)) return <PencilLine className="h-6 w-6 text-orange-500" />;
     if (isPast) return <CheckCircle className="h-6 w-6 text-green-500" />;
     if (isCurrent) return <Circle className="h-6 w-6 text-blue-500 animate-pulse" />;
     return <Circle className="h-6 w-6 text-gray-300" />;
+  };
+
+  // Find the most recent change request comment
+  const getChangeRequestComment = () => {
+    if (!request.approvals) return null;
+
+    // Sort approvals by date in descending order and find the most recent changes_requested
+    const changeRequest = [...request.approvals]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .find(a => a.status === 'changes_requested');
+
+    return changeRequest?.comments || null;
   };
 
   return (
@@ -120,11 +133,19 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                         </p>
                       )}
 
+                      {/* Show change request comments if available */}
+                      {status.status === 'changes_requested' && isCurrent && getChangeRequestComment() && (
+                        <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                          <p className="text-sm text-orange-700 font-medium mb-2">Changes Requested:</p>
+                          <p className="text-sm text-orange-600">{getChangeRequestComment()}</p>
+                        </div>
+                      )}
+
                       {/* Show approval details if status is pending */}
                       {status.status === 'pending' && request.status === 'pending' && request.approvals && (
                         <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4 animate-slide-in">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
-                          {request.approvals.map(approval => (
+                          {request.approvals.map((approval: any) => (
                             <div 
                               key={approval.id} 
                               className={cn(
@@ -137,6 +158,8 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                                   <Clock className="h-5 w-5 text-blue-500" />
                                 ) : approval.status === 'approved' ? (
                                   <CheckCircle className="h-5 w-5 text-green-500" />
+                                ) : approval.status === 'changes_requested' ? (
+                                  <PencilLine className="h-5 w-5 text-orange-500" />
                                 ) : (
                                   <XCircle className="h-5 w-5 text-red-500" />
                                 )}
@@ -153,7 +176,8 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                  {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                                  {approval.status === 'changes_requested' ? 'Changes Requested' : 
+                                    approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
                                 </p>
                                 {approval.comments && (
                                   <p className="text-sm text-gray-600 mt-1 italic">
