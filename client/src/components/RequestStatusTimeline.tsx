@@ -1,10 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { 
-  Circle, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Circle,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   ArrowRight,
   UserCircle2,
@@ -35,48 +35,8 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   // Calculate progress percentage
   const progressPercentage = ((currentStatusIndex + 1) / statusFlow.length) * 100;
 
-  const getStatusColor = (status: string, isCurrent: boolean, isPast: boolean) => {
-    if (!isPast && !isCurrent) return "text-gray-400";
-    switch (status) {
-      case 'approved':
-        return "text-green-500";
-      case 'rejected':
-        return "text-red-500";
-      case 'changes_requested':
-        return "text-orange-500";
-      case 'pending':
-        return "text-blue-500";
-      default:
-        return "text-gray-600";
-    }
-  };
-
-  const getProgressColor = () => {
-    switch (request.status) {
-      case 'approved':
-        return "bg-green-500";
-      case 'rejected':
-        return "bg-red-500";
-      case 'changes_requested':
-        return "bg-orange-500";
-      case 'pending':
-        return "bg-blue-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusIcon = (status: string, isCurrent: boolean, isPast: boolean) => {
-    if (status === 'approved' && isPast) return <CheckCircle className="h-6 w-6 text-green-500" />;
-    if (status === 'rejected' && isPast) return <XCircle className="h-6 w-6 text-red-500" />;
-    if (status === 'changes_requested' && (isPast || isCurrent)) return <PencilLine className="h-6 w-6 text-orange-500" />;
-    if (isPast) return <CheckCircle className="h-6 w-6 text-green-500" />;
-    if (isCurrent) return <Circle className="h-6 w-6 text-blue-500 animate-pulse" />;
-    return <Circle className="h-6 w-6 text-gray-300" />;
-  };
-
-  // Find the most recent change request comment
-  const getChangeRequestComment = () => {
+  // Find the most recent change request comment and details
+  const getChangeRequestDetails = () => {
     if (!request.approvals) return null;
 
     // Sort approvals by date in descending order and find the most recent changes_requested
@@ -84,7 +44,14 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .find(a => a.status === 'changes_requested');
 
-    return changeRequest?.comments || null;
+    if (!changeRequest) return null;
+
+    return {
+      comments: changeRequest.comments,
+      department: changeRequest.department,
+      updatedAt: changeRequest.updatedAt,
+      requester: changeRequest.requester
+    };
   };
 
   return (
@@ -94,7 +61,10 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
 
         {/* Progress Bar */}
         <div className="mb-8">
-          <Progress value={progressPercentage} className={cn("h-2", getProgressColor())} />
+          <Progress 
+            value={progressPercentage} 
+            className={cn("h-2", request.status === 'changes_requested' ? "bg-orange-500" : "bg-gray-500")} 
+          />
         </div>
 
         <div className="relative">
@@ -106,19 +76,37 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
             {statusFlow.map((status, index) => {
               const isPast = index < currentStatusIndex;
               const isCurrent = index === currentStatusIndex;
+              const changeRequestDetails = status.status === 'changes_requested' ? getChangeRequestDetails() : null;
 
               return (
                 <div key={status.status} className="relative">
                   <div className="flex items-start gap-4 group">
                     {/* Status icon */}
-                    <div className="relative z-10 flex-shrink-0">
-                      {getStatusIcon(status.status, isCurrent, isPast)}
+                    <div className="relative z-10">
+                      {status.status === 'changes_requested' && (isCurrent || isPast) ? (
+                        <PencilLine className="h-6 w-6 text-orange-500" />
+                      ) : status.status === 'approved' && (isCurrent || isPast) ? (
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      ) : status.status === 'rejected' && (isCurrent || isPast) ? (
+                        <XCircle className="h-6 w-6 text-red-500" />
+                      ) : isPast ? (
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      ) : isCurrent ? (
+                        <Circle className="h-6 w-6 text-blue-500 animate-pulse" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-gray-300" />
+                      )}
                     </div>
 
                     {/* Status content */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className={`font-medium ${getStatusColor(status.status, isCurrent, isPast)}`}>
+                        <p className={cn(
+                          "font-medium",
+                          isCurrent && status.status === 'changes_requested' ? "text-orange-600" :
+                          isCurrent ? "text-blue-600" :
+                          isPast ? "text-gray-600" : "text-gray-400"
+                        )}>
                           {status.label}
                         </p>
                         {isCurrent && (
@@ -127,63 +115,67 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                           </Badge>
                         )}
                       </div>
-                      {status.date && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          {format(new Date(status.date), "PPp")}
-                        </p>
-                      )}
 
-                      {/* Show change request comments if available */}
-                      {status.status === 'changes_requested' && isCurrent && getChangeRequestComment() && (
+                      {/* Show change request details */}
+                      {status.status === 'changes_requested' && isCurrent && changeRequestDetails && (
                         <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
-                          <p className="text-sm text-orange-700 font-medium mb-2">Changes Requested:</p>
-                          <p className="text-sm text-orange-600">{getChangeRequestComment()}</p>
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="text-sm text-orange-700 font-medium">
+                                Changes Requested by {changeRequestDetails.department}
+                              </p>
+                              <p className="text-xs text-orange-600 mt-1">
+                                {format(new Date(changeRequestDetails.updatedAt), "PPp")}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-sm text-orange-600 mt-2">{changeRequestDetails.comments}</p>
                         </div>
                       )}
 
-                      {/* Show approval details if status is pending */}
+                      {/* Show pending approvals */}
                       {status.status === 'pending' && request.status === 'pending' && request.approvals && (
-                        <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4 animate-slide-in">
+                        <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
                           {request.approvals
                             .filter(approval => approval.status === 'pending' || approval.status === 'approved')
                             .map((approval: any) => (
-                            <div 
-                              key={approval.id} 
-                              className={cn(
-                                "flex items-start gap-3 p-3 rounded-md transition-colors",
-                                approval.status === 'pending' ? 'bg-white' : 'bg-gray-50'
-                              )}
-                            >
-                              <div className="flex-shrink-0">
-                                {approval.status === 'pending' ? (
-                                  <Clock className="h-5 w-5 text-blue-500" />
-                                ) : (
-                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                              <div 
+                                key={approval.id} 
+                                className={cn(
+                                  "flex items-start gap-3 p-3 rounded-md transition-colors",
+                                  approval.status === 'pending' ? 'bg-white' : 'bg-gray-50'
                                 )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {approval.department}
-                                  </p>
-                                  {approval.isMandatory && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Mandatory
-                                    </Badge>
+                              >
+                                <div className="flex-shrink-0">
+                                  {approval.status === 'pending' ? (
+                                    <Clock className="h-5 w-5 text-blue-500" />
+                                  ) : (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-500">
-                                  {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
-                                </p>
-                                {approval.comments && (
-                                  <p className="text-sm text-gray-600 mt-1 italic">
-                                    "{approval.comments}"
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {approval.department}
+                                    </p>
+                                    {approval.isMandatory && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Mandatory
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-500">
+                                    {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
                                   </p>
-                                )}
+                                  {approval.comments && (
+                                    <p className="text-sm text-gray-600 mt-1 italic">
+                                      "{approval.comments}"
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       )}
                     </div>
