@@ -1,23 +1,21 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { type CompanyBranding } from '@db/schema';
 import { format } from 'date-fns';
 
 // Interfaces
 interface TemplateConfig {
   branding: {
-    name: string;
+    companyName: string;
     primaryColor: [number, number, number];
     secondaryColor: [number, number, number];
     accentColor: [number, number, number];
-    headerStyle: string;
+    footerText: string;
     logo: string | null;
     logoMimeType: string | null;
     headerImage: string | null;
     headerImageMimeType: string | null;
     footerImage: string | null;
     footerImageMimeType: string | null;
-    footerText: string;
   };
   layout: 'modern' | 'classic' | 'bento';
   headerHeight: number;
@@ -36,34 +34,32 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     console.log('Branding data received:', data);
 
     return {
-      name: data.company_name || 'Company Name',
-      primaryColor: hexToRGB(data.primary_color || '#212121'),
-      secondaryColor: hexToRGB(data.secondary_color || '#f5f5f5'),
-      accentColor: hexToRGB(data.accent_color || '#0070c9'),
-      headerStyle: data.header_style || 'modern',
+      companyName: data.companyName || 'Company Name',
+      primaryColor: hexToRGB(data.primaryColor || '#71569E'),
+      secondaryColor: hexToRGB(data.secondaryColor || '#F0F0FA'),
+      accentColor: hexToRGB(data.accentColor || '#191160'),
+      footerText: data.footerText || "Confidential Document",
       logo: data.logo || null,
-      logoMimeType: data.logo_mime_type || null,
-      headerImage: data.header_image || null,
-      headerImageMimeType: data.header_image_mime_type || null,
-      footerImage: data.footer_image || null,
-      footerImageMimeType: data.footer_image_mime_type || null,
-      footerText: data.footer_text || "Confidential Document"
+      logoMimeType: data.logoMimeType || null,
+      headerImage: data.headerImage || null,
+      headerImageMimeType: data.headerImageMimeType || null,
+      footerImage: data.footerImage || null,
+      footerImageMimeType: data.footerImageMimeType || null,
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
     return {
-      name: "Company Name",
-      primaryColor: [33, 33, 33],
-      secondaryColor: [245, 245, 245],
-      accentColor: [0, 112, 201],
-      headerStyle: "modern",
+      companyName: "Company Name",
+      primaryColor: [113, 86, 158], // #71569E
+      secondaryColor: [240, 240, 250], // #F0F0FA
+      accentColor: [25, 17, 96], // #191160
+      footerText: "Confidential Document",
       logo: null,
       logoMimeType: null,
       headerImage: null,
       headerImageMimeType: null,
       footerImage: null,
       footerImageMimeType: null,
-      footerText: "Confidential Document"
     };
   }
 }
@@ -74,7 +70,7 @@ function hexToRGB(hex: string): [number, number, number] {
     parseInt(result[1], 16),
     parseInt(result[2], 16),
     parseInt(result[3], 16)
-  ] : [33, 33, 33];
+  ] : [113, 86, 158]; // Default to #71569E if invalid
 }
 
 function addImageToPDF(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): boolean {
@@ -140,7 +136,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig, pageWidth: number): numbe
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.name, logoWidth + 10, 20);
+  doc.text(config.branding.companyName, logoWidth + 10, 20);
 
   // Add date
   doc.setFontSize(9);
@@ -180,17 +176,17 @@ function addFooter(doc: jsPDF, config: TemplateConfig, pageWidth: number, pageHe
   doc.text(config.branding.footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   // Page number
-  doc.text(`Page ${(doc as any).internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
+  doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
 
   return footerHeight;
 }
 
 function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y: number, width: number, height: number, config: TemplateConfig) {
-  // Background
+  // Background with secondary color
   doc.setFillColor(...config.branding.secondaryColor);
   doc.roundedRect(x, y, width, height, 2, 2, 'F');
 
-  // Header
+  // Header with primary color
   doc.setFillColor(...config.branding.primaryColor);
   doc.roundedRect(x, y, width, 15, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
@@ -198,8 +194,8 @@ function addBentoTile(doc: jsPDF, title: string, content: string[], x: number, y
   doc.setFont('helvetica', 'bold');
   doc.text(title.toUpperCase(), x + 5, y + 10);
 
-  // Content with text wrapping
-  doc.setTextColor(60, 60, 60);
+  // Content with accent color for text
+  doc.setTextColor(...config.branding.accentColor);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   let contentY = y + 22;
@@ -264,26 +260,14 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     ];
     addBentoTile(doc, 'Request Info', requestInfo, margin, yPos, columnWidth, 45, config);
 
-    // Enhanced vendor info access with proper null checks
     const vendor = request.vendor || {};
     const vendorInfo = [
       `Name: ${vendor.name || vendor.vendorName || 'N/A'}`,
       `Category: ${vendor.category || vendor.vendorCategory || 'N/A'}`,
-      `Contact Person: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
-      `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`,
-      `Phone: ${vendor.phone || vendor.contactPhone || 'N/A'}`
+      `Contact: ${vendor.contactPerson || vendor.contact || 'N/A'}`,
+      `Email: ${vendor.email || vendor.contactEmail || 'N/A'}`
     ];
     addBentoTile(doc, 'Vendor Details', vendorInfo, margin + columnWidth + margin/2, yPos, columnWidth, 45, config);
-
-    // Purpose Information
-    yPos += 50;
-    const subPurpose = request.subPurpose || request.sub_purpose || {};
-    const purposeInfo = [
-      `Purpose Type: ${(request.purposeType || 'N/A').toUpperCase()}`,
-      `Sub Purpose: ${subPurpose.name || subPurpose.subPurposeName || 'N/A'}`,
-      `Details: ${request.purposeDetails || request.purpose || 'N/A'}`
-    ];
-    addBentoTile(doc, 'Purpose Information', purposeInfo, margin, yPos, contentWidth, 45, config);
 
     // Items Table
     yPos += 50;
@@ -303,7 +287,6 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       body: items,
       foot: [
         ['', '', '', 'Items Total:', formatCurrency(calculateItemsTotal(request), request.currency)],
-        ['', '', '', 'Freight Amount:', formatCurrency(Number(request.freightAmount || 0), request.currency)],
         ['', '', '', 'Total Cost:', formatCurrency(calculateTotalCost(request), request.currency)]
       ],
       headStyles: {
@@ -315,7 +298,8 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
       },
       bodyStyles: {
         fontSize: 8,
-        cellPadding: 2
+        cellPadding: 2,
+        textColor: config.branding.accentColor
       },
       footStyles: {
         fillColor: config.branding.primaryColor,
@@ -324,18 +308,12 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
         fontStyle: 'bold',
         cellPadding: 2
       },
-      columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 }
-      },
+      theme: 'plain',
       margin: { left: margin, right: margin }
     });
 
     // Add footer to all pages
-    const pageCount = (doc as any).internal.getNumberOfPages();
+    const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       addFooter(doc, config, pageWidth, pageHeight);
@@ -372,7 +350,7 @@ function calculateItemsTotal(request: any): number {
 }
 
 function calculateTotalCost(request: any): number {
-  return calculateItemsTotal(request) + Number(request.freightAmount || 0);
+  return calculateItemsTotal(request);
 }
 
 function formatFileSize(bytes: number): string {
