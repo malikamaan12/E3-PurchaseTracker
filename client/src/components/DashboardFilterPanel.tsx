@@ -119,6 +119,22 @@ export function DashboardFilterPanel({
     ? subPurposes.filter(sp => filters.purposeType.includes(sp.purposeType))
     : subPurposes;
 
+  const isFilterActive = (value: any): boolean => {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") {
+      if (value === null) return false;
+      if ("from" in value && "to" in value) {
+        return Boolean(value.from) || Boolean(value.to);
+      }
+      if ("min" in value && "max" in value) {
+        return Boolean(value.min) || Boolean(value.max);
+      }
+    }
+    if (typeof value === "number") return value !== null;
+    return Boolean(value);
+  };
+
   const updateFilters = (key: keyof FilterValues, value: any) => {
     // Clear sub-purpose if purpose type changes
     if (key === 'purposeType' && filters.subPurposeId) {
@@ -137,19 +153,7 @@ export function DashboardFilterPanel({
 
     // Update active filters
     const activeFiltersList = Object.entries(filters)
-      .filter(([_, value]) => {
-        if (Array.isArray(value)) return value.length > 0;
-        if (typeof value === "object") {
-          if ("from" in value && "to" in value) {
-            return value.from || value.to;
-          }
-          if ("min" in value && "max" in value) {
-            return value.min || value.max;
-          }
-        }
-        if (typeof value === "number") return value !== null;
-        return value;
-      })
+      .filter(([_, value]) => isFilterActive(value))
       .map(([key]) => key);
 
     setActiveFilters(activeFiltersList);
@@ -394,7 +398,7 @@ export function DashboardFilterPanel({
                     from: filters.dateRange.from,
                     to: filters.dateRange.to,
                   }}
-                  onSelect={(range) => updateFilters("dateRange", range)}
+                  onSelect={(range) => updateFilters("dateRange", range || { from: undefined, to: undefined })}
                 />
               </div>
 
