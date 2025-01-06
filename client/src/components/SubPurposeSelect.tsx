@@ -56,24 +56,22 @@ export default function SubPurposeSelect({
   }, [purposeType, onChange]);
 
   const { data: subPurposes = [], isLoading } = useQuery<SubPurpose[]>({
-    queryKey: ["/api/sub-purposes", purposeType],
+    queryKey: ["/api/subpurposes", purposeType],
     queryFn: async () => {
       if (!purposeType) return [];
 
-      const response = await fetch(`/api/sub-purposes?purposeType=${encodeURIComponent(purposeType)}`, {
+      const response = await fetch(`/api/subpurposes?purposeType=${encodeURIComponent(purposeType)}`, {
         credentials: "include",
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Sub-purposes data not available");
-        }
         const errorText = await response.text();
+        console.error('Error fetching sub-purposes:', errorText);
         throw new Error(errorText || "Failed to fetch sub-purposes");
       }
 
       const data = await response.json();
-      console.log('Fetched sub-purposes:', data); // Debug log
+      console.log('Fetched sub-purposes:', data);
       return data;
     },
     enabled: !!purposeType,
@@ -102,8 +100,9 @@ export default function SubPurposeSelect({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          name, 
-          purposeType
+          name,
+          purposeType,
+          is_frozen: false,
         }),
         credentials: "include",
       });
@@ -116,7 +115,7 @@ export default function SubPurposeSelect({
       return res.json() as Promise<SubPurpose>;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sub-purposes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subpurposes"] });
       onChange(data.id);
       setDialogOpen(false);
       setNewSubPurpose("");
@@ -136,7 +135,6 @@ export default function SubPurposeSelect({
 
   const selectedSubPurpose = subPurposes.find(sp => sp.id === value);
 
-  // Show warning if selected sub-purpose is no longer available
   useEffect(() => {
     if (selectedSubPurpose && !activeSubPurposes.some(sp => sp.id === selectedSubPurpose.id)) {
       toast({

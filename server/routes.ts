@@ -30,7 +30,7 @@ import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_TYPES
 } from "@db/schema";
-import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import express from 'express';
 import bcrypt from 'bcrypt';
 
@@ -462,6 +462,59 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+
+  // Add sub-purposes endpoint
+  app.get("/api/subpurposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes with filters:', { purposeType });
+
+      let query = db.select().from(subPurposes);
+
+      // Apply purpose type filter if provided
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
+      }
+
+      // Only return non-frozen and valid sub-purposes
+      const now = new Date();
+      query = query.where(
+        and(
+          eq(subPurposes.is_frozen, false),
+          or(
+            isNull(subPurposes.valid_from),
+            lte(subPurposes.valid_from, now)
+          ),
+          or(
+            isNull(subPurposes.valid_to),
+            gte(subPurposes.valid_to, now)
+          )
+        )
+      );
+
+      const results = await query.orderBy(desc(subPurposes.created_at));
+      debug(req, `Found ${results.length} sub-purposes`);
+
+      // Format the response to match frontend expectations
+      const formattedResults = results.map(sp => ({
+        id: sp.id,
+        name: sp.name,
+        purpose_type: sp.purpose_type,
+        is_frozen: sp.is_frozen,
+        valid_from: sp.valid_from ? new Date(sp.valid_from).toISOString() : null,
+        valid_to: sp.valid_to ? new Date(sp.valid_to).toISOString() : null
+      }));
+
+      res.json(formattedResults);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
 
   // Account requests management - UPDATED
   app.get("/api/admin/account-requests", async (req: Request, res: Response, next: NextFunction) => {
