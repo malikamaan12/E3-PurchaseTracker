@@ -276,6 +276,7 @@ export default function PurchaseRequestForm({
     try {
       console.log('Form data before submission:', data);
 
+      // Basic validation
       if (!draft) {
         const validationErrors = [];
         if (!data.vendorId) validationErrors.push("Please select a vendor");
@@ -299,7 +300,8 @@ export default function PurchaseRequestForm({
         }
       }
 
-      let attachments = [];
+      // Handle file uploads first if there are any files
+      const fileAttachments = [];
       if (files.length > 0) {
         const formData = new FormData();
         files.forEach(fileObj => {
@@ -307,7 +309,8 @@ export default function PurchaseRequestForm({
         });
 
         try {
-          attachments = await uploadMutation.mutateAsync(formData);
+          const uploadedFiles = await uploadMutation.mutateAsync(formData);
+          fileAttachments.push(...uploadedFiles);
         } catch (error) {
           console.error('File upload error:', error);
           toast({
@@ -319,18 +322,20 @@ export default function PurchaseRequestForm({
         }
       }
 
+      // Prepare request data
       const requestData = {
         data: {
           ...data,
-          attachments,
+          attachments: [...fileAttachments, ...uploadedFiles],
           items: data.items.map(item => ({
             ...item,
             quantity: Number(item.quantity),
             estimatedCost: Number(item.estimatedCost)
           })),
-          totalEstimatedCost: Number(data.totalEstimatedCost),
+          totalEstimatedCost: Number(data.totalEstimatedCost || 0),
           freightAmount: Number(data.freightAmount || 0),
           vendorId: Number(data.vendorId),
+          subPurposeId: Number(data.subPurposeId),
           additionalApprovers: data.additionalApprovers || []
         },
         action: draft ? 'draft' : 'submit'
@@ -338,7 +343,19 @@ export default function PurchaseRequestForm({
 
       console.log('Submitting request data:', JSON.stringify(requestData, null, 2));
 
-      await submitMutation.mutateAsync(requestData);
+      const response = await submitMutation.mutateAsync(requestData);
+
+      if (response) {
+        toast({
+          title: "Success",
+          description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
+        });
+
+        if (onSubmit) {
+          onSubmit(draft);
+        }
+      }
+
     } catch (error) {
       console.error('Error submitting request:', error);
       toast({
