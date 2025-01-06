@@ -21,7 +21,7 @@ import {
   companyBranding,
   insertCompanyBrandingSchema,
 } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
@@ -687,9 +687,55 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      debug(req, 'Fetching requests for user:', req.user!.id);
+      debug(req, 'Fetching requests with filters:', req.query);
 
-      // Get all requests with requester information
+      // Build filter conditions
+      const whereConditions = [];
+
+      // Date range filter
+      if (req.query.dateFrom || req.query.dateTo) {
+        const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : null;
+        const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : null;
+
+        if (dateFrom && dateTo) {
+          whereConditions.push(and(
+            gte(purchaseRequests.createdAt, dateFrom),
+            lte(purchaseRequests.createdAt, dateTo)
+          ));
+        } else if (dateFrom) {
+          whereConditions.push(gte(purchaseRequests.createdAt, dateFrom));
+        } else if (dateTo) {
+          whereConditions.push(lte(purchaseRequests.createdAt, dateTo));
+        }
+      }
+
+      // Department filter
+      if (req.query.department) {
+        whereConditions.push(eq(users.department, req.query.department as string));
+      }
+
+      // Vendor filter
+      if (req.query.vendor) {
+        whereConditions.push(eq(purchaseRequests.vendorId, parseInt(req.query.vendor as string)));
+      }
+
+      // Purpose filter
+      if (req.query.purpose) {
+        whereConditions.push(eq(purchaseRequests.purposeType, req.query.purpose as string));
+      }
+
+      // Sub-purpose filter
+      if (req.query.subPurpose) {
+        whereConditions.push(eq(purchaseRequests.subPurposeId, parseInt(req.query.subPurpose as string)));
+      }
+
+      // Status filter (including rejected/approved)
+      if (req.query.status) {
+        const statuses = (req.query.status as string).split(',');
+        whereConditions.push(inArray(purchaseRequests.status, statuses));
+      }
+
+      // Get all requests with requester information and filters
       const requests = await db
         .select({
           id: purchaseRequests.id,
@@ -705,6 +751,8 @@ export function registerRoutes(app: Express): Server {
           purposeType: purchaseRequests.purposeType,
           priority: purchaseRequests.priority,
           isLocked: purchaseRequests.isLocked,
+          vendorId: purchaseRequests.vendorId,
+          subPurposeId: purchaseRequests.subPurposeId,
           requester: {
             id: users.id,
             username: users.username,
@@ -716,6 +764,7 @@ export function registerRoutes(app: Express): Server {
         })
         .from(purchaseRequests)
         .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
         .orderBy(desc(purchaseRequests.createdAt));
 
       debug(req, 'Raw requests data:', JSON.stringify(requests, null, 2));
@@ -728,15 +777,39 @@ export function registerRoutes(app: Express): Server {
           .from(approvals)
           .where(eq(approvals.requestId, request.id));
 
+        // Get vendor details if vendorId exists
+        let vendorDetails = null;
+        if (request.vendorId) {
+          const [vendor] = await db
+            .select()
+            .from(vendors)
+            .where(eq(vendors.id, request.vendorId))
+            .limit(1);
+          vendorDetails = vendor;
+        }
+
+        // Get sub-purpose details if subPurposeId exists
+        let subPurposeDetails = null;
+        if (request.subPurposeId) {
+          const [subPurpose] = await db
+            .select()
+            .from(subPurposes)
+            .where(eq(subPurposes.id, request.subPurposeId))
+            .limit(1);
+          subPurposeDetails = subPurpose;
+        }
+
         // Parse JSON fields
         return {
           ...request,
           items: typeof request.items === 'string' ? JSON.parse(request.items) : request.items,
-          approvals: requestApprovals || []
+          approvals: requestApprovals || [],
+          vendor: vendorDetails,
+          subPurpose: subPurposeDetails
         };
       }));
 
-      debug(req, `Found ${requestsWithDetails.length} requests`);
+      debug(req, `Found ${requestsWithDetails.length} requests after filtering`);
       return res.json(requestsWithDetails);
     } catch (error) {
       debug(req, 'Error fetching requests:', error);
@@ -909,7 +982,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update request status
       const [updatedRequest] = await db
-        .update(accountRequests)
+                .update(accountRequests)
         .set({ status: 'rejected' })
         .where(eq(accountRequests.id, requestId))
         .returning();
@@ -1524,7 +1597,6 @@ export function registerRoutes(app: Express): Server {
   // Remove Redundant Branding Routes
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
-
 
   // Update the GET /api/requests/:id endpoint
   app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
