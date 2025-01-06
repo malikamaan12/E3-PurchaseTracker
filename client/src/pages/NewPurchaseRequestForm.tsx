@@ -133,6 +133,7 @@ export default function NewPurchaseRequestForm() {
               onUploadComplete={handleUploadComplete}
               maxFiles={5}
               maxSizeInMB={10}
+              uploadedFiles={uploadedFiles}
             />
           </div>
 
