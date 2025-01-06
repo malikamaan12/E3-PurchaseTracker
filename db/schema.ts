@@ -522,6 +522,9 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   status: z.enum(["active", "blocked", "frozen"]).default("active"),
 });
 
+// Export the same schema for form validation
+export const vendorFormSchema = insertVendorSchema;
+
 export const insertVendorCategorySchema = createInsertSchema(vendorCategories, {
   name: z.string().min(2, "Category name must be at least 2 characters"),
   description: z.string().optional(),
@@ -655,7 +658,7 @@ export type NotificationEventType = keyof typeof NOTIFICATION_TYPES;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
 
-// Add validation schema
+// Fix the schema validation for notification preferences
 export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences, {
   category: z.enum([
     NOTIFICATION_CATEGORIES.REQUESTS,
@@ -664,7 +667,22 @@ export const insertNotificationPreferenceSchema = createInsertSchema(notificatio
     NOTIFICATION_CATEGORIES.VENDORS,
     NOTIFICATION_CATEGORIES.ACCOUNT
   ]),
-  type: z.enum(Object.values(NOTIFICATION_TYPES)),
+  type: z.enum([
+    NOTIFICATION_TYPES.NEW_REQUEST,
+    NOTIFICATION_TYPES.REQUEST_STATUS_CHANGE,
+    NOTIFICATION_TYPES.REQUEST_COMMENT,
+    NOTIFICATION_TYPES.REQUEST_MENTION,
+    NOTIFICATION_TYPES.PENDING_APPROVAL,
+    NOTIFICATION_TYPES.APPROVAL_GRANTED,
+    NOTIFICATION_TYPES.APPROVAL_REJECTED,
+    NOTIFICATION_TYPES.SYSTEM_MAINTENANCE,
+    NOTIFICATION_TYPES.SYSTEM_UPDATE,
+    NOTIFICATION_TYPES.VENDOR_STATUS_CHANGE,
+    NOTIFICATION_TYPES.VENDOR_PERFORMANCE_UPDATE,
+    NOTIFICATION_TYPES.ACCOUNT_STATUS_CHANGE,
+    NOTIFICATION_TYPES.PASSWORD_CHANGE,
+    NOTIFICATION_TYPES.ROLE_CHANGE
+  ]),
   enabled: z.boolean(),
   inAppEnabled: z.boolean(),
   emailEnabled: z.boolean()

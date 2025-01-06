@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { type InsertVendor, vendorFormSchema } from "@db/schema";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -14,29 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
-const vendorFormSchema = z.object({
-  companyName: z.string().min(2, "Company name must be at least 2 characters"),
-  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
-  contactNumber: z.string()
-    .min(8, "Contact number must be at least 8 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  email: z.string().email("Invalid email format"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  taxNumber: z.string().optional(),
-  registrationNumber: z.string().optional(),
-  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
-  accountNumber: z.string()
-    .min(5, "Account number must be at least 5 characters")
-    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
-  ibanNumber: z.string()
-    .min(15, "IBAN must be at least 15 characters")
-    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
-  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
-  remarks: z.string().optional(),
-});
-
-type VendorFormValues = z.infer<typeof vendorFormSchema>;
+type VendorFormValues = InsertVendor;
 
 interface VendorFormProps {
   onSubmit: (data: VendorFormValues) => Promise<void>;
@@ -60,19 +38,15 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       ibanNumber: "",
       branchName: "",
       remarks: "",
+      category: "general",
+      payment_currency: "QAR",
+      status: "active"
     },
   });
 
   const handleSubmit = async (values: VendorFormValues) => {
     try {
-      // Add default values for fields not in the form
-      const enrichedValues = {
-        ...values,
-        category: "general",
-        payment_currency: "QAR",
-        status: "active"
-      };
-      await onSubmit(enrichedValues);
+      await onSubmit(values);
       form.reset();
     } catch (error) {
       toast({

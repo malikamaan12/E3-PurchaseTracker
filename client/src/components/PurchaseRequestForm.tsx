@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { X, Upload, Loader2, Plus, AlertTriangle } from "lucide-react";
+import { X, Upload, Loader2, Plus, AlertTriangle, Eye } from "lucide-react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
@@ -31,9 +31,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { FileUploadMultiple } from "./FileUploadMultiple";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { FileWithPreview, UploadedFile } from "@/types";
+import { FilePreviewDialog } from "./FilePreviewDialog";
 
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
@@ -41,7 +41,7 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
-  onVendorCreated?: (newVendor: Vendor) => void; // Updated prop type
+  onVendorCreated?: (newVendor: Vendor) => void;
 }
 
 export default function PurchaseRequestForm({
@@ -54,6 +54,8 @@ export default function PurchaseRequestForm({
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
@@ -83,14 +85,12 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // Filter sub-purposes based on selected purpose type
   useEffect(() => {
     const purposeType = form.watch("purposeType");
     if (purposeType) {
       const filtered = subPurposes.filter(sp => sp.purpose_type === purposeType);
       setFilteredSubPurposes(filtered);
 
-      // Reset sub-purpose if not valid for new purpose type
       const currentSubPurposeId = form.watch("subPurposeId");
       if (currentSubPurposeId && !filtered.some(sp => sp.id === currentSubPurposeId)) {
         form.setValue("subPurposeId", undefined);
@@ -100,7 +100,6 @@ export default function PurchaseRequestForm({
     }
   }, [form.watch("purposeType"), subPurposes]);
 
-  // Enhanced submit mutation with intelligent error handling
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Submitting data:', data);
@@ -128,22 +127,19 @@ export default function PurchaseRequestForm({
         duration: 3000,
       });
 
-      // Use wouter navigate for client-side navigation
       navigate('/');
     },
     onError: async (error: Error) => {
       console.error('Form submission error:', error);
 
-      // Show initial error toast
       const errorToast = toast({
         title: "Error",
         description: "Analyzing submission error...",
         variant: "destructive",
-        duration: null, // Keep toast until we get analysis
+        duration: null,
       });
 
       try {
-        // Gather form state and error details for analysis
         const formState = {
           values: form.getValues(),
           errors: form.formState.errors,
@@ -167,10 +163,8 @@ export default function PurchaseRequestForm({
         if (analysisResponse.ok) {
           const analysis = await analysisResponse.json();
 
-          // Dismiss loading toast
           errorToast.dismiss();
 
-          // Show detailed error analysis with recovery options
           toast({
             title: "Form Submission Error",
             description: (
@@ -192,11 +186,9 @@ export default function PurchaseRequestForm({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Apply suggested fixes
                         Object.entries(analysis.autofix).forEach(([field, value]) => {
                           form.setValue(field as any, value);
                         });
-                        // Show confirmation
                         toast({
                           title: "Changes Applied",
                           description: "Suggested fixes have been applied to the form",
@@ -222,7 +214,6 @@ export default function PurchaseRequestForm({
           });
 
         } else {
-          // If analysis fails, show generic error with form state analysis
           const localAnalysis = await analyzeFormError(form.getValues(), error);
 
           toast({
@@ -239,7 +230,6 @@ export default function PurchaseRequestForm({
         }
       } catch (analysisError) {
         console.error('Error getting analysis:', analysisError);
-        // Show basic error message if analysis fails
         toast({
           title: "Error",
           description: error.message || "Failed to submit request",
@@ -250,7 +240,6 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // File upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await fetch('/api/attachments', {
@@ -267,7 +256,6 @@ export default function PurchaseRequestForm({
     }
   });
 
-  // Calculate total cost
   const calculateTotalCost = (items: any[], freightAmount: number) => {
     const itemsTotal = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)),
@@ -276,7 +264,6 @@ export default function PurchaseRequestForm({
     return itemsTotal + Number(freightAmount || 0);
   };
 
-  // Update total cost
   const updateTotalCost = () => {
     const items = form.getValues("items") || [];
     const freightAmount = form.getValues("freightAmount") || 0;
@@ -288,7 +275,6 @@ export default function PurchaseRequestForm({
     try {
       console.log('Form data before submission:', data);
 
-      // Client-side validation for non-draft submissions
       if (!draft) {
         const validationErrors = [];
         if (!data.vendorId) validationErrors.push("Please select a vendor");
@@ -312,7 +298,6 @@ export default function PurchaseRequestForm({
         }
       }
 
-      // Handle file uploads if any
       let attachments = [];
       if (files.length > 0) {
         const formData = new FormData();
@@ -333,7 +318,6 @@ export default function PurchaseRequestForm({
         }
       }
 
-      // Prepare request data with proper number conversions
       const requestData = {
         data: {
           ...data,
@@ -383,29 +367,42 @@ export default function PurchaseRequestForm({
     });
   };
 
-  const FilePreview = ({ file }: { file: { name: string; size: number; type: string; preview?: string; fileUrl?: string } }) => {
+  const FilePreview = ({ file, onPreview }: {
+    file: { name: string; size: number; type: string; preview?: string; fileUrl?: string };
+    onPreview?: () => void;
+  }) => {
     const isImage = file.type.startsWith('image/');
     return (
       <Card className="p-4">
-        <div className="flex items-center gap-4">
-          {isImage ? (
-            <img src={file.preview || file.fileUrl!} alt={file.name} className="w-16 h-16 object-cover rounded-md" />
-          ) : (
-            <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center">
-              <span className="text-xs font-medium text-gray-500">
-                {file.name.split('.').pop()?.toUpperCase()}
-              </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {isImage ? (
+              <img src={file.preview || file.fileUrl!} alt={file.name} className="w-16 h-16 object-cover rounded-md" />
+            ) : (
+              <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-500">
+                  {file.name.split('.').pop()?.toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+              <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
-          )}
-          <div>
-            <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-            <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onPreview}
+            className="ml-2"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
         </div>
       </Card>
     );
   };
-
 
   return (
     <Form {...form}>
@@ -766,6 +763,15 @@ export default function PurchaseRequestForm({
                                 type: file.file.type,
                                 preview: file.preview,
                               }}
+                              onPreview={() => {
+                                setPreviewFile({
+                                  fileName: file.file.name,
+                                  fileSize: file.file.size,
+                                  fileType: file.file.type,
+                                  fileUrl: file.preview!
+                                });
+                                setShowPreview(true);
+                              }}
                             />
                           </div>
                         ))}
@@ -777,6 +783,10 @@ export default function PurchaseRequestForm({
                                 size: file.fileSize,
                                 type: file.fileType,
                                 fileUrl: file.fileUrl,
+                              }}
+                              onPreview={() => {
+                                setPreviewFile(file);
+                                setShowPreview(true);
                               }}
                             />
                           </div>
@@ -945,6 +955,16 @@ export default function PurchaseRequestForm({
           }}
         />
       </form>
+
+      {showPreview && previewFile && (
+        <FilePreviewDialog
+          file={previewFile}
+          onClose={() => {
+            setShowPreview(false);
+            setPreviewFile(null);
+          }}
+        />
+      )}
     </Form>
   );
 }
