@@ -7,7 +7,6 @@ import { z } from "zod";
 export const companyBranding = pgTable("company_branding", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
-  description: text("description"),
   primaryColor: text("primary_color").notNull().default("#71569E"),
   secondaryColor: text("secondary_color").notNull().default("#F0F0FA"),
   accentColor: text("accent_color").notNull().default("#191160"),
@@ -70,7 +69,6 @@ const footerConfigSchema = z.object({
 
 export const insertCompanyBrandingSchema = createInsertSchema(companyBranding, {
   companyName: z.string().min(1, "Company name is required"),
-  description: z.string().optional(),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
   accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
