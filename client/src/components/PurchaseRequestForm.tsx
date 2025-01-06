@@ -25,28 +25,15 @@ import { analyzeFormError } from "@/lib/debugUtils";
 import { useState as useState2 } from "react";
 import VendorDialog from "./VendorDialog";
 import DepartmentSelect from "./DepartmentSelect";
-
-// File validation schema
-const fileSchema = z.object({
-  name: z.string().min(1, "File name is required"),
-  size: z.number().max(5 * 1024 * 1024, "File must be smaller than 5MB"),
-  type: z.string().refine(
-    (type) => [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ].includes(type),
-    "Only PDF, Word documents, and images (JPEG, PNG) are allowed"
-  )
-});
-
-type FileWithPreview = {
-  file: File;
-  preview?: string;
-};
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { FileUploadMultiple } from "./FileUploadMultiple";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { FileWithPreview, UploadedFile } from "@/types";
 
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
@@ -54,7 +41,7 @@ interface PurchaseRequestFormProps {
   onSubmit?: (draft?: boolean) => void;
   onCancel?: () => void;
   initialData?: any;
-  onVendorCreated?: () => void;
+  onVendorCreated?: (newVendor: Vendor) => void; // Updated prop type
 }
 
 export default function PurchaseRequestForm({
@@ -66,6 +53,7 @@ export default function PurchaseRequestForm({
   onVendorCreated
 }: PurchaseRequestFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [filteredSubPurposes, setFilteredSubPurposes] = useState<InsertSubPurpose[]>([]);
@@ -387,332 +375,421 @@ export default function PurchaseRequestForm({
     });
   };
 
+  const handleFileUploadComplete = (newFiles: UploadedFile[]) => {
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    toast({
+      title: "Success",
+      description: `${newFiles.length} file(s) uploaded successfully`,
+    });
+  };
+
+  const FilePreview = ({ file }: { file: { name: string; size: number; type: string; preview?: string; fileUrl?: string } }) => {
+    const isImage = file.type.startsWith('image/');
+    return (
+      <Card className="p-4">
+        <div className="flex items-center gap-4">
+          {isImage ? (
+            <img src={file.preview || file.fileUrl!} alt={file.name} className="w-16 h-16 object-cover rounded-md" />
+          ) : (
+            <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center">
+              <span className="text-xs font-medium text-gray-500">
+                {file.name.split('.').pop()?.toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+            <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
-        {/* Basic Information */}
-        <div className="space-y-4">
-          {/* Title */}
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Enter request title" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="details">Request Details</TabsTrigger>
+            <TabsTrigger value="items">Items</TabsTrigger>
+            <TabsTrigger value="documents" className="relative">
+              Documents
+              {(files.length > 0 || uploadedFiles.length > 0) && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground w-5 h-5 rounded-full text-xs flex items-center justify-center">
+                  {files.length + uploadedFiles.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Description */}
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder="Enter request description"
-                    className="min-h-[100px]"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+          <TabsContent value="details" className="space-y-6">
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter request title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        {/* Vendor and Purpose Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Vendor Selection */}
-          <FormField
-            control={form.control}
-            name="vendorId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Vendor</FormLabel>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Enter request description"
+                        className="min-h-[100px]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="vendorId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendor</FormLabel>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a vendor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {vendors.map((vendor) => (
+                              <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                                {vendor.companyName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-shrink-0"
+                        onClick={() => setShowAddVendor(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Vendor
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="purposeType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Purpose Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a vendor" />
+                          <SelectValue placeholder="Select purpose type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {vendors.map((vendor) => (
-                          <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                            {vendor.companyName}
+                        <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
+                        <SelectItem value="PROJECT">PROJECT</SelectItem>
+                        <SelectItem value="MALL">MALL</SelectItem>
+                        <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="subPurposeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sub Purpose</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value?.toString()}
+                      disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            !form.watch("purposeType")
+                              ? "Select purpose type first"
+                              : filteredSubPurposes.length === 0
+                                ? "No sub purposes available"
+                                : "Select sub purpose"
+                          } />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {filteredSubPurposes.map((subPurpose) => (
+                          <SelectItem
+                            key={subPurpose.id}
+                            value={String(subPurpose.id)}
+                          >
+                            {subPurpose.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-shrink-0"
-                    onClick={() => setShowAddVendor(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Vendor
-                  </Button>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Purpose Type */}
-          <FormField
-            control={form.control}
-            name="purposeType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Purpose Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select purpose type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
-                    <SelectItem value="PROJECT">PROJECT</SelectItem>
-                    <SelectItem value="MALL">MALL</SelectItem>
-                    <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Sub Purpose */}
-          <FormField
-            control={form.control}
-            name="subPurposeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Sub Purpose</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(Number(value))}
-                  value={field.value?.toString()}
-                  disabled={!form.watch("purposeType") || filteredSubPurposes.length === 0}
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="QAR">QAR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="CNY">CNY</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="items" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Items</h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const currentItems = form.getValues("items") || [];
+                    form.setValue("items", [
+                      ...currentItems,
+                      { name: "", quantity: 1, estimatedCost: 0, description: "" }
+                    ]);
+                  }}
                 >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !form.watch("purposeType")
-                          ? "Select purpose type first"
-                          : filteredSubPurposes.length === 0
-                            ? "No sub purposes available"
-                            : "Select sub purpose"
-                      } />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredSubPurposes.map((subPurpose) => (
-                      <SelectItem
-                        key={subPurpose.id}
-                        value={String(subPurpose.id)}
-                      >
-                        {subPurpose.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Priority */}
-          <FormField
-            control={form.control}
-            name="priority"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Currency */}
-          <FormField
-            control={form.control}
-            name="currency"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Currency</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="QAR">QAR</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="CNY">CNY</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Items Section */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Items</h2>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const currentItems = form.getValues("items") || [];
-                form.setValue("items", [
-                  ...currentItems,
-                  { name: "", quantity: 1, estimatedCost: 0, description: "" }
-                ]);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
-          </div>
-
-          {form.watch("items")?.map((item: any, index: number) => (
-            <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
-              <div className="flex-1 space-y-4">
-                <FormField
-                  control={form.control}
-                  name={`items.${index}.name`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Item name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={`items.${index}.description`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Item description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name={`items.${index}.quantity`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="1"
-                            placeholder="Quantity"
-                            onChange={(e) => {
-                              field.onChange(Number(e.target.value));
-                              updateTotalCost();
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name={`items.${index}.estimatedCost`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cost Per Unit</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Cost"
-                            onChange={(e) => {
-                              field.onChange(Number(e.target.value));
-                              updateTotalCost();
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Add Item Total Cost Display */}
-                <div className="flex justify-end">
-                  <div className="text-sm">
-                    <span className="font-medium text-muted-foreground">Item Total: </span>
-                    <span className="font-semibold text-[#7058a3]">
-                      {form.watch(`items.${index}.quantity`, 0) * form.watch(`items.${index}.estimatedCost`, 0)} {form.watch('currency')}
-                    </span>
-                  </div>
-                </div>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Item
+                </Button>
               </div>
 
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  const currentItems = form.getValues("items");
-                  form.setValue(
-                    "items",
-                    currentItems.filter((_: any, i: number) => i !== index)
-                  );
-                  updateTotalCost();
-                }}
-                className="text-red-500 hover:text-red-700"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
+              {form.watch("items")?.map((item: any, index: number) => (
+                <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
+                  <div className="flex-1 space-y-4">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Item Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Item name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-        {/* Approval Flow Section */}
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.description`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Item Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} placeholder="Item description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="1"
+                                placeholder="Quantity"
+                                onChange={(e) => {
+                                  field.onChange(Number(e.target.value));
+                                  updateTotalCost();
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.estimatedCost`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Cost Per Unit</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Cost"
+                                onChange={(e) => {
+                                  field.onChange(Number(e.target.value));
+                                  updateTotalCost();
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <div className="text-sm">
+                        <span className="font-medium text-muted-foreground">Item Total: </span>
+                        <span className="font-semibold text-[#7058a3]">
+                          {form.watch(`items.${index}.quantity`, 0) * form.watch(`items.${index}.estimatedCost`, 0)} {form.watch('currency')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      const currentItems = form.getValues("items");
+                      form.setValue(
+                        "items",
+                        currentItems.filter((_: any, i: number) => i !== index)
+                      );
+                      updateTotalCost();
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            <Card className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Upload Documents</h3>
+                  <FileUploadMultiple
+                    onUploadComplete={handleFileUploadComplete}
+                    maxFiles={5}
+                    maxSizeInMB={10}
+                    uploadedFiles={uploadedFiles}
+                  />
+                </div>
+
+                {(files.length > 0 || uploadedFiles.length > 0) && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold mb-4">Uploaded Documents</h3>
+                    <ScrollArea className="h-[400px] rounded-md border p-4">
+                      <div className="grid gap-4">
+                        {files.map((file, index) => (
+                          <div key={`local-${index}`} className="relative group">
+                            <FilePreview
+                              file={{
+                                name: file.file.name,
+                                size: file.file.size,
+                                type: file.file.type,
+                                preview: file.preview,
+                              }}
+                            />
+                          </div>
+                        ))}
+                        {uploadedFiles.map((file, index) => (
+                          <div key={`uploaded-${index}`} className="relative">
+                            <FilePreview
+                              file={{
+                                name: file.fileName,
+                                size: file.fileSize,
+                                type: file.fileType,
+                                fileUrl: file.fileUrl,
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
@@ -742,7 +819,6 @@ export default function PurchaseRequestForm({
                 </p>
               </div>
 
-              {/* Optional Approvers */}
               <div>
                 <h3 className="text-sm font-medium text-[#7058a3] mb-2">Additional Approvers</h3>
                 <FormField
@@ -770,7 +846,6 @@ export default function PurchaseRequestForm({
                 />
               </div>
 
-              {/* Preview of selected approvers */}
               {selectedDepartments.length > 0 && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium text-[#7058a3] mb-2">Selected Additional Approvers</h4>
@@ -792,122 +867,6 @@ export default function PurchaseRequestForm({
         </div>
 
 
-        {/* File Upload Section */}
-        <div className="space-y-4">
-          <FormLabel className="block text-lg font-medium">Attachments</FormLabel>
-          <div className="grid gap-4">
-            <Card className="relative overflow-hidden">
-              <CardContent className="p-4">
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors duration-200 ease-in-out">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
-                    <Upload className="w-12 h-12 mb-3 text-gray-400" />
-                    <p className="mb-2 text-sm text-gray-500 sm:text-base">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500 sm:text-sm">
-                      PDF, Word documents, or images up to 5MB
-                    </p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    multiple
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    onChange={async (event) => {
-                      try {
-                        const selectedFiles = Array.from(event.target.files || []);
-
-                        // Validate each file
-                        await Promise.all(selectedFiles.map(async (file) => {
-                          try {
-                            await fileSchema.parseAsync({
-                              name: file.name,
-                              size: file.size,
-                              type: file.type
-                            });
-                          } catch (error) {
-                            throw new Error(`${file.name}: ${error instanceof z.ZodError ? error.errors[0].message : 'Invalid file'}`);
-                          }
-                        }));
-
-                        // Create previews for images
-                        const filesWithPreviews = await Promise.all(
-                          selectedFiles.map(async (file) => {
-                            const fileWithPreview: FileWithPreview = { file };
-                            if (file.type.startsWith('image/')) {
-                              fileWithPreview.preview = URL.createObjectURL(file);
-                            }
-                            return fileWithPreview;
-                          })
-                        );
-
-                        setFiles(prev => [...prev, ...filesWithPreviews]);
-                      } catch (error) {
-                        toast({
-                          title: "Error adding file",
-                          description: error instanceof Error ? error.message : "Failed to add file",
-                          variant: "destructive"
-                        });
-                      }
-
-                      // Clear input value to allow uploading the same file again
-                      event.target.value = '';
-                    }}
-                    disabled={submitMutation.isPending || uploadMutation.isPending}
-                  />
-                </label>
-              </CardContent>
-            </Card>
-
-            {/* File Preview List */}
-            {files.length > 0 && (
-              <div className="space-y-2">
-                {files.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
-                  >
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      {file.preview ? (
-                        <img
-                          src={file.preview}
-                          alt="preview"
-                          className="w-10 h-10 object-cover rounded-md"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center">
-                          <span className="text-xs font-medium text-gray-500">
-                            {file.file.name.split('.').pop()?.toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.file.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {(file.file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => removeFile(index)}
-                      disabled={submitMutation.isPending || uploadMutation.isPending}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Freight Amount */}
         <FormField
           control={form.control}
           name="freightAmount"
@@ -932,7 +891,6 @@ export default function PurchaseRequestForm({
           )}
         />
 
-        {/* Total Cost Display */}
         <div className="pt-4 border-t">
           <p className="text-lg font-semibold">
             Total Estimated Cost:{" "}
@@ -942,15 +900,13 @@ export default function PurchaseRequestForm({
           </p>
         </div>
 
-        {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8">
+        <div className="flex justify-end gap-4 mt-8">
           {onCancel && (
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
               disabled={submitMutation.isPending || uploadMutation.isPending}
-              className="w-full sm:w-auto order-3 sm:order-1"
             >
               Cancel
             </Button>
@@ -960,13 +916,9 @@ export default function PurchaseRequestForm({
             variant="outline"
             onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
             disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-2"
           >
-            {submitMutation.isPending && uploadMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
+            {submitMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               'Save as Draft'
             )}
@@ -974,27 +926,22 @@ export default function PurchaseRequestForm({
           <Button
             type="submit"
             disabled={submitMutation.isPending || uploadMutation.isPending}
-            className="w-full sm:w-auto order-1 sm:order-3"
           >
-            {(submitMutation.isPending || uploadMutation.isPending) ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {uploadMutation.isPending ? "Uploading..." : "Submitting..."}
-              </>
+            {submitMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               'Submit Request'
             )}
           </Button>
         </div>
-        {/* Add VendorDialog */}
+
         <VendorDialog
-          open={showAddVendor}
-          onOpenChange={setShowAddVendor}
+          isOpen={showAddVendor}
+          onClose={() => setShowAddVendor(false)}
           onVendorCreated={(newVendor) => {
-            // Set the newly created vendor as the selected vendor
             form.setValue("vendorId", newVendor.id);
-            // Notify parent to refresh vendor list
             onVendorCreated?.();
+            setShowAddVendor(false);
           }}
         />
       </form>

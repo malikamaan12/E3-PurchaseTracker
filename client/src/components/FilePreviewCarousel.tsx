@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RotateCw, ZoomIn, ZoomOut, X } from "lucide-react";
+import { RotateCw, ZoomIn, ZoomOut, X, Download } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import ImageGallery from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
+import { useToast } from "@/hooks/use-toast";
 
 interface PreviewFile {
   id?: number;
   fileName: string;
   fileType: string;
   fileUrl: string;
+  fileSize?: number;
 }
 
 interface FilePreviewCarouselProps {
@@ -22,6 +24,28 @@ interface FilePreviewCarouselProps {
 export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: FilePreviewCarouselProps) {
   const [rotation, setRotation] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const { toast } = useToast();
+
+  const handleDownload = async (file: PreviewFile) => {
+    try {
+      const response = await fetch(file.fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download file",
+        variant: "destructive",
+      });
+    }
+  };
 
   const images = files
     .filter(file => file.fileType.startsWith('image/'))
@@ -39,7 +63,7 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  if (images.length === 0) {
+  if (files.length === 0) {
     return null;
   }
 
@@ -56,6 +80,14 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
               className="bg-white/90 hover:bg-white"
             >
               <RotateCw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleDownload(files[currentIndex])}
+              className="bg-white/90 hover:bg-white"
+            >
+              <Download className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
@@ -101,6 +133,7 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
                       startIndex={startIndex}
                       thumbnailPosition="bottom"
                       onSlide={setCurrentIndex}
+                      additionalClass="image-gallery-custom"
                       renderItem={(item) => (
                         <div
                           style={{
@@ -135,6 +168,11 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
             <div className="absolute bottom-20 left-4 z-50 bg-white/90 p-2 rounded-lg">
               <p className="text-sm font-medium text-gray-900">
                 {files[currentIndex].fileName}
+                {files[currentIndex].fileSize && (
+                  <span className="ml-2 text-gray-500">
+                    ({Math.round(files[currentIndex].fileSize / 1024)} KB)
+                  </span>
+                )}
               </p>
             </div>
           )}

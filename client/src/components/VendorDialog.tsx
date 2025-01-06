@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,42 +21,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const vendorFormSchema = z.object({
-  companyName: z.string().min(2, "Company name must be at least 2 characters"),
-  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
-  contactNumber: z.string()
-    .min(8, "Contact number must be at least 8 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
-  email: z.string().email("Invalid email format"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  taxNumber: z.string().optional().nullable(),
-  registrationNumber: z.string().optional().nullable(),
-  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
-  accountNumber: z.string()
-    .min(5, "Account number must be at least 5 characters")
-    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
-  ibanNumber: z.string()
-    .min(15, "IBAN must be at least 15 characters")
-    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
-  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
-  status: z.string().default("active"),
-});
-
-type VendorFormData = z.infer<typeof vendorFormSchema>;
+import type { Vendor } from "@db/schema";
+import { vendorFormSchema } from "@db/schema";
 
 interface VendorDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onVendorCreated?: (vendor: VendorFormData & { id: number }) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onVendorCreated: (vendor: Vendor) => void;
 }
 
-export default function VendorDialog({ open, onOpenChange, onVendorCreated }: VendorDialogProps) {
+export default function VendorDialog({ isOpen, onClose, onVendorCreated }: VendorDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<VendorFormData>({
+  const form = useForm({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       companyName: "",
@@ -65,17 +42,17 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
       contactNumber: "",
       email: "",
       address: "",
-      taxNumber: null,
-      registrationNumber: null,
+      taxNumber: "",
+      registrationNumber: "",
       bankName: "",
       accountNumber: "",
       ibanNumber: "",
       branchName: "",
-      status: "active",
+      status: "active" as const,
     },
   });
 
-  const onSubmit = async (data: VendorFormData) => {
+  const onSubmit = async (data: any) => {
     try {
       setIsSubmitting(true);
       const response = await fetch("/api/vendors", {
@@ -83,31 +60,22 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...data,
-          taxNumber: data.taxNumber || null,
-          registrationNumber: data.registrationNumber || null,
-        }),
+        body: JSON.stringify(data),
         credentials: "include",
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to create vendor");
+        throw new Error(await response.text());
       }
 
       const newVendor = await response.json();
-
+      onVendorCreated(newVendor);
+      form.reset();
       toast({
         title: "Success",
         description: "Vendor created successfully",
       });
-
-      onVendorCreated?.(newVendor);
-      onOpenChange(false);
-      form.reset();
     } catch (error) {
-      console.error("Error creating vendor:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create vendor",
@@ -119,8 +87,8 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New Vendor</DialogTitle>
           <DialogDescription>
@@ -193,7 +161,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>Address*</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Enter address" />
                   </FormControl>
@@ -202,101 +170,11 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="taxNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tax Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter tax number" value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="registrationNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Registration Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter registration number" value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="bankName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bank Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter bank name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="accountNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Number</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter account number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="branchName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Branch Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter branch name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="ibanNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>IBAN Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter IBAN number" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={onClose}
                 disabled={isSubmitting}
               >
                 Cancel
