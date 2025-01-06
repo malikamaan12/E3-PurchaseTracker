@@ -34,6 +34,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { FileWithPreview, UploadedFile } from "@/types";
 import { FilePreviewDialog } from "./FilePreviewDialog";
+import { FileUploadMultiple } from "./FileUploadMultiple";  // Added back the import
 
 interface PurchaseRequestFormProps {
   subPurposes: InsertSubPurpose[];
