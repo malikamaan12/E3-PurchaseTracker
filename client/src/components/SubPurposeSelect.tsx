@@ -56,15 +56,25 @@ export default function SubPurposeSelect({
   }, [purposeType, onChange]);
 
   const { data: subPurposes = [], isLoading } = useQuery<SubPurpose[]>({
-    queryKey: ["/api/sub-purposes", { purposeType }],
+    queryKey: ["/api/sub-purposes", purposeType],
     queryFn: async () => {
+      if (!purposeType) return [];
+
       const response = await fetch(`/api/sub-purposes?purposeType=${encodeURIComponent(purposeType)}`, {
         credentials: "include",
       });
+
       if (!response.ok) {
-        throw new Error("Failed to fetch sub-purposes");
+        if (response.status === 404) {
+          throw new Error("Sub-purposes data not available");
+        }
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch sub-purposes");
       }
-      return response.json();
+
+      const data = await response.json();
+      console.log('Fetched sub-purposes:', data); // Debug log
+      return data;
     },
     enabled: !!purposeType,
   });
@@ -88,18 +98,19 @@ export default function SubPurposeSelect({
 
   const createSubPurpose = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch("/api/sub-purposes", {
+      const res = await fetch("/api/admin/sub-purposes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           name, 
-          purpose_type: purposeType 
+          purposeType
         }),
         credentials: "include",
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to create sub-purpose");
       }
 
       return res.json() as Promise<SubPurpose>;
@@ -114,7 +125,7 @@ export default function SubPurposeSelect({
         description: "Sub-purpose created successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
@@ -135,7 +146,7 @@ export default function SubPurposeSelect({
       });
       onChange(undefined);
     }
-  }, [selectedSubPurpose, activeSubPurposes]);
+  }, [selectedSubPurpose, activeSubPurposes, onChange, toast]);
 
   const handleCreate = () => {
     if (!newSubPurpose.trim()) return;
