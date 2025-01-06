@@ -41,38 +41,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateRequest } from "@/services/requests";
-
-interface RequestData {
-  id: number;
-  requesterId: number;
-  status: string;
-  title: string;
-  description: string;
-  requestNumber: string;
-  createdAt: string;
-  priority: string;
-  purposeType: string;
-  totalEstimatedCost: number;
-  items: Array<{
-    name: string;
-    quantity: number;
-    estimatedCost: number;
-    description?: string;
-  }>;
-  requester?: {
-    id: number;
-    username: string;
-    email?: string;
-    department?: string;
-    role?: string;
-  };
-  approvals?: Array<{
-    id: number;
-    status: string;
-    department: string;
-    comments?: string;
-  }>;
-}
+import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
+import { isWithinInterval, parseISO } from "date-fns";
+import { type RequestData } from "@/types/requests";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -82,16 +53,32 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredRequests, setFilteredRequests] = useState<RequestData[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
 
-  // Reset search when component mounts or user changes
   useEffect(() => {
     if (user) {
       setSearchQuery("");
     }
   }, [user]);
 
+  useEffect(() => {
+    if (Array.isArray(requests)) {
+      const uniqueDepartments = Array.from(
+        new Set(
+          requests
+            .map((r) => r.requester?.department)
+            .filter((d): d is string => !!d)
+        )
+      );
+      setDepartments(uniqueDepartments);
+    }
+  }, [requests]);
+
   const isSpecialRole = useMemo(() => {
-    const hasSpecialRole = user?.role === "admin" ||
+    const hasSpecialRole =
+      user?.role === "admin" ||
       user?.role === "approver" ||
       user?.department === "CEO Office" ||
       user?.department === "Director" ||
@@ -114,7 +101,6 @@ export default function Dashboard() {
     return requests.filter((request: RequestData) => {
       if (!request || request.status !== "pending") return false;
 
-      // Admin, approvers and special roles can approve any request
       if (
         isAdmin ||
         isApprover ||
@@ -123,10 +109,8 @@ export default function Dashboard() {
         return true;
       }
 
-      // Regular users can't approve their own requests
       if (request.requesterId === user.id) return false;
 
-      // Check if this department hasn't approved yet
       const departmentApproval = request.approvals?.find(
         (a) => a.department === user.department
       );
@@ -139,7 +123,6 @@ export default function Dashboard() {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
 
-  // Get all requests visible to the user based on their role
   const visibleRequests: RequestData[] = useMemo(() => {
     if (!Array.isArray(requests)) return [];
 
@@ -166,9 +149,7 @@ export default function Dashboard() {
     (r) => r?.requesterId === user?.id && r?.status !== "draft"
   );
 
-  const pendingRequests = visibleRequests.filter(
-    (r) => r?.status === "pending"
-  );
+  const pendingRequests = visibleRequests.filter((r) => r?.status === "pending");
 
   const approvedRequests = visibleRequests.filter(
     (r) => r?.status === "approved"
@@ -179,7 +160,9 @@ export default function Dashboard() {
   );
 
   const changesRequestedRequests = visibleRequests.filter(
-    (r) => r?.status === "changes_requested" || (r?.approvals && r?.approvals.some(a => a.status === "changes_requested"))
+    (r) =>
+      r?.status === "changes_requested" ||
+      (r?.approvals && r?.approvals.some((a) => a.status === "changes_requested"))
   );
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -272,13 +255,16 @@ export default function Dashboard() {
     requests: RequestData[],
     showApproval: boolean = false
   ) => {
+    const displayRequests = filteredRequests.length > 0 ? filteredRequests : requests;
     const canSubmitDraft = (request: RequestData) => {
-      return request.status === "draft" &&
-             request.requesterId === user?.id &&
-             request.title &&
-             request.description &&
-             Array.isArray(request.items) &&
-             request.items.length > 0;
+      return (
+        request.status === "draft" &&
+        request.requesterId === user?.id &&
+        request.title &&
+        request.description &&
+        Array.isArray(request.items) &&
+        request.items.length > 0
+      );
     };
 
     return (
@@ -296,7 +282,7 @@ export default function Dashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map((request) => {
+          {displayRequests.map((request) => {
             if (!request) return null;
 
             return (
@@ -423,6 +409,95 @@ export default function Dashboard() {
     );
   };
 
+  const handleFilterChange = async (filters: FilterValues) => {
+    if (!Array.isArray(requests)) return;
+
+    setIsFilterLoading(true);
+    try {
+      let filtered = [...requests];
+
+      // Status filter
+      if (filters.status.length > 0) {
+        filtered = filtered.filter((r) => filters.status.includes(r.status));
+      }
+
+      // Date range filter
+      if (filters.dateRange.from || filters.dateRange.to) {
+        filtered = filtered.filter((r) => {
+          const requestDate = parseISO(r.createdAt);
+          if (filters.dateRange.from && filters.dateRange.to) {
+            return isWithinInterval(requestDate, {
+              start: filters.dateRange.from,
+              end: filters.dateRange.to,
+            });
+          }
+          if (filters.dateRange.from) {
+            return requestDate >= filters.dateRange.from;
+          }
+          if (filters.dateRange.to) {
+            return requestDate <= filters.dateRange.to;
+          }
+          return true;
+        });
+      }
+
+      // Priority filter
+      if (filters.priority.length > 0) {
+        filtered = filtered.filter((r) => filters.priority.includes(r.priority));
+      }
+
+      // Department filter
+      if (filters.department.length > 0) {
+        filtered = filtered.filter((r) =>
+          filters.department.includes(r.requester?.department || '')
+        );
+      }
+
+      // Purpose type filter
+      if (filters.purposeType.length > 0) {
+        filtered = filtered.filter((r) =>
+          filters.purposeType.includes(r.purposeType)
+        );
+      }
+
+      // Cost range filter
+      if (filters.costRange.min || filters.costRange.max) {
+        filtered = filtered.filter((r) => {
+          const cost = r.totalEstimatedCost || 0;
+          const min = filters.costRange.min
+            ? parseFloat(filters.costRange.min)
+            : -Infinity;
+          const max = filters.costRange.max
+            ? parseFloat(filters.costRange.max)
+            : Infinity;
+          return cost >= min && cost <= max;
+        });
+      }
+
+      // Search query filter
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (r) =>
+            r.title.toLowerCase().includes(query) ||
+            r.description.toLowerCase().includes(query) ||
+            r.requestNumber.toLowerCase().includes(query)
+        );
+      }
+
+      setFilteredRequests(filtered);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to apply filters. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFilterLoading(false);
+    }
+  };
+
   const draftRequestsReadyToSubmit = visibleRequests.filter(
     (r) =>
       r?.requesterId === user?.id &&
@@ -493,7 +568,13 @@ export default function Dashboard() {
                 <Input
                   placeholder="Search requests..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    handleFilterChange({
+                      ...filters,
+                      searchQuery: e.target.value,
+                    });
+                  }}
                   className="pl-8"
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
@@ -517,6 +598,12 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
+        <DashboardFilterPanel
+          onFilterChange={handleFilterChange}
+          departments={departments}
+          isLoading={isFilterLoading}
+        />
 
         <Tabs defaultValue={preferences.defaultView}>
           <TabsList className="mb-8">

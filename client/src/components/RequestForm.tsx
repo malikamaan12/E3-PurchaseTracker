@@ -32,8 +32,15 @@ const requestSchema = z.object({
   currency: z.string().default("QAR"),
 });
 
-export function RequestForm({ onSubmit, initialData = {} }) {
-  const form = useForm({
+type RequestFormData = z.infer<typeof requestSchema>;
+
+interface RequestFormProps {
+  onSubmit: (data: RequestFormData) => void;
+  initialData?: Partial<RequestFormData>;
+}
+
+export function RequestForm({ onSubmit, initialData = {} }: RequestFormProps) {
+  const form = useForm<RequestFormData>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
       title: "",

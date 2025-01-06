@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import RequestCard from "@/components/RequestCard";
 import { useLocation } from "wouter";
+import { type RequestData } from "@/types/requests";
 
 export default function ViewRequest() {
   const { id } = useParams();
@@ -21,7 +22,7 @@ export default function ViewRequest() {
     );
   }
 
-  const request = requests?.find((r) => r.id === Number(id));
+  const request = requests?.find((r: RequestData) => r.id === Number(id));
 
   if (!request) {
     return (
