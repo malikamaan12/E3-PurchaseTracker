@@ -407,7 +407,10 @@ export function registerRoutes(app: Express): Server {
       const results = await baseQuery;
       debug(req, `Found ${results.length} sub-purposes`);
 
-      // Format dates consistently
+      // Add debug logging for the query results
+      debug(req, 'Raw sub-purposes data:', results);
+
+      // Format dates consistently and ensure all fields are present
       const formattedResults = results.map(sp => ({
         id: sp.id,
         name: sp.name,
@@ -416,9 +419,13 @@ export function registerRoutes(app: Express): Server {
         valid_from: sp.valid_from ? new Date(sp.valid_from).toISOString() : null,
         valid_to: sp.valid_to ? new Date(sp.valid_to).toISOString() : null,
         created_at: sp.created_at ? new Date(sp.created_at).toISOString() : null,
-        updated_at: sp.updated_at ? new Date(sp.updated_at).toISOString() : null
+        updated_at: sp.updated_at ? new Date(sp.updated_at).toISOString() : null,
+        // Add any additional fields needed by the frontend
+        label: sp.name, // Add label field for dropdown compatibility
+        value: sp.id.toString() // Add value field for dropdown compatibility
       }));
 
+      debug(req, 'Formatted sub-purposes data:', formattedResults);
       res.json(formattedResults);
     } catch (error) {
       debug(req, 'Error fetching sub-purposes:', error);
