@@ -30,6 +30,17 @@ interface CreateRequestData {
   }>;
 }
 
+export interface RequestFilters {
+  status?: string[];
+  priority?: string[];
+  department?: string[];
+  purposeType?: string;
+  subPurposeId?: number | null;
+  startDate?: string;
+  endDate?: string;
+  searchTerm?: string;
+}
+
 export async function createRequest(data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
     console.log('Creating request with data:', data);
@@ -241,6 +252,51 @@ export async function deleteRequest(id: number): Promise<void> {
     return response.json();
   } catch (error) {
     console.error('Delete request error:', error);
+    throw error;
+  }
+}
+
+export async function getRequests(filters?: RequestFilters) {
+  try {
+    // Build query string from filters
+    const queryParams = new URLSearchParams();
+
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          if (Array.isArray(value)) {
+            value.forEach(v => queryParams.append(key, v));
+          } else {
+            queryParams.append(key, String(value));
+          }
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    const url = `/api/requests${queryString ? `?${queryString}` : ''}`;
+
+    console.log('Fetching requests with URL:', url);
+
+    const response = await fetch(url, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch requests';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching requests:', error);
     throw error;
   }
 }
