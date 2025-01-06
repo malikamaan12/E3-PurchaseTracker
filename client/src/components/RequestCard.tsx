@@ -66,6 +66,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { type UploadedFile } from "@/types";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
