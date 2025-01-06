@@ -60,6 +60,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";
 import { useCompanyBranding } from '@/hooks/use-company-branding';
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -470,15 +476,21 @@ export default function RequestCard({
   );
 
   const renderAttachments = () => {
-    if (!request.attachments || request.attachments.length === 0) return null;
+    if (!request.attachments || request.attachments.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-500">
+          <FileIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p>No documents attached to this request</p>
+        </div>
+      );
+    }
 
     return (
-      <div className="space-y-4 pt-4 border-t border-gray-100">
-        <h4 className="font-medium text-gray-900">Attachments</h4>
+      <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           {request.attachments.map((file) => (
-            <div 
-              key={file.id} 
+            <div
+              key={file.id}
               className="relative group p-4 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -614,127 +626,175 @@ export default function RequestCard({
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <div className="text-sm text-gray-500">
-            Created {format(new Date(request.createdAt), "PPp")}
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-medium text-gray-900">Description</h4>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description}</p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-900">Items</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDetails(!showDetails)}
-                className="text-gray-500"
-              >
-                {showDetails ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="documents">
+                Documents
+                {request.attachments && request.attachments.length > 0 && (
+                  <span className="ml-2 bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs">
+                    {request.attachments.length}
+                  </span>
                 )}
-              </Button>
-            </div>
-
-            <AnimatePresence>
-              {showDetails && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-1/4">Item</TableHead>
-                          {showItemDescriptions && <TableHead className="w-2/5">Description</TableHead>}
-                          <TableHead className="w-1/6">Quantity</TableHead>
-                          <TableHead className="w-1/6">Unit Cost</TableHead>
-                          <TableHead className="w-1/6">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            {showItemDescriptions && (
-                              <TableCell>
-                                {item.description ? (
-                                  <div className="bg-gray-50 p-2 rounded-md">
-                                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                                      {item.description}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-gray-400 italic">No description provided</p>
-                                )}
-                              </TableCell>
-                            )}
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
-                            <TableCell>
-                              {formatCurrency(item.quantity * item.estimatedCost)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
-                            Items Total
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(itemsTotal)}
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
-                            Freight Amount
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(freightAmount)}
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
-                            Total Estimated Cost
-                          </TableCell>
-                          <TableCell className="font-bold">
-                            {formatCurrency(totalCost)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </motion.div>
+              </TabsTrigger>
+              {request.priorityReason && (
+                <TabsTrigger value="analysis">Analysis</TabsTrigger>
               )}
-            </AnimatePresence>
-          </div>
+            </TabsList>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-900">Purpose</h4>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="capitalize">
-                  {request.purposeType.replace("_", " ")}
-                </Badge>
-                {request.subPurpose && (
-                  <Badge variant="outline" className="capitalize">
-                    {request.subPurpose.name}
-                  </Badge>
-                )}
+            <TabsContent value="details">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-900">Description</h4>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-900">Items</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowDetails(!showDetails)}
+                      className="text-gray-500"
+                    >
+                      {showDetails ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  <AnimatePresence>
+                    {showDetails && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-1/4">Item</TableHead>
+                                {showItemDescriptions && <TableHead className="w-2/5">Description</TableHead>}
+                                <TableHead className="w-1/6">Quantity</TableHead>
+                                <TableHead className="w-1/6">Unit Cost</TableHead>
+                                <TableHead className="w-1/6">Total</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map((item, index) => (
+                                <TableRow key={index}>
+                                  <TableCell className="font-medium">{item.name}</TableCell>
+                                  {showItemDescriptions && (
+                                    <TableCell>
+                                      {item.description ? (
+                                        <div className="bg-gray-50 p-2 rounded-md">
+                                          <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                            {item.description}
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-400 italic">No description provided</p>
+                                      )}
+                                    </TableCell>
+                                  )}
+                                  <TableCell>{item.quantity}</TableCell>
+                                  <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
+                                  <TableCell>
+                                    {formatCurrency(item.quantity * item.estimatedCost)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              <TableRow>
+                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                                  Items Total
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {formatCurrency(itemsTotal)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                                  Freight Amount
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {formatCurrency(freightAmount)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
+                                  Total Estimated Cost
+                                </TableCell>
+                                <TableCell className="font-bold">
+                                  {formatCurrency(totalCost)}
+                                </TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-900">Purpose</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="capitalize">
+                        {request.purposeType.replace("_", " ")}
+                      </Badge>
+                      {request.subPurpose && (
+                        <Badge variant="outline" className="capitalize">
+                          {request.subPurpose.name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose}</p>
+                </div>
+                {vendorSection}
+                <RequestStatusTimeline request={request} />
               </div>
-            </div>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose}</p>
-          </div>
-          {vendorSection}
-          <RequestStatusTimeline request={request} />
-          {renderAttachments()}
+            </TabsContent>
+
+            <TabsContent value="documents" className="focus:outline-none">
+              {renderAttachments()}
+            </TabsContent>
+
+            {request.priorityReason && (
+              <TabsContent value="analysis">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-900">Priority Analysis</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getPriorityIcon(request.priority)}
+                      <p className="text-sm">
+                        Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600">{request.priorityReason}</p>
+                    {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium mb-1">Recommendations:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600">
+                          {request.priorityRecommendations.map((rec, index) => (
+                            <li key={index}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
+
           {showApproval && (
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <h3 className="text-lg font-medium">Approval Actions</h3>
@@ -806,35 +866,6 @@ export default function RequestCard({
                 </div>
               </div>
             </div>
-          )}
-
-          {request.priorityReason && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-2 pt-4 border-t border-gray-100"
-            >
-              <h4 className="font-medium text-gray-900">Priority Analysis</h4>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <div className="flex items-center gap-2">
-                  {getPriorityIcon(request.priority)}
-                  <p className="text-sm">
-                    Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
-                  </p>
-                </div>
-                <p className="text-sm text-gray-600">{request.priorityReason}</p>
-                {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-medium mb-1">Recommendations:</p>
-                    <ul className="list-disc list-inside text-sm text-gray-600">
-                      {request.priorityRecommendations.map((rec, index) => (
-                        <li key={index}>{rec}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </motion.div>
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
