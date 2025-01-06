@@ -4,7 +4,7 @@ import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { compare, hash } from 'bcrypt';
-import { users, accountRequests } from "@db/schema";
+import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { AppError } from "./utils/errors";
@@ -18,7 +18,7 @@ declare global {
       email: string;
       department: string;
       role: string;
-      contact_number: string;
+      contactNumber: string;
       isActive: boolean;
     }
   }
@@ -82,7 +82,7 @@ export async function setupAuth(app: Express) {
           email: user.email,
           department: user.department,
           role: user.role,
-          contact_number: user.contact_number,
+          contactNumber: user.contact_number,
           isActive: user.isActive
         };
 
@@ -104,7 +104,6 @@ export async function setupAuth(app: Express) {
     try {
       console.log('Deserializing user:', id);
 
-      // Use explicit field selection
       const [user] = await db
         .select({
           id: users.id,
@@ -112,7 +111,7 @@ export async function setupAuth(app: Express) {
           email: users.email,
           department: users.department,
           role: users.role,
-          contact_number: users.contact_number,
+          contactNumber: users.contact_number,
           isActive: users.isActive
         })
         .from(users)
