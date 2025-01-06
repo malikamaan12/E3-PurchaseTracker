@@ -61,6 +61,11 @@ class ValidationError extends Error {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Put this at the very beginning of the routes file, before other routes
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
   // Setup static files serving first
   app.use('/uploads', express.static('uploads'));
 
@@ -78,9 +83,13 @@ export function registerRoutes(app: Express): Server {
         ? new Date(req.query.lastFetchTime as string)
         : undefined;
 
-      const notifications = await getNotifications(req.user!.id, lastFetchTime);
-      res.json(notifications);
+      debug(req, 'Fetching notifications', { lastFetchTime });
+      const results = await getNotifications(req.user!.id, lastFetchTime);
+      debug(req, `Found ${results.length} notifications`);
+
+      res.json(results);
     } catch (error) {
+      debug(req, 'Error fetching notifications:', error);
       next(error);
     }
   });
@@ -96,12 +105,37 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
       }
 
+      debug(req, 'Marking notification as read:', notificationId);
       const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      debug(req, 'Notification updated successfully');
+
       res.json(updatedNotification);
     } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
       next(error);
     }
   });
+
+  // Add notification preferences endpoints
+  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferences = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, req.user!.id))
+        .orderBy(notificationPreferences.category, notificationPreferences.type);
+
+      res.json(preferences);
+    } catch (error) {
+      debug(req, 'Error fetching notification preferences:', error);
+      next(error);
+    }
+  });
+
 
   // Add after the existing notification endpoints
   app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
@@ -197,9 +231,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
   // Test route to verify API is working
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
-  });
 
   // Account Request endpoint with proper error handling
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
@@ -947,7 +978,7 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      // Check if request exists and get requester info
+      // Check if request exists and getrequester info
       const [request] = await db
         .select({
           id: purchaseRequests.id,
