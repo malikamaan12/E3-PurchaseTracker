@@ -129,39 +129,11 @@ export function registerRoutes(app: Express): Server {
         .where(eq(notificationPreferences.userId, req.user!.id))
         .orderBy(notificationPreferences.category, notificationPreferences.type);
 
-      res.json(preferences);
-    } catch (error) {
-      debug(req, 'Error fetching notification preferences:', error);
-      next(error);
-    }
-  });
-
-
-  // Add after the existing notification endpoints
-  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
-    res.json({
-      categories: NOTIFICATION_CATEGORIES,
-      types: NOTIFICATION_TYPES
-    });
-  });
-
-  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const preferences = await db
-        .select()
-        .from(notificationPreferences)
-        .where(eq(notificationPreferences.userId, req.user!.id))
-        .orderBy(notificationPreferences.category, notificationPreferences.type);
-
       // If no preferences exist, create defaults
       if (preferences.length === 0) {
-        const defaultPreferences = Object.values(NOTIFICATION_CATEGORIES).flatMap(category =>
-          Object.values(NOTIFICATION_TYPES)
-            .filter(type => type.startsWith(category.split('_')[0].toLowerCase()))
+        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
+          Object.keys(NOTIFICATION_TYPES)
+            .filter(type => type.startsWith(category.toLowerCase()))
             .map(type => ({
               userId: req.user!.id,
               category,
@@ -182,8 +154,17 @@ export function registerRoutes(app: Express): Server {
 
       res.json(preferences);
     } catch (error) {
+      debug(req, 'Error fetching notification preferences:', error);
       next(error);
     }
+  });
+
+
+  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
+    res.json({
+      categories: NOTIFICATION_CATEGORIES,
+      types: NOTIFICATION_TYPES
+    });
   });
 
   app.put("/api/notification-preferences/:id", async (req: Request, res: Response, next: NextFunction) => {
@@ -227,11 +208,10 @@ export function registerRoutes(app: Express): Server {
 
       res.json(updated);
     } catch (error) {
+      debug(req, 'Error updating notification preference:', error);
       next(error);
     }
   });
-  // Test route to verify API is working
-
   // Account Request endpoint with proper error handling
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -990,7 +970,6 @@ export function registerRoutes(app: Express): Server {
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
         .limit(1);
-
       if (!request) {
         throw new AppError('Request not found', 404);
       }
