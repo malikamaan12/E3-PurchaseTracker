@@ -27,13 +27,7 @@ import {
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 import express from 'express';
-import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
-import {
-  getNotifications,
-  markNotificationAsRead,
-  createNotification
-} from "./utils/notifications";
 
 // Error Classes
 class DatabaseError extends Error {
@@ -105,6 +99,13 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add after the existing notification endpoints
+  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
+    res.json({
+      categories: NOTIFICATION_CATEGORIES,
+      types: NOTIFICATION_TYPES
+    });
+  });
+
   app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -190,15 +191,6 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-
-  // Add metadata endpoints for notification categories and types
-  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
-    res.json({
-      categories: NOTIFICATION_CATEGORIES,
-      types: NOTIFICATION_TYPES
-    });
-  });
-
   // Test route to verify API is working
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
@@ -662,12 +654,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add purpose types endpoint
-  app.get("/api/purpose-types", (_req: Request, res: Response) => {
-    const purposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
-    res.json(purposeTypes);
-  });
-
   // Enhanced sub-purpose creation endpoint
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -986,8 +972,7 @@ export function registerRoutes(app: Express): Server {
       // Create the approval record
       const [approval] = await db
         .insert(approvals)
-        .values({
-          requestId,
+        .values({          requestId,
           approverId: req.user.id,
           status,
           comments: comments || null,

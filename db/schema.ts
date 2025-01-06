@@ -1,5 +1,5 @@
 import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
-import { relations, type InferModel, sql } from "drizzle-orm";
+import { relations, type InferModel, sql, type Many } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -676,9 +676,6 @@ export const notificationPreferenceRelations = relations(notificationPreferences
     references: [users.id]
   })
 }));
-
-// Update user relations to include preferences
-userRelations.notificationPreferences = many(notificationPreferences);
 
 export const vendorPaymentRelations = relations(vendorPayments, ({one, many}) => ({
     vendor: one(vendors, {
