@@ -4,9 +4,9 @@ import autoTable from 'jspdf-autotable';
 interface TemplateConfig {
   branding: {
     companyName: string;
-    primaryColor: [number, number, number];
-    secondaryColor: [number, number, number];
-    accentColor: [number, number, number];
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
     footerText: string;
     logo: string | null;
     logoMimeType: string | null;
@@ -14,11 +14,28 @@ interface TemplateConfig {
     headerImageMimeType: string | null;
     footerImage: string | null;
     footerImageMimeType: string | null;
+    headerStyle: 'modern' | 'classic' | 'minimal';
   };
   layout?: 'modern' | 'classic' | 'bento';
   headerHeight?: number;
   footerHeight?: number;
   showLogo?: boolean;
+}
+
+// Helper function to convert hex color to RGB array
+function hexToRgb(hex: string): [number, number, number] {
+  const defaultColor: [number, number, number] = [113, 86, 158];
+  try {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : defaultColor;
+  } catch (error) {
+    console.error('Error converting hex to RGB:', error);
+    return defaultColor;
+  }
 }
 
 async function fetchBranding(): Promise<TemplateConfig['branding']> {
@@ -31,24 +48,25 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
     const data = await response.json();
     return {
       companyName: data.companyName || "Events & Entertainment Enterprises",
-      primaryColor: [113, 86, 158], // #71569E
-      secondaryColor: [240, 240, 250], // #F0F0FA
-      accentColor: [25, 17, 96], // #191160
+      primaryColor: data.primaryColor || "#71569E",
+      secondaryColor: data.secondaryColor || "#F0F0FA",
+      accentColor: data.accentColor || "#191160",
       footerText: data.footerText || "Designed with ❤️ by E3",
       logo: data.logo || null,
       logoMimeType: data.logoMimeType || null,
-      headerImage: data.headerImageUrl || null,
+      headerImage: data.headerImage || null,
       headerImageMimeType: data.headerImageMimeType || null,
-      footerImage: data.footerImageUrl || null,
+      footerImage: data.footerImage || null,
       footerImageMimeType: data.footerImageMimeType || null,
+      headerStyle: data.headerStyle || "modern"
     };
   } catch (error) {
     console.error('Error fetching branding:', error);
     return {
       companyName: "Events & Entertainment Enterprises",
-      primaryColor: [113, 86, 158],
-      secondaryColor: [240, 240, 250],
-      accentColor: [25, 17, 96],
+      primaryColor: "#71569E",
+      secondaryColor: "#F0F0FA",
+      accentColor: "#191160",
       footerText: "Designed with ❤️ by E3",
       logo: null,
       logoMimeType: null,
@@ -56,13 +74,15 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
       headerImageMimeType: null,
       footerImage: null,
       footerImageMimeType: null,
+      headerStyle: "modern"
     };
   }
 }
 
-function addGradientHeader(doc: jsPDF) {
+function addGradientHeader(doc: jsPDF, color: string) {
   const pageWidth = doc.internal.pageSize.width;
   const headerHeight = 70;
+  const rgbColor = hexToRgb(color);
 
   // Create a softer gradient effect
   const steps = 25;
@@ -71,18 +91,35 @@ function addGradientHeader(doc: jsPDF) {
   for (let i = 0; i < steps; i++) {
     const opacity = Math.max(0.1, 0.7 - (i * 0.025)); // Softer fade
     doc.saveGraphicsState();
-    doc.setFillColor(113, 86, 158); // #71569E
+    doc.setFillColor(...rgbColor);
     doc.setGState(new doc.GState({ opacity }));
     doc.rect(0, i * stepHeight, pageWidth, stepHeight, 'F');
     doc.restoreGraphicsState();
   }
 }
 
+function addImage(doc: jsPDF, imageData: string | null, mimeType: string | null, x: number, y: number, width: number, height: number): void {
+  if (!imageData || !mimeType) return;
+
+  try {
+    const format = mimeType.split('/')[1].toUpperCase();
+    if (!['PNG', 'JPEG', 'JPG'].includes(format)) return;
+
+    const base64Data = imageData.includes('base64,') ? 
+      imageData.split('base64,')[1] : 
+      imageData;
+
+    doc.addImage(base64Data, format, x, y, width, height);
+  } catch (error) {
+    console.error('Error adding image:', error);
+  }
+}
+
 function addHeader(doc: jsPDF, config: TemplateConfig): number {
   const headerHeight = 70;
 
-  // Add gradient header
-  addGradientHeader(doc);
+  // Add gradient header using branding primary color
+  addGradientHeader(doc, config.branding.primaryColor);
 
   // Add company name
   doc.saveGraphicsState();
@@ -94,21 +131,35 @@ function addHeader(doc: jsPDF, config: TemplateConfig): number {
 
   // Add logo if available
   if (config.branding.logo && config.showLogo) {
-    try {
-      doc.addImage(config.branding.logo, 'PNG', 25, 15, 45, 45);
-    } catch (error) {
-      console.error('Error adding logo:', error);
-    }
+    addImage(doc, config.branding.logo, config.branding.logoMimeType, 25, 15, 45, 45);
+  }
+
+  // Add header image if available
+  if (config.branding.headerImage) {
+    addImage(doc, config.branding.headerImage, config.branding.headerImageMimeType, 0, 0, doc.internal.pageSize.width, headerHeight);
   }
 
   return headerHeight;
 }
 
-function addFooter(doc: jsPDF): number {
+function addFooter(doc: jsPDF, config: TemplateConfig): number {
   const pageHeight = doc.internal.pageSize.height;
   const footerHeight = 45;
   const footerY = pageHeight - footerHeight;
   const margin = 25;
+
+  // Add footer image if available
+  if (config.branding.footerImage) {
+    addImage(
+      doc, 
+      config.branding.footerImage, 
+      config.branding.footerImageMimeType,
+      0,
+      footerY,
+      doc.internal.pageSize.width,
+      footerHeight
+    );
+  }
 
   doc.saveGraphicsState();
   doc.setFontSize(9);
@@ -136,6 +187,13 @@ function addFooter(doc: jsPDF): number {
     const textWidth = doc.getTextWidth(item.text);
     doc.text(item.text, doc.internal.pageSize.width - margin - textWidth, item.y);
   });
+
+  // Add custom footer text if available
+  if (config.branding.footerText) {
+    const footerText = config.branding.footerText;
+    const textWidth = doc.getTextWidth(footerText);
+    doc.text(footerText, (doc.internal.pageSize.width - textWidth) / 2, footerY + 25);
+  }
 
   doc.restoreGraphicsState();
   return footerHeight;
@@ -259,7 +317,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     });
 
     // Add footer
-    addFooter(doc);
+    addFooter(doc, config);
 
     return doc;
   } catch (error) {
