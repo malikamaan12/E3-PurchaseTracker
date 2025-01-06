@@ -377,29 +377,33 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Enhanced sub-purposes endpoint with proper error handling and logging
-  app.get("/api/subpurposes", async (req: Request, res: Response, next: NextFunction) => {
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { purposeType } = req.query;
-      console.log('[SubPurposes API] Request received:', { purposeType });
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
-      let query = db
-        .select({
-          id: subPurposes.id,
-          name: subPurposes.name,
-          purpose_type: subPurposes.purpose_type,
-          is_frozen: subPurposes.is_frozen,
-          created_at: subPurposes.created_at,
-          updated_at: subPurposes.updated_at
-        })
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes with filters:', { purposeType });
+
+      const query = db.select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purpose_type: subPurposes.purpose_type,
+        is_frozen: subPurposes.is_frozen,
+        valid_from: subPurposes.valid_from,
+        valid_to: subPurposes.valid_to,
+        created_at: subPurposes.created_at,
+        updated_at: subPurposes.updated_at
+      })
         .from(subPurposes)
         .orderBy(desc(subPurposes.created_at));
 
-      if (purposeType) {
-        query = query.where(eq(subPurposes.purpose_type, purposeType as string));
-      }
+      const results = purposeType
+        ? await query.where(eq(subPurposes.purpose_type, purposeType as string))
+        : await query;
 
-      const results = await query;
-      console.log('[SubPurposes API] Found results:', results.length);
+      debug(req, `Found ${results.length} sub-purposes`);
 
       // Format the response
       const formattedResults = results.map(sp => ({
@@ -407,13 +411,15 @@ export function registerRoutes(app: Express): Server {
         name: sp.name,
         purpose_type: sp.purpose_type,
         is_frozen: sp.is_frozen,
+        valid_from: sp.valid_from ? new Date(sp.valid_from).toISOString() : null,
+        valid_to: sp.valid_to ? new Date(sp.valid_to).toISOString() : null,
         created_at: sp.created_at ? new Date(sp.created_at).toISOString() : null,
         updated_at: sp.updated_at ? new Date(sp.updated_at).toISOString() : null
       }));
 
       res.json(formattedResults);
     } catch (error) {
-      console.error('[SubPurposes API] Error:', error);
+      debug(req, 'Error fetching sub-purposes:', error);
       next(error);
     }
   });
