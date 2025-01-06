@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RotateCw, ZoomIn, ZoomOut, Download, FileText } from "lucide-react";
@@ -107,11 +108,15 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
 
     if (isPDF) {
       return (
-        <iframe
-          src={file.fileUrl}
-          title={file.fileName}
-          className="w-full h-[70vh]"
-        />
+        <div className="w-full h-[70vh] bg-white rounded-lg overflow-hidden">
+          <embed
+            src={`${file.fileUrl}#toolbar=0&navpanes=0`}
+            type="application/pdf"
+            width="100%"
+            height="100%"
+            className="w-full h-full"
+          />
+        </div>
       );
     }
 
@@ -141,8 +146,11 @@ export function FilePreviewDialog({ file, onClose }: FilePreviewDialogProps) {
               Download
             </Button>
           </DialogTitle>
+          <DialogDescription>
+            Preview of {file.fileName}
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-hidden bg-gray-50 rounded-lg">
           {renderContent()}
         </div>
       </DialogContent>
