@@ -1,5 +1,5 @@
 import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
-import { relations, type InferModel } from "drizzle-orm";
+import { relations, type InferModel, sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -292,6 +292,7 @@ export const userRelations = relations(users, ({ many }) => ({
   requestsCreated: many(purchaseRequests),
   approvalsGiven: many(approvals),
   notifications: many(notifications),
+  notificationPreferences: many(notificationPreferences)
 }));
 
 export const notificationRelations = relations(notifications, ({ one }) => ({
@@ -385,7 +386,6 @@ export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
 export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
-
 
 
 // ============= Validation Schemas =============
@@ -599,3 +599,105 @@ export const mandatoryDepartments = [
 ] as const;
 
 export type MandatoryDepartment = typeof mandatoryDepartments[number];
+
+// Add after the existing notifications table definition
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  category: text("category").notNull(), // e.g., 'requests', 'approvals', 'system'
+  type: text("type").notNull(), // e.g., 'new_request', 'status_change', 'mention'
+  enabled: boolean("enabled").notNull().default(true),
+  inAppEnabled: boolean("in_app_enabled").notNull().default(true),
+  emailEnabled: boolean("email_enabled").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Add notification categories and types as constants
+export const NOTIFICATION_CATEGORIES = {
+  REQUESTS: 'requests',
+  APPROVALS: 'approvals',
+  SYSTEM: 'system',
+  VENDORS: 'vendors',
+  ACCOUNT: 'account'
+} as const;
+
+export const NOTIFICATION_TYPES = {
+  // Request related
+  NEW_REQUEST: 'new_request',
+  REQUEST_STATUS_CHANGE: 'request_status_change',
+  REQUEST_COMMENT: 'request_comment',
+  REQUEST_MENTION: 'request_mention',
+
+  // Approval related
+  PENDING_APPROVAL: 'pending_approval',
+  APPROVAL_GRANTED: 'approval_granted',
+  APPROVAL_REJECTED: 'approval_rejected',
+
+  // System related
+  SYSTEM_MAINTENANCE: 'system_maintenance',
+  SYSTEM_UPDATE: 'system_update',
+
+  // Vendor related
+  VENDOR_STATUS_CHANGE: 'vendor_status_change',
+  VENDOR_PERFORMANCE_UPDATE: 'vendor_performance_update',
+
+  // Account related
+  ACCOUNT_STATUS_CHANGE: 'account_status_change',
+  PASSWORD_CHANGE: 'password_change',
+  ROLE_CHANGE: 'role_change'
+} as const;
+
+// Add types
+export type NotificationCategory = typeof NOTIFICATION_CATEGORIES[keyof typeof NOTIFICATION_CATEGORIES];
+export type NotificationEventType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
+
+// Add validation schema
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences, {
+  category: z.enum([
+    NOTIFICATION_CATEGORIES.REQUESTS,
+    NOTIFICATION_CATEGORIES.APPROVALS,
+    NOTIFICATION_CATEGORIES.SYSTEM,
+    NOTIFICATION_CATEGORIES.VENDORS,
+    NOTIFICATION_CATEGORIES.ACCOUNT
+  ]),
+  type: z.enum(Object.values(NOTIFICATION_TYPES)),
+  enabled: z.boolean(),
+  inAppEnabled: z.boolean(),
+  emailEnabled: z.boolean()
+});
+
+// Add relations
+export const notificationPreferenceRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id]
+  })
+}));
+
+// Update user relations to include preferences
+userRelations.notificationPreferences = many(notificationPreferences);
+
+export const vendorPaymentRelations = relations(vendorPayments, ({one, many}) => ({
+    vendor: one(vendors, {
+        fields: [vendorPayments.vendorId],
+        references: [vendors.id]
+    }),
+    request: one(purchaseRequests, {
+        fields: [vendorPayments.requestId],
+        references: [purchaseRequests.id]
+    })
+}))
+
+export const vendorPerformanceRelations = relations(vendorPerformance, ({one, many}) => ({
+    vendor: one(vendors, {
+        fields: [vendorPerformance.vendorId],
+        references: [vendors.id]
+    }),
+    request: one(purchaseRequests, {
+        fields: [vendorPerformance.requestId],
+        references: [purchaseRequests.id]
+    })
+}))

@@ -20,15 +20,19 @@ import {
   insertErrorLogSchema,
   companyBranding,
   insertCompanyBrandingSchema,
+  notificationPreferences,
+  insertNotificationPreferenceSchema,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_TYPES
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
-import { 
-  getNotifications, 
-  markNotificationAsRead, 
-  createNotification 
+import {
+  getNotifications,
+  markNotificationAsRead,
+  createNotification
 } from "./utils/notifications";
 
 // Error Classes
@@ -71,8 +75,8 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
-      const lastFetchTime = req.query.lastFetchTime 
-        ? new Date(req.query.lastFetchTime as string) 
+      const lastFetchTime = req.query.lastFetchTime
+        ? new Date(req.query.lastFetchTime as string)
         : undefined;
 
       const notifications = await getNotifications(req.user!.id, lastFetchTime);
@@ -98,6 +102,101 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       next(error);
     }
+  });
+
+  // Add after the existing notification endpoints
+  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferences = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, req.user!.id))
+        .orderBy(notificationPreferences.category, notificationPreferences.type);
+
+      // If no preferences exist, create defaults
+      if (preferences.length === 0) {
+        const defaultPreferences = Object.values(NOTIFICATION_CATEGORIES).flatMap(category =>
+          Object.values(NOTIFICATION_TYPES)
+            .filter(type => type.startsWith(category.split('_')[0].toLowerCase()))
+            .map(type => ({
+              userId: req.user!.id,
+              category,
+              type,
+              enabled: true,
+              inAppEnabled: true,
+              emailEnabled: false,
+            }))
+        );
+
+        const insertedPreferences = await db
+          .insert(notificationPreferences)
+          .values(defaultPreferences)
+          .returning();
+
+        return res.json(insertedPreferences);
+      }
+
+      res.json(preferences);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/notification-preferences/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferenceId = parseInt(req.params.id);
+      if (isNaN(preferenceId)) {
+        throw new ValidationError('Invalid preference ID', { id: 'Must be a number' });
+      }
+
+      const validationResult = insertNotificationPreferenceSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid input data', validationResult.error.format());
+      }
+
+      // Verify the preference belongs to the user
+      const [existing] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.id, preferenceId),
+          eq(notificationPreferences.userId, req.user!.id)
+        ))
+        .limit(1);
+
+      if (!existing) {
+        throw new AppError('Notification preference not found', 404);
+      }
+
+      const [updated] = await db
+        .update(notificationPreferences)
+        .set({
+          ...req.body,
+          updatedAt: new Date()
+        })
+        .where(eq(notificationPreferences.id, preferenceId))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add metadata endpoints for notification categories and types
+  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
+    res.json({
+      categories: NOTIFICATION_CATEGORIES,
+      types: NOTIFICATION_TYPES
+    });
   });
 
   // Test route to verify API is working
