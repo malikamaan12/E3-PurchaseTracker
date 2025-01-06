@@ -35,6 +35,8 @@ export interface FilterValues {
   priority: string[];
   department: string[];
   purposeType: string[];
+  subPurposeId: number | null;
+  vendorId: number | null;
   costRange: {
     min: string;
     max: string;
@@ -45,14 +47,33 @@ export interface FilterValues {
 interface DashboardFilterPanelProps {
   onFilterChange: (filters: FilterValues) => void;
   departments: string[];
+  vendors: Array<{ id: number; name: string }>;
+  subPurposes: Array<{ id: number; name: string; purposeType: string }>;
   isLoading?: boolean;
 }
 
 const FILTER_STORAGE_KEY = "dashboard_filters";
 
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "pending", label: "Pending Review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "changes_requested", label: "Changes Requested" }
+];
+
+const PURPOSE_TYPES = [
+  "E3 EVENT",
+  "PROJECT",
+  "MALL",
+  "BUSINESS GROWTH"
+];
+
 export function DashboardFilterPanel({
   onFilterChange,
   departments,
+  vendors,
+  subPurposes,
   isLoading = false,
 }: DashboardFilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -76,6 +97,8 @@ export function DashboardFilterPanel({
       priority: [],
       department: [],
       purposeType: [],
+      subPurposeId: null,
+      vendorId: null,
       costRange: {
         min: "",
         max: "",
@@ -91,13 +114,29 @@ export function DashboardFilterPanel({
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
 
+  // Filter available sub-purposes based on selected purpose type
+  const availableSubPurposes = filters.purposeType.length > 0
+    ? subPurposes.filter(sp => filters.purposeType.includes(sp.purposeType))
+    : subPurposes;
+
   const updateFilters = (key: keyof FilterValues, value: any) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    // Clear sub-purpose if purpose type changes
+    if (key === 'purposeType' && filters.subPurposeId) {
+      const newFilters = {
+        ...filters,
+        [key]: value,
+        subPurposeId: null
+      };
+      setFilters(newFilters);
+      onFilterChange(newFilters);
+    } else {
+      const newFilters = { ...filters, [key]: value };
+      setFilters(newFilters);
+      onFilterChange(newFilters);
+    }
 
     // Update active filters
-    const activeFiltersList = Object.entries(newFilters)
+    const activeFiltersList = Object.entries(filters)
       .filter(([_, value]) => {
         if (Array.isArray(value)) return value.length > 0;
         if (typeof value === "object") {
@@ -108,6 +147,7 @@ export function DashboardFilterPanel({
             return value.min || value.max;
           }
         }
+        if (typeof value === "number") return value !== null;
         return value;
       })
       .map(([key]) => key);
@@ -122,6 +162,8 @@ export function DashboardFilterPanel({
       ? { from: undefined, to: undefined }
       : key === "costRange"
       ? { min: "", max: "" }
+      : key === "vendorId" || key === "subPurposeId"
+      ? null
       : "";
 
     updateFilters(key, clearedValue);
@@ -137,6 +179,8 @@ export function DashboardFilterPanel({
       priority: [],
       department: [],
       purposeType: [],
+      subPurposeId: null,
+      vendorId: null,
       costRange: {
         min: "",
         max: "",
@@ -154,7 +198,8 @@ export function DashboardFilterPanel({
       .split(/(?=[A-Z])/)
       .join(" ")
       .toLowerCase()
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+      .replace("Id", "");
   };
 
   if (isLoading) {
@@ -228,6 +273,7 @@ export function DashboardFilterPanel({
         <CollapsibleContent>
           <CardContent className="grid gap-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {/* Status Filter */}
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -240,37 +286,16 @@ export function DashboardFilterPanel({
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="changes_requested">
-                      Changes Requested
-                    </SelectItem>
+                    {STATUS_OPTIONS.map(({value, label}) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select
-                  value={filters.priority[0] || ""}
-                  onValueChange={(value) =>
-                    updateFilters("priority", value ? [value] : [])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+              {/* Department Filter */}
               <div className="space-y-2">
                 <Label>Department</Label>
                 <Select
@@ -292,6 +317,7 @@ export function DashboardFilterPanel({
                 </Select>
               </div>
 
+              {/* Purpose Type Filter */}
               <div className="space-y-2">
                 <Label>Purpose Type</Label>
                 <Select
@@ -304,18 +330,63 @@ export function DashboardFilterPanel({
                     <SelectValue placeholder="Select purpose" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
-                    <SelectItem value="PROJECT">PROJECT</SelectItem>
-                    <SelectItem value="MALL">MALL</SelectItem>
-                    <SelectItem value="BUSINESS GROWTH">
-                      BUSINESS GROWTH
-                    </SelectItem>
+                    {PURPOSE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sub-Purpose Filter */}
+              <div className="space-y-2">
+                <Label>Sub-Purpose</Label>
+                <Select
+                  value={filters.subPurposeId?.toString() || ""}
+                  onValueChange={(value) =>
+                    updateFilters("subPurposeId", value ? parseInt(value) : null)
+                  }
+                  disabled={!filters.purposeType.length}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sub-purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubPurposes.map((sp) => (
+                      <SelectItem key={sp.id} value={sp.id.toString()}>
+                        {sp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Vendor Filter */}
+              <div className="space-y-2">
+                <Label>Vendor</Label>
+                <Select
+                  value={filters.vendorId?.toString() || ""}
+                  onValueChange={(value) =>
+                    updateFilters("vendorId", value ? parseInt(value) : null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                        {vendor.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+              {/* Date Range Filter */}
               <div className="space-y-2">
                 <Label>Date Range</Label>
                 <DatePickerWithRange
@@ -327,6 +398,7 @@ export function DashboardFilterPanel({
                 />
               </div>
 
+              {/* Cost Range Filter */}
               <div className="space-y-2">
                 <Label>Cost Range</Label>
                 <div className="flex gap-2">
@@ -368,6 +440,7 @@ export function DashboardFilterPanel({
               </div>
             </div>
 
+            {/* Active Filters Display */}
             {activeFilters.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-2">
                 {activeFilters.map((filter) => (

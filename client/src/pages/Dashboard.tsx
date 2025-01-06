@@ -44,6 +44,8 @@ import { updateRequest } from "@/services/requests";
 import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
 import { isWithinInterval, parseISO } from "date-fns";
 import { type RequestData } from "@/types/requests";
+import { useVendors } from "@/hooks/use-vendors";
+import { useSubPurposes } from "@/hooks/use-sub-purposes";
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -56,6 +58,25 @@ export default function Dashboard() {
   const [filteredRequests, setFilteredRequests] = useState<RequestData[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const { vendors = [] } = useVendors();
+  const { subPurposes = [] } = useSubPurposes();
+  const [filters, setFilters] = useState<FilterValues>({
+    status: [],
+    dateRange: {
+      from: undefined,
+      to: undefined,
+    },
+    priority: [],
+    department: [],
+    purposeType: [],
+    subPurposeId: null,
+    vendorId: null,
+    costRange: {
+      min: "",
+      max: "",
+    },
+    searchQuery: "",
+  });
 
   useEffect(() => {
     if (user) {
@@ -409,7 +430,7 @@ export default function Dashboard() {
     );
   };
 
-  const handleFilterChange = async (filters: FilterValues) => {
+  const handleFilterChange = async (newFilters: FilterValues) => {
     if (!Array.isArray(requests)) return;
 
     setIsFilterLoading(true);
@@ -417,66 +438,76 @@ export default function Dashboard() {
       let filtered = [...requests];
 
       // Status filter
-      if (filters.status.length > 0) {
-        filtered = filtered.filter((r) => filters.status.includes(r.status));
+      if (newFilters.status.length > 0) {
+        filtered = filtered.filter((r) => newFilters.status.includes(r.status));
       }
 
       // Date range filter
-      if (filters.dateRange.from || filters.dateRange.to) {
+      if (newFilters.dateRange.from || newFilters.dateRange.to) {
         filtered = filtered.filter((r) => {
           const requestDate = parseISO(r.createdAt);
-          if (filters.dateRange.from && filters.dateRange.to) {
+          if (newFilters.dateRange.from && newFilters.dateRange.to) {
             return isWithinInterval(requestDate, {
-              start: filters.dateRange.from,
-              end: filters.dateRange.to,
+              start: newFilters.dateRange.from,
+              end: newFilters.dateRange.to,
             });
           }
-          if (filters.dateRange.from) {
-            return requestDate >= filters.dateRange.from;
+          if (newFilters.dateRange.from) {
+            return requestDate >= newFilters.dateRange.from;
           }
-          if (filters.dateRange.to) {
-            return requestDate <= filters.dateRange.to;
+          if (newFilters.dateRange.to) {
+            return requestDate <= newFilters.dateRange.to;
           }
           return true;
         });
       }
 
       // Priority filter
-      if (filters.priority.length > 0) {
-        filtered = filtered.filter((r) => filters.priority.includes(r.priority));
+      if (newFilters.priority.length > 0) {
+        filtered = filtered.filter((r) => newFilters.priority.includes(r.priority));
       }
 
       // Department filter
-      if (filters.department.length > 0) {
+      if (newFilters.department.length > 0) {
         filtered = filtered.filter((r) =>
-          filters.department.includes(r.requester?.department || '')
+          newFilters.department.includes(r.requester?.department || '')
         );
       }
 
       // Purpose type filter
-      if (filters.purposeType.length > 0) {
+      if (newFilters.purposeType.length > 0) {
         filtered = filtered.filter((r) =>
-          filters.purposeType.includes(r.purposeType)
+          newFilters.purposeType.includes(r.purposeType)
         );
       }
 
+      // Sub-purpose filter
+      if (newFilters.subPurposeId !== null) {
+        filtered = filtered.filter((r) => r.subPurposeId === newFilters.subPurposeId);
+      }
+
+      // Vendor filter
+      if (newFilters.vendorId !== null) {
+        filtered = filtered.filter((r) => r.vendorId === newFilters.vendorId);
+      }
+
       // Cost range filter
-      if (filters.costRange.min || filters.costRange.max) {
+      if (newFilters.costRange.min || newFilters.costRange.max) {
         filtered = filtered.filter((r) => {
           const cost = r.totalEstimatedCost || 0;
-          const min = filters.costRange.min
-            ? parseFloat(filters.costRange.min)
+          const min = newFilters.costRange.min
+            ? parseFloat(newFilters.costRange.min)
             : -Infinity;
-          const max = filters.costRange.max
-            ? parseFloat(filters.costRange.max)
+          const max = newFilters.costRange.max
+            ? parseFloat(newFilters.costRange.max)
             : Infinity;
           return cost >= min && cost <= max;
         });
       }
 
       // Search query filter
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
+      if (newFilters.searchQuery) {
+        const query = newFilters.searchQuery.toLowerCase();
         filtered = filtered.filter(
           (r) =>
             r.title.toLowerCase().includes(query) ||
@@ -485,6 +516,7 @@ export default function Dashboard() {
         );
       }
 
+      setFilters(newFilters);
       setFilteredRequests(filtered);
     } catch (error) {
       console.error('Error applying filters:', error);
@@ -602,6 +634,8 @@ export default function Dashboard() {
         <DashboardFilterPanel
           onFilterChange={handleFilterChange}
           departments={departments}
+          vendors={vendors}
+          subPurposes={subPurposes}
           isLoading={isFilterLoading}
         />
 
