@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import debounce from "lodash/debounce";
 
 export interface FilterValues {
   status: string[];
@@ -77,6 +78,7 @@ export function DashboardFilterPanel({
   isLoading = false,
 }: DashboardFilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [filters, setFilters] = useState<FilterValues>(() => {
     const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
     if (savedFilters) {
@@ -109,8 +111,8 @@ export function DashboardFilterPanel({
 
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
+  // Save filters to localStorage whenever they change
   useEffect(() => {
-    // Save filters to localStorage whenever they change
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
 
@@ -135,6 +137,14 @@ export function DashboardFilterPanel({
     return Boolean(value);
   };
 
+  const debouncedOnFilterChange = useCallback(
+    debounce((newFilters: FilterValues) => {
+      onFilterChange(newFilters);
+      setIsDirty(false);
+    }, 500),
+    [onFilterChange]
+  );
+
   const updateFilters = (key: keyof FilterValues, value: any) => {
     // Clear sub-purpose if purpose type changes
     if (key === 'purposeType' && filters.subPurposeId) {
@@ -144,11 +154,11 @@ export function DashboardFilterPanel({
         subPurposeId: null
       };
       setFilters(newFilters);
-      onFilterChange(newFilters);
+      setIsDirty(true);
     } else {
       const newFilters = { ...filters, [key]: value };
       setFilters(newFilters);
-      onFilterChange(newFilters);
+      setIsDirty(true);
     }
 
     // Update active filters
@@ -157,6 +167,10 @@ export function DashboardFilterPanel({
       .map(([key]) => key);
 
     setActiveFilters(activeFiltersList);
+  };
+
+  const applyFilters = () => {
+    debouncedOnFilterChange(filters);
   };
 
   const clearFilter = (key: keyof FilterValues) => {
@@ -194,6 +208,7 @@ export function DashboardFilterPanel({
     setFilters(clearedFilters);
     onFilterChange(clearedFilters);
     setActiveFilters([]);
+    setIsDirty(false);
     localStorage.removeItem(FILTER_STORAGE_KEY);
   };
 
@@ -241,6 +256,16 @@ export function DashboardFilterPanel({
               )}
             </CardTitle>
             <div className="flex items-center gap-2">
+              {isDirty && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={applyFilters}
+                  className="h-8"
+                >
+                  Apply Filters
+                </Button>
+              )}
               {activeFilters.length > 0 && (
                 <Button
                   variant="ghost"
