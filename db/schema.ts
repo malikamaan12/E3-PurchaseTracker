@@ -388,6 +388,7 @@ export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
 
 
+
 // ============= Validation Schemas =============
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -649,8 +650,8 @@ export const NOTIFICATION_TYPES = {
 } as const;
 
 // Add types
-export type NotificationCategory = typeof NOTIFICATION_CATEGORIES[keyof typeof NOTIFICATION_CATEGORIES];
-export type NotificationEventType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
+export type NotificationCategory = keyof typeof NOTIFICATION_CATEGORIES;
+export type NotificationEventType = keyof typeof NOTIFICATION_TYPES;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
 

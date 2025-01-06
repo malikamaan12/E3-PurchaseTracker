@@ -64,8 +64,8 @@ export function NotificationPreferences() {
       </CardHeader>
       <CardContent>
         <Accordion type="single" collapsible className="space-y-4">
-          {Object.entries(metadata.categories || {}).map(([key, category]) => {
-            const categoryPreferences = getCategoryPreferences(category as string);
+          {Object.entries(metadata.categories).map(([key, category]) => {
+            const categoryPreferences = getCategoryPreferences(key as keyof typeof metadata.categories);
 
             return (
               <AccordionItem key={key} value={key}>

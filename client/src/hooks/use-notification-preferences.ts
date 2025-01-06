@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { NOTIFICATION_CATEGORIES, NOTIFICATION_TYPES } from "@db/schema";
 import type { NotificationPreference } from "@db/schema";
 
 interface UpdatePreferenceData {
@@ -25,16 +26,21 @@ export function useNotificationPreferences() {
     queryKey: ['/api/notification-preferences'],
     retry: false,
     staleTime: 300000, // 5 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchInterval: false
   });
 
   const {
-    data: metadata = { categories: {}, types: {} },
+    data: metadata = {
+      categories: NOTIFICATION_CATEGORIES,
+      types: NOTIFICATION_TYPES
+    },
     isLoading: metadataLoading
   } = useQuery<NotificationMetadata>({
     queryKey: ['/api/notification-preferences/metadata'],
     staleTime: Infinity,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchInterval: false
   });
 
   const updatePreference = useMutation({
@@ -69,7 +75,7 @@ export function useNotificationPreferences() {
     }
   });
 
-  const getCategoryPreferences = (category: string) => {
+  const getCategoryPreferences = (category: keyof typeof NOTIFICATION_CATEGORIES) => {
     return preferences.filter(pref => pref.category === category);
   };
 
