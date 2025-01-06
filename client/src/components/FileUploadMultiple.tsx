@@ -61,7 +61,17 @@ export function FileUploadMultiple({
       return;
     }
 
-    setSelectedFiles(prev => [...prev, ...newFiles]);
+    // Create preview URLs for selected files
+    const filesWithPreviews = newFiles.map(file => {
+      if (file.type.startsWith('image/')) {
+        return Object.assign(file, {
+          preview: URL.createObjectURL(file)
+        });
+      }
+      return file;
+    });
+
+    setSelectedFiles(prev => [...prev, ...filesWithPreviews]);
   }, [selectedFiles, uploadedFiles.length, maxFiles, maxSizeInMB, toast]);
 
   const removeFile = useCallback((index: number) => {
@@ -155,17 +165,7 @@ export function FileUploadMultiple({
           {selectedFiles.map((file, index) => (
             <div key={index} className="relative group">
               <FilePreview 
-                file={{
-                  name: file.name,
-                  size: file.size,
-                  type: file.type,
-                  lastModified: file.lastModified,
-                  webkitRelativePath: file.webkitRelativePath,
-                  slice: file.slice.bind(file),
-                  stream: () => file.stream(),
-                  text: () => file.text(),
-                  arrayBuffer: () => file.arrayBuffer()
-                }}
+                file={file}
               />
               <Button
                 type="button"
@@ -191,13 +191,8 @@ export function FileUploadMultiple({
                   name: file.fileName,
                   size: file.fileSize,
                   type: file.fileType,
-                  lastModified: Date.now(),
-                  webkitRelativePath: "",
-                  slice: () => new Blob(),
-                  stream: () => new ReadableStream(),
-                  text: () => Promise.resolve(""),
-                  arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-                }} 
+                  fileUrl: file.fileUrl,
+                }}
               />
             </div>
           ))}
