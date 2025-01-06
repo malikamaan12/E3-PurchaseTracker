@@ -17,7 +17,8 @@ export interface AttachmentFile extends UploadedFile {
   requestId?: number;
 }
 
-export interface FileWithPreview extends File {
+export interface FileWithPreview {
+  file: File;
   preview?: string;
 }
 
@@ -25,6 +26,7 @@ export interface PreviewableFile {
   name: string;
   size: number;
   type: string;
+  preview?: string;
   fileUrl?: string;
   lastModified?: number;
   webkitRelativePath?: string;

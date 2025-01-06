@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { FilePreview } from "@/components/FilePreview";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, X, Upload } from "lucide-react";
-import type { UploadedFile } from "@/types";
+import { FilePreview } from "@/components/FilePreview";
+import type { UploadedFile, FileWithPreview } from "@/types";
 
 interface FileUploadMultipleProps {
   onUploadComplete: (files: UploadedFile[]) => void;
@@ -19,7 +19,7 @@ export function FileUploadMultiple({
   maxSizeInMB = 10,
   uploadedFiles = []
 }: FileUploadMultipleProps) {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
@@ -27,19 +27,19 @@ export function FileUploadMultiple({
   // Clean up any object URLs when component unmounts
   useEffect(() => {
     return () => {
-      selectedFiles.forEach(file => {
-        if ('preview' in file && (file as any).preview) {
-          URL.revokeObjectURL((file as any).preview);
+      selectedFiles.forEach(fileObj => {
+        if (fileObj.preview) {
+          URL.revokeObjectURL(fileObj.preview);
         }
       });
     };
   }, [selectedFiles]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(event.target.files || []);
+    const files = Array.from(event.target.files || []);
 
     // Check total number of files
-    if (newFiles.length + selectedFiles.length + uploadedFiles.length > maxFiles) {
+    if (files.length + selectedFiles.length + uploadedFiles.length > maxFiles) {
       toast({
         title: "Too many files",
         description: `You can only upload up to ${maxFiles} files at a time`,
@@ -49,7 +49,7 @@ export function FileUploadMultiple({
     }
 
     // Check file sizes
-    const oversizedFiles = newFiles.filter(
+    const oversizedFiles = files.filter(
       file => file.size > maxSizeInMB * 1024 * 1024
     );
     if (oversizedFiles.length > 0) {
@@ -61,14 +61,13 @@ export function FileUploadMultiple({
       return;
     }
 
-    // Create preview URLs for selected files
-    const filesWithPreviews = newFiles.map(file => {
-      if (file.type.startsWith('image/')) {
-        return Object.assign(file, {
-          preview: URL.createObjectURL(file)
-        });
-      }
-      return file;
+    // Create preview URLs and store files
+    const filesWithPreviews: FileWithPreview[] = files.map(file => {
+      const fileWithPreview: FileWithPreview = {
+        file,
+        preview: URL.createObjectURL(file)
+      };
+      return fileWithPreview;
     });
 
     setSelectedFiles(prev => [...prev, ...filesWithPreviews]);
@@ -76,11 +75,13 @@ export function FileUploadMultiple({
 
   const removeFile = useCallback((index: number) => {
     setSelectedFiles(prev => {
-      const file = prev[index];
-      if ('preview' in file && (file as any).preview) {
-        URL.revokeObjectURL((file as any).preview);
+      const newFiles = [...prev];
+      const removed = newFiles[index];
+      if (removed.preview) {
+        URL.revokeObjectURL(removed.preview);
       }
-      return prev.filter((_, i) => i !== index);
+      newFiles.splice(index, 1);
+      return newFiles;
     });
   }, []);
 
@@ -92,7 +93,7 @@ export function FileUploadMultiple({
       setUploadProgress(0);
 
       const formData = new FormData();
-      selectedFiles.forEach(file => formData.append("files", file));
+      selectedFiles.forEach(fileObj => formData.append("files", fileObj.file));
 
       const response = await fetch("/api/attachments", {
         method: "POST",
@@ -106,10 +107,10 @@ export function FileUploadMultiple({
 
       const newUploadedFiles: UploadedFile[] = await response.json();
 
-      // Clean up any preview URLs
-      selectedFiles.forEach(file => {
-        if ('preview' in file && (file as any).preview) {
-          URL.revokeObjectURL((file as any).preview);
+      // Clean up preview URLs
+      selectedFiles.forEach(fileObj => {
+        if (fileObj.preview) {
+          URL.revokeObjectURL(fileObj.preview);
         }
       });
 
@@ -162,10 +163,16 @@ export function FileUploadMultiple({
 
       {selectedFiles.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {selectedFiles.map((file, index) => (
+          {selectedFiles.map((fileObj, index) => (
             <div key={index} className="relative group">
               <FilePreview 
-                file={file}
+                file={{
+                  name: fileObj.file.name,
+                  size: fileObj.file.size,
+                  type: fileObj.file.type,
+                  preview: fileObj.preview,
+                }}
+                showPreview={true}
               />
               <Button
                 type="button"
@@ -193,6 +200,7 @@ export function FileUploadMultiple({
                   type: file.fileType,
                   fileUrl: file.fileUrl,
                 }}
+                showPreview={true}
               />
             </div>
           ))}
