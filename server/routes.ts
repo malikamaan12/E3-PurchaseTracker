@@ -28,7 +28,9 @@ import {
   notificationPreferences,
   insertNotificationPreferenceSchema,
   NOTIFICATION_CATEGORIES,
-  NOTIFICATION_TYPES
+  NOTIFICATION_TYPES,
+  insertVendorSchema,
+  type InsertVendor
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import express from 'express';
@@ -396,13 +398,13 @@ export function registerRoutes(app: Express): Server {
         created_at: subPurposes.created_at,
         updated_at: subPurposes.updated_at
       })
-      .from(subPurposes)
-      .where(
-        purposeType 
-          ? eq(subPurposes.purpose_type, purposeType as string)
-          : undefined
-      )
-      .orderBy(desc(subPurposes.created_at));
+        .from(subPurposes)
+        .where(
+          purposeType
+            ? eq(subPurposes.purpose_type, purposeType as string)
+            : undefined
+        )
+        .orderBy(desc(subPurposes.created_at));
 
       const results = await baseQuery;
       debug(req, `Found ${results.length} sub-purposes`);
@@ -1055,7 +1057,8 @@ export function registerRoutes(app: Express): Server {
       // Create the approval record
       const [approval] = await db
         .insert(approvals)
-        .values({          requestId,
+        .values({
+          requestId,
           approverId: req.user.id,
           status,
           comments: comments || null,
@@ -1160,7 +1163,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update request status
       const [updatedRequest] = await db
-                .update(accountRequests)
+        .update(accountRequests)
         .set({ status: 'rejected' })
         .where(eq(accountRequests.id, requestId))
         .returning();
@@ -1254,6 +1257,10 @@ export function registerRoutes(app: Express): Server {
 
       const vendorId = parseInt(req.params.id);
       debug(req, `Fetching vendor details for ID: ${vendorId}`);
+
+      if (isNaN(vendorId)) {
+        throw new ValidationError('Invalid vendor ID', { id: 'Must be a number' });
+      }
 
       const [vendor] = await db
         .select()
