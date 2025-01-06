@@ -251,37 +251,17 @@ export default function RequestCard({
         throw new Error('Branding data not available');
       }
 
-      // Convert hex colors to RGB arrays for PDF generation
-      const hexToRgb = (hex: string) => {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? [
-          parseInt(result[1], 16),
-          parseInt(result[2], 16),
-          parseInt(result[3], 16)
-        ] : null;
-      };
-
-      // Transform branding data with proper color conversions
-      const formattedBranding = {
-        companyName: brandingData.companyName,
-        primaryColor: hexToRgb(brandingData.primaryColor) || [113, 86, 158], // Default purple if conversion fails
-        secondaryColor: hexToRgb(brandingData.secondaryColor) || [240, 240, 250],
-        accentColor: hexToRgb(brandingData.accentColor) || [25, 17, 96],
-        footerText: brandingData.footerText || 'Confidential Document',
-        logo: brandingData.logo,
-        logoMimeType: brandingData.logoMimeType,
-        headerImage: brandingData.headerImageUrl,
-        headerImageMimeType: brandingData.headerImageMimeType,
-        footerImage: brandingData.footerImageUrl,
-        footerImageMimeType: brandingData.footerImageMimeType,
-      };
-
       // Generate PDF with properly formatted branding data
       const doc = await generateRequestPDF(request, {
-        branding: formattedBranding
+        branding: brandingData,
+        showLogo: true
       });
 
-      // Save the PDF
+      if (!doc) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Save the PDF with request number as filename
       doc.save(`${request.requestNumber}.pdf`);
 
       toast({
@@ -292,7 +272,7 @@ export default function RequestCard({
       console.error('Error generating PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive",
       });
     }

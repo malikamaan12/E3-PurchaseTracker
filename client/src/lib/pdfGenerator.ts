@@ -69,7 +69,7 @@ function addGradientBackground(doc: jsPDF, y: number, height: number, color: [nu
     const opacity = Math.max(0.1, 0.8 - (i * 0.035));
     doc.saveGraphicsState();
     doc.setFillColor(...color);
-    doc.setGState({ opacity });
+    doc.setGState(new doc.GState({ opacity }));
     doc.rect(0, y + (i * stepHeight), pageWidth, stepHeight, 'F');
     doc.restoreGraphicsState();
   }
@@ -92,9 +92,7 @@ function addHeader(doc: jsPDF, config: TemplateConfig): number {
   // Add logo if available
   if (config.branding.logo && config.showLogo) {
     try {
-      const logo = config.branding.logo;
-      const format = config.branding.logoMimeType?.split('/')[1].toUpperCase() || 'PNG';
-      doc.addImage(logo, format, 25, 20, 45, 45);
+      doc.addImage(config.branding.logo, 'PNG', 25, 20, 45, 45);
     } catch (error) {
       console.error('Error adding logo:', error);
     }
