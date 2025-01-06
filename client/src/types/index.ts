@@ -20,3 +20,16 @@ export interface AttachmentFile extends UploadedFile {
 export interface FileWithPreview extends File {
   preview?: string;
 }
+
+export interface PreviewableFile {
+  name: string;
+  size: number;
+  type: string;
+  fileUrl?: string;
+  lastModified?: number;
+  webkitRelativePath?: string;
+  slice?: (start?: number, end?: number, contentType?: string) => Blob;
+  stream?: () => ReadableStream;
+  text?: () => Promise<string>;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+}

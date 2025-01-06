@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Eye, Loader2, FileText, Image as ImageIcon, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { File as FileType } from "@/types";
+import type { PreviewableFile } from "@/types";
 import FilePreviewCarousel from "./FilePreviewCarousel";
 
 interface FilePreviewProps {
-  file: FileType;
+  file: PreviewableFile;
   showPreview?: boolean;
 }
 
@@ -33,36 +33,40 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ];
 
+      if (!file.type || !allowedTypes.includes(file.type)) {
+        throw new Error("File type not supported for preview");
+      }
+
       if (file.size > maxFileSize) {
         throw new Error("File is too large to preview (max 10MB)");
       }
 
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error("File type not supported for preview");
-      }
-
       // For images, show carousel
       if (file.type.startsWith('image/')) {
-        if ('fileUrl' in file) {
+        if (file.fileUrl) {
           setShowCarousel(true);
+          return;
         } else if (file instanceof Blob) {
           const url = URL.createObjectURL(file);
           setObjectUrl(url);
           setShowCarousel(true);
+          return;
         }
-      } else {
-        // For non-image files
-        let url: string;
-        if ('fileUrl' in file) {
-          url = (file as any).fileUrl;
-        } else if (file instanceof Blob) {
-          url = URL.createObjectURL(file);
-        } else {
-          throw new Error("Invalid file object");
-        }
-        setObjectUrl(url);
-        setIsOpen(true);
       }
+
+      // For non-image files
+      let url: string;
+      if (file.fileUrl) {
+        url = file.fileUrl;
+      } else if (file instanceof Blob) {
+        url = URL.createObjectURL(file);
+      } else {
+        throw new Error("Invalid file object");
+      }
+
+      setObjectUrl(url);
+      setIsOpen(true);
+
     } catch (err: any) {
       console.error("Preview generation error:", err);
       setError(err.message || "Failed to generate preview");
@@ -77,7 +81,7 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
   };
 
   const handleClose = () => {
-    if (objectUrl && !('fileUrl' in file)) {
+    if (objectUrl && !file.fileUrl) {
       URL.revokeObjectURL(objectUrl);
       setObjectUrl("");
     }
@@ -87,12 +91,12 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
   };
 
   const getFileIcon = () => {
-    if (file.type.startsWith('image/')) {
-      if ('fileUrl' in file) {
+    if (file.type?.startsWith('image/')) {
+      if (file.fileUrl) {
         return (
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
             <img 
-              src={(file as any).fileUrl} 
+              src={file.fileUrl} 
               alt={file.name}
               className="w-full h-full object-cover"
             />
@@ -212,8 +216,8 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
         <FilePreviewCarousel
           files={[{
             fileName: file.name,
-            fileType: file.type,
-            fileUrl: 'fileUrl' in file ? (file as any).fileUrl : objectUrl,
+            fileType: file.type || '',
+            fileUrl: file.fileUrl || objectUrl,
           }]}
           onClose={handleClose}
         />

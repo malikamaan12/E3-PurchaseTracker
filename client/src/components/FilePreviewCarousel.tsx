@@ -3,16 +3,18 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RotateCw, ZoomIn, ZoomOut, X } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import "react-image-gallery/styles/css/image-gallery.css";
 import ImageGallery from "react-image-gallery";
+import "react-image-gallery/styles/css/image-gallery.css";
+
+interface PreviewFile {
+  id?: number;
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+}
 
 interface FilePreviewCarouselProps {
-  files: Array<{
-    id?: number;
-    fileName: string;
-    fileType: string;
-    fileUrl: string;
-  }>;
+  files: PreviewFile[];
   onClose: () => void;
   startIndex?: number;
 }
@@ -27,11 +29,19 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
       original: file.fileUrl,
       thumbnail: `${file.fileUrl}?thumbnail=true`,
       description: file.fileName,
+      originalAlt: file.fileName,
+      thumbnailAlt: `Thumbnail of ${file.fileName}`,
+      originalTitle: file.fileName,
+      thumbnailTitle: `Thumbnail of ${file.fileName}`
     }));
 
   const handleRotate = () => {
     setRotation((prev) => (prev + 90) % 360);
   };
+
+  if (images.length === 0) {
+    return null;
+  }
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
@@ -57,7 +67,7 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
             </Button>
           </div>
 
-          {/* Main Preview */}
+          {/* Zoom Controls */}
           <TransformWrapper>
             {({ zoomIn, zoomOut }) => (
               <>
@@ -79,6 +89,8 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
                     <ZoomOut className="h-4 w-4" />
                   </Button>
                 </div>
+
+                {/* Image Gallery */}
                 <TransformComponent>
                   <div className="flex-1 flex items-center justify-center">
                     <ImageGallery
@@ -88,10 +100,7 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
                       showNav={true}
                       startIndex={startIndex}
                       thumbnailPosition="bottom"
-                      onSlide={(currentIndex) => {
-                        setCurrentIndex(currentIndex);
-                        setRotation(0); // Reset rotation when changing images
-                      }}
+                      onSlide={setCurrentIndex}
                       renderItem={(item) => (
                         <div
                           style={{
@@ -105,7 +114,7 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
                         >
                           <img
                             src={item.original}
-                            alt={item.description}
+                            alt={item.originalAlt}
                             style={{
                               maxHeight: rotation % 180 === 0 ? '60vh' : '80vh',
                               maxWidth: rotation % 180 === 0 ? '100%' : '80vh',
@@ -122,11 +131,13 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
           </TransformWrapper>
 
           {/* File Info */}
-          <div className="absolute bottom-20 left-4 z-50 bg-white/90 p-2 rounded-lg">
-            <p className="text-sm font-medium">
-              {files[currentIndex]?.fileName}
-            </p>
-          </div>
+          {files[currentIndex] && (
+            <div className="absolute bottom-20 left-4 z-50 bg-white/90 p-2 rounded-lg">
+              <p className="text-sm font-medium text-gray-900">
+                {files[currentIndex].fileName}
+              </p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
