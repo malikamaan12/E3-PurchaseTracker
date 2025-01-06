@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
@@ -54,13 +54,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredRequests, setFilteredRequests] = useState<RequestData[]>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [isFilterLoading, setIsFilterLoading] = useState(false);
-  const { vendors = [] } = useVendors();
-  const { subPurposes = [] } = useSubPurposes();
-  const [filters, setFilters] = useState<FilterValues>({
+  const [activeFilters, setActiveFilters] = useState<FilterValues>({
     status: [],
     dateRange: {
       from: undefined,
@@ -77,13 +71,12 @@ export default function Dashboard() {
     },
     searchQuery: "",
   });
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const { vendors = [] } = useVendors();
+  const { subPurposes = [] } = useSubPurposes();
 
-  useEffect(() => {
-    if (user) {
-      setSearchQuery("");
-    }
-  }, [user]);
-
+  // Effect to extract unique departments
   useEffect(() => {
     if (Array.isArray(requests)) {
       const uniqueDepartments = Array.from(
@@ -116,75 +109,150 @@ export default function Dashboard() {
     return user?.role === "approver";
   }, [user?.role]);
 
+  // Function to apply filters based on tab and filter panel
+  const getFilteredRequests = useCallback((allRequests: RequestData[], currentTab: string) => {
+    if (!Array.isArray(allRequests)) return [];
+
+    let filtered = [...allRequests];
+
+    // First apply tab-specific filters
+    switch (currentTab) {
+      case "my-requests":
+        filtered = filtered.filter(r => r?.requesterId === user?.id);
+        break;
+      case "drafts-to-submit":
+        filtered = filtered.filter(r => 
+          r?.requesterId === user?.id && 
+          r?.status === "draft" &&
+          r?.title &&
+          r?.description &&
+          Array.isArray(r?.items) &&
+          r?.items.length > 0
+        );
+        break;
+      case "pending":
+        filtered = filtered.filter(r => r?.status === "pending");
+        break;
+      case "approved":
+        filtered = filtered.filter(r => r?.status === "approved");
+        break;
+      case "rejected":
+        filtered = filtered.filter(r => r?.status === "rejected");
+        break;
+      case "changes":
+        filtered = filtered.filter(r => 
+          r?.status === "changes_requested" ||
+          (r?.approvals && r?.approvals.some(a => a.status === "changes_requested"))
+        );
+        break;
+      case "approvals":
+        if (!user) return [];
+        filtered = filtered.filter(request => {
+          if (request.status !== "pending") return false;
+          if (request.requesterId === user.id) return false;
+
+          const departmentApproval = request.approvals?.find(
+            a => a.department === user.department
+          );
+          return !departmentApproval || departmentApproval.status === "pending";
+        });
+        break;
+    }
+
+    // Then apply filter panel filters
+    if (activeFilters.status.length > 0) {
+      filtered = filtered.filter(r => activeFilters.status.includes(r.status));
+    }
+
+    if (activeFilters.dateRange.from || activeFilters.dateRange.to) {
+      filtered = filtered.filter(r => {
+        const requestDate = parseISO(r.createdAt);
+        if (activeFilters.dateRange.from && activeFilters.dateRange.to) {
+          return isWithinInterval(requestDate, {
+            start: activeFilters.dateRange.from,
+            end: activeFilters.dateRange.to,
+          });
+        }
+        if (activeFilters.dateRange.from) {
+          return requestDate >= activeFilters.dateRange.from;
+        }
+        if (activeFilters.dateRange.to) {
+          return requestDate <= activeFilters.dateRange.to;
+        }
+        return true;
+      });
+    }
+
+    if (activeFilters.priority.length > 0) {
+      filtered = filtered.filter(r => activeFilters.priority.includes(r.priority));
+    }
+
+    if (activeFilters.department.length > 0) {
+      filtered = filtered.filter(r =>
+        activeFilters.department.includes(r.requester?.department || '')
+      );
+    }
+
+    if (activeFilters.purposeType.length > 0) {
+      filtered = filtered.filter(r =>
+        activeFilters.purposeType.includes(r.purposeType)
+      );
+    }
+
+    if (activeFilters.subPurposeId !== null) {
+      filtered = filtered.filter(r => r.subPurposeId === activeFilters.subPurposeId);
+    }
+
+    if (activeFilters.vendorId !== null) {
+      filtered = filtered.filter(r => r.vendorId === activeFilters.vendorId);
+    }
+
+    if (activeFilters.costRange.min || activeFilters.costRange.max) {
+      filtered = filtered.filter(r => {
+        const cost = r.totalEstimatedCost || 0;
+        const min = activeFilters.costRange.min
+          ? parseFloat(activeFilters.costRange.min)
+          : -Infinity;
+        const max = activeFilters.costRange.max
+          ? parseFloat(activeFilters.costRange.max)
+          : Infinity;
+        return cost >= min && cost <= max;
+      });
+    }
+
+    if (activeFilters.searchQuery) {
+      const query = activeFilters.searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        r =>
+          r.title.toLowerCase().includes(query) ||
+          r.description.toLowerCase().includes(query) ||
+          r.requestNumber.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [activeFilters, user]);
+
+  // Function to handle filter changes
+  const handleFilterChange = useCallback((newFilters: FilterValues) => {
+    setActiveFilters(newFilters);
+  }, []);
+
+  // Get filtered requests based on current tab
+  const getTabContent = useCallback((tabValue: string) => {
+    const filteredRequests = getFilteredRequests(requests, tabValue);
+    return renderRequestsTable(filteredRequests, tabValue === "approvals" || (isAdmin && tabValue === "pending"));
+  }, [requests, getFilteredRequests, isAdmin]);
+
   const pendingApprovals = useMemo(() => {
     if (!user || !Array.isArray(requests)) return [];
 
-    return requests.filter((request: RequestData) => {
-      if (!request || request.status !== "pending") return false;
-
-      if (
-        isAdmin ||
-        isApprover ||
-        ["CEO Office", "Director", "Finance"].includes(user.department || "")
-      ) {
-        return true;
-      }
-
-      if (request.requesterId === user.id) return false;
-
-      const departmentApproval = request.approvals?.find(
-        (a) => a.department === user.department
-      );
-
-      return !departmentApproval || departmentApproval.status === "pending";
-    });
-  }, [requests, user, isAdmin, isApprover]);
+    return getFilteredRequests(requests, "approvals");
+  }, [requests, user, getFilteredRequests]);
 
   const showApprovalsTab = useMemo(() => {
     return pendingApprovals.length > 0;
   }, [pendingApprovals.length]);
-
-  const visibleRequests: RequestData[] = useMemo(() => {
-    if (!Array.isArray(requests)) return [];
-
-    const filteredRequests = isAdmin || isApprover || isSpecialRole
-      ? requests
-      : requests.filter((r) => r?.requesterId === user?.id);
-
-    if (!searchQuery) return filteredRequests;
-
-    return filteredRequests.filter((r) => {
-      const matchesSearch =
-        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.requestNumber.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
-  }, [requests, isAdmin, isApprover, isSpecialRole, user?.id, searchQuery]);
-
-  const myDrafts = visibleRequests.filter(
-    (r) => r?.requesterId === user?.id && r?.status === "draft"
-  );
-
-  const mySubmittedRequests = visibleRequests.filter(
-    (r) => r?.requesterId === user?.id && r?.status !== "draft"
-  );
-
-  const pendingRequests = visibleRequests.filter((r) => r?.status === "pending");
-
-  const approvedRequests = visibleRequests.filter(
-    (r) => r?.status === "approved"
-  );
-
-  const rejectedRequests = visibleRequests.filter(
-    (r) => r?.status === "rejected"
-  );
-
-  const changesRequestedRequests = visibleRequests.filter(
-    (r) =>
-      r?.status === "changes_requested" ||
-      (r?.approvals && r?.approvals.some((a) => a.status === "changes_requested"))
-  );
 
   const handleExport = async (format: "xlsx" | "csv") => {
     try {
@@ -276,7 +344,6 @@ export default function Dashboard() {
     requests: RequestData[],
     showApproval: boolean = false
   ) => {
-    const displayRequests = filteredRequests.length > 0 ? filteredRequests : requests;
     const canSubmitDraft = (request: RequestData) => {
       return (
         request.status === "draft" &&
@@ -303,7 +370,7 @@ export default function Dashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayRequests.map((request) => {
+          {requests.map((request) => {
             if (!request) return null;
 
             return (
@@ -430,116 +497,6 @@ export default function Dashboard() {
     );
   };
 
-  const handleFilterChange = async (newFilters: FilterValues) => {
-    if (!Array.isArray(requests)) return;
-
-    setIsFilterLoading(true);
-    try {
-      let filtered = [...requests];
-
-      // Status filter
-      if (newFilters.status.length > 0) {
-        filtered = filtered.filter((r) => newFilters.status.includes(r.status));
-      }
-
-      // Date range filter
-      if (newFilters.dateRange.from || newFilters.dateRange.to) {
-        filtered = filtered.filter((r) => {
-          const requestDate = parseISO(r.createdAt);
-          if (newFilters.dateRange.from && newFilters.dateRange.to) {
-            return isWithinInterval(requestDate, {
-              start: newFilters.dateRange.from,
-              end: newFilters.dateRange.to,
-            });
-          }
-          if (newFilters.dateRange.from) {
-            return requestDate >= newFilters.dateRange.from;
-          }
-          if (newFilters.dateRange.to) {
-            return requestDate <= newFilters.dateRange.to;
-          }
-          return true;
-        });
-      }
-
-      // Priority filter
-      if (newFilters.priority.length > 0) {
-        filtered = filtered.filter((r) => newFilters.priority.includes(r.priority));
-      }
-
-      // Department filter
-      if (newFilters.department.length > 0) {
-        filtered = filtered.filter((r) =>
-          newFilters.department.includes(r.requester?.department || '')
-        );
-      }
-
-      // Purpose type filter
-      if (newFilters.purposeType.length > 0) {
-        filtered = filtered.filter((r) =>
-          newFilters.purposeType.includes(r.purposeType)
-        );
-      }
-
-      // Sub-purpose filter
-      if (newFilters.subPurposeId !== null) {
-        filtered = filtered.filter((r) => r.subPurposeId === newFilters.subPurposeId);
-      }
-
-      // Vendor filter
-      if (newFilters.vendorId !== null) {
-        filtered = filtered.filter((r) => r.vendorId === newFilters.vendorId);
-      }
-
-      // Cost range filter
-      if (newFilters.costRange.min || newFilters.costRange.max) {
-        filtered = filtered.filter((r) => {
-          const cost = r.totalEstimatedCost || 0;
-          const min = newFilters.costRange.min
-            ? parseFloat(newFilters.costRange.min)
-            : -Infinity;
-          const max = newFilters.costRange.max
-            ? parseFloat(newFilters.costRange.max)
-            : Infinity;
-          return cost >= min && cost <= max;
-        });
-      }
-
-      // Search query filter
-      if (newFilters.searchQuery) {
-        const query = newFilters.searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (r) =>
-            r.title.toLowerCase().includes(query) ||
-            r.description.toLowerCase().includes(query) ||
-            r.requestNumber.toLowerCase().includes(query)
-        );
-      }
-
-      setFilters(newFilters);
-      setFilteredRequests(filtered);
-    } catch (error) {
-      console.error('Error applying filters:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to apply filters. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsFilterLoading(false);
-    }
-  };
-
-  const draftRequestsReadyToSubmit = visibleRequests.filter(
-    (r) =>
-      r?.requesterId === user?.id &&
-      r?.status === "draft" &&
-      r?.title &&
-      r?.description &&
-      Array.isArray(r?.items) &&
-      r?.items.length > 0
-  );
-
   const handleNotificationClick = (
     notification: { id: number; link: string | null }
   ) => {
@@ -599,11 +556,10 @@ export default function Dashboard() {
               <div className="relative flex-1">
                 <Input
                   placeholder="Search requests..."
-                  value={searchQuery}
+                  value={activeFilters.searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
                     handleFilterChange({
-                      ...filters,
+                      ...activeFilters,
                       searchQuery: e.target.value,
                     });
                   }}
@@ -642,237 +598,65 @@ export default function Dashboard() {
         <Tabs defaultValue={preferences.defaultView}>
           <TabsList className="mb-8">
             <TabsTrigger value="my-requests">
-              My Requests ({mySubmittedRequests.length + myDrafts.length})
+              My Requests
             </TabsTrigger>
             <TabsTrigger value="drafts-to-submit">
-              Ready to Submit ({draftRequestsReadyToSubmit.length})
+              Ready to Submit
             </TabsTrigger>
             {(isAdmin || isSpecialRole) && (
               <>
                 <TabsTrigger value="all-requests">
-                  All Requests ({requests?.length || 0})
+                  All Requests
                 </TabsTrigger>
                 <TabsTrigger value="pending">
-                  Pending ({pendingRequests.length})
+                  Pending
                 </TabsTrigger>
                 <TabsTrigger value="approved">
-                  Approved ({approvedRequests.length})
+                  Approved
                 </TabsTrigger>
                 <TabsTrigger value="rejected">
-                  Rejected ({rejectedRequests.length})
+                  Rejected
                 </TabsTrigger>
                 <TabsTrigger value="changes">
-                  Changes Requested ({changesRequestedRequests.length})
+                  Changes Requested
                 </TabsTrigger>
               </>
             )}
             {!isAdmin && !isSpecialRole && showApprovalsTab && (
               <TabsTrigger value="approvals">
-                Pending Approvals ({pendingApprovals.length})
+                Pending Approvals
               </TabsTrigger>
             )}
           </TabsList>
 
           <TabsContent value="my-requests">
-            <div className="space-y-6">
-              {myDrafts.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      Draft Requests
-                    </h3>
-                    <div className="overflow-x-auto">
-                      {renderRequestsTable(myDrafts, false)}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Submitted Requests
-                  </h3>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-border" />
-                    </div>
-                  ) : mySubmittedRequests.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No submitted requests found.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      {renderRequestsTable(mySubmittedRequests, false)}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            {getTabContent("my-requests")}
           </TabsContent>
-
           <TabsContent value="drafts-to-submit">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-medium mb-4">
-                  Draft Requests Ready to Submit
-                </h3>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-border" />
-                  </div>
-                ) : draftRequestsReadyToSubmit.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No draft requests ready to submit.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    {renderRequestsTable(draftRequestsReadyToSubmit, false)}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {getTabContent("drafts-to-submit")}
           </TabsContent>
-
           {(isAdmin || isSpecialRole) && (
             <>
               <TabsContent value="all-requests">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">All Requests</h3>
-                    {isLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-border" />
-                      </div>
-                    ) : requests?.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No requests found.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        {renderRequestsTable(visibleRequests, true)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {getTabContent("all-requests")}
               </TabsContent>
-
               <TabsContent value="pending">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      Pending Requests
-                    </h3>
-                    {isLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-border" />
-                      </div>
-                    ) : pendingRequests.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No pending requests.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        {renderRequestsTable(pendingRequests, true)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {getTabContent("pending")}
               </TabsContent>
-
               <TabsContent value="approved">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      Approved Requests
-                    </h3>
-                    {isLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-border" />
-                      </div>
-                    ) : approvedRequests.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No approved requests.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        {renderRequestsTable(approvedRequests, false)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {getTabContent("approved")}
               </TabsContent>
-
               <TabsContent value="rejected">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      Rejected Requests
-                    </h3>
-                    {isLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-border" />
-                      </div>
-                    ) : rejectedRequests.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No rejected requests.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        {renderRequestsTable(rejectedRequests, false)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {getTabContent("rejected")}
               </TabsContent>
-
               <TabsContent value="changes">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      Changes Requested
-                    </h3>
-                    {isLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-border" />
-                      </div>
-                    ) : changesRequestedRequests.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No requests pending changes.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        {renderRequestsTable(changesRequestedRequests, false)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {getTabContent("changes")}
               </TabsContent>
             </>
           )}
-
-          {showApprovalsTab && !isAdmin && !isSpecialRole && (
+          {!isAdmin && !isSpecialRole && showApprovalsTab && (
             <TabsContent value="approvals">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Requests Requiring Your Approval
-                  </h3>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-border" />
-                    </div>
-                  ) : pendingApprovals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No pending approvals.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      {renderRequestsTable(pendingApprovals, true)}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {getTabContent("approvals")}
             </TabsContent>
           )}
         </Tabs>
