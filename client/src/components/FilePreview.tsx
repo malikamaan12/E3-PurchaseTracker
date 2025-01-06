@@ -39,15 +39,26 @@ export function FilePreview({ file }: FilePreviewProps) {
         throw new Error("File type not supported for preview");
       }
 
+      // For images, create object URL for preview
       if (file.type.startsWith('image/')) {
-        // Generate thumbnail for images
-        const url = URL.createObjectURL(file);
+        let url: string;
+        if (file instanceof Blob) {
+          url = URL.createObjectURL(file);
+        } else if ('fileUrl' in file) {
+          url = (file as any).fileUrl;
+        } else {
+          throw new Error("Invalid file object");
+        }
         setObjectUrl(url);
         setThumbnailUrl(url);
       } else {
-        // For non-image files, we'll just store the object URL for preview
-        const url = URL.createObjectURL(file);
-        setObjectUrl(url);
+        // For non-image files
+        if (file instanceof Blob) {
+          const url = URL.createObjectURL(file);
+          setObjectUrl(url);
+        } else if ('fileUrl' in file) {
+          setObjectUrl((file as any).fileUrl);
+        }
       }
 
       setIsOpen(true);
@@ -162,7 +173,7 @@ export function FilePreview({ file }: FilePreviewProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200">
+    <div className="flex items-center gap-2 p-3 rounded-lg border border-gray-200">
       {getFileIcon()}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>

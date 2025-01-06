@@ -5,6 +5,7 @@ export interface File extends Blob {
 }
 
 export interface UploadedFile {
+  id?: number;
   fileName: string;
   fileType: string;
   fileSize: number;
@@ -14,4 +15,8 @@ export interface UploadedFile {
 export interface AttachmentFile extends UploadedFile {
   uploadedAt: string;
   requestId?: number;
+}
+
+export interface FileWithPreview extends File {
+  preview?: string;
 }

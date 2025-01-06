@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FilePreview } from "@/components/FilePreview";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,22 @@ export function FileUploadMultiple({
   const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const newSelectedFiles = Array.from(event.target.files || []);
+  // Clean up any object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach(file => {
+        if ('preview' in file && (file as any).preview) {
+          URL.revokeObjectURL((file as any).preview);
+        }
+      });
+    };
+  }, [selectedFiles]);
 
-    // Check number of files
-    if (newSelectedFiles.length + selectedFiles.length + uploadedFiles.length > maxFiles) {
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(event.target.files || []);
+
+    // Check total number of files
+    if (newFiles.length + selectedFiles.length + uploadedFiles.length > maxFiles) {
       toast({
         title: "Too many files",
         description: `You can only upload up to ${maxFiles} files at a time`,
@@ -38,7 +49,7 @@ export function FileUploadMultiple({
     }
 
     // Check file sizes
-    const oversizedFiles = newSelectedFiles.filter(
+    const oversizedFiles = newFiles.filter(
       file => file.size > maxSizeInMB * 1024 * 1024
     );
     if (oversizedFiles.length > 0) {
@@ -50,11 +61,17 @@ export function FileUploadMultiple({
       return;
     }
 
-    setSelectedFiles(prevFiles => [...prevFiles, ...newSelectedFiles]);
-  }, [selectedFiles, uploadedFiles, maxFiles, maxSizeInMB, toast]);
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  }, [selectedFiles, uploadedFiles.length, maxFiles, maxSizeInMB, toast]);
 
   const removeFile = useCallback((index: number) => {
-    setSelectedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setSelectedFiles(prev => {
+      const file = prev[index];
+      if ('preview' in file && (file as any).preview) {
+        URL.revokeObjectURL((file as any).preview);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }, []);
 
   const uploadFiles = async () => {
@@ -62,30 +79,42 @@ export function FileUploadMultiple({
 
     try {
       setUploading(true);
+      setUploadProgress(0);
+
       const formData = new FormData();
       selectedFiles.forEach(file => formData.append("files", file));
 
       const response = await fetch("/api/attachments", {
         method: "POST",
-        body: formData
+        body: formData,
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload files");
+        throw new Error(await response.text() || "Failed to upload files");
       }
 
       const newUploadedFiles: UploadedFile[] = await response.json();
-      onUploadComplete(newUploadedFiles);
+
+      // Clean up any preview URLs
+      selectedFiles.forEach(file => {
+        if ('preview' in file && (file as any).preview) {
+          URL.revokeObjectURL((file as any).preview);
+        }
+      });
+
       setSelectedFiles([]);
+      onUploadComplete(newUploadedFiles);
+
       toast({
         title: "Success",
-        description: "Files uploaded successfully",
+        description: `${newUploadedFiles.length} file(s) uploaded successfully`,
       });
     } catch (error) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload files. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to upload files",
         variant: "destructive"
       });
     } finally {
@@ -125,7 +154,19 @@ export function FileUploadMultiple({
         <div className="grid gap-4 sm:grid-cols-2">
           {selectedFiles.map((file, index) => (
             <div key={index} className="relative group">
-              <FilePreview file={file} />
+              <FilePreview 
+                file={{
+                  name: file.name,
+                  size: file.size,
+                  type: file.type,
+                  lastModified: file.lastModified,
+                  webkitRelativePath: file.webkitRelativePath,
+                  slice: file.slice.bind(file),
+                  stream: () => file.stream(),
+                  text: () => file.text(),
+                  arrayBuffer: () => file.arrayBuffer()
+                }}
+              />
               <Button
                 type="button"
                 variant="destructive"
@@ -148,11 +189,14 @@ export function FileUploadMultiple({
               <FilePreview 
                 file={{
                   name: file.fileName,
-                  type: file.fileType,
                   size: file.fileSize,
+                  type: file.fileType,
                   lastModified: Date.now(),
-                  webkitRelativePath: '',
-                  ...file
+                  webkitRelativePath: "",
+                  slice: () => new Blob(),
+                  stream: () => new ReadableStream(),
+                  text: () => Promise.resolve(""),
+                  arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
                 }} 
               />
             </div>
