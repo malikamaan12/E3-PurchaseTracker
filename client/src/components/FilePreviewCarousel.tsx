@@ -1,30 +1,31 @@
 import { useState } from "react";
-import ImageGallery from "react-image-gallery";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { RotateCw, ZoomIn, ZoomOut, X } from "lucide-react";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import "react-image-gallery/styles/css/image-gallery.css";
+import ImageGallery from "react-image-gallery";
 
 interface FilePreviewCarouselProps {
   files: Array<{
-    id: number;
+    id?: number;
     fileName: string;
     fileType: string;
     fileUrl: string;
   }>;
   onClose: () => void;
+  startIndex?: number;
 }
 
-export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarouselProps) {
+export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: FilePreviewCarouselProps) {
   const [rotation, setRotation] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
 
   const images = files
     .filter(file => file.fileType.startsWith('image/'))
     .map(file => ({
-      original: `/api/attachments/${file.id}`,
-      thumbnail: `/api/attachments/${file.id}?thumbnail=true`,
+      original: file.fileUrl,
+      thumbnail: `${file.fileUrl}?thumbnail=true`,
       description: file.fileName,
     }));
 
@@ -35,7 +36,7 @@ export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarou
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-6xl w-full h-[80vh] p-0">
-        <div className="relative h-full flex flex-col">
+        <div className="relative h-full flex flex-col bg-black/95">
           {/* Controls */}
           <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
             <Button
@@ -57,34 +58,35 @@ export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarou
           </div>
 
           {/* Main Preview */}
-          <div className="flex-1 bg-black/95">
-            <TransformWrapper>
-              {({ zoomIn, zoomOut }) => (
-                <>
-                  <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => zoomIn()}
-                      className="bg-white/90 hover:bg-white"
-                    >
-                      <ZoomIn className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => zoomOut()}
-                      className="bg-white/90 hover:bg-white"
-                    >
-                      <ZoomOut className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <TransformComponent>
+          <TransformWrapper>
+            {({ zoomIn, zoomOut }) => (
+              <>
+                <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => zoomIn()}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => zoomOut()}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                </div>
+                <TransformComponent>
+                  <div className="flex-1 flex items-center justify-center">
                     <ImageGallery
                       items={images}
                       showPlayButton={false}
                       showFullscreenButton={false}
                       showNav={true}
+                      startIndex={startIndex}
                       thumbnailPosition="bottom"
                       onSlide={(currentIndex) => {
                         setCurrentIndex(currentIndex);
@@ -113,11 +115,11 @@ export default function FilePreviewCarousel({ files, onClose }: FilePreviewCarou
                         </div>
                       )}
                     />
-                  </TransformComponent>
-                </>
-              )}
-            </TransformWrapper>
-          </div>
+                  </div>
+                </TransformComponent>
+              </>
+            )}
+          </TransformWrapper>
 
           {/* File Info */}
           <div className="absolute bottom-20 left-4 z-50 bg-white/90 p-2 rounded-lg">
