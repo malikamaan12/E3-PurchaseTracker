@@ -59,6 +59,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";
 import { useCompanyBranding } from '@/hooks/use-company-branding';
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 
 type TemplateConfig = {
   branding: typeof defaultBranding;
@@ -152,6 +153,7 @@ export default function RequestCard({
   const [showRequestChangesDialog, setShowRequestChangesDialog] = useState(false);
   const [changeRequestComments, setChangeRequestComments] = useState("");
   const { data: brandingData } = useCompanyBranding();
+  const [selectedPreviewFile, setSelectedPreviewFile] = useState<UploadedFile | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -471,49 +473,51 @@ export default function RequestCard({
     if (!request.attachments || request.attachments.length === 0) return null;
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 pt-4 border-t border-gray-100">
         <h4 className="font-medium text-gray-900">Attachments</h4>
-        <div className="grid gap-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {request.attachments.map((file) => (
-            <motion.div
-              key={file.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center justify-between p-3 rounded-lg border border-[#7156a2]/10 hover:border-[#7156a2]/30 transition-colors"
+            <div 
+              key={file.id} 
+              className="relative group p-4 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <FileIcon className="h-5 w-5 text-[#7156a2]" />
-                <div>
-                  <p className="text-sm font-medium text-gray-700 break-all">
+                <FileIcon className="h-8 w-8 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
                     {file.fileName}
                   </p>
                   <p className="text-xs text-gray-500">
                     {formatFileSize(file.fileSize)}
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {isPreviewable(file.fileType) && (
-                  <FilePreview
-                    file={{
-                      name: file.fileName,
-                      size: file.fileSize,
-                      type: file.fileType,
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedPreviewFile({
+                      fileName: file.fileName,
+                      fileSize: file.fileSize,
+                      fileType: file.fileType,
                       fileUrl: `/api/attachments/${file.id}`
-                    }}
-                  />
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDownload(file.id)}
-                  className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10"
-                >
-                  <FileDown className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Download</span>
-                </Button>
+                    })}
+                    className="text-gray-600 hover:text-primary"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDownload(file.id)}
+                    className="text-gray-600 hover:text-primary"
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
@@ -833,8 +837,6 @@ export default function RequestCard({
             </motion.div>
           )}
 
-          {renderAttachments()}
-
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
             {showActions && request.status === "draft" && (
               <div className="flex items-center gap-2">
@@ -899,6 +901,13 @@ export default function RequestCard({
           </div>
         </CardContent>
       </Card>
+
+      {selectedPreviewFile && (
+        <FilePreviewDialog
+          file={selectedPreviewFile}
+          onClose={() => setSelectedPreviewFile(null)}
+        />
+      )}
     </motion.div>
   );
 }
