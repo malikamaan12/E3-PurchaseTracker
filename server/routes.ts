@@ -4,7 +4,12 @@ import { db } from "@db";
 import path from "path";
 import { setupAuth } from "./auth";
 import { upload } from "./utils/upload";
-import { debug, createNotification } from "./utils/debug";
+import { debug } from "./utils/debug";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  createNotification
+} from "./utils/notifications";
 import {
   users,
   notifications,
