@@ -499,7 +499,7 @@ export default function RequestCard({
                       name: file.fileName,
                       size: file.fileSize,
                       type: file.fileType,
-                      url: `/api/attachments/${file.id}`
+                      fileUrl: `/api/attachments/${file.id}`
                     }}
                   />
                 )}
