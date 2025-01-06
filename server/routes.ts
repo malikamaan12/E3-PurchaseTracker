@@ -25,6 +25,11 @@ import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
+import { 
+  getNotifications, 
+  markNotificationAsRead, 
+  createNotification 
+} from "./utils/notifications";
 
 // Error Classes
 class DatabaseError extends Error {
@@ -59,34 +64,40 @@ export function registerRoutes(app: Express): Server {
   // Initialize auth second
   setupAuth(app);
 
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('Error:', err);
+  // Add notification endpoints
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
 
-    if (err instanceof ValidationError) {
-      return res.status(400).json({
-        message: err.message,
-        details: err.details
-      });
+      const lastFetchTime = req.query.lastFetchTime 
+        ? new Date(req.query.lastFetchTime as string) 
+        : undefined;
+
+      const notifications = await getNotifications(req.user!.id, lastFetchTime);
+      res.json(notifications);
+    } catch (error) {
+      next(error);
     }
+  });
 
-    if (err instanceof DatabaseError) {
-      return res.status(500).json({
-        message: 'Database error occurred',
-        error: err.message
-      });
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+      if (isNaN(notificationId)) {
+        throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
+      }
+
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      res.json(updatedNotification);
+    } catch (error) {
+      next(error);
     }
-
-    if (err instanceof AppError) {
-      return res.status(err.status).json({
-        message: err.message
-      });
-    }
-
-    res.status(500).json({
-      message: 'Internal server error',
-      error: err.message
-    });
   });
 
   // Test route to verify API is working
@@ -1796,6 +1807,36 @@ export function registerRoutes(app: Express): Server {
       debug(req, 'Error updating branding:', error);
       next(error);
     }
+  });
+
+  // Error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('Error:', err);
+
+    if (err instanceof ValidationError) {
+      return res.status(400).json({
+        message: err.message,
+        details: err.details
+      });
+    }
+
+    if (err instanceof DatabaseError) {
+      return res.status(500).json({
+        message: 'Database error occurred',
+        error: err.message
+      });
+    }
+
+    if (err instanceof AppError) {
+      return res.status(err.status).json({
+        message: err.message
+      });
+    }
+
+    res.status(500).json({
+      message: 'Internal server error',
+      error: err.message
+    });
   });
 
   const httpServer = createServer(app);
