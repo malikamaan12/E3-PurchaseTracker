@@ -1,9 +1,10 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import multer from "multer";
 import path from "path";
 import { setupAuth } from "./auth";
+import { upload } from "./utils/upload";
+import { debug, createNotification } from "./utils/debug";
 import {
   users,
   notifications,
@@ -15,7 +16,6 @@ import {
   subPurposes,
   accountRequests,
   insertPurchaseRequestSchema,
-  type InsertVendor,
   insertAccountRequestSchema,
   insertErrorLogSchema,
   companyBranding,
@@ -25,7 +25,6 @@ import { eq, and, desc } from "drizzle-orm";
 import express from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import bcrypt from 'bcrypt';
-
 
 // Error Classes
 class DatabaseError extends Error {
@@ -53,49 +52,11 @@ class ValidationError extends Error {
   }
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, PDF and Word documents are allowed.'));
-    }
-  }
-});
-
-// Utility functions
-const debug = (req: Request, message: string, data?: any) => {
-  console.log(`[${req.method} ${req.path}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
-};
-
-const createNotification = async (userId: number, title: string, message: string, type: string, linkId?: number) => {
-  return await db.insert(notifications).values({
-    userId,
-    title,
-    message,
-    type,
-    link: linkId ? `/requests/${linkId}` : undefined,
-    createdAt: new Date(),
-    isRead: false
-  }).returning();
-};
-
 export function registerRoutes(app: Express): Server {
+  // Setup static files serving first
+  app.use('/uploads', express.static('uploads'));
+
+  // Initialize auth second
   setupAuth(app);
 
   // Error handling middleware
@@ -126,6 +87,11 @@ export function registerRoutes(app: Express): Server {
       message: 'Internal server error',
       error: err.message
     });
+  });
+
+  // Test route to verify API is working
+  app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok' });
   });
 
   // Account Request endpoint with proper error handling
@@ -440,16 +406,13 @@ export function registerRoutes(app: Express): Server {
         fileUrl: `/uploads/${file.filename}`
       }));
 
-      console.log('Files uploaded successfully:', uploadedFiles);
+      debug(req, 'Files uploaded successfully:', uploadedFiles);
       res.status(201).json(uploadedFiles);
     } catch (error) {
-      console.error('Error uploading files:', error);
+      debug(req, 'Error uploading files:', error);
       next(error);
     }
   });
-
-  // Serve uploaded files
-  app.use('/uploads', express.static('uploads'));
 
   // Add PUT endpoint for updating requests
   app.put("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
