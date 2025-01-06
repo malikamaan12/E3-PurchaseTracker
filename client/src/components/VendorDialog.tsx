@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertVendorSchema, type InsertVendor } from "@db/schema";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,26 +23,50 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const vendorFormSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  email: z.string().email("Invalid email format"),
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  taxNumber: z.string().optional().nullable(),
+  registrationNumber: z.string().optional().nullable(),
+  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
+  accountNumber: z.string()
+    .min(5, "Account number must be at least 5 characters")
+    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
+  ibanNumber: z.string()
+    .min(15, "IBAN must be at least 15 characters")
+    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
+  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
+  status: z.string().default("active"),
+});
+
+type VendorFormData = z.infer<typeof vendorFormSchema>;
+
 interface VendorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onVendorCreated?: (vendor: InsertVendor & { id: number }) => void;
+  onVendorCreated?: (vendor: VendorFormData & { id: number }) => void;
 }
 
 export default function VendorDialog({ open, onOpenChange, onVendorCreated }: VendorDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<InsertVendor>({
-    resolver: zodResolver(insertVendorSchema),
+  const form = useForm<VendorFormData>({
+    resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       companyName: "",
       contactPerson: "",
       contactNumber: "",
       email: "",
       address: "",
-      taxNumber: "",
-      registrationNumber: "",
+      taxNumber: null,
+      registrationNumber: null,
       bankName: "",
       accountNumber: "",
       ibanNumber: "",
@@ -51,7 +75,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
     },
   });
 
-  const onSubmit = async (data: InsertVendor) => {
+  const onSubmit = async (data: VendorFormData) => {
     try {
       setIsSubmitting(true);
       const response = await fetch("/api/vendors", {
@@ -59,7 +83,11 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          taxNumber: data.taxNumber || null,
+          registrationNumber: data.registrationNumber || null,
+        }),
         credentials: "include",
       });
 
@@ -69,11 +97,10 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
       }
 
       const newVendor = await response.json();
-      
+
       toast({
         title: "Success",
         description: "Vendor created successfully",
-        variant: "default",
       });
 
       onVendorCreated?.(newVendor);
@@ -183,7 +210,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
                   <FormItem>
                     <FormLabel>Tax Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter tax number" />
+                      <Input {...field} placeholder="Enter tax number" value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -197,7 +224,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
                   <FormItem>
                     <FormLabel>Registration Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter registration number" />
+                      <Input {...field} placeholder="Enter registration number" value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
