@@ -12,13 +12,15 @@ interface FileUploadMultipleProps {
   maxFiles?: number;
   maxSizeInMB?: number;
   uploadedFiles?: UploadedFile[];
+  onRemoveFile?: (file: UploadedFile) => void;
 }
 
 export function FileUploadMultiple({
   onUploadComplete,
   maxFiles = 5,
   maxSizeInMB = 10,
-  uploadedFiles = []
+  uploadedFiles = [],
+  onRemoveFile
 }: FileUploadMultipleProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -56,6 +58,25 @@ export function FileUploadMultiple({
       toast({
         title: "Files too large",
         description: `Some files exceed the ${maxSizeInMB}MB limit`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    const invalidTypeFiles = files.filter(file => !allowedTypes.includes(file.type));
+    if (invalidTypeFiles.length > 0) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload only images, PDFs, or Word documents",
         variant: "destructive"
       });
       return;
@@ -116,6 +137,7 @@ export function FileUploadMultiple({
       toast({
         title: "Success",
         description: `${newUploadedFiles.length} file(s) uploaded successfully`,
+        variant: "success"
       });
     } catch (error) {
       console.error("Upload error:", error);
@@ -132,6 +154,12 @@ export function FileUploadMultiple({
 
   const handlePreview = (file: UploadedFile) => {
     setPreviewFile(file);
+  };
+
+  const handleRemoveUploadedFile = (file: UploadedFile) => {
+    if (onRemoveFile) {
+      onRemoveFile(file);
+    }
   };
 
   return (
@@ -204,6 +232,17 @@ export function FileUploadMultiple({
                 }}
                 showPreview={true}
               />
+              {onRemoveFile && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleRemoveUploadedFile(file)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="secondary"

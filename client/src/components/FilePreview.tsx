@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, Loader2, FileText, Image as ImageIcon, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Eye, Loader2, FileText, Image as ImageIcon, File, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PreviewableFile } from "@/types";
 import FilePreviewCarousel from "./FilePreviewCarousel";
@@ -9,32 +9,79 @@ import FilePreviewCarousel from "./FilePreviewCarousel";
 interface FilePreviewProps {
   file: PreviewableFile;
   showPreview?: boolean;
+  onDownload?: () => void;
 }
 
-export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
+export function FilePreview({ file, showPreview = true, onDownload }: FilePreviewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCarousel, setShowCarousel] = useState(false);
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handlePreview = async () => {
     try {
+      setIsLoading(true);
+
       if (!file.preview && !file.fileUrl) {
         throw new Error("No preview available for this file");
       }
 
-      // For images and PDFs, show carousel
-      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+      // For images, show carousel immediately
+      if (file.type.startsWith('image/')) {
         setShowCarousel(true);
         return;
       }
 
-      // For other files
-      setIsOpen(true);
+      // For PDFs and other documents
+      if (file.type === 'application/pdf' || 
+          file.type === 'application/msword' || 
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        setIsOpen(true);
+      }
     } catch (err: any) {
       console.error("Preview error:", err);
       toast({
         title: "Preview Error",
         description: err.message || "Failed to generate preview",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (onDownload) {
+      onDownload();
+      return;
+    }
+
+    try {
+      if (!file.fileUrl) {
+        throw new Error("File URL not available");
+      }
+
+      const response = await fetch(file.fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "File downloaded successfully",
+        variant: "success",
+      });
+    } catch (err: any) {
+      console.error("Download error:", err);
+      toast({
+        title: "Download Failed",
+        description: err.message || "Failed to download file",
         variant: "destructive",
       });
     }
@@ -70,33 +117,94 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
     return <File className="w-12 h-12 text-gray-400" />;
   };
 
+  const renderPreview = () => {
+    if (file.type === 'application/pdf') {
+      return (
+        <iframe
+          src={file.fileUrl}
+          title={file.name}
+          className="w-full h-[70vh] border-none rounded-lg"
+        />
+      );
+    }
+
+    if (file.type === 'application/msword' || 
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+          <FileText className="w-16 h-16 text-blue-400 mb-4" />
+          <p className="text-lg font-medium text-gray-900">{file.name}</p>
+          <p className="text-sm text-gray-500 mt-2">
+            {file.size ? `${Math.round(file.size / 1024)} KB` : ''}
+          </p>
+          <Button 
+            variant="outline"
+            onClick={handleDownload}
+            className="mt-4"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Document
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+        <File className="w-16 h-16 text-gray-400 mb-4" />
+        <p className="text-lg font-medium text-gray-900">{file.name}</p>
+        <p className="text-sm text-gray-500 mt-2">
+          {file.size ? `${Math.round(file.size / 1024)} KB` : ''}
+        </p>
+      </div>
+    );
+  };
+
   return (
     <>
       <div 
-        className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors cursor-pointer"
+        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors cursor-pointer group"
         onClick={showPreview ? handlePreview : undefined}
       >
         {getFileIcon()}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
           <p className="text-xs text-gray-500">
-            {(file.size / 1024 / 1024).toFixed(2)} MB
+            {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
           </p>
         </div>
-        {showPreview && (
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {showPreview && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePreview();
+              }}
+              className="flex-shrink-0"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={(e) => {
               e.stopPropagation();
-              handlePreview();
+              handleDownload();
             }}
             className="flex-shrink-0"
           >
-            <Eye className="h-4 w-4" />
+            <Download className="h-4 w-4" />
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Regular file preview dialog */}
@@ -114,11 +222,7 @@ export function FilePreview({ file, showPreview = true }: FilePreviewProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="mt-6 relative bg-white rounded-lg overflow-hidden">
-            <div className="text-center p-8 bg-gray-50 rounded-lg">
-              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-sm text-gray-600">Preview not available for this file type</p>
-              <p className="text-xs text-gray-500 mt-2">{file.type}</p>
-            </div>
+            {renderPreview()}
           </div>
         </DialogContent>
       </Dialog>
