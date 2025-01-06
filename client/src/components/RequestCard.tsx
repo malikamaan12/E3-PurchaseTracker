@@ -730,7 +730,7 @@ export default function RequestCard({
           </div>
           {vendorSection}
           <RequestStatusTimeline request={request} />
-
+          {renderAttachments()}
           {showApproval && (
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <h3 className="text-lg font-medium">Approval Actions</h3>
