@@ -29,14 +29,20 @@ import type { SubPurpose } from "@db/schema";
 
 interface SubPurposeSelectProps {
   purposeType: string;
-  value?: number;
+  value?: number | null;
   onChange: (value: number | undefined) => void;
+  id?: string;
+  name?: string;
+  disabled?: boolean;
 }
 
 export default function SubPurposeSelect({
   purposeType,
   value,
   onChange,
+  id,
+  name,
+  disabled = false
 }: SubPurposeSelectProps) {
   const [open, setOpen] = useState(false);
   const [newSubPurpose, setNewSubPurpose] = useState("");
@@ -145,8 +151,17 @@ export default function SubPurposeSelect({
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
+            disabled={disabled || !purposeType}
+            id={id}
+            name={name}
           >
-            {isLoading ? "Loading..." : value ? selectedSubPurpose?.name : "Select sub-purpose..."}
+            {isLoading 
+              ? "Loading..." 
+              : !purposeType 
+              ? "Select purpose type first"
+              : value 
+              ? selectedSubPurpose?.name 
+              : "Select sub-purpose..."}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
@@ -178,7 +193,11 @@ export default function SubPurposeSelect({
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button 
+            variant="outline" 
+            size="icon"
+            disabled={disabled || !purposeType}
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </DialogTrigger>
