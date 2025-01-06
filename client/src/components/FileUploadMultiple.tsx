@@ -2,8 +2,9 @@ import { useState, useCallback, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, X, Upload } from "lucide-react";
+import { Loader2, X, Upload, Eye } from "lucide-react";
 import { FilePreview } from "@/components/FilePreview";
+import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import type { UploadedFile, FileWithPreview } from "@/types";
 
 interface FileUploadMultipleProps {
@@ -22,9 +23,10 @@ export function FileUploadMultiple({
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
   const { toast } = useToast();
 
-  // Clean up any object URLs when component unmounts
+  // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
       selectedFiles.forEach(fileObj => {
@@ -38,7 +40,6 @@ export function FileUploadMultiple({
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
 
-    // Check total number of files
     if (files.length + selectedFiles.length + uploadedFiles.length > maxFiles) {
       toast({
         title: "Too many files",
@@ -48,7 +49,6 @@ export function FileUploadMultiple({
       return;
     }
 
-    // Check file sizes
     const oversizedFiles = files.filter(
       file => file.size > maxSizeInMB * 1024 * 1024
     );
@@ -61,14 +61,10 @@ export function FileUploadMultiple({
       return;
     }
 
-    // Create preview URLs and store files
-    const filesWithPreviews: FileWithPreview[] = files.map(file => {
-      const fileWithPreview: FileWithPreview = {
-        file,
-        preview: URL.createObjectURL(file)
-      };
-      return fileWithPreview;
-    });
+    const filesWithPreviews: FileWithPreview[] = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
 
     setSelectedFiles(prev => [...prev, ...filesWithPreviews]);
   }, [selectedFiles, uploadedFiles.length, maxFiles, maxSizeInMB, toast]);
@@ -134,6 +130,10 @@ export function FileUploadMultiple({
     }
   };
 
+  const handlePreview = (file: UploadedFile) => {
+    setPreviewFile(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -150,7 +150,7 @@ export function FileUploadMultiple({
           variant="secondary"
           onClick={uploadFiles}
           disabled={selectedFiles.length === 0 || uploading}
-          className="min-w-[100px] bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+          className="min-w-[100px] bg-primary hover:bg-primary/90 text-white"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -174,16 +174,18 @@ export function FileUploadMultiple({
                 }}
                 showPreview={true}
               />
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => removeFile(index)}
-                disabled={uploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="absolute -top-2 -right-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => removeFile(index)}
+                  disabled={uploading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -192,7 +194,7 @@ export function FileUploadMultiple({
       {uploadedFiles.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {uploadedFiles.map((file) => (
-            <div key={file.fileUrl} className="relative">
+            <div key={file.fileUrl} className="relative group">
               <FilePreview 
                 file={{
                   name: file.fileName,
@@ -202,6 +204,15 @@ export function FileUploadMultiple({
                 }}
                 showPreview={true}
               />
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handlePreview(file)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </div>
@@ -214,6 +225,13 @@ export function FileUploadMultiple({
             style={{ width: `${uploadProgress}%` }}
           />
         </div>
+      )}
+
+      {previewFile && (
+        <FilePreviewDialog
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
       )}
     </div>
   );

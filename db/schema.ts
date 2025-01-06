@@ -388,7 +388,6 @@ export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
 
 
-
 // ============= Validation Schemas =============
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -506,8 +505,8 @@ export const insertVendorSchema = createInsertSchema(vendors, {
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   email: z.string().email("Invalid email format"),
   address: z.string().min(5, "Address must be at least 5 characters"),
-  taxNumber: z.string().optional(),
-  registrationNumber: z.string().optional(),
+  taxNumber: z.string().optional().nullable(),
+  registrationNumber: z.string().optional().nullable(),
   bankName: z.string().min(2, "Bank name must be at least 2 characters"),
   accountNumber: z.string()
     .min(5, "Account number must be at least 5 characters")
@@ -518,11 +517,11 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
-  remarks: z.string().optional(),
+  remarks: z.string().optional().nullable(),
   status: z.enum(["active", "blocked", "frozen"]).default("active"),
 });
 
-// Export the same schema for form validation
+// Use the same schema for form validation
 export const vendorFormSchema = insertVendorSchema;
 
 export const insertVendorCategorySchema = createInsertSchema(vendorCategories, {
