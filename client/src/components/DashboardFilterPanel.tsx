@@ -223,53 +223,53 @@ export function DashboardFilterPanel({
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-            {activeFilters.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {activeFilters.length} active
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {activeFilters.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllFilters}
-                className="h-8"
-              >
-                Clear all
-              </Button>
-            )}
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(!isOpen)}
-                className="h-8 gap-2"
-              >
-                {isOpen ? (
-                  <>
-                    Hide Filters
-                    <ChevronUp className="h-4 w-4" />
-                  </>
-                ) : (
-                  <>
-                    Show Filters
-                    <ChevronDown className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </CollapsibleTrigger>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+              {activeFilters.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {activeFilters.length} active
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {activeFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-8"
+                >
+                  Clear all
+                </Button>
+              )}
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsOpen(!isOpen)}
+                  className="h-8 gap-2"
+                >
+                  {isOpen ? (
+                    <>
+                      Hide Filters
+                      <ChevronUp className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      Show Filters
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        </CardHeader>
         <CollapsibleContent>
           <CardContent className="grid gap-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -460,7 +460,7 @@ export function DashboardFilterPanel({
             )}
           </CardContent>
         </CollapsibleContent>
-      </Collapsible>
-    </Card>
+      </Card>
+    </Collapsible>
   );
 }
