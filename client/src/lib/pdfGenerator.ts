@@ -60,39 +60,42 @@ async function fetchBranding(): Promise<TemplateConfig['branding']> {
   }
 }
 
-function addGradientBackground(doc: jsPDF, y: number, height: number, color: [number, number, number]) {
+function addGradientHeader(doc: jsPDF) {
   const pageWidth = doc.internal.pageSize.width;
-  const steps = 20;
-  const stepHeight = height / steps;
+  const headerHeight = 70;
+
+  // Create a softer gradient effect
+  const steps = 25;
+  const stepHeight = headerHeight / steps;
 
   for (let i = 0; i < steps; i++) {
-    const opacity = Math.max(0.1, 0.8 - (i * 0.035));
+    const opacity = Math.max(0.1, 0.7 - (i * 0.025)); // Softer fade
     doc.saveGraphicsState();
-    doc.setFillColor(...color);
+    doc.setFillColor(113, 86, 158); // #71569E
     doc.setGState(new doc.GState({ opacity }));
-    doc.rect(0, y + (i * stepHeight), pageWidth, stepHeight, 'F');
+    doc.rect(0, i * stepHeight, pageWidth, stepHeight, 'F');
     doc.restoreGraphicsState();
   }
 }
 
 function addHeader(doc: jsPDF, config: TemplateConfig): number {
-  const headerHeight = 85;
+  const headerHeight = 70;
 
-  // Add gradient background
-  addGradientBackground(doc, 0, headerHeight, config.branding.primaryColor);
+  // Add gradient header
+  addGradientHeader(doc);
 
   // Add company name
   doc.saveGraphicsState();
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(26);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(config.branding.companyName, 80, 45);
+  doc.text(config.branding.companyName, 80, 40);
   doc.restoreGraphicsState();
 
   // Add logo if available
   if (config.branding.logo && config.showLogo) {
     try {
-      doc.addImage(config.branding.logo, 'PNG', 25, 20, 45, 45);
+      doc.addImage(config.branding.logo, 'PNG', 25, 15, 45, 45);
     } catch (error) {
       console.error('Error adding logo:', error);
     }
@@ -105,6 +108,7 @@ function addFooter(doc: jsPDF): number {
   const pageHeight = doc.internal.pageSize.height;
   const footerHeight = 45;
   const footerY = pageHeight - footerHeight;
+  const margin = 25;
 
   doc.saveGraphicsState();
   doc.setFontSize(9);
@@ -118,7 +122,7 @@ function addFooter(doc: jsPDF): number {
   ];
 
   contactInfo.forEach(item => {
-    doc.text(item.text, 25, item.y);
+    doc.text(item.text, margin, item.y);
   });
 
   // Right column - Address
@@ -130,7 +134,7 @@ function addFooter(doc: jsPDF): number {
 
   addressInfo.forEach(item => {
     const textWidth = doc.getTextWidth(item.text);
-    doc.text(item.text, doc.internal.pageSize.width - 25 - textWidth, item.y);
+    doc.text(item.text, doc.internal.pageSize.width - margin - textWidth, item.y);
   });
 
   doc.restoreGraphicsState();
@@ -143,7 +147,7 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     const config: TemplateConfig = {
       branding,
       layout: templateConfig.layout || 'modern',
-      headerHeight: 85,
+      headerHeight: 70,
       footerHeight: 45,
       showLogo: templateConfig.showLogo ?? true,
     };
@@ -160,11 +164,11 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
 
     // Add header
     const headerHeight = addHeader(doc, config);
-    let yPos = headerHeight + 10;
+    let yPos = headerHeight + 15;
 
     // Request Purpose & Priority Section
     doc.setFillColor(248, 249, 250);
-    doc.roundedRect(margin, yPos, contentWidth, 45, 2, 2, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 35, 2, 2, 'F');
 
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(11);
@@ -172,30 +176,30 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
     doc.text("Request Purpose & Priority", margin + 10, yPos + 15);
 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Purpose Type: ${request.purposeType || 'N/A'}`, margin + 10, yPos + 30);
-    doc.text(`Sub-purpose: ${request.subPurpose?.name || 'N/A'}`, margin + contentWidth/2, yPos + 30);
+    doc.text(`Purpose Type: ${request.purposeType || 'N/A'}`, margin + 10, yPos + 25);
+    doc.text(`Sub-purpose: ${request.subPurpose?.name || 'N/A'}`, margin + contentWidth/2, yPos + 25);
 
-    yPos += 55;
+    yPos += 45;
 
     // Basic Information Section
     doc.setFillColor(248, 249, 250);
-    doc.roundedRect(margin, yPos, contentWidth, 50, 2, 2, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 40, 2, 2, 'F');
 
     doc.setFont('helvetica', 'bold');
     doc.text("Basic Information", margin + 10, yPos + 15);
 
     doc.setFont('helvetica', 'normal');
-    doc.text(`Request Title: ${request.title || 'N/A'}`, margin + 10, yPos + 30);
+    doc.text(`Request Title: ${request.title || 'N/A'}`, margin + 10, yPos + 25);
 
     const descriptionLines = doc.splitTextToSize(
       `Description: ${request.description || 'N/A'}`,
       contentWidth - 20
     );
     descriptionLines.slice(0, 2).forEach((line: string, index: number) => {
-      doc.text(line, margin + 10, yPos + 30 + ((index + 1) * 10));
+      doc.text(line, margin + 10, yPos + 25 + ((index + 1) * 10));
     });
 
-    yPos += 60;
+    yPos += 50;
 
     // Items Section
     doc.setFont('helvetica', 'bold');
@@ -226,18 +230,18 @@ export async function generateRequestPDF(request: any, templateConfig: Partial<T
         textColor: [60, 60, 60],
         fontSize: 11,
         fontStyle: 'bold',
-        cellPadding: 8,
+        cellPadding: 6,
       },
       footStyles: {
         fillColor: [248, 249, 250],
         textColor: [60, 60, 60],
         fontSize: 11,
         fontStyle: 'bold',
-        cellPadding: 8
+        cellPadding: 6
       },
       bodyStyles: {
         fontSize: 10,
-        cellPadding: 6,
+        cellPadding: 5,
         textColor: [60, 60, 60]
       },
       alternateRowStyles: {
