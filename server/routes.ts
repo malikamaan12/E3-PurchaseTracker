@@ -863,6 +863,7 @@ export function registerRoutes(app: Express): Server {
   // Account Request endpoint with proper error handling (already included above)
 
   // Update the GET /api/requests endpoint
+
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -951,8 +952,14 @@ export function registerRoutes(app: Express): Server {
 
       debug(req, 'Raw requests data:', JSON.stringify(requests, null, 2));
 
-      // Parse JSON fields and get approvals for each request
+      // Parse JSON fields and get additional details for each request
       const requestsWithDetails = await Promise.all(requests.map(async (request) => {
+        // Get attachments for this request
+        const attachments = await db
+          .select()
+          .from(fileAttachments)
+          .where(eq(fileAttachments.requestId, request.id));
+
         // Get approvals for this request
         const requestApprovals = await db
           .select()
@@ -985,6 +992,7 @@ export function registerRoutes(app: Express): Server {
         return {
           ...request,
           items: typeof request.items === 'string' ? JSON.parse(request.items) : request.items,
+          attachments: attachments || [],
           approvals: requestApprovals || [],
           vendor: vendorDetails,
           subPurpose: subPurposeDetails
