@@ -24,7 +24,7 @@ export function FileUploadMultiple({
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
-    
+
     // Check number of files
     if (selectedFiles.length + files.length > maxFiles) {
       toast({
@@ -93,7 +93,7 @@ export function FileUploadMultiple({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Input
           type="file"
@@ -108,7 +108,7 @@ export function FileUploadMultiple({
           variant="secondary"
           onClick={uploadFiles}
           disabled={files.length === 0 || uploading}
-          className="min-w-[100px]"
+          className="min-w-[100px] bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -120,7 +120,7 @@ export function FileUploadMultiple({
       </div>
 
       {files.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {files.map((file, index) => (
             <div key={index} className="relative group">
               <FilePreview file={file} />
