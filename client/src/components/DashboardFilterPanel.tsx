@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Collapsible,
   CollapsibleContent,
@@ -26,6 +25,9 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import debounce from "lodash/debounce";
+import { LoadingFilterPreview } from "./LoadingFilterPreview";
+
+// Keep existing interfaces and constants...
 
 export interface FilterValues {
   status: string[];
@@ -79,11 +81,11 @@ export function DashboardFilterPanel({
 }: DashboardFilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [filters, setFilters] = useState<FilterValues>(() => {
     const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
     if (savedFilters) {
       const parsed = JSON.parse(savedFilters);
-      // Convert date strings back to Date objects
       if (parsed.dateRange) {
         parsed.dateRange.from = parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined;
         parsed.dateRange.to = parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined;
@@ -110,8 +112,8 @@ export function DashboardFilterPanel({
   });
 
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Save filters to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
@@ -138,15 +140,21 @@ export function DashboardFilterPanel({
   };
 
   const debouncedOnFilterChange = useCallback(
-    debounce((newFilters: FilterValues) => {
-      onFilterChange(newFilters);
-      setIsDirty(false);
+    debounce(async (newFilters: FilterValues) => {
+      setIsApplying(true);
+      try {
+        await onFilterChange(newFilters);
+        setIsDirty(false);
+        setShowPreview(true);
+        setTimeout(() => setShowPreview(false), 2000); // Hide preview after 2s
+      } finally {
+        setIsApplying(false);
+      }
     }, 500),
     [onFilterChange]
   );
 
   const updateFilters = (key: keyof FilterValues, value: any) => {
-    // Clear sub-purpose if purpose type changes
     if (key === 'purposeType' && filters.subPurposeId) {
       const newFilters = {
         ...filters,
@@ -161,7 +169,6 @@ export function DashboardFilterPanel({
       setIsDirty(true);
     }
 
-    // Update active filters
     const activeFiltersList = Object.entries(filters)
       .filter(([_, value]) => isFilterActive(value))
       .map(([key]) => key);
@@ -170,6 +177,7 @@ export function DashboardFilterPanel({
   };
 
   const applyFilters = () => {
+    setShowPreview(true);
     debouncedOnFilterChange(filters);
   };
 
@@ -222,28 +230,12 @@ export function DashboardFilterPanel({
   };
 
   if (isLoading) {
-    return (
-      <Card className="mb-6 animate-pulse">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <LoadingFilterPreview />;
   }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="mb-6">
+      <Card className={cn("mb-6", isApplying && "opacity-70 pointer-events-none transition-opacity duration-200")}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -262,8 +254,9 @@ export function DashboardFilterPanel({
                   size="sm"
                   onClick={applyFilters}
                   className="h-8"
+                  disabled={isApplying}
                 >
-                  Apply Filters
+                  {isApplying ? "Applying..." : "Apply Filters"}
                 </Button>
               )}
               {activeFilters.length > 0 && (
@@ -272,6 +265,7 @@ export function DashboardFilterPanel({
                   size="sm"
                   onClick={clearAllFilters}
                   className="h-8"
+                  disabled={isApplying}
                 >
                   Clear all
                 </Button>
@@ -282,6 +276,7 @@ export function DashboardFilterPanel({
                   size="sm"
                   onClick={() => setIsOpen(!isOpen)}
                   className="h-8 gap-2"
+                  disabled={isApplying}
                 >
                   {isOpen ? (
                     <>
@@ -299,6 +294,13 @@ export function DashboardFilterPanel({
             </div>
           </div>
         </CardHeader>
+
+        {(isApplying || showPreview) && (
+          <div className="px-6 py-4 border-t">
+            <LoadingFilterPreview />
+          </div>
+        )}
+
         <CollapsibleContent>
           <CardContent className="grid gap-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
