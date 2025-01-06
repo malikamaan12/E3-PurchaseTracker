@@ -386,7 +386,7 @@ export function registerRoutes(app: Express): Server {
       const { purposeType } = req.query;
       debug(req, 'Fetching sub-purposes with filters:', { purposeType });
 
-      const query = db.select({
+      const baseQuery = db.select({
         id: subPurposes.id,
         name: subPurposes.name,
         purpose_type: subPurposes.purpose_type,
@@ -396,16 +396,18 @@ export function registerRoutes(app: Express): Server {
         created_at: subPurposes.created_at,
         updated_at: subPurposes.updated_at
       })
-        .from(subPurposes)
-        .orderBy(desc(subPurposes.created_at));
+      .from(subPurposes)
+      .where(
+        purposeType 
+          ? eq(subPurposes.purpose_type, purposeType as string)
+          : undefined
+      )
+      .orderBy(desc(subPurposes.created_at));
 
-      const results = purposeType
-        ? await query.where(eq(subPurposes.purpose_type, purposeType as string))
-        : await query;
-
+      const results = await baseQuery;
       debug(req, `Found ${results.length} sub-purposes`);
 
-      // Format the response
+      // Format dates consistently
       const formattedResults = results.map(sp => ({
         id: sp.id,
         name: sp.name,
