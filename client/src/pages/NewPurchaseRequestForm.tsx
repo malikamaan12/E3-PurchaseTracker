@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
@@ -7,14 +6,11 @@ import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
-import { FileUploadMultiple } from "@/components/FileUploadMultiple";
-import type { UploadedFile } from "@/types";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
@@ -30,14 +26,6 @@ export default function NewPurchaseRequestForm() {
 
   const handleVendorCreated = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
-  };
-
-  const handleUploadComplete = (files: UploadedFile[]) => {
-    setUploadedFiles(prev => [...prev, ...files]);
-    toast({
-      title: "Success",
-      description: `${files.length} file(s) uploaded successfully`,
-    });
   };
 
   const handleDownload = async () => {
@@ -125,25 +113,12 @@ export default function NewPurchaseRequestForm() {
             </p>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              Upload Documents
-            </h2>
-            <FileUploadMultiple 
-              onUploadComplete={handleUploadComplete}
-              maxFiles={5}
-              maxSizeInMB={10}
-              uploadedFiles={uploadedFiles}
-            />
-          </div>
-
           <PurchaseRequestForm
             subPurposes={subPurposes}
             vendors={vendors}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             onVendorCreated={handleVendorCreated}
-            attachments={uploadedFiles}
           />
         </div>
       </div>
