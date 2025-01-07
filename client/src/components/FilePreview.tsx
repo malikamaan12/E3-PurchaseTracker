@@ -92,6 +92,15 @@ export function FilePreview({
         downloadUrl = `/api/attachments/${file.id}`;
       }
 
+      // Add force download parameter for document types
+      const shouldForceDownload = file.type === 'application/pdf' || 
+                                file.type === 'application/msword' ||
+                                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+      if (shouldForceDownload) {
+        downloadUrl += '?download=true';
+      }
+
       // Construct the absolute URL
       const absoluteUrl = downloadUrl.startsWith('http')
         ? downloadUrl
@@ -106,11 +115,12 @@ export function FilePreview({
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
-      // Get the blob
+      // Get the blob with the correct type
       const blob = await response.blob();
+      const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
 
       // Create a download link
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.href = url;
       a.download = file.name;
@@ -172,21 +182,30 @@ export function FilePreview({
     if (file.type === 'application/pdf') {
       return (
         <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
-          <iframe
-            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
-            className="w-full h-full border-0"
-            title={file.name}
-            onError={() => {
-              const error = "Failed to load PDF preview. The file might be corrupted or your browser settings might be blocking the preview.";
-              setPreviewError(error);
-              toast({
-                title: "Preview Error",
-                description: error,
-                variant: "destructive",
-              });
-            }}
-          />
-          <div className="absolute bottom-4 right-4">
+          <div className="absolute top-0 left-0 right-0 p-4 bg-white border-b text-center">
+            <h1 className="text-xl font-bold text-gray-900">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
+            <h2 className="text-lg font-semibold text-gray-700 mt-1">PURCHASE REQUEST</h2>
+          </div>
+          <div className="mt-20 h-[calc(100%-96px)]"> {/* Adjust height to account for header and footer */}
+            <iframe
+              src={`${absoluteUrl}#toolbar=0&navpanes=0`}
+              className="w-full h-full border-0"
+              title={file.name}
+              onError={() => {
+                const error = "Failed to load PDF preview. The file might be corrupted or your browser settings might be blocking the preview.";
+                setPreviewError(error);
+                toast({
+                  title: "Preview Error",
+                  description: error,
+                  variant: "destructive",
+                });
+              }}
+            />
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t text-center">
+            <p className="text-sm text-gray-600">ALL RIGHTS RESERVED BY E3</p>
+          </div>
+          <div className="absolute bottom-16 right-4">
             <Button onClick={handleDownload} variant="secondary">
               <Download className="w-4 h-4 mr-2" />
               Download PDF
@@ -252,6 +271,7 @@ export function FilePreview({
     setIsOpen(false);
     setShowCarousel(false);
     setShowConvertWizard(false);
+    setPreviewError(null);
   };
 
   const getFileIcon = () => {
@@ -357,7 +377,7 @@ export function FilePreview({
               <div>
                 <span className="font-medium">{file.name}</span>
                 <span className="text-sm text-gray-500 ml-2">
-                  ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  ({file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''})
                 </span>
               </div>
             </DialogTitle>

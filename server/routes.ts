@@ -68,6 +68,26 @@ class ValidationError extends Error {
 }
 
 
+// Helper functions for content type and disposition
+const getContentType = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.doc': return 'application/msword';
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default: return 'application/octet-stream';
+  }
+};
+
+const getContentDisposition = (filename: string, forceDownload: boolean): string => {
+  return forceDownload ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
+};
+
+
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
   const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -152,11 +172,15 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('File not found on server', 404);
       }
 
-      // Set appropriate headers
+      // Determine if it should be a forced download
+      const forceDownload = req.query.download === 'true';
+
+      // Set appropriate headers using middleware helpers
       res.set({
-        'Content-Type': attachment.fileType,
-        'Content-Disposition': `inline; filename="${attachment.fileName}"`,
-        'Cache-Control': 'public, max-age=31536000'
+        'Content-Type': getContentType(attachment.fileName),
+        'Content-Disposition': getContentDisposition(attachment.fileName, forceDownload),
+        'Cache-Control': 'public, max-age=31536000',
+        'X-Content-Type-Options': 'nosniff'
       });
 
       // Stream the file
