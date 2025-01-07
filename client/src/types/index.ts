@@ -27,11 +27,22 @@ export interface PreviewableFile {
   size: number;
   type: string;
   preview?: string;
-  fileUrl?: string;
+  fileUrl: string; 
   lastModified?: number;
   webkitRelativePath?: string;
-  slice?: (start?: number, end?: number, contentType?: string) => Blob;
-  stream?: () => ReadableStream;
-  text?: () => Promise<string>;
-  arrayBuffer?: () => Promise<ArrayBuffer>;
+}
+
+// Add conversion-related types
+export interface ConversionFormat {
+  mimeType: string;
+  extension: string;
+  label: string;
+}
+
+export interface ConversionResult {
+  success: boolean;
+  fileUrl: string;
+  outputType: string;
+  size: number;
+  error?: string;
 }

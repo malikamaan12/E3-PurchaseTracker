@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileType } from "lucide-react";
-import type { PreviewableFile } from "@/types";
+import type { PreviewableFile, ConversionResult } from "@/types";
 
 interface FileConversionWizardProps {
   file: PreviewableFile;
@@ -55,7 +55,7 @@ export function FileConversionWizard({
       }
     }
     fetchFormats();
-  }, [file.type]);
+  }, [file.type, toast]);
 
   const handleConvert = async () => {
     if (!targetFormat) {
@@ -76,14 +76,22 @@ export function FileConversionWizard({
 
       const response = await fetch('/api/conversion/convert', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sourceFormat: file.type,
+          targetFormat,
+          filePath: file.fileUrl,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Conversion failed');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Conversion failed');
       }
 
-      const result = await response.json();
+      const result = await response.json() as ConversionResult;
 
       if (result.success) {
         toast({
@@ -127,6 +135,8 @@ export function FileConversionWizard({
       'image/jpeg': '.jpg',
       'image/webp': '.webp',
       'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
     };
     return extensions[mimeType] || '';
   };
@@ -137,6 +147,8 @@ export function FileConversionWizard({
       'image/jpeg': 'JPEG Image',
       'image/webp': 'WebP Image',
       'application/pdf': 'PDF Document',
+      'application/msword': 'Word Document (DOC)',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word Document (DOCX)',
     };
     return labels[mimeType] || mimeType;
   };
