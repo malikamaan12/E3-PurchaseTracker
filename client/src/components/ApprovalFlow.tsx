@@ -35,27 +35,26 @@ export default function ApprovalFlow({
   const canApprove = useMemo(() => {
     if (!user?.department) return false;
 
-    // Check if request is pending
-    if (status !== "pending") return false;
+    // Check if request is pending or changes requested
+    if (!["pending", "changes_requested"].includes(status)) return false;
 
-    // Special roles can approve any request, including their own
+    // Special roles can approve any request
     const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
 
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if this department hasn't approved yet
+    // Check if this department hasn't approved yet or if it's changes requested
     const departmentApproval = approvals.find(
-      (a) => a.department === user.department && a.status !== 'pending'
+      (a) => a.department === user.department && 
+             (a.status === 'approved' || a.status === 'rejected')
     );
 
     return !departmentApproval;
   }, [approvals, user, requesterId, status]);
 
-  const handleApproval = async (approvalStatus: "approved" | "rejected") => {
-    if (isSubmitting) {
-      return; // Prevent multiple submissions
-    }
+  const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
+    if (isSubmitting) return;
 
     if (!user?.department || !canApprove) {
       toast({
@@ -87,7 +86,7 @@ export default function ApprovalFlow({
 
       toast({
         title: "Success",
-        description: `Request ${approvalStatus} successfully`,
+        description: `Request ${approvalStatus.replace('_', ' ')} successfully`,
       });
 
       setComments("");
@@ -110,6 +109,8 @@ export default function ApprovalFlow({
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case "rejected":
         return <XCircle className="h-5 w-5 text-red-500" />;
+      case "changes_requested":
+        return <AlertTriangle className="h-5 w-5 text-orange-500" />;
       default:
         return isMandatory ? 
           <AlertTriangle className="h-5 w-5 text-orange-500" /> :
@@ -120,18 +121,20 @@ export default function ApprovalFlow({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-500";
+        return "bg-green-500/10 text-green-700 border-green-500/20";
       case "rejected":
-        return "bg-red-500";
+        return "bg-red-500/10 text-red-700 border-red-500/20";
+      case "changes_requested":
+        return "bg-orange-500/10 text-orange-700 border-orange-500/20";
       default:
-        return "bg-yellow-500";
+        return "bg-yellow-500/10 text-yellow-700 border-yellow-500/20";
     }
   };
 
   // Get unique approvals by department (keep only the latest approval for each department)
   const uniqueApprovals = approvals.reduce((acc: (Approval & { approver?: User })[], curr) => {
     const existing = acc.find(a => a.department === curr.department);
-    if (!existing || new Date(curr.updatedAt) > new Date(existing.updatedAt)) {
+    if (!existing || new Date(curr.updatedAt!) > new Date(existing.updatedAt!)) {
       // Remove existing if found
       if (existing) {
         acc = acc.filter(a => a.department !== curr.department);
@@ -147,8 +150,9 @@ export default function ApprovalFlow({
     if (a.isMandatory && !b.isMandatory) return -1;
     if (!a.isMandatory && b.isMandatory) return 1;
 
-    const statusOrder = { pending: 0, approved: 1, rejected: 2 };
-    return (statusOrder[a.status as keyof typeof statusOrder] || 0) - (statusOrder[b.status as keyof typeof statusOrder] || 0);
+    const statusOrder = { pending: 0, changes_requested: 1, approved: 2, rejected: 3 };
+    return (statusOrder[a.status as keyof typeof statusOrder] || 0) - 
+           (statusOrder[b.status as keyof typeof statusOrder] || 0);
   });
 
   return (
@@ -177,7 +181,7 @@ export default function ApprovalFlow({
                 </div>
                 <div className="flex items-center space-x-4">
                   <Badge className={getStatusColor(approval.status)}>
-                    {approval.status.toUpperCase()}
+                    {approval.status.toUpperCase().replace('_', ' ')}
                   </Badge>
                   <span className="text-sm text-gray-500">
                     {approval.updatedAt &&
@@ -210,9 +214,9 @@ export default function ApprovalFlow({
                   <Button
                     onClick={() => handleApproval("approved")}
                     disabled={isSubmitting}
-                    className="flex-1"
+                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
                   >
-                    {isSubmitting ? "Approving..." : "Approve"}
+                    {isSubmitting ? "Processing..." : "Approve"}
                   </Button>
                   <Button
                     onClick={() => handleApproval("rejected")}
@@ -220,7 +224,15 @@ export default function ApprovalFlow({
                     variant="destructive"
                     className="flex-1"
                   >
-                    {isSubmitting ? "Rejecting..." : "Reject"}
+                    {isSubmitting ? "Processing..." : "Reject"}
+                  </Button>
+                  <Button
+                    onClick={() => handleApproval("changes_requested")}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="bg-orange-50 text-orange-600 hover:bg-orange-100 flex-1"
+                  >
+                    {isSubmitting ? "Processing..." : "Request Changes"}
                   </Button>
                 </div>
               </div>

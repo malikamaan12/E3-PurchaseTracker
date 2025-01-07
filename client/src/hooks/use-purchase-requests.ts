@@ -169,7 +169,7 @@ export function usePurchaseRequests() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || `Failed to create approval: ${response.status}`);
+        throw new Error(errorText || `Failed to process approval: ${response.status}`);
       }
 
       return response.json();

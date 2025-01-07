@@ -1200,7 +1200,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const requestId = parseInt(req.params.requestId);
-      const { status, comments, department } = req.body;
+      const { status, department, comments } = req.body;
 
       debug(req, 'Creating approval with data:', {
         requestId,
