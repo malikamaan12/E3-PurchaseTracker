@@ -93,9 +93,9 @@ export function FilePreview({
       }
 
       // Add force download parameter for document types
-      const shouldForceDownload = file.type === 'application/pdf' || 
-                                file.type === 'application/msword' ||
-                                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const shouldForceDownload = file.type === 'application/pdf' ||
+                                  file.type === 'application/msword' ||
+                                  file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
       if (shouldForceDownload) {
         downloadUrl += '?download=true';
@@ -181,14 +181,16 @@ export function FilePreview({
 
     if (file.type === 'application/pdf') {
       return (
-        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 p-4 bg-white border-b text-center">
-            <h1 className="text-xl font-bold text-gray-900">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
-            <h2 className="text-lg font-semibold text-gray-700 mt-1">PURCHASE REQUEST</h2>
+        <div className="w-[595px] h-[842px] relative rounded-lg overflow-hidden shadow-lg bg-white"> {/* A4 dimensions in pixels */}
+          <div className="absolute top-0 left-0 right-0 p-4 bg-white border-b z-10">
+            <div className="text-center space-y-2">
+              <h1 className="text-xl font-bold text-gray-900">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
+              <h2 className="text-lg font-semibold text-gray-700">PURCHASE REQUEST</h2>
+            </div>
           </div>
-          <div className="mt-20 h-[calc(100%-96px)]"> {/* Adjust height to account for header and footer */}
+          <div className="mt-16 h-[calc(100%-88px)]"> {/* Adjusted for header and footer height */}
             <iframe
-              src={`${absoluteUrl}#toolbar=0&navpanes=0`}
+              src={`${absoluteUrl}#toolbar=0&navpanes=0&view=FitH`}
               className="w-full h-full border-0"
               title={file.name}
               onError={() => {
@@ -202,11 +204,9 @@ export function FilePreview({
               }}
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t text-center">
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t z-10 flex justify-between items-center">
             <p className="text-sm text-gray-600">ALL RIGHTS RESERVED BY E3</p>
-          </div>
-          <div className="absolute bottom-16 right-4">
-            <Button onClick={handleDownload} variant="secondary">
+            <Button onClick={handleDownload} variant="secondary" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Download PDF
             </Button>
