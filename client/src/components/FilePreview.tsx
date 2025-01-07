@@ -33,12 +33,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       }
 
       // For PDFs and other documents
-      if (file.type === 'application/pdf') {
-        setIsOpen(true);
-      } else {
-        // For other document types, show preview dialog with download option
-        setIsOpen(true);
-      }
+      setIsOpen(true);
     } catch (err: any) {
       console.error("Preview error:", err);
       toast({
@@ -72,6 +67,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
 
       const response = await fetch(absoluteUrl, {
         method: 'GET',
+        credentials: 'same-origin', // Include cookies if needed
         headers: {
           'Accept': '*/*'
         }
@@ -81,12 +77,12 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
-      // Get the content type from the response
-      const contentType = response.headers.get('content-type');
-      console.log('Content type:', contentType);
-
+      // Create blob with the correct type from the response
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
+
+      // Create and trigger download
+      const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.href = url;
       a.download = file.name;
@@ -122,7 +118,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       if (file.preview || file.fileUrl) {
         const imageUrl = file.preview || file.fileUrl;
         return (
-          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
             <img 
               src={imageUrl}
               alt={file.name}
@@ -130,6 +126,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
               onError={(e) => {
                 console.error('Image load error:', e);
                 e.currentTarget.src = ''; // Clear the source on error
+                e.currentTarget.classList.add('bg-gray-100');
               }}
             />
           </div>
@@ -153,10 +150,20 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       ? file.fileUrl 
       : file.fileUrl ? `${window.location.origin}${file.fileUrl}` : null;
 
+    if (!absoluteUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+          <FileText className="w-16 h-16 text-gray-400 mb-4" />
+          <p className="text-lg font-medium text-gray-900">Preview not available</p>
+        </div>
+      );
+    }
+
     console.log('Preview URL:', absoluteUrl);
     console.log('File type:', file.type);
 
-    if (file.type === 'application/pdf' && absoluteUrl) {
+    // For PDFs, use object tag with fallback
+    if (file.type === 'application/pdf') {
       return (
         <object
           data={absoluteUrl}
@@ -170,13 +177,13 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       );
     }
 
-    // For non-previewable files, show a download prompt
+    // For other document types, show download prompt
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
         <FileText className="w-16 h-16 text-blue-400 mb-4" />
         <p className="text-lg font-medium text-gray-900">{file.name}</p>
         <p className="text-sm text-gray-500 mt-2">
-          {file.size ? `${Math.round(file.size / 1024)} KB` : ''}
+          {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
         </p>
         <Button 
           variant="outline"

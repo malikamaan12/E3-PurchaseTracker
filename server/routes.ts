@@ -1,9 +1,11 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "@db";
 import path from "path";
-import { setupAuth } from "./auth";
 import { upload } from "./utils/upload";
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
+import { db } from "@db";
+import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import {
   getNotifications,
@@ -33,7 +35,6 @@ import {
   type InsertVendor
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
-import express from 'express';
 import bcrypt from 'bcrypt';
 
 // Error Classes
@@ -63,13 +64,50 @@ class ValidationError extends Error {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Create uploads directory if it doesn't exist
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+
+  // Serve uploaded files with proper content types
+  app.use('/uploads', (req, res, next) => {
+    // Set cache control headers for better performance
+    res.set({
+      'Cache-Control': 'public, max-age=31536000',
+      'Access-Control-Allow-Origin': '*'
+    });
+    next();
+  }, express.static(uploadsDir, {
+    // Enable proper content type detection
+    setHeaders: (res, filePath) => {
+      // Set content type based on file extension
+      const ext = path.extname(filePath).toLowerCase();
+      switch (ext) {
+        case '.pdf':
+          res.set('Content-Type', 'application/pdf');
+          break;
+        case '.png':
+          res.set('Content-Type', 'image/png');
+          break;
+        case '.jpg':
+        case '.jpeg':
+          res.set('Content-Type', 'image/jpeg');
+          break;
+        case '.gif':
+          res.set('Content-Type', 'image/gif');
+          break;
+        case '.doc':
+          res.set('Content-Type', 'application/msword');
+          break;
+        case '.docx':
+          res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+          break;
+      }
+    }
+  }));
+
   // Put this at the very beginning of the routes file, before other routes
   app.get("/api/health", (_req, res) => {
     res.json({ status: 'ok' });
   });
-
-  // Setup static files serving first
-  app.use('/uploads', express.static('uploads'));
 
   // Initialize auth second
   setupAuth(app);
