@@ -8,6 +8,7 @@ import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import { conversionService } from "./services/ConversionService";
+import { logAuditEvent } from "./utils/audit-logger";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -33,7 +34,8 @@ import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_TYPES,
   insertVendorSchema,
-  type InsertVendor
+  type InsertVendor,
+  type AuditAction
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
@@ -2198,6 +2200,49 @@ export function registerRoutes(app: Express): Server {
       message: 'Internal server error',
       error: err.message
     });
+  });
+
+  // Add PDF audit endpoint inside registerRoutes
+  app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { action, requestId } = req.body;
+
+      if (!action || !requestId) {
+        throw new ValidationError('Invalid input', {
+          action: !action ? ['Action is required'] : [],
+          requestId: !requestId ? ['Request ID is required'] : []
+        });
+      }
+
+      // Validate action type
+      const validActions = ['pdf_viewed', 'pdf_downloaded', 'pdf_generated'];
+      if (!validActions.includes(action)) {
+        throw new ValidationError('Invalid action', {
+          action: [`Action must be one of: ${validActions.join(', ')}`]
+        });
+      }
+
+      // Log the PDF event
+      await logAuditEvent(req, {
+        userId: req.user!.id,
+        action: action as AuditAction,
+        resourceId: requestId,
+        resourceType: 'purchase_request',
+        details: {
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      debug(req, `PDF audit logged: ${action} for request ${requestId}`);
+      res.json({ success: true });
+    } catch (error) {
+      debug(req, 'Error logging PDF audit:', error);
+      next(error);
+    }
   });
 
   const httpServer = createServer(app);

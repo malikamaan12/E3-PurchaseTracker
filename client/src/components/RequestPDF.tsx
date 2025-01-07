@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RequestPDFProps {
   request: any; // Replace with proper type from your schema
@@ -10,6 +11,49 @@ interface RequestPDFProps {
 }
 
 export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
+  const { toast } = useToast();
+
+  // Function to log PDF events
+  const logPDFEvent = async (action: 'pdf_viewed' | 'pdf_downloaded' | 'pdf_generated') => {
+    try {
+      const response = await fetch('/api/pdf/audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          requestId: request.id
+        }),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to log PDF event');
+      }
+    } catch (error) {
+      console.error('Error logging PDF event:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to log PDF operation"
+      });
+    }
+  };
+
+  // Log view event when PDF is opened
+  React.useEffect(() => {
+    if (isOpen) {
+      logPDFEvent('pdf_viewed');
+    }
+  }, [isOpen]);
+
+  // Handle PDF download
+  const handleDownload = async () => {
+    await logPDFEvent('pdf_downloaded');
+    window.print();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[210mm] p-0">
@@ -93,7 +137,7 @@ export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
           <div className="pdf-footer">
             <div className="flex justify-between items-center">
               <p className="text-sm font-medium text-gray-600">ALL RIGHTS RESERVED BY E3</p>
-              <Button onClick={() => window.print()} className="no-print" variant="secondary" size="sm">
+              <Button onClick={handleDownload} className="no-print" variant="secondary" size="sm">
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </Button>
