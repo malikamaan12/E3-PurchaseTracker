@@ -33,7 +33,8 @@ import {
   NOTIFICATION_TYPES,
   insertVendorSchema,
   type InsertVendor,
-  type AuditAction
+  type AuditAction,
+  insertSubPurposeSchema
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
@@ -1969,7 +1970,6 @@ export function registerRoutes(app: Express): Server {
   // Remove Redundant Branding Routes
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
-
   // Update the GET /api/requests/:id endpoint
   app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -2320,10 +2320,10 @@ export function registerRoutes(app: Express): Server {
         });
 
         debug(req, `Request ${requestId} deleted successfully`);
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: 'Request deleted successfully',
-          requestId: requestId 
+          requestId: requestId
         });
       } catch (error) {
         debug(req, 'Error during deletion transaction:', error);
@@ -2331,6 +2331,117 @@ export function registerRoutes(app: Express): Server {
       }
     } catch (error) {
       debug(req, 'Error in delete request endpoint:', error);
+      next(error);
+    }
+  });
+
+  // Add these routes after the existing sub-purposes routes
+
+  // Update sub-purpose endpoint
+  app.put("/api/admin/sub-purposes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const subPurposeId = parseInt(req.params.id);
+      if (isNaN(subPurposeId)) {
+        throw new ValidationError('Invalid sub-purpose ID', {
+          id: 'Must be a number'
+        });
+      }
+
+      debug(req, 'Updating sub-purpose:', { id: subPurposeId, data: req.body });
+
+      // Validate the input data
+      const validationResult = insertSubPurposeSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid input data', validationResult.error.format());
+      }
+
+      // Verify the sub-purpose exists
+      const [existingSubPurpose] = await db
+        .select()
+        .from(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId))
+        .limit(1);
+
+      if (!existingSubPurpose) {
+        throw new AppError('Sub-purpose not found', 404);
+      }
+
+      // Type-safe update data
+      const updateData = {
+        name: validationResult.data.name,
+        purpose_type: validationResult.data.purpose_type,
+        is_frozen: validationResult.data.is_frozen,
+        valid_from: validationResult.data.valid_from,
+        valid_to: validationResult.data.valid_to,
+        updated_at: new Date()
+      };
+
+      // Update the sub-purpose with proper typing
+      const [updatedSubPurpose] = await db
+        .update(subPurposes)
+        .set(updateData)
+        .where(eq(subPurposes.id, subPurposeId))
+        .returning();
+
+      debug(req, 'Successfully updated sub-purpose:', updatedSubPurpose);
+      res.json(updatedSubPurpose);
+    } catch (error) {
+      debug(req, 'Error updating sub-purpose:', error);
+      next(error);
+    }
+  });
+
+  // Delete sub-purpose endpoint with proper validation
+  app.delete("/api/admin/sub-purposes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const subPurposeId = parseInt(req.params.id);
+      if (isNaN(subPurposeId)) {
+        throw new ValidationError('Invalid sub-purpose ID', {
+          id: 'Must be a number'
+        });
+      }
+
+      debug(req, 'Deleting sub-purpose:', { id: subPurposeId });
+
+      // Check for existing references in purchase requests
+      const [existingReference] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.subPurposeId, subPurposeId))
+        .limit(1);
+
+      if (existingReference) {
+        throw new AppError('Cannot delete sub-purpose: It is referenced by existing purchase requests', 400);
+      }
+
+      // Verify the sub-purpose exists
+      const [existingSubPurpose] = await db
+        .select()
+        .from(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId))
+        .limit(1);
+
+      if (!existingSubPurpose) {
+        throw new AppError('Sub-purpose not found', 404);
+      }
+
+      // Delete the sub-purpose
+      await db
+        .delete(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId));
+
+      debug(req, 'Successfully deleted sub-purpose:', subPurposeId);
+      res.status(204).end();
+    } catch (error) {
+      debug(req, 'Error deleting sub-purpose:', error);
       next(error);
     }
   });

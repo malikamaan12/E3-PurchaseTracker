@@ -61,6 +61,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Pencil, Trash2 } from "lucide-react";
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -68,6 +79,9 @@ export default function AdminPanel() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("users");
   const [isSubPurposeDialogOpen, setIsSubPurposeDialogOpen] = useState(false);
+  const [selectedSubPurpose, setSelectedSubPurpose] = useState<SubPurpose | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Fetch account requests
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
@@ -231,6 +245,72 @@ export default function AdminPanel() {
     },
   });
 
+  // Add these mutations after the createSubPurpose mutation
+  const editSubPurpose = useMutation({
+    mutationFn: async (data: SubPurpose) => {
+      const res = await fetch(`/api/admin/sub-purposes/${data.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
+      setIsEditDialogOpen(false);
+      setSelectedSubPurpose(null);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Sub-purpose updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSubPurpose = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/sub-purposes/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sub-purposes"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedSubPurpose(null);
+      toast({
+        title: "Success",
+        description: "Sub-purpose deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch sub-purposes
   const { data: subPurposes = [], isLoading: isLoadingSubPurposes } = useQuery<SubPurpose[]>({
     queryKey: ["/api/admin/sub-purposes"],
@@ -274,6 +354,38 @@ export default function AdminPanel() {
         variant: "destructive",
       });
     },
+  });
+
+  // Handle edit click
+  const handleEditClick = (subPurpose: SubPurpose) => {
+    setSelectedSubPurpose(subPurpose);
+    form.reset({
+      name: subPurpose.name,
+      purpose_type: subPurpose.purpose_type,
+      valid_from: subPurpose.valid_from ? new Date(subPurpose.valid_from).toISOString().slice(0, 16) : undefined,
+      valid_to: subPurpose.valid_to ? new Date(subPurpose.valid_to).toISOString().slice(0, 16) : undefined,
+      is_frozen: subPurpose.is_frozen,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle delete click
+  const handleDeleteClick = (subPurpose: SubPurpose) => {
+    setSelectedSubPurpose(subPurpose);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Handle edit submit
+  const handleEditSubmit = form.handleSubmit((data) => {
+    if (!selectedSubPurpose) return;
+
+    const formattedData = {
+      ...data,
+      id: selectedSubPurpose.id,
+      valid_from: data.valid_from ? new Date(data.valid_from).toISOString() : null,
+      valid_to: data.valid_to ? new Date(data.valid_to).toISOString() : null,
+    };
+    editSubPurpose.mutate(formattedData as SubPurpose);
   });
 
   return (
@@ -509,24 +621,42 @@ export default function AdminPanel() {
                             : "N/A"}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              toggleSubPurposeFreeze.mutate({
-                                id: subPurpose.id,
-                                isFrozen: !subPurpose.is_frozen,
-                              })
-                            }
-                            className={cn(
-                              "flex items-center",
-                              subPurpose.is_frozen
-                                ? "text-green-500 hover:text-green-700"
-                                : "text-red-500 hover:text-red-700"
-                            )}
-                          >
-                            {subPurpose.is_frozen ? "Unfreeze" : "Freeze"}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                toggleSubPurposeFreeze.mutate({
+                                  id: subPurpose.id,
+                                  isFrozen: !subPurpose.is_frozen,
+                                })
+                              }
+                              className={cn(
+                                "flex items-center",
+                                subPurpose.is_frozen
+                                  ? "text-green-500 hover:text-green-700"
+                                  : "text-red-500 hover:text-red-700"
+                              )}
+                            >
+                              {subPurpose.is_frozen ? "Unfreeze" : "Freeze"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditClick(subPurpose)}
+                              className="text-blue-500 hover:text-blue-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(subPurpose)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -598,10 +728,6 @@ export default function AdminPanel() {
                                 type="datetime-local"
                                 {...field}
                                 value={field.value ?? ''}
-                                onChange={(e) => {
-                                  const date = e.target.value;
-                                  field.onChange(date);
-                                }}
                               />
                             </FormControl>
                             <FormDescription>
@@ -623,10 +749,6 @@ export default function AdminPanel() {
                                 type="datetime-local"
                                 {...field}
                                 value={field.value ?? ''}
-                                onChange={(e) => {
-                                  const date = e.target.value;
-                                  field.onChange(date);
-                                }}
                               />
                             </FormControl>
                             <FormDescription>
@@ -656,6 +778,144 @@ export default function AdminPanel() {
                   </Form>
                 </DialogContent>
               </Dialog>
+              {/* Add Edit Dialog */}
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Sub-purpose</DialogTitle>
+                    <DialogDescription>
+                      Modify the sub-purpose details
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <Form {...form}>
+                    <form onSubmit={handleEditSubmit} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter sub-purpose name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="purpose_type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Purpose Type</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select purpose type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="E3 EVENT">E3 EVENT</SelectItem>
+                                <SelectItem value="PROJECT">PROJECT</SelectItem>
+                                <SelectItem value="MALL">MALL</SelectItem>
+                                <SelectItem value="BUSINESS GROWTH">BUSINESS GROWTH</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="valid_from"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valid From</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="datetime-local"
+                                {...field}
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Optional: Set when this sub-purpose becomes valid
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="valid_to"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valid To</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="datetime-local"
+                                {...field}
+                                value={field.value ?? ''}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Optional: Set when this sub-purpose expires
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditDialogOpen(false);
+                            setSelectedSubPurpose(null);
+                            form.reset();
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={editSubPurpose.isPending}>
+                          {editSubPurpose.isPending ? "Saving..." : "Save Changes"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Add Delete Confirmation Dialog */}
+              <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the sub-purpose
+                      "{selectedSubPurpose?.name}".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => selectedSubPurpose && deleteSubPurpose.mutate(selectedSubPurpose.id)}
+                      disabled={deleteSubPurpose.isPending}
+                    >
+                      {deleteSubPurpose.isPending ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </TabsContent>
