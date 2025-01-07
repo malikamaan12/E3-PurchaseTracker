@@ -18,22 +18,22 @@ function hexToRgb(hex: string): [number, number, number] {
 
 function addHeader(doc: jsPDF, request: any): number {
   const pageWidth = doc.internal.pageSize.width;
-  const headerHeight = 30; 
-  const margin = 15; 
+  const headerHeight = 35; 
+  const margin = 15;
 
   // Add company header
-  doc.setFontSize(14); 
+  doc.setFontSize(14);
   doc.setTextColor(26, 54, 93);
-  doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", pageWidth/2, 20, { align: 'center' });
+  doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", pageWidth/2, 15, { align: 'center' });
 
-  doc.setFontSize(12); 
-  doc.text("PURCHASE REQUEST", pageWidth/2, 27, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text("PURCHASE REQUEST", pageWidth/2, 22, { align: 'center' });
 
   // Add request number and date
-  doc.setFontSize(9); 
+  doc.setFontSize(9);
   doc.setTextColor(90, 90, 90);
-  doc.text(`Request No: ${request.requestNumber}`, margin, 20);
-  doc.text(`Date: ${new Date(request.createdAt).toLocaleDateString()}`, pageWidth - margin, 20, { align: 'right' });
+  doc.text(`Request No: ${request.requestNumber}`, margin, 30);
+  doc.text(`Date: ${new Date(request.createdAt).toLocaleDateString()}`, pageWidth - margin, 30, { align: 'right' });
 
   return headerHeight;
 }
@@ -55,7 +55,7 @@ function addSection(doc: jsPDF, title: string, yPos: number): number {
   doc.rect(margin, yPos, doc.internal.pageSize.width - (2 * margin), 6, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10); 
+  doc.setFontSize(10);
   doc.setTextColor(26, 54, 93);
   doc.text(title, margin + 2, yPos + 4.5);
 
@@ -70,40 +70,69 @@ export async function generateRequestPDF(request: any) {
       format: 'a4',
     });
 
-    const margin = 15; 
+    const margin = 15;
     let yPos = addHeader(doc, request);
 
-    // Basic Information Section - Combined with Purpose Info for space efficiency
-    yPos = addSection(doc, "Basic & Purpose Information", yPos);
+    // Basic Information Section
+    yPos = addSection(doc, "Basic Information", yPos);
 
     const basicInfo = [
       [
-        { content: 'Title:', styles: { fontStyle: 'bold' } },
+        { content: 'Title:', styles: { fontStyle: 'bold', cellWidth: 25 } },
         { content: request.title || 'N/A', colSpan: 3 }
       ],
       [
-        { content: 'Status:', styles: { fontStyle: 'bold' } },
-        { content: request.status?.toUpperCase() || 'N/A' },
-        { content: 'Priority:', styles: { fontStyle: 'bold' } },
+        { content: 'Status:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.status?.toUpperCase() || 'N/A', cellWidth: 35 },
+        { content: 'Priority:', styles: { fontStyle: 'bold', cellWidth: 25 } },
         { content: request.priority?.toUpperCase() || 'N/A' }
       ],
-      [
-        { content: 'Purpose Type:', styles: { fontStyle: 'bold' } },
-        { content: request.purposeType || 'N/A' },
-        { content: 'Sub-purpose:', styles: { fontStyle: 'bold' } },
-        { content: request.subPurpose?.name || 'N/A' }
-      ],
-      [
-        { content: 'Description:', styles: { fontStyle: 'bold' } },
-        { content: request.description || 'N/A', colSpan: 3 }
-      ]
     ];
 
     autoTable(doc, {
       startY: yPos,
       body: basicInfo,
       theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 1 },
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+      margin: { left: margin, right: margin }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 2;
+
+    // Description Section (separate to allow more space)
+    const description = [
+      [
+        { content: 'Description:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.description || 'N/A' }
+      ]
+    ];
+
+    autoTable(doc, {
+      startY: yPos,
+      body: description,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', minCellHeight: 10 },
+      margin: { left: margin, right: margin }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 5;
+
+    // Purpose Information Section
+    yPos = addSection(doc, "Purpose Information", yPos);
+    const purposeInfo = [
+      [
+        { content: 'Purpose Type:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.purposeType || 'N/A', cellWidth: 35 },
+        { content: 'Sub-purpose:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.subPurpose?.name || 'N/A' }
+      ]
+    ];
+
+    autoTable(doc, {
+      startY: yPos,
+      body: purposeInfo,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
       margin: { left: margin, right: margin }
     });
 
@@ -113,15 +142,15 @@ export async function generateRequestPDF(request: any) {
     yPos = addSection(doc, "Vendor Information", yPos);
     const vendorInfo = [
       [
-        { content: 'Vendor Name:', styles: { fontStyle: 'bold' } },
-        { content: request.vendor?.name || 'N/A' },
-        { content: 'Contact Person:', styles: { fontStyle: 'bold' } },
+        { content: 'Vendor Name:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.vendor?.name || 'N/A', cellWidth: 35 },
+        { content: 'Contact Person:', styles: { fontStyle: 'bold', cellWidth: 25 } },
         { content: request.vendor?.contactPerson || 'N/A' }
       ],
       [
-        { content: 'Email:', styles: { fontStyle: 'bold' } },
-        { content: request.vendor?.email || 'N/A' },
-        { content: 'Phone:', styles: { fontStyle: 'bold' } },
+        { content: 'Email:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: request.vendor?.email || 'N/A', cellWidth: 35 },
+        { content: 'Phone:', styles: { fontStyle: 'bold', cellWidth: 25 } },
         { content: request.vendor?.phone || 'N/A' }
       ]
     ];
@@ -130,7 +159,7 @@ export async function generateRequestPDF(request: any) {
       startY: yPos,
       body: vendorInfo,
       theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 1 },
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
       margin: { left: margin, right: margin }
     });
 
@@ -186,7 +215,15 @@ export async function generateRequestPDF(request: any) {
       },
       bodyStyles: {
         fontSize: 8,
-        cellPadding: 2
+        cellPadding: 2,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 15 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 25 }
       },
       margin: { left: margin, right: margin }
     });
@@ -216,7 +253,13 @@ export async function generateRequestPDF(request: any) {
         },
         bodyStyles: {
           fontSize: 8,
-          cellPadding: 2
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 20 }
         },
         margin: { left: margin, right: margin }
       });
@@ -233,26 +276,5 @@ export async function generateRequestPDF(request: any) {
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error;
-  }
-}
-
-function calculateTotalCost(request: any): number {
-  return (request.items || []).reduce(
-    (sum: number, item: any) => sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)),
-    0
-  );
-}
-
-function formatCurrency(amount: number, currency: string = 'QAR'): string {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'QAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  } catch (error) {
-    console.error('Error formatting currency:', error);
-    return `${currency} ${amount}`;
   }
 }
