@@ -64,6 +64,17 @@ export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
   const watermarkText = pdfSettings?.watermarkText;
   const watermarkOpacity = pdfSettings?.watermarkOpacity || 0.1;
 
+  // Format currency values
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: request.currency || 'USD'
+    }).format(value);
+  };
+
+  // Parse items from JSON string
+  const items = JSON.parse(request.items);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[210mm] p-0">
@@ -126,54 +137,161 @@ export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
 
             {/* Request Details */}
             <div className="pdf-section">
-              <div>
-                <p className="pdf-label">Title:</p>
-                <p className="pdf-value">{request.title}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="pdf-label">Title:</p>
+                  <p className="pdf-value">{request.title}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Status:</p>
+                  <p className="pdf-value capitalize">{request.status}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Purpose Type:</p>
+                  <p className="pdf-value">{request.purposeType}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Sub Purpose:</p>
+                  <p className="pdf-value">{request.subPurpose?.name}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Priority:</p>
+                  <p className="pdf-value capitalize">{request.priority}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Currency:</p>
+                  <p className="pdf-value">{request.currency || 'USD'}</p>
+                </div>
               </div>
               <div className="mt-4">
                 <p className="pdf-label">Description:</p>
-                <p className="pdf-value">{request.description}</p>
+                <p className="pdf-value whitespace-pre-wrap">{request.description}</p>
               </div>
-              <div className="mt-4">
-                <p className="pdf-label">Purpose Type:</p>
-                <p className="pdf-value">{request.purposeType}</p>
+            </div>
+
+            {/* Vendor Details */}
+            <div className="pdf-section">
+              <h3 className="text-lg font-semibold mb-2">Vendor Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="pdf-label">Company Name:</p>
+                  <p className="pdf-value">{request.vendor?.companyName}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Contact Person:</p>
+                  <p className="pdf-value">{request.vendor?.contactPerson}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Email:</p>
+                  <p className="pdf-value">{request.vendor?.email}</p>
+                </div>
+                <div>
+                  <p className="pdf-label">Phone:</p>
+                  <p className="pdf-value">{request.vendor?.phone}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="pdf-label">Address:</p>
+                  <p className="pdf-value">{request.vendor?.address}</p>
+                </div>
               </div>
             </div>
 
             {/* Items Table */}
             <div className="pdf-section">
-              <p className="pdf-label mb-2">Items:</p>
+              <h3 className="text-lg font-semibold mb-2">Items</h3>
               <table className="pdf-table">
                 <thead style={{ backgroundColor: `${headerColor}10` }}>
                   <tr>
-                    <th className="w-1/3">Item Name</th>
-                    <th className="w-1/3">Description</th>
-                    <th className="text-right w-20">Quantity</th>
-                    <th className="text-right w-28">Cost</th>
+                    <th>Item Name</th>
+                    <th>Description</th>
+                    <th className="text-right">Quantity</th>
+                    <th className="text-right">Unit Cost</th>
+                    <th className="text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {JSON.parse(request.items).map((item: any, index: number) => (
+                  {items.map((item: any, index: number) => (
                     <tr key={index}>
                       <td>{item.name}</td>
                       <td>{item.description}</td>
                       <td className="text-right">{item.quantity}</td>
-                      <td className="text-right">${item.estimatedCost}</td>
+                      <td className="text-right">{formatCurrency(item.estimatedCost)}</td>
+                      <td className="text-right">
+                        {formatCurrency(item.quantity * item.estimatedCost)}
+                      </td>
                     </tr>
                   ))}
                   <tr className="font-medium" style={{ backgroundColor: `${headerColor}05` }}>
-                    <td colSpan={3} className="text-right border-t">Total:</td>
-                    <td className="text-right border-t">${request.totalEstimatedCost}</td>
+                    <td colSpan={4} className="text-right border-t">Subtotal:</td>
+                    <td className="text-right border-t">
+                      {formatCurrency(request.totalEstimatedCost)}
+                    </td>
+                  </tr>
+                  {request.freightAmount > 0 && (
+                    <tr className="font-medium" style={{ backgroundColor: `${headerColor}05` }}>
+                      <td colSpan={4} className="text-right">Freight Amount:</td>
+                      <td className="text-right">{formatCurrency(request.freightAmount)}</td>
+                    </tr>
+                  )}
+                  <tr className="font-bold" style={{ backgroundColor: `${headerColor}10` }}>
+                    <td colSpan={4} className="text-right">Grand Total:</td>
+                    <td className="text-right">
+                      {formatCurrency(request.totalEstimatedCost + (request.freightAmount || 0))}
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
+            {/* Attachments */}
+            {request.attachments?.length > 0 && (
+              <div className="pdf-section">
+                <h3 className="text-lg font-semibold mb-2">Attached Documents</h3>
+                <table className="pdf-table">
+                  <thead style={{ backgroundColor: `${headerColor}10` }}>
+                    <tr>
+                      <th>File Name</th>
+                      <th>Type</th>
+                      <th className="text-right">Size</th>
+                      <th>Upload Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {request.attachments.map((attachment: any, index: number) => (
+                      <tr key={index}>
+                        <td>{attachment.fileName}</td>
+                        <td>{attachment.fileType}</td>
+                        <td className="text-right">
+                          {Math.round(attachment.fileSize / 1024)} KB
+                        </td>
+                        <td>
+                          {new Date(attachment.uploadedAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             {/* Requester Info */}
             <div className="pdf-section">
-              <p className="pdf-label">Requester:</p>
-              <p className="pdf-value">{request.requester?.username}</p>
-              <p className="text-sm text-gray-500">{request.requester?.department}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="pdf-label">Requester:</p>
+                  <p className="pdf-value">{request.requester?.username}</p>
+                  <p className="text-sm text-gray-500">{request.requester?.department}</p>
+                </div>
+                {request.approver && (
+                  <div>
+                    <p className="pdf-label">Approved By:</p>
+                    <p className="pdf-value">{request.approver.username}</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(request.approvalDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
