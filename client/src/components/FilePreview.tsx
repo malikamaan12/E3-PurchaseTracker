@@ -86,33 +86,45 @@ export function FilePreview({
         throw new Error("File URL not available");
       }
 
+      // Construct the absolute URL
       const absoluteUrl = file.fileUrl.startsWith('http') 
         ? file.fileUrl 
         : `${window.location.origin}${file.fileUrl}`;
 
       console.log('Downloading from URL:', absoluteUrl);
 
+      // Add download-specific headers based on file type
+      const headers: HeadersInit = {
+        'Accept': file.type || '*/*',
+      };
+
+      if (file.type === 'application/pdf' || file.type.includes('word')) {
+        headers['Content-Disposition'] = `attachment; filename="${file.name}"`;
+      }
+
       const response = await fetch(absoluteUrl, {
         method: 'GET',
         credentials: 'same-origin',
-        headers: {
-          'Accept': file.type || '*/*'
-        }
+        headers
       });
 
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
+      // Get the blob with the correct type
       const blob = await response.blob();
       const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
 
+      // Create a download link and trigger download
       const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.href = url;
       a.download = file.name;
       document.body.appendChild(a);
       a.click();
+
+      // Clean up
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
@@ -206,6 +218,7 @@ export function FilePreview({
       );
     }
 
+    // For other document types (Word, etc.)
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
         <FileText className="w-16 h-16 text-blue-400 mb-4" />
