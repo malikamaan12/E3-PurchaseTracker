@@ -120,6 +120,53 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
+  // Add file attachment routes
+  app.get("/api/attachments/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const attachmentId = parseInt(req.params.id);
+      if (isNaN(attachmentId)) {
+        throw new ValidationError('Invalid attachment ID', { id: 'Must be a number' });
+      }
+
+      // Get file attachment details
+      const [attachment] = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.id, attachmentId))
+        .limit(1);
+
+      if (!attachment) {
+        throw new AppError('Attachment not found', 404);
+      }
+
+      // Verify file exists
+      const filePath = path.join(process.cwd(), attachment.fileUrl.replace(/^\/uploads\//, 'uploads/'));
+
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        throw new AppError('File not found on server', 404);
+      }
+
+      // Set appropriate headers
+      res.set({
+        'Content-Type': attachment.fileType,
+        'Content-Disposition': `inline; filename="${attachment.fileName}"`,
+        'Cache-Control': 'public, max-age=31536000'
+      });
+
+      // Stream the file
+      const fileStream = fsSync.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Add file conversion endpoints
   app.get("/api/conversion/formats", async (req: Request, res: Response, next: NextFunction) => {
     try {

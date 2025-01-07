@@ -17,12 +17,12 @@ interface FilePreviewProps {
   onConvert?: (convertedFile: PreviewableFile) => void;
 }
 
-export function FilePreview({ 
-  file, 
-  showPreview = true, 
+export function FilePreview({
+  file,
+  showPreview = true,
   showConvert = true,
   onDownload,
-  onConvert 
+  onConvert
 }: FilePreviewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCarousel, setShowCarousel] = useState(false);
@@ -86,38 +86,31 @@ export function FilePreview({
         throw new Error("File URL not available");
       }
 
-      // Construct the absolute URL
-      const absoluteUrl = file.fileUrl.startsWith('http') 
-        ? file.fileUrl 
-        : `${window.location.origin}${file.fileUrl}`;
-
-      console.log('Downloading from URL:', absoluteUrl);
-
-      // Add download-specific headers based on file type
-      const headers: HeadersInit = {
-        'Accept': file.type || '*/*',
-      };
-
-      if (file.type === 'application/pdf' || file.type.includes('word')) {
-        headers['Content-Disposition'] = `attachment; filename="${file.name}"`;
+      let downloadUrl = file.fileUrl;
+      // If it's a file ID, use the attachments endpoint
+      if (file.id) {
+        downloadUrl = `/api/attachments/${file.id}`;
       }
+
+      // Construct the absolute URL
+      const absoluteUrl = downloadUrl.startsWith('http')
+        ? downloadUrl
+        : `${window.location.origin}${downloadUrl}`;
 
       const response = await fetch(absoluteUrl, {
         method: 'GET',
         credentials: 'same-origin',
-        headers
       });
 
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
-      // Get the blob with the correct type
+      // Get the blob
       const blob = await response.blob();
-      const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
 
-      // Create a download link and trigger download
-      const url = window.URL.createObjectURL(blobWithType);
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = file.name;
@@ -154,9 +147,15 @@ export function FilePreview({
       );
     }
 
-    const absoluteUrl = file.fileUrl.startsWith('http') 
-      ? file.fileUrl 
-      : `${window.location.origin}${file.fileUrl}`;
+    let previewUrl = file.fileUrl;
+    // If it's a file ID, use the attachments endpoint
+    if (file.id) {
+      previewUrl = `/api/attachments/${file.id}`;
+    }
+
+    const absoluteUrl = previewUrl.startsWith('http')
+      ? previewUrl
+      : `${window.location.origin}${previewUrl}`;
 
     if (previewError) {
       return (
@@ -226,7 +225,7 @@ export function FilePreview({
         <p className="text-sm text-gray-500 mt-2">
           {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
         </p>
-        <Button 
+        <Button
           variant="outline"
           onClick={handleDownload}
           className="mt-4"
@@ -261,7 +260,7 @@ export function FilePreview({
         const imageUrl = file.preview || file.fileUrl;
         return (
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
-            <img 
+            <img
               src={imageUrl}
               alt={file.name}
               className="w-full h-full object-cover"
@@ -278,7 +277,7 @@ export function FilePreview({
     } else if (file.type === 'application/pdf') {
       return <FileText className="w-12 h-12 text-red-400" />;
     } else if (
-      file.type === 'application/msword' || 
+      file.type === 'application/msword' ||
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ) {
       return <FileText className="w-12 h-12 text-blue-400" />;
@@ -288,7 +287,7 @@ export function FilePreview({
 
   return (
     <>
-      <div 
+      <div
         className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors cursor-pointer group"
         onClick={showPreview ? handlePreview : undefined}
       >
