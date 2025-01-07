@@ -2244,6 +2244,98 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+  // Add DELETE endpoint for purchase requests
+  app.delete("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      debug(req, 'Attempting to delete request:', requestId);
+
+      // Get the request to check permissions and existence
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Allow deletion if user is admin or the request owner
+      if (req.user!.role !== 'admin' && request.requesterId !== req.user!.id) {
+        throw new AppError('Unauthorized to delete this request', 403);
+      }
+
+      // Start deletion process
+      try {
+        // Delete associated records first
+        await db.transaction(async (tx) => {
+          // Delete approvals
+          await tx.delete(approvals)
+            .where(eq(approvals.requestId, requestId));
+
+          // Get attachments before deleting records
+          const attachments = await tx
+            .select()
+            .from(fileAttachments)
+            .where(eq(fileAttachments.requestId, requestId));
+
+          // Delete attachment records
+          await tx.delete(fileAttachments)
+            .where(eq(fileAttachments.requestId, requestId));
+
+          // Delete the request
+          await tx.delete(purchaseRequests)
+            .where(eq(purchaseRequests.id, requestId));
+
+          // After successful database deletion, delete physical files
+          for (const attachment of attachments) {
+            const filePath = path.join(process.cwd(), attachment.fileUrl.replace(/^\/uploads\//, 'uploads/'));
+            try {
+              await fs.unlink(filePath);
+            } catch (error) {
+              console.error(`Failed to delete file ${filePath}:`, error);
+              // Continue with other files even if one fails
+            }
+          }
+        });
+
+        // Log the successful deletion in audit log
+        await logAuditEvent(req, {
+          userId: req.user!.id,
+          action: 'request_deleted' as AuditAction,
+          resourceId: requestId,
+          resourceType: 'purchase_request',
+          details: {
+            requestNumber: request.requestNumber,
+            deletedAt: new Date().toISOString(),
+            deletedBy: req.user!.username
+          }
+        });
+
+        debug(req, `Request ${requestId} deleted successfully`);
+        res.json({ 
+          success: true, 
+          message: 'Request deleted successfully',
+          requestId: requestId 
+        });
+      } catch (error) {
+        debug(req, 'Error during deletion transaction:', error);
+        throw new DatabaseError('Failed to delete request and associated records');
+      }
+    } catch (error) {
+      debug(req, 'Error in delete request endpoint:', error);
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
