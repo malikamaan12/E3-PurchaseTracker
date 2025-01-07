@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { SubPurpose } from "@db/schema";
@@ -46,7 +56,11 @@ export default function SubPurposeSelect({
 }: SubPurposeSelectProps) {
   const [open, setOpen] = useState(false);
   const [newSubPurpose, setNewSubPurpose] = useState("");
+  const [editingSubPurpose, setEditingSubPurpose] = useState<SubPurpose | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SubPurpose | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -133,6 +147,70 @@ export default function SubPurposeSelect({
     },
   });
 
+  const updateSubPurpose = useMutation({
+    mutationFn: async (data: { id: number; name: string }) => {
+      const res = await fetch(`/api/admin/sub-purposes/${data.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.name }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to update sub-purpose");
+      }
+
+      return res.json() as Promise<SubPurpose>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subpurposes"] });
+      setEditDialogOpen(false);
+      setEditingSubPurpose(null);
+      toast({
+        title: "Success",
+        description: "Sub-purpose updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSubPurpose = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/sub-purposes/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to delete sub-purpose");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subpurposes"] });
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
+      toast({
+        title: "Success",
+        description: "Sub-purpose deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const selectedSubPurpose = subPurposes.find(sp => sp.id === value);
 
   useEffect(() => {
@@ -149,6 +227,31 @@ export default function SubPurposeSelect({
   const handleCreate = () => {
     if (!newSubPurpose.trim()) return;
     createSubPurpose.mutate(newSubPurpose);
+  };
+
+  const handleEdit = () => {
+    if (!editingSubPurpose || !editingSubPurpose.name.trim()) return;
+    updateSubPurpose.mutate({
+      id: editingSubPurpose.id,
+      name: editingSubPurpose.name,
+    });
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteSubPurpose.mutate(deleteTarget.id);
+  };
+
+  const handleItemClick = (subPurpose: SubPurpose, e: React.MouseEvent) => {
+    // Don't close the popover if clicking edit or delete buttons
+    if ((e.target as HTMLElement).closest('.edit-button, .delete-button')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    onChange(subPurpose.id);
+    setOpen(false);
   };
 
   return (
@@ -173,7 +276,7 @@ export default function SubPurposeSelect({
               : "Select sub-purpose..."}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0">
+        <PopoverContent className="w-[300px] p-0">
           <Command>
             <CommandInput placeholder="Search sub-purpose..." />
             <CommandEmpty>No sub-purpose found.</CommandEmpty>
@@ -181,18 +284,42 @@ export default function SubPurposeSelect({
               {activeSubPurposes.map((subPurpose) => (
                 <CommandItem
                   key={subPurpose.id}
-                  onSelect={() => {
-                    onChange(subPurpose.id);
-                    setOpen(false);
-                  }}
+                  onSelect={(currentValue) => handleItemClick(subPurpose, currentValue)}
+                  className="flex items-center justify-between"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === subPurpose.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {subPurpose.name}
+                  <div className="flex items-center">
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === subPurpose.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {subPurpose.name}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 edit-button"
+                      onClick={() => {
+                        setEditingSubPurpose(subPurpose);
+                        setEditDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 delete-button"
+                      onClick={() => {
+                        setDeleteTarget(subPurpose);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -200,6 +327,7 @@ export default function SubPurposeSelect({
         </PopoverContent>
       </Popover>
 
+      {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
           <Button 
@@ -226,6 +354,45 @@ export default function SubPurposeSelect({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Sub-purpose</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              placeholder="Enter sub-purpose name"
+              value={editingSubPurpose?.name || ""}
+              onChange={(e) => 
+                setEditingSubPurpose(prev => 
+                  prev ? { ...prev, name: e.target.value } : null
+                )
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Sub-purpose</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
