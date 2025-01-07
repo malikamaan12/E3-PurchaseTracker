@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const pdfSettingsSchema = z.object({
   headerTitle: z.string().min(1, "Header title is required"),
@@ -60,11 +61,11 @@ export function PDFCustomizationForm() {
     },
   });
 
-  const { data: currentSettings } = useQuery({
+  const { data: currentSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["/api/pdf-settings"],
   });
 
-  const { mutate: savePDFSettings, isPending } = useMutation({
+  const { mutate: savePDFSettings, isLoading } = useMutation({
     mutationFn: async (data: PDFSettings) => {
       const response = await fetch("/api/pdf-settings", {
         method: "POST",
@@ -110,11 +111,14 @@ export function PDFCustomizationForm() {
     }
   };
 
+  if (isLoadingSettings) {
+    return <div>Loading settings...</div>;
+  }
+
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>PDF Template Settings</CardTitle>
-        <CardDescription>Customize the appearance of your PDF exports</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="basic">
@@ -209,6 +213,24 @@ export function PDFCustomizationForm() {
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
+                      name="companyLogo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Logo</FormLabel>
+                          <FormControl>
+                            <ImageUpload
+                              value={field.value}
+                              onChange={(url) => field.onChange(url)}
+                              onRemove={() => field.onChange("")}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="watermarkText"
                       render={({ field }) => (
                         <FormItem>
@@ -248,16 +270,13 @@ export function PDFCustomizationForm() {
                       control={form.control}
                       name="pageNumbering"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel>Show Page Numbers</FormLabel>
-                          </div>
+                        <FormItem>
+                          <FormLabel>Show Page Numbers</FormLabel>
                           <FormControl>
                             <input
                               type="checkbox"
                               checked={field.value}
                               onChange={(e) => field.onChange(e.target.checked)}
-                              className="ml-2"
                             />
                           </FormControl>
                           <FormMessage />
@@ -278,57 +297,14 @@ export function PDFCustomizationForm() {
               <TabsContent value="preview">
                 <div className="border rounded-lg p-4">
                   <div className="aspect-[1/1.4142] bg-white shadow-lg relative">
-                    {/* Preview content will be implemented */}
-                    <div className="pdf-container">
-                      <div 
-                        className="pdf-header"
-                        style={{ 
-                          backgroundColor: `${form.watch('headerColor')}10`,
-                          borderColor: form.watch('headerColor')
-                        }}
-                      >
-                        <h1 className="text-2xl font-bold" style={{ color: form.watch('headerColor') }}>
-                          {form.watch('headerTitle')}
-                        </h1>
-                        <h2 className="text-xl mt-2">
-                          {form.watch('headerSubtitle')}
-                        </h2>
-                      </div>
-
-                      <div className="pdf-content">
-                        {form.watch('watermarkText') && (
-                          <div 
-                            className="pdf-watermark"
-                            style={{ opacity: form.watch('watermarkOpacity') }}
-                          >
-                            {form.watch('watermarkText')}
-                          </div>
-                        )}
-                        <p className="text-sm text-gray-600">Sample content will appear here...</p>
-                      </div>
-
-                      <div 
-                        className="pdf-footer"
-                        style={{ 
-                          backgroundColor: `${form.watch('footerColor')}10`,
-                          borderColor: form.watch('footerColor')
-                        }}
-                      >
-                        <p className="text-sm" style={{ color: form.watch('footerColor') }}>
-                          {form.watch('footerText')}
-                        </p>
-                        {form.watch('pageNumbering') && (
-                          <div className="text-sm text-gray-500">Page 1</div>
-                        )}
-                      </div>
-                    </div>
+                    {/* Preview content will be rendered here */}
                   </div>
                 </div>
               </TabsContent>
 
               <div className="flex justify-end mt-6">
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? "Saving..." : "Save PDF Settings"}
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save PDF Settings"}
                 </Button>
               </div>
             </form>

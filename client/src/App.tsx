@@ -12,7 +12,6 @@ import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import { NotFound } from "@/components/NotFound";
-import { PDFSettings } from "./pages/PDFSettings";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -48,7 +47,6 @@ function App() {
           <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
-          <Route path="/admin/pdf-settings" component={PDFSettings} />
         </>
       )}
 

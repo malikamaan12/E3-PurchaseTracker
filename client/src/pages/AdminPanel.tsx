@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus, BarChart, FileText } from "lucide-react";
+import { ArrowLeft, Check, X, Plus, BarChart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -400,7 +400,7 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
           <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
@@ -408,10 +408,6 @@ export default function AdminPanel() {
           <TabsTrigger value="department-analytics">
             <BarChart className="h-4 w-4 mr-2" />
             Department Analytics
-          </TabsTrigger>
-          <TabsTrigger value="pdf-settings" onClick={() => setLocation("/admin/pdf-settings")}>
-            <FileText className="h-4 w-4 mr-2" />
-            PDF Settings
           </TabsTrigger>
         </TabsList>
 
@@ -935,29 +931,6 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <DepartmentDashboard />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        {/* PDF Settings Tab */}
-        <TabsContent value="pdf-settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>PDF Settings</CardTitle>
-              <CardDescription>
-                Customize document headers, footers, and export options
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Configure PDF settings in the dedicated settings page.
-              </p>
-              <Button 
-                onClick={() => setLocation("/admin/pdf-settings")}
-                className="mt-4"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Open PDF Settings
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>
