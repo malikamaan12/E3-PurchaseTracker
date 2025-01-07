@@ -13,62 +13,65 @@ export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl p-0">
-        <div className="w-[595px] h-[842px] relative rounded-lg overflow-hidden shadow-lg bg-white"> {/* A4 dimensions in pixels */}
-          <div className="absolute top-0 left-0 right-0 p-4 bg-white border-b z-10">
-            <div className="text-center space-y-2">
-              <h1 className="text-xl font-bold text-gray-900">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
-              <h2 className="text-lg font-semibold text-gray-700">PURCHASE REQUEST</h2>
-            </div>
+        <div className="w-[595px] min-h-[842px] relative bg-white shadow-lg mx-auto"> {/* A4 size in pixels */}
+          {/* Header */}
+          <div className="py-8 px-6 text-center border-b">
+            <h1 className="text-2xl font-bold mb-2">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
+            <h2 className="text-xl font-semibold">PURCHASE REQUEST</h2>
           </div>
 
-          <div className="mt-16 h-[calc(100%-88px)] overflow-y-auto px-6 py-4"> {/* Adjusted for header and footer height */}
-            <div className="space-y-4">
+          {/* Content */}
+          <div className="px-8 py-6">
+            <div className="space-y-6">
+              {/* Top Section */}
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <p className="text-sm font-semibold mb-1">Request Number:</p>
+                  <p className="text-sm">{request.requestNumber}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold mb-1">Date:</p>
+                  <p className="text-sm">{new Date(request.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
               {/* Request Details */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <p className="font-semibold text-gray-600">Request Number:</p>
-                  <p>{request.requestNumber}</p>
+                  <p className="text-sm font-semibold mb-1">Title:</p>
+                  <p className="text-sm">{request.title}</p>
                 </div>
+
                 <div>
-                  <p className="font-semibold text-gray-600">Date:</p>
-                  <p>{new Date(request.createdAt).toLocaleDateString()}</p>
+                  <p className="text-sm font-semibold mb-1">Description:</p>
+                  <p className="text-sm">{request.description}</p>
                 </div>
-              </div>
 
-              <div>
-                <p className="font-semibold text-gray-600">Title:</p>
-                <p>{request.title}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-gray-600">Description:</p>
-                <p>{request.description}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-gray-600">Purpose Type:</p>
-                <p>{request.purposeType}</p>
+                <div>
+                  <p className="text-sm font-semibold mb-1">Purpose Type:</p>
+                  <p className="text-sm">{request.purposeType}</p>
+                </div>
               </div>
 
               {/* Items Table */}
               <div>
-                <p className="font-semibold text-gray-600 mb-2">Items:</p>
-                <table className="w-full border-collapse">
+                <p className="text-sm font-semibold mb-2">Items:</p>
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border px-3 py-2 text-left">Name</th>
-                      <th className="border px-3 py-2 text-left">Description</th>
-                      <th className="border px-3 py-2 text-right">Qty</th>
-                      <th className="border px-3 py-2 text-right">Cost</th>
+                    <tr>
+                      <th className="bg-gray-50 px-3 py-2 text-left border font-semibold">Name</th>
+                      <th className="bg-gray-50 px-3 py-2 text-left border font-semibold">Description</th>
+                      <th className="bg-gray-50 px-3 py-2 text-right border font-semibold w-20">Qty</th>
+                      <th className="bg-gray-50 px-3 py-2 text-right border font-semibold w-24">Cost</th>
                     </tr>
                   </thead>
                   <tbody>
                     {JSON.parse(request.items).map((item: any, index: number) => (
                       <tr key={index}>
-                        <td className="border px-3 py-2">{item.name}</td>
-                        <td className="border px-3 py-2">{item.description}</td>
-                        <td className="border px-3 py-2 text-right">{item.quantity}</td>
-                        <td className="border px-3 py-2 text-right">${item.estimatedCost}</td>
+                        <td className="border px-3 py-1.5">{item.name}</td>
+                        <td className="border px-3 py-1.5">{item.description}</td>
+                        <td className="border px-3 py-1.5 text-right">{item.quantity}</td>
+                        <td className="border px-3 py-1.5 text-right">${item.estimatedCost}</td>
                       </tr>
                     ))}
                     <tr>
@@ -82,20 +85,23 @@ export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
               </div>
 
               {/* Requester Information */}
-              <div>
-                <p className="font-semibold text-gray-600">Requester:</p>
-                <p>{request.requester?.username}</p>
-                <p className="text-gray-500">{request.requester?.department}</p>
+              <div className="pt-4">
+                <p className="text-sm font-semibold mb-1">Requester:</p>
+                <p className="text-sm">{request.requester?.username}</p>
+                <p className="text-sm text-gray-500">{request.requester?.department}</p>
               </div>
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t z-10 flex justify-between items-center">
-            <p className="text-gray-600">ALL RIGHTS RESERVED BY E3</p>
-            <Button onClick={() => window.print()} className="no-print" variant="secondary" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
+          {/* Footer */}
+          <div className="absolute bottom-0 left-0 right-0 py-4 px-8 border-t bg-white">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">ALL RIGHTS RESERVED BY E3</p>
+              <Button onClick={() => window.print()} className="no-print" variant="secondary" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
