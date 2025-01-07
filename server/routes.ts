@@ -27,8 +27,6 @@ import {
   insertPurchaseRequestSchema,
   insertAccountRequestSchema,
   insertErrorLogSchema,
-  companyBranding,
-  insertCompanyBrandingSchema,
   notificationPreferences,
   insertNotificationPreferenceSchema,
   NOTIFICATION_CATEGORIES,
@@ -39,7 +37,7 @@ import {
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
-import fs from 'fs/promises'; // Import fs/promises for asynchronous file operations
+import fs from 'fs/promises';
 import fsSync from 'fs';
 
 
@@ -1684,112 +1682,112 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get company branding settings
-  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated()) {
+  //       throw new AppError('Not authenticated', 401);
+  //     }
 
-      // Only admins can access branding settings
-      if (req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
+  //     // Only admins can access branding settings
+  //     if (req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
 
-      const [settings] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.updatedAt))
-        .limit(1);
+  //     const [settings] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.updatedAt))
+  //       .limit(1);
 
-      res.json(settings || null);
-    } catch (error) {
-      next(error);
-    }
-  });
+  //     res.json(settings || null);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // });
 
   // Add POST endpoint for updating branding with enhanced file handling
-  app.post("/api/branding", upload.fields([
-    { name: 'logo', maxCount: 1 },
-    { name: 'headerImage', maxCount: 1 },
-    { name: 'footerImage', maxCount: 1 }
-  ]), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
+  // app.post("/api/branding", upload.fields([
+  //   { name: 'logo', maxCount: 1 },
+  //   { name: 'headerImage', maxCount: 1 },
+  //   { name: 'footerImage', maxCount: 1 }
+  // ]), async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
 
-      const formData = req.body;
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  //     const formData = req.body;
+  //     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      // Process uploaded files
-      const processFile = (fieldName: string) => {
-        const file = files[fieldName]?.[0];
-        if (!file) return null;
-        return file.buffer.toString('base64');
-      };
+  //     // Process uploaded files
+  //     const processFile = (fieldName: string) => {
+  //       const file = files[fieldName]?.[0];
+  //       if (!file) return null;
+  //       return file.buffer.toString('base64');
+  //     };
 
-      // Parse JSON strings back to objects
-      if (typeof formData.headerConfig === 'string') {
-        formData.headerConfig = JSON.parse(formData.headerConfig);
-      }
-      if (typeof formData.footerConfig === 'string') {
-        formData.footerConfig = JSON.parse(formData.footerConfig);
-      }
+  //     // Parse JSON strings back to objects
+  //     if (typeof formData.headerConfig === 'string') {
+  //       formData.headerConfig = JSON.parse(formData.headerConfig);
+  //     }
+  //     if (typeof formData.footerConfig === 'string') {
+  //       formData.footerConfig = JSON.parse(formData.footerConfig);
+  //     }
 
-      // Add file data to form data
-      const logo = processFile('logo');
-      const headerImage = processFile('headerImage');
-      const footerImage = processFile('footerImage');
+  //     // Add file data to form data
+  //     const logo = processFile('logo');
+  //     const headerImage = processFile('headerImage');
+  //     const footerImage = processFile('footerImage');
 
-      const brandingData = {
-        companyName: formData.companyName,
-        description: formData.description,
-        primaryColor: formData.primaryColor,
-        secondaryColor: formData.secondaryColor,
-        accentColor: formData.accentColor,
-        fontFamily: formData.fontFamily,
-        theme: formData.theme,
-        headerConfig: formData.headerConfig,
-        footerConfig: formData.footerConfig,
-        logo: logo || formData.logo,
-        logoMimeType: files.logo?.[0]?.mimetype || formData.logoMimeType,
-        headerImage: headerImage || formData.headerImage,
-        headerImageMimeType: files.headerImage?.[0]?.mimetype || formData.headerImageMimeType,
-        footerImage: footerImage || formData.footerImage,
-        footerImageMimeType: files.footerImage?.[0]?.mimetype || formData.footerImageMimeType,
-        updatedAt: new Date()
-      };
+  //     const brandingData = {
+  //       companyName: formData.companyName,
+  //       description: formData.description,
+  //       primaryColor: formData.primaryColor,
+  //       secondaryColor: formData.secondaryColor,
+  //       accentColor: formData.accentColor,
+  //       fontFamily: formData.fontFamily,
+  //       theme: formData.theme,
+  //       headerConfig: formData.headerConfig,
+  //       footerConfig: formData.footerConfig,
+  //       logo: logo || formData.logo,
+  //       logoMimeType: files.logo?.[0]?.mimetype || formData.logoMimeType,
+  //       headerImage: headerImage || formData.headerImage,
+  //       headerImageMimeType: files.headerImage?.[0]?.mimetype || formData.headerImageMimeType,
+  //       footerImage: footerImage || formData.footerImage,
+  //       footerImageMimeType: files.footerImage?.[0]?.mimetype || formData.footerImageMimeType,
+  //       updatedAt: new Date()
+  //     };
 
-      // Get existing branding record if any
-      const [existingBranding] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.updatedAt))
-        .limit(1);
+  //     // Get existing branding record if any
+  //     const [existingBranding] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.updatedAt))
+  //       .limit(1);
 
-      let updatedBranding;
+  //     let updatedBranding;
 
-      if (existingBranding) {
-        [updatedBranding] = await db
-          .update(companyBranding)
-          .set(brandingData)
-          .where(eq(companyBranding.id, existingBranding.id))
-          .returning();
-      } else {
-        [updatedBranding] = await db
-          .insert(companyBranding)
-          .values({
-            ...brandingData,
-            createdAt: new Date()
-          })
-          .returning();
-      }
+  //     if (existingBranding) {
+  //       [updatedBranding] = await db
+  //         .update(companyBranding)
+  //         .set(brandingData)
+  //         .where(eq(companyBranding.id, existingBranding.id))
+  //         .returning();
+  //     } else {
+  //       [updatedBranding] = await db
+  //         .insert(companyBranding)
+  //         .values({
+  //           ...brandingData,
+  //           createdAt: new Date()
+  //         })
+  //         .returning();
+  //     }
 
-      res.json(updatedBranding);
-    } catch (error) {
-      next(error);
-    }
-  });
+  //     res.json(updatedBranding);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // });
 
   // Get notifications endpoint
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
@@ -2067,110 +2065,110 @@ export function registerRoutes(app: Express): Server {
   // Removed PDF generation endpoint
 
   // Add branding endpoint
-  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated()) {
+  //       throw new AppError('Not authenticated', 401);
+  //     }
 
-      const [branding] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.updatedAt))
-        .limit(1);
+  //     const [branding] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.updatedAt))
+  //       .limit(1);
 
-      if (!branding) {
-        return res.json({
-          companyName: 'Company Name',
-          primaryColor: '#71569E',
-          secondaryColor: '#F0F0FA',
-          accentColor: '#191160',
-          footerText: 'Confidential Document',
-          logo: null,
-          logoMimeType: null,
-          headerImage: null,
-          headerImageMimeType: null,
-          footerImage: null,
-          footerImageMimeType: null
-        });
-      }
+  //     if (!branding) {
+  //       return res.json({
+  //         companyName: 'Company Name',
+  //         primaryColor: '#71569E',
+  //         secondaryColor: '#F0F0FA',
+  //         accentColor: '#191160',
+  //         footerText: 'Confidential Document',
+  //         logo: null,
+  //         logoMimeType: null,
+  //         headerImage: null,
+  //         headerImageMimeType: null,
+  //         footerImage: null,
+  //         footerImageMimeType: null
+  //       });
+  //     }
 
-      res.json(branding);
-    } catch (error) {
-      next(error);
-    }
-  });
+  //     res.json(branding);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // });
 
   // Add branding management endpoints
-  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      debug(req, 'Fetching company branding data');
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     debug(req, 'Fetching company branding data');
 
-      const [brandingData] = await db
-        .select()
-        .from(companyBranding)
-        .orderBy(desc(companyBranding.createdAt))
-        .limit(1);
+  //     const [brandingData] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.createdAt))
+  //       .limit(1);
 
-      if (!brandingData) {
-        // Return default branding if none exists
-        return res.json({
-          companyName: "Events & Entertainment Enterprises",
-          primaryColor: "#71569E",
-          secondaryColor: "#F0F0FA",
-          accentColor: "#191160",
-          headerStyle: "modern",
-          footerText: "Designed with ❤️ by E3",
-          logo: null,
-          logoMimeType: null,
-          headerImageUrl: null,
-          headerImageMimeType: null,
-          footerImageUrl: null,
-          footerImageMimeType: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-      }
+  //     if (!brandingData) {
+  //       // Return default branding if none exists
+  //       return res.json({
+  //         companyName: "Events & Entertainment Enterprises",
+  //         primaryColor: "#71569E",
+  //         secondaryColor: "#F0F0FA",
+  //         accentColor: "#191160",
+  //         headerStyle: "modern",
+  //         footerText: "Designed with ❤️ by E3",
+  //         logo: null,
+  //         logoMimeType: null,
+  //         headerImageUrl: null,
+  //         headerImageMimeType: null,
+  //         footerImageUrl: null,
+  //         footerImageMimeType: null,
+  //         createdAt: new Date(),
+  //         updatedAt: new Date()
+  //       });
+  //     }
 
-      debug(req, 'Found branding data:', brandingData);
-      res.json(brandingData);
-    } catch (error) {
-      debug(req, 'Error fetching branding data:', error);
-      next(error);
-    }
-  });
+  //     debug(req, 'Found branding data:', brandingData);
+  //     res.json(brandingData);
+  //   } catch (error) {
+  //     debug(req, 'Error fetching branding data:', error);
+  //     next(error);
+  //   }
+  // });
 
-  app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-        throw new AppError('Admin access required', 403);
-      }
+  // app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
 
-      debug(req, 'Creating/updating company branding');
+  //     debug(req, 'Creating/updating company branding');
 
-      const validationResult = insertCompanyBrandingSchema.safeParse(req.body);
+  //     const validationResult = insertCompanyBrandingSchema.safeParse(req.body);
 
-      if (!validationResult.success) {
-        throw new ValidationError('Invalid branding data', validationResult.error.format());
-      }
+  //     if (!validationResult.success) {
+  //       throw new ValidationError('Invalid branding data', validationResult.error.format());
+  //     }
 
-      // Create new branding record
-      const [newBranding] = await db
-        .insert(companyBranding)
-        .values({
-          ...validationResult.data,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
+  //     // Create new branding record
+  //     const [newBranding] = await db
+  //       .insert(companyBranding)
+  //       .values({
+  //         ...validationResult.data,
+  //         createdAt: new Date(),
+  //         updatedAt: new Date()
+  //       })
+  //       .returning();
 
-      debug(req, 'Branding updated successfully:', newBranding.id);
-      res.status(201).json(newBranding);
-    } catch (error) {
-      debug(req, 'Error updating branding:', error);
-      next(error);
-    }
-  });
+  //     debug(req, 'Branding updated successfully:', newBranding.id);
+  //     res.status(201).json(newBranding);
+  //   } catch (error) {
+  //     debug(req, 'Error updating branding:', error);
+  //     next(error);
+  //   }
+  // });
 
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
