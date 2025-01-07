@@ -5,18 +5,29 @@ import { Eye, Loader2, FileText, Image as ImageIcon, File, Download } from "luci
 import { useToast } from "@/hooks/use-toast";
 import type { PreviewableFile } from "@/types";
 import FilePreviewCarousel from "./FilePreviewCarousel";
+import { FileConversionWizard } from "./FileConversionWizard";
+import { FileType } from "lucide-react"; // Assuming FileType is a valid icon
 
 interface FilePreviewProps {
   file: PreviewableFile;
   showPreview?: boolean;
+  showConvert?: boolean;
   onDownload?: () => void;
+  onConvert?: (convertedFile: PreviewableFile) => void;
 }
 
-export function FilePreview({ file, showPreview = true, onDownload }: FilePreviewProps) {
+export function FilePreview({ 
+  file, 
+  showPreview = true, 
+  showConvert = true,
+  onDownload,
+  onConvert 
+}: FilePreviewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCarousel, setShowCarousel] = useState(false);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showConvertWizard, setShowConvertWizard] = useState(false);
 
   const handlePreview = async () => {
     try {
@@ -26,13 +37,11 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         throw new Error("No preview available for this file");
       }
 
-      // For images, show carousel immediately
       if (file.type.startsWith('image/')) {
         setShowCarousel(true);
         return;
       }
 
-      // For PDFs and other documents
       setIsOpen(true);
     } catch (err: any) {
       console.error("Preview error:", err);
@@ -58,7 +67,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         throw new Error("File URL not available");
       }
 
-      // Ensure the URL is absolute
       const absoluteUrl = file.fileUrl.startsWith('http') 
         ? file.fileUrl 
         : `${window.location.origin}${file.fileUrl}`;
@@ -67,7 +75,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
 
       const response = await fetch(absoluteUrl, {
         method: 'GET',
-        credentials: 'same-origin', // Include cookies if needed
+        credentials: 'same-origin', 
         headers: {
           'Accept': '*/*'
         }
@@ -77,11 +85,9 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
-      // Create blob with the correct type from the response
       const blob = await response.blob();
       const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
 
-      // Create and trigger download
       const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.href = url;
@@ -111,6 +117,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
   const handleClose = () => {
     setIsOpen(false);
     setShowCarousel(false);
+    setShowConvertWizard(false); // Added to close the conversion wizard
   };
 
   const getFileIcon = () => {
@@ -125,7 +132,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
               className="w-full h-full object-cover"
               onError={(e) => {
                 console.error('Image load error:', e);
-                e.currentTarget.src = ''; // Clear the source on error
+                e.currentTarget.src = ''; 
                 e.currentTarget.classList.add('bg-gray-100');
               }}
             />
@@ -145,7 +152,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
   };
 
   const renderPreview = () => {
-    // Ensure we have an absolute URL for the file
     const absoluteUrl = file.fileUrl?.startsWith('http') 
       ? file.fileUrl 
       : file.fileUrl ? `${window.location.origin}${file.fileUrl}` : null;
@@ -162,7 +168,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
     console.log('Preview URL:', absoluteUrl);
     console.log('File type:', file.type);
 
-    // For PDFs, use object tag with fallback
     if (file.type === 'application/pdf') {
       return (
         <object
@@ -177,7 +182,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       );
     }
 
-    // For other document types, show download prompt
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
         <FileText className="w-16 h-16 text-blue-400 mb-4" />
@@ -200,6 +204,12 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         </Button>
       </div>
     );
+  };
+
+  const handleConversionComplete = (convertedFile: PreviewableFile) => {
+    if (onConvert) {
+      onConvert(convertedFile);
+    }
   };
 
   return (
@@ -235,6 +245,21 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
               )}
             </Button>
           )}
+          {showConvert && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowConvertWizard(true);
+              }}
+              className="flex-shrink-0"
+              disabled={isLoading}
+            >
+              <FileType className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -251,7 +276,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         </div>
       </div>
 
-      {/* Regular file preview dialog */}
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-4xl w-[90vw]">
           <DialogHeader>
@@ -271,7 +295,6 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         </DialogContent>
       </Dialog>
 
-      {/* Image/PDF carousel preview */}
       {showCarousel && (
         <FilePreviewCarousel
           files={[{
@@ -281,6 +304,13 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
             fileUrl: file.fileUrl || file.preview || '',
           }]}
           onClose={handleClose}
+        />
+      )}
+      {showConvertWizard && (
+        <FileConversionWizard
+          file={file}
+          onClose={() => setShowConvertWizard(false)}
+          onConversionComplete={handleConversionComplete}
         />
       )}
     </>

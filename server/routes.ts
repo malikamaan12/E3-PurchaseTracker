@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from "express";
 import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
+import { conversionService } from "./services/ConversionService";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -36,6 +37,7 @@ import {
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
+import fs from 'fs/promises'; // Import fs/promises for asynchronous file operations
 
 // Error Classes
 class DatabaseError extends Error {
@@ -62,6 +64,7 @@ class ValidationError extends Error {
     this.details = details;
   }
 }
+
 
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
@@ -103,6 +106,60 @@ export function registerRoutes(app: Express): Server {
       }
     }
   }));
+
+  // Add file conversion endpoints
+  app.get("/api/conversion/formats", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { type } = req.query;
+      if (!type || typeof type !== 'string') {
+        throw new ValidationError('Invalid input', { type: ['Source type is required'] });
+      }
+
+      const formats = await conversionService.getAvailableFormats(type);
+      res.json(formats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/conversion/convert", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { sourceFormat, targetFormat, filePath } = req.body;
+
+      if (!sourceFormat || !targetFormat || !filePath) {
+        throw new ValidationError('Invalid input', {
+          details: 'Source format, target format, and file path are required'
+        });
+      }
+
+      // Get absolute path from relative URL
+      const absolutePath = path.join(process.cwd(), filePath.replace(/^\/uploads\//, 'uploads/'));
+
+      // Ensure the file exists
+      await fs.access(absolutePath);
+
+      // Perform the conversion
+      const result = await conversionService.convertFile(
+        absolutePath,
+        targetFormat,
+        sourceFormat
+      );
+
+      // Return the converted file information
+      res.json({
+        success: true,
+        fileUrl: `/uploads/converted/${path.basename(result.outputPath)}`,
+        outputType: result.outputType,
+        size: (await fs.stat(result.outputPath)).size
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ENOENT')) {
+        next(new AppError('Source file not found', 404));
+      } else {
+        next(error);
+      }
+    }
+  });
 
   // Put this at the very beginning of the routes file, before other routes
   app.get("/api/health", (_req, res) => {
