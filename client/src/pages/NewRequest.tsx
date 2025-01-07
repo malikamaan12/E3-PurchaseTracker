@@ -155,6 +155,8 @@ export default function NewRequest() {
       const maxFileSize = 10 * 1024 * 1024; // 10MB
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
+      console.log('Files to be uploaded:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+
       const invalidFiles = files.filter(file => {
         if (file.size > maxFileSize) {
           toast({
@@ -197,10 +199,16 @@ export default function NewRequest() {
         action: values.status // 'draft' or 'pending'
       };
 
+      console.log('Formatted data:', formattedData);
       formData.append('data', JSON.stringify(formattedData));
-      files.forEach(file => {
+
+      // Add files to FormData
+      files.forEach((file, index) => {
+        console.log(`Appending file ${index}:`, { name: file.name, type: file.type, size: file.size });
         formData.append('files', file);
       });
+
+      console.log('Sending request with files count:', files.length);
 
       const response = await fetch('/api/requests', {
         method: 'POST',
@@ -210,10 +218,12 @@ export default function NewRequest() {
 
       if (!response.ok) {
         const errorData = await response.text();
+        console.error('Upload error response:', errorData);
         throw new Error(errorData || "Failed to create request");
       }
 
       const result = await response.json();
+      console.log('Upload success response:', result);
 
       toast({
         title: "Success",
@@ -237,76 +247,13 @@ export default function NewRequest() {
     }
   };
 
-  const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      const newItems = items.filter((_, i) => i !== index);
-      setItems(newItems);
-    }
-  };
-
-  const updateItem = (index: number, field: string, value: string) => {
-    const newItems = [...items];
-    newItems[index] = {
-      ...newItems[index],
-      [field]: field === 'name' || field === 'description' ? value : Number(value),
-    };
-    setItems(newItems);
-  };
-
-  const handleSubmit = async (status: "draft" | "pending") => {
-    setIsSubmitting(true);
-    try {
-      form.setValue("status", status);
-      const isValid = await form.trigger();
-
-      if (!isValid) {
-        const errors = form.formState.errors;
-        let errorMessages = Object.entries(errors)
-          .map(([field, error]) => `${field}: ${error?.message}`)
-          .join('\n');
-
-        toast({
-          title: "Validation Error",
-          description: errorMessages || "Please check all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const validationErrors = await validateFormData();
-      if (validationErrors.length > 0) {
-        validationErrors.forEach(error => {
-          toast({
-            title: "Validation Error",
-            description: error,
-            variant: "destructive",
-          });
-        });
-        return;
-      }
-
-      await form.handleSubmit(onSubmit)();
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit form. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       const maxFileSize = 10 * 1024 * 1024; // 10MB
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+      console.log('Selected files:', newFiles.map(f => ({ name: f.name, type: f.type, size: f.size })));
 
       const validFiles = newFiles.filter(file => {
         if (file.size > maxFileSize) {
@@ -328,6 +275,7 @@ export default function NewRequest() {
         return true;
       });
 
+      console.log('Valid files after filtering:', validFiles.map(f => ({ name: f.name, type: f.type, size: f.size })));
       setFiles(prev => [...prev, ...validFiles]);
     }
   };
