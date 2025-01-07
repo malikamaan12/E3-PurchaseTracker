@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye, Loader2, FileText, Image as ImageIcon, File, Download } from "lucide-react";
@@ -28,159 +28,10 @@ export function FilePreview({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showConvertWizard, setShowConvertWizard] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [fallbackMode, setFallbackMode] = useState<'iframe' | 'object' | 'embed' | 'download'>('iframe');
-
-  useEffect(() => {
-    if (file.type === 'application/pdf' && file.fileUrl) {
-      // Ensure we have an absolute URL
-      const url = file.fileUrl.startsWith('http') 
-        ? file.fileUrl 
-        : `${window.location.origin}${file.fileUrl}`;
-      setPdfUrl(url);
-
-      // Validate PDF URL and structure
-      fetch('/api/files/validate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to validate PDF');
-        return res.json();
-      })
-      .then(data => {
-        if (!data.isValid) {
-          console.warn('PDF validation warnings:', data.suggestions);
-          setPreviewError(data.suggestions[0]);
-          // Try alternative preview method
-          setFallbackMode('object');
-        }
-      })
-      .catch(error => {
-        console.error('PDF validation error:', error);
-        handlePreviewError(error);
-      });
-    }
-  }, [file]);
-
-  const handlePreviewError = async (error: Error) => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('/api/files/analyze-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: error.message,
-          fileType: file.type,
-          preview: { url: pdfUrl, mode: fallbackMode }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to analyze error: ${response.statusText}`);
-      }
-
-      const { analysis } = await response.json();
-      console.error('Preview error analysis:', analysis);
-
-      // Try next fallback mode
-      const modes: ('iframe' | 'object' | 'embed' | 'download')[] = ['iframe', 'object', 'embed', 'download'];
-      const currentIndex = modes.indexOf(fallbackMode);
-      if (currentIndex < modes.length - 1) {
-        const nextMode = modes[currentIndex + 1];
-        setFallbackMode(nextMode);
-        toast({
-          title: 'Switching Preview Mode',
-          description: `Trying alternative preview method (${nextMode})...`,
-        });
-      } else {
-        setPreviewError('Unable to preview PDF. Please download or open in new tab.');
-        toast({
-          title: 'Preview Not Available',
-          description: 'The PDF cannot be previewed directly. Please try downloading or opening in a new tab.',
-          variant: 'destructive',
-        });
-      }
-    } catch (err) {
-      console.error('Error analyzing preview error:', err);
-      toast({
-        title: 'Preview Error',
-        description: 'Failed to analyze preview error. Please try downloading the file.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const renderPDFPreview = () => {
-    if (!pdfUrl) return null;
-
-    const commonProps = {
-      className: "w-full h-full border-0",
-      style: { backgroundColor: 'white' },
-      onError: (e: any) => handlePreviewError(new Error(e.message || 'PDF preview failed'))
-    };
-
-    switch (fallbackMode) {
-      case 'iframe':
-        return (
-          <iframe
-            {...commonProps}
-            src={`${pdfUrl}#view=FitH&toolbar=0&navpanes=0`}
-            title={file.name}
-            sandbox="allow-same-origin allow-scripts allow-forms"
-          />
-        );
-      case 'object':
-        return (
-          <object
-            {...commonProps}
-            data={pdfUrl}
-            type="application/pdf"
-          >
-            <p>Unable to display PDF. Try downloading instead.</p>
-          </object>
-        );
-      case 'embed':
-        return (
-          <embed
-            {...commonProps}
-            src={pdfUrl}
-            type="application/pdf"
-          />
-        );
-      case 'download':
-        return (
-          <div className="flex flex-col items-center justify-center p-8">
-            <FileText className="w-16 h-16 text-gray-400 mb-4" />
-            <p className="text-lg font-medium text-gray-900 mb-4">
-              Preview not available
-            </p>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => window.open(pdfUrl, '_blank', 'noopener,noreferrer')}
-                variant="outline"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Open in New Tab
-              </Button>
-              <Button onClick={handleDownload} variant="default">
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
-            </div>
-          </div>
-        );
-    }
-  };
 
   const handlePreview = async () => {
     try {
       setIsLoading(true);
-      setPreviewError(null);
 
       if (!file.preview && !file.fileUrl) {
         throw new Error("No preview available for this file");
@@ -220,6 +71,8 @@ export function FilePreview({
         ? file.fileUrl 
         : `${window.location.origin}${file.fileUrl}`;
 
+      console.log('Downloading from URL:', absoluteUrl);
+
       const response = await fetch(absoluteUrl, {
         method: 'GET',
         credentials: 'same-origin',
@@ -234,6 +87,7 @@ export function FilePreview({
 
       const blob = await response.blob();
       const blobWithType = new Blob([blob], { type: file.type || 'application/octet-stream' });
+
       const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.href = url;
@@ -263,7 +117,6 @@ export function FilePreview({
     setIsOpen(false);
     setShowCarousel(false);
     setShowConvertWizard(false);
-    setPreviewError(null);
   };
 
   const getFileIcon = () => {
@@ -295,6 +148,78 @@ export function FilePreview({
       return <FileText className="w-12 h-12 text-blue-400" />;
     }
     return <File className="w-12 h-12 text-gray-400" />;
+  };
+
+  const renderPreview = () => {
+    if (!file.fileUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+          <FileText className="w-16 h-16 text-gray-400 mb-4" />
+          <p className="text-lg font-medium text-gray-900">Preview not available</p>
+        </div>
+      );
+    }
+
+    const absoluteUrl = file.fileUrl.startsWith('http') 
+      ? file.fileUrl 
+      : `${window.location.origin}${file.fileUrl}`;
+
+    console.log('Preview URL:', absoluteUrl);
+    console.log('File type:', file.type);
+
+    if (file.type === 'application/pdf') {
+      return (
+        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
+          <iframe
+            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
+            className="w-full h-full border-0"
+            title={file.name}
+            onError={() => {
+              toast({
+                title: "Preview Error",
+                description: "Failed to load PDF preview. You can download the file instead.",
+                variant: "destructive",
+              });
+            }}
+          />
+          <div className="absolute bottom-4 right-4">
+            <Button onClick={handleDownload} variant="secondary">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+        <FileText className="w-16 h-16 text-blue-400 mb-4" />
+        <p className="text-lg font-medium text-gray-900">{file.name}</p>
+        <p className="text-sm text-gray-500 mt-2">
+          {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
+        </p>
+        <Button 
+          variant="outline"
+          onClick={handleDownload}
+          className="mt-4"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
+          Download Document
+        </Button>
+      </div>
+    );
+  };
+
+  const handleConversionComplete = (convertedFile: PreviewableFile) => {
+    if (onConvert) {
+      onConvert(convertedFile);
+    }
   };
 
   return (
@@ -368,59 +293,14 @@ export function FilePreview({
               {getFileIcon()}
               <div>
                 <span className="font-medium">{file.name}</span>
-                {file.size && (
-                  <span className="text-sm text-gray-500 ml-2">
-                    ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
-                )}
+                <span className="text-sm text-gray-500 ml-2">
+                  ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                </span>
               </div>
             </DialogTitle>
           </DialogHeader>
-
-          <div className="mt-6">
-            {file.type === 'application/pdf' ? (
-              <div className="w-full h-[600px] relative bg-white rounded-lg overflow-hidden shadow-lg">
-                {previewError ? (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <FileText className="w-16 h-16 text-red-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-4">{previewError}</p>
-                    <div className="flex gap-2">
-                      <Button onClick={() => window.open(pdfUrl!, '_blank', 'noopener,noreferrer')}>
-                        Open in New Tab
-                      </Button>
-                      <Button onClick={handleDownload}>
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  renderPDFPreview()
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
-                <FileText className="w-16 h-16 text-blue-400 mb-4" />
-                <p className="text-lg font-medium text-gray-900">{file.name}</p>
-                {file.size && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                )}
-                <Button 
-                  variant="outline"
-                  onClick={handleDownload}
-                  className="mt-4"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  Download Document
-                </Button>
-              </div>
-            )}
+          <div className="mt-6 relative bg-white rounded-lg overflow-hidden">
+            {renderPreview()}
           </div>
         </DialogContent>
       </Dialog>
@@ -436,12 +316,11 @@ export function FilePreview({
           onClose={handleClose}
         />
       )}
-
       {showConvertWizard && (
         <FileConversionWizard
           file={file}
           onClose={() => setShowConvertWizard(false)}
-          onConversionComplete={onConvert}
+          onConversionComplete={handleConversionComplete}
         />
       )}
     </>

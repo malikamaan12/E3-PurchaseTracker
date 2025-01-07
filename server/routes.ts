@@ -8,8 +8,11 @@ import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import { conversionService } from "./services/ConversionService";
-import { fileAnalysisService } from "./services/FileAnalysisService";
-import { getNotifications, markNotificationAsRead, createNotification } from "./utils/notifications";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  createNotification
+} from "./utils/notifications";
 import {
   users,
   notifications,
@@ -34,7 +37,7 @@ import {
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
-import fs from 'fs/promises';
+import fs from 'fs/promises'; // Import fs/promises for asynchronous file operations
 
 // Error Classes
 class DatabaseError extends Error {
@@ -62,66 +65,17 @@ class ValidationError extends Error {
   }
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+
+export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
   const uploadsDir = path.join(process.cwd(), 'uploads');
-  const convertedDir = path.join(uploadsDir, 'converted');
-
-  try {
-    await fs.mkdir(uploadsDir, { recursive: true });
-    await fs.mkdir(convertedDir, { recursive: true });
-    debug(null, 'Created upload directories successfully');
-  } catch (err) {
-    console.error('Error creating upload directories:', err);
-    throw err;
-  }
-
-  // File Analysis Endpoints
-  app.post("/api/files/validate-pdf", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { url } = req.body;
-
-      if (!url) {
-        throw new ValidationError('URL is required', { url: ['URL is required'] });
-      }
-
-      const result = await fileAnalysisService.validatePDFStructure(url);
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/files/analyze-error", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { error, fileType, preview } = req.body;
-
-      if (!error || !fileType) {
-        throw new ValidationError('Invalid input', {
-          error: !error ? ['Error details required'] : [],
-          fileType: !fileType ? ['File type required'] : []
-        });
-      }
-
-      const analysis = await fileAnalysisService.analyzeFilePreviewError(
-        new Error(error),
-        fileType,
-        preview
-      );
-
-      res.json({ analysis });
-    } catch (error) {
-      next(error);
-    }
-  });
 
   // Serve uploaded files with proper content types
   app.use('/uploads', (req, res, next) => {
     // Set cache control headers for better performance
     res.set({
       'Cache-Control': 'public, max-age=31536000',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff'
+      'Access-Control-Allow-Origin': '*'
     });
     next();
   }, express.static(uploadsDir, {
@@ -132,7 +86,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (ext) {
         case '.pdf':
           res.set('Content-Type', 'application/pdf');
-          res.set('Content-Disposition', 'inline');
           break;
         case '.png':
           res.set('Content-Type', 'image/png');
@@ -154,12 +107,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  // Health check endpoint
+  // Add file conversion endpoints
+  app.get("/api/conversion/formats", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { type } = req.query;
+      if (!type || typeof type !== 'string') {
+        throw new ValidationError('Invalid input', { type: ['Source type is required'] });
+      }
+
+      const formats = await conversionService.getAvailableFormats(type);
+      res.json(formats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/conversion/convert", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { sourceFormat, targetFormat, filePath } = req.body;
+
+      if (!sourceFormat || !targetFormat || !filePath) {
+        throw new ValidationError('Invalid input', {
+          details: 'Source format, target format, and file path are required'
+        });
+      }
+
+      // Get absolute path from relative URL
+      const absolutePath = path.join(process.cwd(), filePath.replace(/^\/uploads\//, 'uploads/'));
+
+      // Ensure the file exists
+      await fs.access(absolutePath);
+
+      // Perform the conversion
+      const result = await conversionService.convertFile(
+        absolutePath,
+        targetFormat,
+        sourceFormat
+      );
+
+      // Return the converted file information
+      res.json({
+        success: true,
+        fileUrl: `/uploads/converted/${path.basename(result.outputPath)}`,
+        outputType: result.outputType,
+        size: (await fs.stat(result.outputPath)).size
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ENOENT')) {
+        next(new AppError('Source file not found', 404));
+      } else {
+        next(error);
+      }
+    }
+  });
+
+  // Put this at the very beginning of the routes file, before other routes
   app.get("/api/health", (_req, res) => {
     res.json({ status: 'ok' });
   });
 
-  // Initialize auth
+  // Initialize auth second
   setupAuth(app);
 
   // Add notification endpoints
@@ -1989,7 +1996,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!branding) {
         return res.json({
           companyName: 'Company Name',
-          primaryColor: '#71569E', secondaryColor: '#F0F0FA',
+          primaryColor: '#71569E',
+          secondaryColor: '#F0F0FA',
           accentColor: '#191160',
           footerText: 'Confidential Document',
           logo: null,
@@ -2003,7 +2011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(branding);
     } catch (error) {
-            next(error);
+      next(error);
     }
   });
 
