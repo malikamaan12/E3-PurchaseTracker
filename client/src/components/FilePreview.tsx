@@ -7,6 +7,7 @@ import type { PreviewableFile } from "@/types";
 import FilePreviewCarousel from "./FilePreviewCarousel";
 import { FileConversionWizard } from "./FileConversionWizard";
 import { FileType } from "lucide-react";
+import { FilePreviewError } from "./FilePreviewError";
 
 interface FilePreviewProps {
   file: PreviewableFile;
@@ -29,6 +30,7 @@ export function FilePreview({
   const [isLoading, setIsLoading] = useState(false);
   const [showConvertWizard, setShowConvertWizard] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const handlePreview = async () => {
     try {
@@ -47,6 +49,7 @@ export function FilePreview({
       setIsOpen(true);
     } catch (err: any) {
       console.error("Preview error:", err);
+      setPreviewError(err.message || "Failed to generate preview");
       toast({
         title: "Preview Error",
         description: err.message || "Failed to generate preview",
@@ -55,6 +58,20 @@ export function FilePreview({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetry = async () => {
+    if (retryCount >= 3) {
+      toast({
+        title: "Too many retry attempts",
+        description: "Please try downloading the file instead",
+        variant: "destructive",
+      });
+      return;
+    }
+    setRetryCount(prev => prev + 1);
+    setPreviewError(null);
+    await handlePreview();
   };
 
   const handleDownload = async () => {
@@ -115,6 +132,110 @@ export function FilePreview({
     }
   };
 
+  const renderPreview = () => {
+    if (!file.fileUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+          <FileText className="w-16 h-16 text-gray-400 mb-4" />
+          <p className="text-lg font-medium text-gray-900">Preview not available</p>
+        </div>
+      );
+    }
+
+    const absoluteUrl = file.fileUrl.startsWith('http') 
+      ? file.fileUrl 
+      : `${window.location.origin}${file.fileUrl}`;
+
+    if (previewError) {
+      return (
+        <FilePreviewError
+          error={previewError}
+          fileType={file.type}
+          fileName={file.name}
+          onRetry={retryCount < 3 ? handleRetry : undefined}
+          onDownload={handleDownload}
+        />
+      );
+    }
+
+    if (file.type === 'application/pdf') {
+      return (
+        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
+          <iframe
+            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
+            className="w-full h-full border-0"
+            title={file.name}
+            onError={() => {
+              const error = "Failed to load PDF preview. The file might be corrupted or your browser settings might be blocking the preview.";
+              setPreviewError(error);
+              toast({
+                title: "Preview Error",
+                description: error,
+                variant: "destructive",
+              });
+            }}
+          />
+          <div className="absolute bottom-4 right-4">
+            <Button onClick={handleDownload} variant="secondary">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (file.type.startsWith('image/')) {
+      return (
+        <div className="relative">
+          <img
+            src={absoluteUrl}
+            alt={file.name}
+            className="max-w-full h-auto rounded-lg"
+            onError={() => {
+              const error = "Failed to load image preview. The image might be corrupted or in an unsupported format.";
+              setPreviewError(error);
+              toast({
+                title: "Preview Error",
+                description: error,
+                variant: "destructive",
+              });
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
+        <FileText className="w-16 h-16 text-blue-400 mb-4" />
+        <p className="text-lg font-medium text-gray-900">{file.name}</p>
+        <p className="text-sm text-gray-500 mt-2">
+          {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
+        </p>
+        <Button 
+          variant="outline"
+          onClick={handleDownload}
+          className="mt-4"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
+          Download Document
+        </Button>
+      </div>
+    );
+  };
+
+  const handleConversionComplete = (convertedFile: PreviewableFile) => {
+    if (onConvert) {
+      onConvert(convertedFile);
+    }
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     setShowCarousel(false);
@@ -150,119 +271,6 @@ export function FilePreview({
       return <FileText className="w-12 h-12 text-blue-400" />;
     }
     return <File className="w-12 h-12 text-gray-400" />;
-  };
-
-  const renderPreview = () => {
-    if (!file.fileUrl) {
-      return (
-        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
-          <FileText className="w-16 h-16 text-gray-400 mb-4" />
-          <p className="text-lg font-medium text-gray-900">Preview not available</p>
-        </div>
-      );
-    }
-
-    const absoluteUrl = file.fileUrl.startsWith('http') 
-      ? file.fileUrl 
-      : `${window.location.origin}${file.fileUrl}`;
-
-    console.log('Preview URL:', absoluteUrl);
-    console.log('File type:', file.type);
-
-    if (file.type === 'application/pdf') {
-      return (
-        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
-          <iframe
-            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
-            className="w-full h-full border-0"
-            title={file.name}
-            onError={() => {
-              setPreviewError("Failed to load PDF preview");
-              toast({
-                title: "Preview Error",
-                description: "Failed to load PDF preview. You can download the file instead.",
-                variant: "destructive",
-              });
-            }}
-          />
-          {previewError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
-              <FileText className="w-16 h-16 text-red-400 mb-4" />
-              <p className="text-lg font-medium text-gray-900 mb-4">{previewError}</p>
-              <Button onClick={handleDownload} variant="secondary">
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
-            </div>
-          )}
-          <div className="absolute bottom-4 right-4">
-            <Button onClick={handleDownload} variant="secondary">
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    if (file.type.startsWith('image/')) {
-      return (
-        <div className="relative">
-          <img
-            src={absoluteUrl}
-            alt={file.name}
-            className="max-w-full h-auto rounded-lg"
-            onError={() => {
-              setPreviewError("Failed to load image preview");
-              toast({
-                title: "Preview Error",
-                description: "Failed to load image preview. You can download the file instead.",
-                variant: "destructive",
-              });
-            }}
-          />
-          {previewError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
-              <ImageIcon className="w-16 h-16 text-red-400 mb-4" />
-              <p className="text-lg font-medium text-gray-900 mb-4">{previewError}</p>
-              <Button onClick={handleDownload} variant="secondary">
-                <Download className="w-4 h-4 mr-2" />
-                Download Image
-              </Button>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
-        <FileText className="w-16 h-16 text-blue-400 mb-4" />
-        <p className="text-lg font-medium text-gray-900">{file.name}</p>
-        <p className="text-sm text-gray-500 mt-2">
-          {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
-        </p>
-        <Button 
-          variant="outline"
-          onClick={handleDownload}
-          className="mt-4"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4 mr-2" />
-          )}
-          Download Document
-        </Button>
-      </div>
-    );
-  };
-
-  const handleConversionComplete = (convertedFile: PreviewableFile) => {
-    if (onConvert) {
-      onConvert(convertedFile);
-    }
   };
 
   return (
