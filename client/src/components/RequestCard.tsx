@@ -54,11 +54,9 @@ import RequestStatusTimeline from "./RequestStatusTimeline";
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
-import { defaultBranding } from '@/lib/pdfTemplates';
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";
-import { useCompanyBranding } from '@/hooks/use-company-branding';
 import { FilePreviewDialog } from "@/components/FilePreviewDialog";
 import {
   Tabs,
@@ -67,14 +65,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { type UploadedFile } from "@/types";
-
-type TemplateConfig = {
-  branding: typeof defaultBranding;
-  layout: 'compact' | 'bento' | 'classic';
-  showLogo: boolean;
-  headerHeight: number;
-  footerHeight: number;
-};
 
 interface PurchaseRequestWithRelations {
   id: number;
@@ -159,7 +149,6 @@ export default function RequestCard({
   const [showVendorDetails, setShowVendorDetails] = useState(false);
   const [showRequestChangesDialog, setShowRequestChangesDialog] = useState(false);
   const [changeRequestComments, setChangeRequestComments] = useState("");
-  const { data: brandingData } = useCompanyBranding();
   const [selectedPreviewFile, setSelectedPreviewFile] = useState<UploadedFile | null>(null);
 
   const getStatusColor = (status: string) => {
@@ -266,15 +255,8 @@ export default function RequestCard({
 
   const handleDownloadPDF = async () => {
     try {
-      if (!brandingData) {
-        throw new Error('Branding data not available');
-      }
-
-      // Generate PDF with properly formatted branding data
-      const doc = await generateRequestPDF(request, {
-        branding: brandingData,
-        showLogo: true
-      });
+      // Generate PDF with default formatting
+      const doc = await generateRequestPDF(request);
 
       if (!doc) {
         throw new Error('Failed to generate PDF');
