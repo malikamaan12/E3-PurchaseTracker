@@ -14,10 +14,31 @@ interface FilePreviewCarouselProps {
 export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: FilePreviewCarouselProps) {
   const [rotation, setRotation] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handleDownload = async (file: UploadedFile) => {
     try {
-      const response = await fetch(file.fileUrl);
+      // Ensure the URL is absolute
+      const absoluteUrl = file.fileUrl.startsWith('http') 
+        ? file.fileUrl 
+        : `${window.location.origin}${file.fileUrl}`;
+
+      console.log('Downloading file:', { name: file.fileName, url: absoluteUrl });
+
+      const response = await fetch(absoluteUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      console.log('File content type:', contentType);
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -29,10 +50,30 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
       document.body.removeChild(a);
     } catch (error) {
       console.error("Download failed:", error);
+      setPreviewError("Failed to download file. Please try again.");
     }
   };
 
   const renderContent = (file: UploadedFile) => {
+    if (previewError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[60vh] bg-gray-50">
+          <FileText className="w-20 h-20 text-red-400 mb-4" />
+          <p className="text-lg font-medium text-red-600">{previewError}</p>
+          <Button variant="outline" onClick={() => setPreviewError(null)} className="mt-4">
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+
+    // Ensure the URL is absolute
+    const absoluteUrl = file.fileUrl.startsWith('http') 
+      ? file.fileUrl 
+      : `${window.location.origin}${file.fileUrl}`;
+
+    console.log('Rendering preview for:', { type: file.fileType, url: absoluteUrl });
+
     if (file.fileType.startsWith('image/')) {
       return (
         <div className="transform-wrapper">
@@ -69,8 +110,12 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
                     }}
                   >
                     <img
-                      src={file.fileUrl}
+                      src={absoluteUrl}
                       alt={file.fileName}
+                      onError={(e) => {
+                        console.error('Image load error:', e);
+                        setPreviewError("Failed to load image. Please try again.");
+                      }}
                       style={{
                         maxHeight: rotation % 180 === 0 ? '60vh' : '80vh',
                         maxWidth: rotation % 180 === 0 ? '100%' : '80vh',
@@ -88,12 +133,20 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
 
     if (file.fileType === 'application/pdf') {
       return (
-        <iframe
-          src={file.fileUrl}
-          title={file.fileName}
+        <object
+          data={absoluteUrl}
+          type="application/pdf"
           className="w-full h-[60vh]"
-          style={{ border: 'none' }}
-        />
+          onError={() => setPreviewError("Failed to load PDF. Please try downloading instead.")}
+        >
+          <div className="flex flex-col items-center justify-center h-[60vh] bg-gray-50">
+            <FileText className="w-20 h-20 text-gray-400 mb-4" />
+            <p className="text-lg font-medium text-gray-900">Unable to preview PDF</p>
+            <Button variant="outline" onClick={() => handleDownload(file)} className="mt-4">
+              Download Instead
+            </Button>
+          </div>
+        </object>
       );
     }
 
@@ -121,11 +174,13 @@ export default function FilePreviewCarousel({ files, onClose, startIndex = 0 }: 
   const handlePrevious = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : files.length - 1));
     setRotation(0); // Reset rotation when changing files
+    setPreviewError(null); // Clear any previous errors
   };
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0));
     setRotation(0); // Reset rotation when changing files
+    setPreviewError(null); // Clear any previous errors
   };
 
   return (
