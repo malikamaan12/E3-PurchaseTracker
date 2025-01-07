@@ -33,9 +33,10 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       }
 
       // For PDFs and other documents
-      if (file.type === 'application/pdf' || 
-          file.type === 'application/msword' || 
-          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      if (file.type === 'application/pdf') {
+        setIsOpen(true);
+      } else {
+        // For other document types, show preview dialog with download option
         setIsOpen(true);
       }
     } catch (err: any) {
@@ -57,11 +58,21 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
     }
 
     try {
+      setIsLoading(true);
       if (!file.fileUrl) {
         throw new Error("File URL not available");
       }
 
-      const response = await fetch(file.fileUrl);
+      // Ensure the URL is absolute
+      const absoluteUrl = file.fileUrl.startsWith('http') 
+        ? file.fileUrl 
+        : `${window.location.origin}${file.fileUrl}`;
+
+      const response = await fetch(absoluteUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -84,6 +95,8 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         description: err.message || "Failed to download file",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,12 +108,17 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
   const getFileIcon = () => {
     if (file.type?.startsWith('image/')) {
       if (file.preview || file.fileUrl) {
+        const imageUrl = file.preview || file.fileUrl;
         return (
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
             <img 
-              src={file.preview || file.fileUrl} 
+              src={imageUrl}
               alt={file.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error('Image load error:', e);
+                e.currentTarget.src = ''; // Clear the source on error
+              }}
             />
           </div>
         );
@@ -118,44 +136,42 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
   };
 
   const renderPreview = () => {
-    if (file.type === 'application/pdf') {
+    // Ensure we have an absolute URL for the file
+    const absoluteUrl = file.fileUrl?.startsWith('http') 
+      ? file.fileUrl 
+      : file.fileUrl ? `${window.location.origin}${file.fileUrl}` : null;
+
+    if (file.type === 'application/pdf' && absoluteUrl) {
       return (
         <iframe
-          src={file.fileUrl}
+          src={absoluteUrl}
           title={file.name}
           className="w-full h-[70vh] border-none rounded-lg"
         />
       );
     }
 
-    if (file.type === 'application/msword' || 
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      return (
-        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
-          <FileText className="w-16 h-16 text-blue-400 mb-4" />
-          <p className="text-lg font-medium text-gray-900">{file.name}</p>
-          <p className="text-sm text-gray-500 mt-2">
-            {file.size ? `${Math.round(file.size / 1024)} KB` : ''}
-          </p>
-          <Button 
-            variant="outline"
-            onClick={handleDownload}
-            className="mt-4"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download Document
-          </Button>
-        </div>
-      );
-    }
-
+    // For non-previewable files, show a download prompt
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
-        <File className="w-16 h-16 text-gray-400 mb-4" />
+        <FileText className="w-16 h-16 text-blue-400 mb-4" />
         <p className="text-lg font-medium text-gray-900">{file.name}</p>
         <p className="text-sm text-gray-500 mt-2">
           {file.size ? `${Math.round(file.size / 1024)} KB` : ''}
         </p>
+        <Button 
+          variant="outline"
+          onClick={handleDownload}
+          className="mt-4"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
+          Download Document
+        </Button>
       </div>
     );
   };
@@ -184,6 +200,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
                 handlePreview();
               }}
               className="flex-shrink-0"
+              disabled={isLoading}
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -201,6 +218,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
               handleDownload();
             }}
             className="flex-shrink-0"
+            disabled={isLoading}
           >
             <Download className="h-4 w-4" />
           </Button>
