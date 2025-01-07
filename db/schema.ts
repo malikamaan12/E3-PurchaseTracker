@@ -522,7 +522,31 @@ export const insertVendorSchema = createInsertSchema(vendors, {
 });
 
 // Use the same schema for form validation
-export const vendorFormSchema = insertVendorSchema;
+export const vendorFormSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  email: z.string().email("Invalid email format"),
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  taxNumber: z.string().optional().nullable(),
+  registrationNumber: z.string().optional().nullable(),
+  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
+  accountNumber: z.string()
+    .min(5, "Account number must be at least 5 characters")
+    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
+  ibanNumber: z.string()
+    .min(15, "IBAN must be at least 15 characters")
+    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
+  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
+  category: z.enum(["supplier", "contractor", "service", "manufacturer"]).default("supplier"),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "GBP"]).default("QAR"),
+  rating: z.enum(["excellent", "good", "average", "poor"]).default("average"),
+  remarks: z.string().optional().nullable(),
+  status: z.enum(["active", "blocked", "frozen"]).default("active"),
+});
 
 export const insertVendorCategorySchema = createInsertSchema(vendorCategories, {
   name: z.string().min(2, "Category name must be at least 2 characters"),
