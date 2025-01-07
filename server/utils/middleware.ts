@@ -21,11 +21,11 @@ export const createStorage = (uploadDir: string) => {
 };
 
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = /jpeg|jpg|png|gif/i;
+  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/i;
 
   // Check file type
   if (!file.originalname.match(allowedTypes)) {
-    return cb(new AppError('Only image files (jpg, jpeg, png, gif) are allowed!', 400, 'warning'));
+    return cb(new AppError('Only image files (jpg, jpeg, png, gif) and documents (pdf, doc, docx) are allowed!', 400, 'warning'));
   }
 
   // Check file size before upload

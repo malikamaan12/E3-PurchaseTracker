@@ -28,10 +28,12 @@ export function FilePreview({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showConvertWizard, setShowConvertWizard] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handlePreview = async () => {
     try {
       setIsLoading(true);
+      setPreviewError(null);
 
       if (!file.preview && !file.fileUrl) {
         throw new Error("No preview available for this file");
@@ -175,6 +177,7 @@ export function FilePreview({
             className="w-full h-full border-0"
             title={file.name}
             onError={() => {
+              setPreviewError("Failed to load PDF preview");
               toast({
                 title: "Preview Error",
                 description: "Failed to load PDF preview. You can download the file instead.",
@@ -182,12 +185,52 @@ export function FilePreview({
               });
             }}
           />
+          {previewError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+              <FileText className="w-16 h-16 text-red-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-4">{previewError}</p>
+              <Button onClick={handleDownload} variant="secondary">
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
+          )}
           <div className="absolute bottom-4 right-4">
             <Button onClick={handleDownload} variant="secondary">
               <Download className="w-4 h-4 mr-2" />
               Download PDF
             </Button>
           </div>
+        </div>
+      );
+    }
+
+    if (file.type.startsWith('image/')) {
+      return (
+        <div className="relative">
+          <img
+            src={absoluteUrl}
+            alt={file.name}
+            className="max-w-full h-auto rounded-lg"
+            onError={() => {
+              setPreviewError("Failed to load image preview");
+              toast({
+                title: "Preview Error",
+                description: "Failed to load image preview. You can download the file instead.",
+                variant: "destructive",
+              });
+            }}
+          />
+          {previewError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+              <ImageIcon className="w-16 h-16 text-red-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-4">{previewError}</p>
+              <Button onClick={handleDownload} variant="secondary">
+                <Download className="w-4 h-4 mr-2" />
+                Download Image
+              </Button>
+            </div>
+          )}
         </div>
       );
     }
@@ -316,6 +359,7 @@ export function FilePreview({
           onClose={handleClose}
         />
       )}
+
       {showConvertWizard && (
         <FileConversionWizard
           file={file}
