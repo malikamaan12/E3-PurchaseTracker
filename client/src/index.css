@@ -71,70 +71,43 @@
       margin: 20mm;
     }
 
-    .request-pdf {
-      width: 210mm;
-      height: 297mm;
-      margin: 0;
-      padding: 0;
-      background: white;
-      page-break-after: always;
+    body * {
+      visibility: hidden;
     }
 
-    .request-pdf-header {
+    .DialogContent,
+    .DialogContent * {
+      visibility: visible;
+    }
+
+    .DialogContent {
       position: fixed;
+      left: 0;
       top: 0;
-      left: 0;
-      right: 0;
-      padding: 20px;
-      background: white;
-      border-bottom: 1px solid #eee;
-      text-align: center;
+      width: 100%;
+      height: 100%;
     }
 
-    .request-pdf-content {
-      margin-top: 100px;
-      margin-bottom: 60px;
-      padding: 20px;
-    }
-
-    .request-pdf-footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 20px;
-      background: white;
-      border-top: 1px solid #eee;
-      text-align: center;
-    }
-
-    /* Hide non-printable elements */
     .no-print {
       display: none !important;
     }
 
-    /* Ensure text is black for better printing */
-    body {
-      color: black;
-      background: white;
-    }
-
     /* Table styles for printing */
-    .print-table {
+    table {
       width: 100%;
       border-collapse: collapse;
-      margin: 10px 0;
+      page-break-inside: avoid;
     }
 
-    .print-table th,
-    .print-table td {
+    th, td {
       border: 1px solid #ddd;
       padding: 8px;
-      text-align: left;
     }
 
-    .print-table th {
-      background-color: #f8f8f8;
+    th {
+      background-color: #f8f8f8 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
   }
 }
