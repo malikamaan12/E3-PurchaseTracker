@@ -38,6 +38,8 @@ import {
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises'; // Import fs/promises for asynchronous file operations
+import fsSync from 'fs';
+
 
 // Error Classes
 class DatabaseError extends Error {
@@ -69,19 +71,30 @@ class ValidationError extends Error {
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
   const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fsSync.existsSync(uploadsDir)) {
+    fsSync.mkdirSync(uploadsDir, { recursive: true });
+  }
 
   // Serve uploaded files with proper content types
   app.use('/uploads', (req, res, next) => {
     // Set cache control headers for better performance
     res.set({
       'Cache-Control': 'public, max-age=31536000',
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'self'"
     });
+
+    // For PDF files, set additional headers
+    if (req.path.toLowerCase().endsWith('.pdf')) {
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline'
+      });
+    }
     next();
   }, express.static(uploadsDir, {
-    // Enable proper content type detection
     setHeaders: (res, filePath) => {
-      // Set content type based on file extension
       const ext = path.extname(filePath).toLowerCase();
       switch (ext) {
         case '.pdf':
