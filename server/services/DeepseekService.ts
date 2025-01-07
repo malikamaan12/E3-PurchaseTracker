@@ -19,11 +19,10 @@ export class DeepseekService {
   private apiKey: string;
 
   constructor() {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
+    this.apiKey = process.env.REPLIT_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY;
+    if (!this.apiKey) {
       throw new Error('DEEPSEEK_API_KEY environment variable is required');
     }
-    this.apiKey = apiKey;
   }
 
   async chat(params: ChatCompletionParams) {
