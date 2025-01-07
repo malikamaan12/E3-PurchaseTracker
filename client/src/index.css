@@ -12,6 +12,60 @@
   }
 }
 
+/* PDF Styles */
+.pdf-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: white;
+  position: relative;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-header {
+  padding: 30mm 20mm 10mm;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pdf-content {
+  padding: 10mm 20mm;
+  min-height: calc(297mm - 60mm); /* Subtract header and footer height */
+}
+
+.pdf-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10mm 20mm;
+  border-top: 1px solid #e5e7eb;
+  background: white;
+}
+
+.pdf-table-container {
+  margin: 0 -5mm; /* Compensate for table padding */
+}
+
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pdf-table th,
+.pdf-table td {
+  padding: 2mm 5mm;
+  border: 1px solid #e5e7eb;
+  font-size: 12px;
+}
+
+.pdf-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Print Styles */
 @media print {
   @page {
     size: A4;
@@ -21,65 +75,55 @@
   body {
     margin: 0;
     padding: 0;
+    background: white;
   }
 
   body * {
     visibility: hidden;
   }
 
-  .print-container,
-  .print-container * {
+  .pdf-page,
+  .pdf-page * {
     visibility: visible;
   }
 
-  .print-container {
-    position: absolute;
-    left: 0;
+  .pdf-page {
+    position: fixed;
     top: 0;
+    left: 0;
     width: 210mm;
-    min-height: 297mm;
+    height: 297mm;
     margin: 0;
     padding: 0;
-    box-shadow: none !important;
+    box-shadow: none;
   }
 
-  .print-header {
-    position: relative;
+  .pdf-header {
+    position: absolute;
     top: 0;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 24px 32px;
+    left: 0;
+    right: 0;
     background-color: white !important;
   }
 
-  .print-content {
-    padding: 24px 32px;
+  .pdf-content {
+    margin-top: 50mm;
     background-color: white !important;
+    page-break-inside: avoid;
   }
 
-  .print-footer {
+  .pdf-footer {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    border-top: 1px solid #e5e7eb;
-    padding: 16px 32px;
     background-color: white !important;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    page-break-inside: avoid;
-  }
-
-  th {
+  .pdf-table th {
     background-color: #f9fafb !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-  }
-
-  th, td {
-    border: 1px solid #e5e7eb;
   }
 
   .no-print {
@@ -92,8 +136,8 @@
   }
 }
 
+/* Existing Utility Classes */
 @layer components {
-  /* Interactive Elements */
   .interactive-hover {
     @apply transition-all duration-200 ease-in-out hover:brightness-110 active:scale-95;
   }
@@ -102,17 +146,14 @@
     @apply transition-transform hover:-translate-y-0.5 active:translate-y-0;
   }
 
-  /* Form Elements */
   .form-focus-ring {
     @apply focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 transition-shadow duration-200;
   }
 
-  /* Card Animations */
   .card-hover {
     @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
 
-  /* Loading States */
   .loading-pulse {
     @apply animate-pulse bg-muted/50;
   }
@@ -120,29 +161,40 @@
   .loading-spin {
     @apply animate-spin text-muted;
   }
+}
 
-  /* Error Animations */
-  .error-bounce-in {
-    animation: errorBounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
+/* Animation Classes */
+.error-bounce-in {
+  animation: errorBounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
 
-  .error-shake {
-    animation: errorShake 0.82s cubic-bezier(.36,.07,.19,.97) both;
-  }
+.error-shake {
+  animation: errorShake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+}
 
-  .error-fade-slide {
-    animation: errorFadeSlide 0.3s ease-out;
-  }
+.error-fade-slide {
+  animation: errorFadeSlide 0.3s ease-out;
+}
 
-  /* Success Animations */
-  .animate-success {
-    animation: successPop 0.4s ease-out;
-  }
+.animate-success {
+  animation: successPop 0.4s ease-out;
+}
 
-  /* Error States */
-  .animate-error {
-    animation: errorShake 0.4s ease-in-out;
-  }
+.animate-error {
+  animation: errorShake 0.4s ease-in-out;
+}
+
+/* Animation Keyframes */
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes successPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 @layer utilities {
@@ -233,6 +285,7 @@
     transform: scale(1);
   }
 }
+
 
 /* Error Animation */
 @keyframes errorShake {
