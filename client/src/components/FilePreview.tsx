@@ -169,23 +169,34 @@ export function FilePreview({
 
     if (file.type === 'application/pdf') {
       return (
-        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
-          <iframe
-            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
-            className="w-full h-full border-0"
-            title={file.name}
-            onError={() => {
-              toast({
-                title: "Preview Error",
-                description: "Failed to load PDF preview. You can download the file instead.",
-                variant: "destructive",
-              });
-            }}
-          />
-          <div className="absolute bottom-4 right-4">
+        <div className="w-full h-[600px] relative bg-white rounded-lg overflow-hidden shadow-lg">
+          <div className="absolute inset-0">
+            <iframe
+              src={`${absoluteUrl}#view=FitH&toolbar=0&navpanes=0`}
+              className="w-full h-full border-0"
+              title={file.name}
+              onError={(e) => {
+                console.error('PDF preview error:', e);
+                toast({
+                  title: "Preview Error",
+                  description: "Failed to load PDF preview. You can download the file instead.",
+                  variant: "destructive",
+                });
+              }}
+              style={{ backgroundColor: 'white' }}
+            />
+          </div>
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <Button 
+              onClick={() => window.open(absoluteUrl, '_blank')}
+              variant="secondary"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Open PDF
+            </Button>
             <Button onClick={handleDownload} variant="secondary">
               <Download className="w-4 h-4 mr-2" />
-              Download PDF
+              Download
             </Button>
           </div>
         </div>

@@ -75,7 +75,8 @@ export function registerRoutes(app: Express): Server {
     // Set cache control headers for better performance
     res.set({
       'Cache-Control': 'public, max-age=31536000',
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff'
     });
     next();
   }, express.static(uploadsDir, {
@@ -86,6 +87,7 @@ export function registerRoutes(app: Express): Server {
       switch (ext) {
         case '.pdf':
           res.set('Content-Type', 'application/pdf');
+          res.set('Content-Disposition', 'inline');
           break;
         case '.png':
           res.set('Content-Type', 'image/png');
