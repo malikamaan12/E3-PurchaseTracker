@@ -20,6 +20,7 @@ export class FileAnalysisService {
         throw new FileAnalysisError('Anthropic API key not configured');
       }
 
+      // Enhanced error analysis using Anthropic
       const response = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
@@ -31,7 +32,11 @@ export class FileAnalysisService {
           File Type: ${fileType}
           Preview Context: ${JSON.stringify(preview)}
 
-          Please provide a technical analysis of what might be wrong and how to fix it.`
+          Please provide:
+          1. Detailed analysis of the error cause
+          2. Technical solutions to fix the preview issue
+          3. Alternative preview methods if available
+          4. Best practices for handling this file type`
         }]
       });
 
@@ -55,6 +60,7 @@ export class FileAnalysisService {
         throw new FileAnalysisError('Anthropic API key not configured');
       }
 
+      // Enhanced PDF validation using Anthropic
       const response = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
@@ -63,12 +69,15 @@ export class FileAnalysisService {
           content: `Analyze this PDF URL and its structure:
           URL: ${pdfUrl}
 
-          Please check:
-          1. If the URL structure is correct for PDF viewing
-          2. What headers and configurations might be needed
-          3. Best practices for embedding this PDF
+          Please provide:
+          1. URL structure validation for PDF viewing
+          2. Required headers and configurations
+          3. Security considerations
+          4. Cross-browser compatibility requirements
+          5. Best practices for PDF embedding
+          6. Alternative viewing methods if needed
 
-          Provide specific technical recommendations.`
+          Format the response as specific technical recommendations.`
         }]
       });
 
@@ -78,11 +87,12 @@ export class FileAnalysisService {
         analysisText = content.text;
       }
 
+      // Parse the analysis into structured suggestions
       const lines = analysisText.split('\n').filter((line: string) => line.trim().length > 0);
 
       return {
         isValid: !analysisText.toLowerCase().includes('invalid') && !analysisText.toLowerCase().includes('error'),
-        suggestions: lines
+        suggestions: lines.map(line => line.trim())
       };
     } catch (err) {
       log('Error validating PDF structure:', err instanceof Error ? err.message : String(err));
