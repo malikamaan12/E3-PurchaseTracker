@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PreviewableFile } from "@/types";
 import FilePreviewCarousel from "./FilePreviewCarousel";
 import { FileConversionWizard } from "./FileConversionWizard";
-import { FileType } from "lucide-react"; // Assuming FileType is a valid icon
+import { FileType } from "lucide-react";
 
 interface FilePreviewProps {
   file: PreviewableFile;
@@ -75,9 +75,9 @@ export function FilePreview({
 
       const response = await fetch(absoluteUrl, {
         method: 'GET',
-        credentials: 'same-origin', 
+        credentials: 'same-origin',
         headers: {
-          'Accept': '*/*'
+          'Accept': file.type || '*/*'
         }
       });
 
@@ -100,7 +100,6 @@ export function FilePreview({
       toast({
         title: "Success",
         description: "File downloaded successfully",
-        variant: "default",
       });
     } catch (err: any) {
       console.error("Download error:", err);
@@ -117,7 +116,7 @@ export function FilePreview({
   const handleClose = () => {
     setIsOpen(false);
     setShowCarousel(false);
-    setShowConvertWizard(false); // Added to close the conversion wizard
+    setShowConvertWizard(false);
   };
 
   const getFileIcon = () => {
@@ -132,7 +131,7 @@ export function FilePreview({
               className="w-full h-full object-cover"
               onError={(e) => {
                 console.error('Image load error:', e);
-                e.currentTarget.src = ''; 
+                e.currentTarget.src = '';
                 e.currentTarget.classList.add('bg-gray-100');
               }}
             />
@@ -152,11 +151,7 @@ export function FilePreview({
   };
 
   const renderPreview = () => {
-    const absoluteUrl = file.fileUrl?.startsWith('http') 
-      ? file.fileUrl 
-      : file.fileUrl ? `${window.location.origin}${file.fileUrl}` : null;
-
-    if (!absoluteUrl) {
+    if (!file.fileUrl) {
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg">
           <FileText className="w-16 h-16 text-gray-400 mb-4" />
@@ -165,20 +160,35 @@ export function FilePreview({
       );
     }
 
+    const absoluteUrl = file.fileUrl.startsWith('http') 
+      ? file.fileUrl 
+      : `${window.location.origin}${file.fileUrl}`;
+
     console.log('Preview URL:', absoluteUrl);
     console.log('File type:', file.type);
 
     if (file.type === 'application/pdf') {
       return (
-        <object
-          data={absoluteUrl}
-          type="application/pdf"
-          width="100%"
-          height="600px"
-          className="rounded-lg"
-        >
-          <p>Unable to display PDF. <Button onClick={handleDownload}>Download Instead</Button></p>
-        </object>
+        <div className="w-full h-[600px] relative rounded-lg overflow-hidden">
+          <iframe
+            src={`${absoluteUrl}#toolbar=0&navpanes=0`}
+            className="w-full h-full border-0"
+            title={file.name}
+            onError={() => {
+              toast({
+                title: "Preview Error",
+                description: "Failed to load PDF preview. You can download the file instead.",
+                variant: "destructive",
+              });
+            }}
+          />
+          <div className="absolute bottom-4 right-4">
+            <Button onClick={handleDownload} variant="secondary">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
       );
     }
 
