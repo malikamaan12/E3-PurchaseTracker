@@ -20,6 +20,7 @@
   position: relative;
   background: white;
   overflow: hidden;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
 .a4-header {
@@ -27,15 +28,15 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 30mm;
+  height: 40mm;
   padding: 10mm 20mm;
   border-bottom: 1px solid #e5e7eb;
   background: white;
 }
 
 .a4-content {
-  margin-top: 30mm;
-  padding: 0 20mm 30mm;
+  margin-top: 40mm;
+  padding: 10mm 20mm 30mm;
   min-height: calc(297mm - 60mm); /* Subtract header and footer heights */
   background: white;
 }
@@ -45,8 +46,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 30mm;
-  padding: 10mm 20mm;
+  height: 20mm;
+  padding: 5mm 20mm;
   border-top: 1px solid #e5e7eb;
   background: white;
 }
@@ -54,6 +55,7 @@
 .a4-table-container {
   margin: 0;
   width: 100%;
+  overflow-x: auto;
 }
 
 .a4-table {

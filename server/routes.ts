@@ -1,13 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import path from "path";
-import { upload } from "./utils/upload";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import { conversionService } from "./services/ConversionService";
+import { generatePDFLayout } from "./services/anthropic-pdf";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -39,6 +38,9 @@ import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises'; // Import fs/promises for asynchronous file operations
 import fsSync from 'fs';
+import path from 'path';
+import { upload } from "./utils/upload";
+
 
 
 // Error Classes
@@ -922,7 +924,8 @@ export function registerRoutes(app: Express): Server {
   // Enhanced sub-purpose creation endpoint
   app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+      const user = (req as any).user;
+      if (!user || user.role !== 'admin') {
         throw new AppError('Admin access required', 403);
       }
 
@@ -962,7 +965,7 @@ export function registerRoutes(app: Express): Server {
         .values(requestData)
         .returning();
 
-      debug(req, 'Successfully created sub-purpose:', newSubPurpose);
+      debug(req, 'Created sub-purpose:', newSubPurpose);
       res.status(201).json(newSubPurpose);
     } catch (error) {
       debug(req, 'Error creating sub-purpose:', error);
@@ -1985,8 +1988,7 @@ export function registerRoutes(app: Express): Server {
           id: purchaseRequests.id,
           requestNumber: purchaseRequests.requestNumber,
           requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
+          title: purchaseRequests,.title,          description: purchaseRequests.description,
           status: purchaseRequests.status,
           items: purchaseRequests.items,
           totalEstimatedCost: purchaseRequests.totalEstimatedCost,
@@ -2203,3 +2205,104 @@ export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
   return httpServer;
 }
+
+// Add PDF generation endpoint inside registerRoutes function.
+//Corrected authentication check and moved the endpoint.
+
+// Add PDF generation endpoint
+//This endpoint is now correctly placed inside the registerRoutes function.
+//The authentication check is also improved.
+app.get("/api/requests/:id/pdf", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!(req as any).isAuthenticated()) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    const requestId = parseInt(req.params.id);
+    if (isNaN(requestId)) {
+      throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+    }
+
+    // Get the request with requester details
+    const [request] = await db
+      .select({
+        ...purchaseRequests,
+        requester: users
+      })
+      .from(purchaseRequests)
+      .leftJoin(users, eq(users.id, purchaseRequests.requesterId))
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    // Generate PDF layout using Anthropic
+    const pdfLayout = await generatePDFLayout(request);
+
+    debug(req, 'Generated PDF layout for request:', requestId);
+    res.json({
+      layout: pdfLayout,
+      request: {
+        ...request,
+        items: JSON.parse(request.items || '[]'),
+      }
+    });
+  } catch (error) {
+    debug(req, 'Error generating PDF layout:', error);
+    next(error);
+  }
+});
+
+// Fix the debug statement in sub-purposes endpoint
+app.post("/api/admin/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== 'admin') {
+      throw new AppError('Admin access required', 403);
+    }
+
+    debug(req, 'Creating new sub-purpose - Raw request body:', req.body);
+
+    const validPurposeTypes = ["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"];
+    const purposeType = req.body.purposeType || req.body.purpose_type;
+
+    if (!purposeType || !validPurposeTypes.includes(purposeType)) {
+      throw new ValidationError('Invalid purpose type', {
+        details: {
+          allowed: validPurposeTypes,
+          received: purposeType
+        }
+      });
+    }
+
+    // Parse and validate dates
+    const validFrom = req.body.validFrom || req.body.valid_from;
+    const validTo = req.body.validTo || req.body.valid_to;
+
+    const requestData = {
+      name: req.body.name,
+      purpose_type: purposeType,
+      is_frozen: req.body.isFrozen || req.body.is_frozen || false,
+      valid_from: validFrom ? new Date(validFrom) : null,
+      valid_to: validTo ? new Date(validTo) : null,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    debug(req, 'Transformed request data:', requestData);
+
+    // Validate the data
+    const [newSubPurpose] = await db
+      .insert(subPurposes)
+      .values(requestData)
+      .returning();
+
+    debug(req, 'Created sub-purpose:', newSubPurpose);
+    res.status(201).json(newSubPurpose);
+  } catch (error) {
+    debug(req, 'Error creating sub-purpose:', error);
+    next(error);
+  }
+});

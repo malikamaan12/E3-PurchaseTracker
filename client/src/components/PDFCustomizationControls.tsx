@@ -15,6 +15,7 @@ interface PDFCustomizationProps {
   defaultConfig?: PDFConfig;
   onConfigChange: (config: PDFConfig) => void;
   onReset: () => void;
+  onPreview?: () => void;
 }
 
 export interface PDFConfig {
@@ -62,7 +63,8 @@ const defaultPDFConfig: PDFConfig = {
 export function PDFCustomizationControls({
   defaultConfig = defaultPDFConfig,
   onConfigChange,
-  onReset
+  onReset,
+  onPreview
 }: PDFCustomizationProps) {
   const [config, setConfig] = useState<PDFConfig>(defaultConfig);
   const { toast } = useToast();
@@ -298,6 +300,11 @@ export function PDFCustomizationControls({
           <Button variant="outline" onClick={onReset}>
             Reset to Default
           </Button>
+          {onPreview && (
+            <Button variant="outline" onClick={onPreview}>
+              Preview
+            </Button>
+          )}
           <Button
             onClick={() => {
               toast({
