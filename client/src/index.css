@@ -64,6 +64,80 @@
   .animate-error {
     animation: errorShake 0.4s ease-in-out;
   }
+
+  /* Print Styles for Request PDF */
+  @media print {
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+
+    .request-pdf {
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 0;
+      background: white;
+      page-break-after: always;
+    }
+
+    .request-pdf-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: white;
+      border-bottom: 1px solid #eee;
+      text-align: center;
+    }
+
+    .request-pdf-content {
+      margin-top: 100px;
+      margin-bottom: 60px;
+      padding: 20px;
+    }
+
+    .request-pdf-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: white;
+      border-top: 1px solid #eee;
+      text-align: center;
+    }
+
+    /* Hide non-printable elements */
+    .no-print {
+      display: none !important;
+    }
+
+    /* Ensure text is black for better printing */
+    body {
+      color: black;
+      background: white;
+    }
+
+    /* Table styles for printing */
+    .print-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+
+    .print-table th,
+    .print-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .print-table th {
+      background-color: #f8f8f8;
+    }
+  }
 }
 
 @layer utilities {
