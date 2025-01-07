@@ -1,7 +1,8 @@
-import React, { createContext, useContext } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import * as React from 'react';
+import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from "lucide-react";
+import type { ToastActionElement } from "@/components/ui/toast";
 
 type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info' | 'loading';
 
@@ -11,16 +12,16 @@ interface ToastContextType {
     description: string;
     variant?: ToastVariant;
     duration?: number;
-    action?: React.ReactNode;
+    action?: ToastActionElement;
   }) => void;
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const ToastContext = React.createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
-  const showToast = ({ 
+  const showToast = React.useCallback(({ 
     title, 
     description, 
     variant = 'default',
@@ -31,7 +32,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     description: string;
     variant?: ToastVariant;
     duration?: number;
-    action?: React.ReactNode;
+    action?: ToastActionElement;
   }) => {
     const icons = {
       success: <CheckCircle2 className="h-5 w-5 text-green-500" />,
@@ -54,31 +55,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     toast({
       variant: variant === 'error' ? 'destructive' : 'default',
       title: title,
-      description: description,
-      duration: variant === 'error' ? 5000 : duration,
+      description: (
+        <div className="flex gap-2 items-start">
+          {icons[variant]}
+          <div>{description}</div>
+        </div>
+      ),
+      duration,
       className: cn(
         "border-2",
-        styles[variant],
-        {
-          'animate-in slide-in-from-top-full': true,
-        }
+        styles[variant]
       ),
-      icon: icons[variant],
       action
     });
-  };
+  }, [toast]);
+
+  const value = React.useMemo(() => ({ showToast }), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
     </ToastContext.Provider>
   );
 }
 
-export const useToastContext = () => {
-  const context = useContext(ToastContext);
+export function useToastContext() {
+  const context = React.useContext(ToastContext);
   if (context === undefined) {
     throw new Error('useToastContext must be used within a ToastProvider');
   }
   return context;
-};
+}
