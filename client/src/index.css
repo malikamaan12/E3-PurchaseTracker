@@ -12,67 +12,78 @@
   }
 }
 
-/* A4 Styles */
-.a4-container {
+/* PDF Styles */
+.pdf-container {
   width: 210mm;
-  height: 297mm;
+  min-height: 297mm;
   margin: 0 auto;
   position: relative;
   background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.a4-header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 30mm;
-  padding: 10mm 20mm;
+.pdf-header {
+  padding: 20mm 25mm 15mm;
+  text-align: center;
   border-bottom: 1px solid #e5e7eb;
   background: white;
 }
 
-.a4-content {
-  margin-top: 30mm;
-  padding: 0 20mm 30mm;
-  min-height: calc(297mm - 60mm); /* Subtract header and footer heights */
+.pdf-content {
+  padding: 0 25mm;
+  min-height: calc(297mm - 40mm); /* Subtract header height */
   background: white;
 }
 
-.a4-footer {
+.pdf-footer {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 30mm;
-  padding: 10mm 20mm;
+  padding: 10mm 25mm;
   border-top: 1px solid #e5e7eb;
   background: white;
 }
 
-.a4-table-container {
-  margin: 0;
-  width: 100%;
+.pdf-section {
+  margin-bottom: 6mm;
 }
 
-.a4-table {
+.pdf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6mm;
+}
+
+.pdf-label {
+  @apply text-sm font-medium text-gray-600;
+  margin-bottom: 1mm;
+}
+
+.pdf-value {
+  @apply text-sm text-gray-900;
+}
+
+.pdf-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  margin-top: 2mm;
 }
 
-.a4-table th {
+.pdf-table th {
   background-color: #f9fafb;
   font-weight: 600;
   text-align: left;
-  padding: 2mm 3mm;
+  padding: 2.5mm;
   border: 1px solid #e5e7eb;
+  font-size: 11px;
 }
 
-.a4-table td {
-  padding: 2mm 3mm;
+.pdf-table td {
+  padding: 2.5mm;
   border: 1px solid #e5e7eb;
+  font-size: 11px;
   vertical-align: top;
 }
 
@@ -92,33 +103,49 @@
     visibility: hidden;
   }
 
-  .a4-container,
-  .a4-container * {
+  .pdf-container,
+  .pdf-container * {
     visibility: visible;
   }
 
-  .a4-container {
+  .pdf-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 210mm;
-    height: 297mm;
+    min-height: 297mm;
     margin: 0;
     padding: 0;
     box-shadow: none;
-    page-break-after: always;
-    background: white !important;
-  }
-
-  .a4-header,
-  .a4-content,
-  .a4-footer {
-    background: white !important;
-    -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
-  .a4-table th {
+  .pdf-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background-color: white !important;
+  }
+
+  .pdf-content {
+    margin-top: 40mm;
+    padding-bottom: 30mm;
+    background-color: white !important;
+  }
+
+  .pdf-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background-color: white !important;
+  }
+
+  .pdf-table th {
     background-color: #f9fafb !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -126,6 +153,12 @@
 
   .no-print {
     display: none !important;
+  }
+
+  /* Force background colors in print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 
