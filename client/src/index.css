@@ -12,6 +12,86 @@
   }
 }
 
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-container,
+  .print-container * {
+    visibility: visible;
+  }
+
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+  }
+
+  .print-header {
+    position: relative;
+    top: 0;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 24px 32px;
+    background-color: white !important;
+  }
+
+  .print-content {
+    padding: 24px 32px;
+    background-color: white !important;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #e5e7eb;
+    padding: 16px 32px;
+    background-color: white !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: avoid;
+  }
+
+  th {
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  th, td {
+    border: 1px solid #e5e7eb;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 @layer components {
   /* Interactive Elements */
   .interactive-hover {
@@ -62,53 +142,6 @@
   /* Error States */
   .animate-error {
     animation: errorShake 0.4s ease-in-out;
-  }
-
-  /* Print styles for Request PDF */
-  @media print {
-    @page {
-      size: A4;
-      margin: 0;
-    }
-
-    body * {
-      visibility: hidden;
-    }
-
-    .DialogContent,
-    .DialogContent * {
-      visibility: visible;
-    }
-
-    .DialogContent {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-    }
-
-    .no-print {
-      display: none !important;
-    }
-
-    /* Ensure proper table printing */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      page-break-inside: avoid;
-    }
-
-    th {
-      background-color: #f8f8f8 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    /* Force background colors in print */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
   }
 }
 
