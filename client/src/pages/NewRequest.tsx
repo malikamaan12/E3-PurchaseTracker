@@ -15,7 +15,7 @@ import type { PurchaseRequest, Vendor } from "@db/schema";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { VendorForm } from "@/components/VendorForm";
+import VendorDialog from "@/components/VendorDialog"; // Fixed import
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FilePreview } from "@/components/FilePreview";
@@ -289,35 +289,34 @@ export default function NewRequest() {
     form.setValue('additionalApprovers', departments);
   };
 
-  const handleAddVendor = async (data: any) => {
-    try {
-      const response = await fetch("/api/vendors", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...data, status: "active" }),
-        credentials: 'include'
-      });
+  const handleVendorCreated = (vendor: Vendor) => {
+    setSelectedVendor(vendor.id);
+    setIsAddVendorOpen(false);
+    toast({
+      title: "Success",
+      description: "Vendor added successfully",
+    });
+  };
 
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
+  const addItem = () => {
+    setItems([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
+  };
 
-      const newVendor = await response.json();
-      setSelectedVendor(newVendor.id);
-      setIsAddVendorOpen(false);
-      toast({
-        title: "Success",
-        description: "Vendor added successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add vendor",
-        variant: "destructive",
-      });
-    }
+  const updateItem = (index: number, key: string, value: string) => {
+    const newItems = [...items];
+    newItems[index][key] = value;
+    setItems(newItems);
+  };
+
+
+  const removeItem = (index: number) => {
+    const newItems = items.filter((_, i) => i !== index);
+    setItems(newItems);
+  };
+
+  const handleSubmit = (status: 'draft' | 'pending') => {
+    form.setValue("status", status);
+    form.handleSubmit(onSubmit)();
   };
 
   return (
@@ -818,16 +817,11 @@ export default function NewRequest() {
         </Card>
       </div>
 
-      <Dialog open={isAddVendorOpen} onOpenChange={setIsAddVendorOpen}>
-        <DialogContent className="max-w-2xl animate-scale">
-          <DialogHeader>
-            <DialogTitle className="text-[#7058a3] text-xl font-bold">
-              Add New Vendor
-            </DialogTitle>
-          </DialogHeader>
-          <VendorForm onSubmit={handleAddVendor} />
-        </DialogContent>
-      </Dialog>
+      <VendorDialog
+        isOpen={isAddVendorOpen}
+        onClose={() => setIsAddVendorOpen(false)}
+        onVendorCreated={handleVendorCreated}
+      />
       {isSubmitting && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg flex items-center gap-2">
