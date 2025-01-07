@@ -77,7 +77,7 @@
     "memorystore": "^1.6.7",
     "multer": "^1.4.5-lts.1",
     "office-to-pdf": "^4.0.0",
-    "openai": "^4.77.0",
+    "openai": "^4.77.3",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "pdf-lib": "^1.17.1",

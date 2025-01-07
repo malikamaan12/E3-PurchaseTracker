@@ -34,12 +34,14 @@ import {
   insertVendorSchema,
   type InsertVendor,
   type AuditAction,
-  insertSubPurposeSchema
+  insertSubPurposeSchema,
+  auditLogs // Add auditLogs import here
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import { deepseekService } from './services/DeepseekService'; // Added Deepseek import
 
 
 // Error Classes
@@ -1688,24 +1690,24 @@ export function registerRoutes(app: Express): Server {
   //     if (!req.isAuthenticated()) {
   //       throw new AppError('Not authenticated', 401);
   //     }
-
+  //
   //     // Only admins can access branding settings
   //     if (req.user?.role !== 'admin') {
   //       throw new AppError('Admin access required', 403);
   //     }
-
+  //
   //     const [settings] = await db
   //       .select()
   //       .from(companyBranding)
   //       .orderBy(desc(companyBranding.updatedAt))
   //       .limit(1);
-
+  //
   //     res.json(settings || null);
   //   } catch (error) {
   //     next(error);
   //   }
   // });
-
+  //
   // Add POST endpoint for updating branding with enhanced file handling
   // app.post("/api/branding", upload.fields([
   //   { name: 'logo', maxCount: 1 },
@@ -1716,17 +1718,17 @@ export function registerRoutes(app: Express): Server {
   //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
   //       throw new AppError('Admin access required', 403);
   //     }
-
+  //
   //     const formData = req.body;
   //     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
+  //
   //     // Process uploaded files
   //     const processFile = (fieldName: string) => {
   //       const file = files[fieldName]?.[0];
   //       if (!file) return null;
   //       return file.buffer.toString('base64');
   //     };
-
+  //
   //     // Parse JSON strings back to objects
   //     if (typeof formData.headerConfig === 'string') {
   //       formData.headerConfig = JSON.parse(formData.headerConfig);
@@ -1734,12 +1736,12 @@ export function registerRoutes(app: Express): Server {
   //     if (typeof formData.footerConfig === 'string') {
   //       formData.footerConfig = JSON.parse(formData.footerConfig);
   //     }
-
+  //
   //     // Add file data to form data
   //     const logo = processFile('logo');
   //     const headerImage = processFile('headerImage');
   //     const footerImage = processFile('footerImage');
-
+  //
   //     const brandingData = {
   //       companyName: formData.companyName,
   //       description: formData.description,
@@ -1758,16 +1760,16 @@ export function registerRoutes(app: Express): Server {
   //       footerImageMimeType: files.footerImage?.[0]?.mimetype || formData.footerImageMimeType,
   //       updatedAt: new Date()
   //     };
-
+  //
   //     // Get existing branding record if any
   //     const [existingBranding] = await db
   //       .select()
   //       .from(companyBranding)
   //       .orderBy(desc(companyBranding.updatedAt))
   //       .limit(1);
-
+  //
   //     let updatedBranding;
-
+  //
   //     if (existingBranding) {
   //       [updatedBranding] = await db
   //         .update(companyBranding)
@@ -1783,13 +1785,13 @@ export function registerRoutes(app: Express): Server {
   //         })
   //         .returning();
   //     }
-
+  //
   //     res.json(updatedBranding);
   //   } catch (error) {
   //     next(error);
   //   }
   // });
-
+  //
   // Get notifications endpoint
   app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -2070,13 +2072,13 @@ export function registerRoutes(app: Express): Server {
   //     if (!req.isAuthenticated()) {
   //       throw new AppError('Not authenticated', 401);
   //     }
-
+  //
   //     const [branding] = await db
   //       .select()
   //       .from(companyBranding)
   //       .orderBy(desc(companyBranding.updatedAt))
   //       .limit(1);
-
+  //
   //     if (!branding) {
   //       return res.json({
   //         companyName: 'Company Name',
@@ -2092,24 +2094,24 @@ export function registerRoutes(app: Express): Server {
   //         footerImageMimeType: null
   //       });
   //     }
-
+  //
   //     res.json(branding);
   //   } catch (error) {
   //     next(error);
   //   }
   // });
-
+  //
   // Add branding management endpoints
   // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
   //   try {
   //     debug(req, 'Fetching company branding data');
-
+  //
   //     const [brandingData] = await db
   //       .select()
   //       .from(companyBranding)
   //       .orderBy(desc(companyBranding.createdAt))
   //       .limit(1);
-
+  //
   //     if (!brandingData) {
   //       // Return default branding if none exists
   //       return res.json({
@@ -2129,7 +2131,7 @@ export function registerRoutes(app: Express): Server {
   //         updatedAt: new Date()
   //       });
   //     }
-
+  //
   //     debug(req, 'Found branding data:', brandingData);
   //     res.json(brandingData);
   //   } catch (error) {
@@ -2137,21 +2139,21 @@ export function registerRoutes(app: Express): Server {
   //     next(error);
   //   }
   // });
-
+  //
   // app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
   //   try {
   //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
   //       throw new AppError('Admin access required', 403);
   //     }
-
+  //
   //     debug(req, 'Creating/updating company branding');
-
+  //
   //     const validationResult = insertCompanyBrandingSchema.safeParse(req.body);
-
+  //
   //     if (!validationResult.success) {
   //       throw new ValidationError('Invalid branding data', validationResult.error.format());
   //     }
-
+  //
   //     // Create new branding record
   //     const [newBranding] = await db
   //       .insert(companyBranding)
@@ -2161,7 +2163,7 @@ export function registerRoutes(app: Express): Server {
   //         updatedAt: new Date()
   //       })
   //       .returning();
-
+  //
   //     debug(req, 'Branding updated successfully:', newBranding.id);
   //     res.status(201).json(newBranding);
   //   } catch (error) {
@@ -2169,31 +2171,31 @@ export function registerRoutes(app: Express): Server {
   //     next(error);
   //   }
   // });
-
+  //
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
-
+    
     if (err instanceof ValidationError) {
       return res.status(400).json({
         message: err.message,
         details: err.details
       });
     }
-
+    
     if (err instanceof DatabaseError) {
       return res.status(500).json({
         message: 'Database error occurred',
         error: err.message
       });
     }
-
+    
     if (err instanceof AppError) {
       return res.status(err.status).json({
         message: err.message
       });
     }
-
+    
     res.status(500).json({
       message: 'Internal server error',
       error: err.message
@@ -2442,6 +2444,85 @@ export function registerRoutes(app: Express): Server {
       res.status(204).end();
     } catch (error) {
       debug(req, 'Error deleting sub-purpose:', error);
+      next(error);
+    }
+  });
+
+  // Add Deepseek API endpoints
+  app.post("/api/ai/analyze", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { text, options } = req.body;
+
+      if (!text || typeof text !== 'string') {
+        throw new ValidationError('Invalid input', {
+          text: ['Text is required and must be a string']
+        });
+      }
+
+      debug(req, 'Analyzing text with Deepseek:', { textLength: text.length, options });
+
+      const result = await deepseekService.analyze(text, options);
+
+      // Log the analysis in our audit system
+      await db.insert(auditLogs).values({
+        userId: req.user!.id,
+        action: 'ai_analysis',
+        resourceType: 'text',
+        details: { textLength: text.length, options },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        timestamp: new Date()
+      });
+
+      res.json(result);
+    } catch (error) {
+      debug(req, 'Error analyzing text with Deepseek:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/ai/chat", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { messages, options } = req.body;
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        throw new ValidationError('Invalid input', {
+          messages: ['Messages array is required and cannot be empty']
+        });
+      }
+
+      debug(req, 'Starting chat with Deepseek:', { 
+        messageCount: messages.length,
+        options 
+      });
+
+      const result = await deepseekService.chat({
+        ...options,
+        messages
+      });
+
+      // Log the chat in our audit system
+      await db.insert(auditLogs).values({
+        userId: req.user!.id,
+        action: 'ai_chat',
+        resourceType: 'conversation',
+        details: { messageCount: messages.length, options },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        timestamp: new Date()
+      });
+
+      res.json(result);
+    } catch (error) {
+      debug(req, 'Error in Deepseek chat:', error);
       next(error);
     }
   });
