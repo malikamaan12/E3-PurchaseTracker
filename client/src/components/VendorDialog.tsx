@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/lib/toast";
 import type { Vendor } from "@db/schema";
 import { vendorFormSchema } from "@db/schema";
 import type { z } from "zod";
@@ -202,7 +202,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                       <FormItem>
                         <FormLabel>Tax Number</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter tax number" />
+                          <Input {...field} value={field.value || ""} placeholder="Enter tax number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -216,7 +216,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                       <FormItem>
                         <FormLabel>Registration Number</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter registration number" />
+                          <Input {...field} value={field.value || ""} placeholder="Enter registration number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -305,7 +305,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                     <FormItem>
                       <FormLabel>Remarks</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="Enter any additional remarks" />
+                        <Textarea {...field} value={field.value || ""} placeholder="Enter any additional remarks" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -395,7 +395,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                       Creating...
                     </>
                   ) : (
-                    'Create Vendor'
+                    "Create Vendor"
                   )}
                 </Button>
               </DialogFooter>
