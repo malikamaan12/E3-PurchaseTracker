@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Vendor } from "@db/schema";
@@ -58,7 +59,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
       payment_currency: "QAR",
       rating: "average",
       remarks: "",
-      status: "active" as const,
+      status: "active",
     },
   });
 
@@ -109,62 +110,35 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
 
         <ScrollArea className="h-full pr-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Company Information */}
               <div className="space-y-4">
-                {/* Company Information */}
-                <div className="space-y-4">
+                <h3 className="text-sm font-medium text-foreground">Company Information</h3>
+                <Separator className="my-2" />
+
+                <FormField
+                  control={form.control}
+                  name="companyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Name*</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter company name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="companyName"
+                    name="contactPerson"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company Name*</FormLabel>
+                        <FormLabel>Contact Person*</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter company name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="contactPerson"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Person*</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter contact person" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Number*</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter contact number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email*</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="email" placeholder="Enter email address" />
+                          <Input {...field} placeholder="Enter contact person" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -173,12 +147,12 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
 
                   <FormField
                     control={form.control}
-                    name="address"
+                    name="contactNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address*</FormLabel>
+                        <FormLabel>Contact Number*</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter address" />
+                          <Input {...field} placeholder="Enter contact number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -186,123 +160,63 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                   />
                 </div>
 
-                {/* Business Information */}
-                <div className="space-y-4 border-t pt-4">
-                  <h3 className="text-sm font-medium">Business Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="taxNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tax Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter tax number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email*</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" placeholder="Enter email address" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="registrationNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Registration Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter registration number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address*</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter complete address" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="supplier">Supplier</SelectItem>
-                              <SelectItem value="contractor">Contractor</SelectItem>
-                              <SelectItem value="service">Service Provider</SelectItem>
-                              <SelectItem value="manufacturer">Manufacturer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              {/* Business Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-foreground">Business Information</h3>
+                <Separator className="my-2" />
 
-                    <FormField
-                      control={form.control}
-                      name="payment_currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payment Currency*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="QAR">QAR</SelectItem>
-                              <SelectItem value="USD">USD</SelectItem>
-                              <SelectItem value="EUR">EUR</SelectItem>
-                              <SelectItem value="GBP">GBP</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="rating"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Vendor Rating</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select rating" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="excellent">Excellent</SelectItem>
-                              <SelectItem value="good">Good</SelectItem>
-                              <SelectItem value="average">Average</SelectItem>
-                              <SelectItem value="poor">Poor</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="taxNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter tax number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}
-                    name="remarks"
+                    name="registrationNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Remarks</FormLabel>
+                        <FormLabel>Registration Number</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Enter any additional remarks" />
+                          <Input {...field} placeholder="Enter registration number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -310,72 +224,162 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                   />
                 </div>
 
-                {/* Bank Details */}
-                <div className="space-y-4 border-t pt-4">
-                  <h3 className="text-sm font-medium">Bank Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="bankName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bank Name*</FormLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category*</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input {...field} placeholder="Enter bank name" />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <SelectContent>
+                            <SelectItem value="supplier">Supplier</SelectItem>
+                            <SelectItem value="contractor">Contractor</SelectItem>
+                            <SelectItem value="service">Service Provider</SelectItem>
+                            <SelectItem value="manufacturer">Manufacturer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="branchName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Branch Name*</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="payment_currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Currency*</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input {...field} placeholder="Enter branch name" />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                          <SelectContent>
+                            <SelectItem value="QAR">QAR</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                            <SelectItem value="GBP">GBP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="accountNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Account Number*</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter account number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <FormField
+                  control={form.control}
+                  name="rating"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor Rating</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select rating" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="excellent">Excellent</SelectItem>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="average">Average</SelectItem>
+                          <SelectItem value="poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="ibanNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>IBAN Number*</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter IBAN number" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                <FormField
+                  control={form.control}
+                  name="remarks"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Remarks</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} placeholder="Enter any additional remarks" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Bank Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-foreground">Bank Details</h3>
+                <Separator className="my-2" />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name*</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter bank name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="branchName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Branch Name*</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter branch name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="accountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Number*</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter account number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="ibanNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IBAN Number*</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter IBAN number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </div>
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-6">
                 <Button
                   type="button"
                   variant="outline"
