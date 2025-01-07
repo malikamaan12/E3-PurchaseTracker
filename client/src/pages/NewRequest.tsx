@@ -15,7 +15,7 @@ import type { PurchaseRequest, Vendor } from "@db/schema";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import VendorDialog from "@/components/VendorDialog"; // Fixed import
+import VendorDialog from "@/components/VendorDialog";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FilePreview } from "@/components/FilePreview";
@@ -768,7 +768,7 @@ export default function NewRequest() {
                                 onClick={() => removeFile(index)}
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
                               >
-                                <Trash className="h-4 w-4" />
+                                <Trash<span className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>

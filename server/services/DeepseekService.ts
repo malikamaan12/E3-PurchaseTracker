@@ -1,8 +1,19 @@
 import axios from 'axios';
-import type { ChatCompletionCreateParams } from 'openai/resources/chat';
 import { debug } from '../utils/debug';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1';
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatCompletionParams {
+  messages: ChatMessage[];
+  temperature?: number;
+  max_tokens?: number;
+  model?: string;
+}
 
 export class DeepseekService {
   private apiKey: string;
@@ -15,7 +26,7 @@ export class DeepseekService {
     this.apiKey = apiKey;
   }
 
-  async chat(params: ChatCompletionCreateParams) {
+  async chat(params: ChatCompletionParams) {
     try {
       const response = await axios.post(
         `${DEEPSEEK_API_URL}/chat/completions`,
@@ -30,7 +41,7 @@ export class DeepseekService {
 
       return response.data;
     } catch (error) {
-      debug(null, 'Error in Deepseek chat completion:', error);
+      debug('Error in Deepseek chat completion:', error);
       throw this.handleError(error);
     }
   }
@@ -51,7 +62,7 @@ export class DeepseekService {
       ...options,
       messages: [
         {
-          role: 'user',
+          role: 'user' as const,
           content: text
         }
       ]
