@@ -68,10 +68,22 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
         ? file.fileUrl 
         : `${window.location.origin}${file.fileUrl}`;
 
-      const response = await fetch(absoluteUrl);
+      console.log('Downloading from URL:', absoluteUrl);
+
+      const response = await fetch(absoluteUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
+
+      // Get the content type from the response
+      const contentType = response.headers.get('content-type');
+      console.log('Content type:', contentType);
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -86,7 +98,7 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       toast({
         title: "Success",
         description: "File downloaded successfully",
-        variant: "success",
+        variant: "default",
       });
     } catch (err: any) {
       console.error("Download error:", err);
@@ -141,13 +153,20 @@ export function FilePreview({ file, showPreview = true, onDownload }: FilePrevie
       ? file.fileUrl 
       : file.fileUrl ? `${window.location.origin}${file.fileUrl}` : null;
 
+    console.log('Preview URL:', absoluteUrl);
+    console.log('File type:', file.type);
+
     if (file.type === 'application/pdf' && absoluteUrl) {
       return (
-        <iframe
-          src={absoluteUrl}
-          title={file.name}
-          className="w-full h-[70vh] border-none rounded-lg"
-        />
+        <object
+          data={absoluteUrl}
+          type="application/pdf"
+          width="100%"
+          height="600px"
+          className="rounded-lg"
+        >
+          <p>Unable to display PDF. <Button onClick={handleDownload}>Download Instead</Button></p>
+        </object>
       );
     }
 
