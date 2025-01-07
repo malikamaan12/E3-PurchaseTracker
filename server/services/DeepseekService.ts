@@ -39,11 +39,36 @@ export class DeepseekService {
         }
       );
 
-      return response.data;
+      return response.data.choices[0].message.content;
     } catch (error) {
       debug('Error in Deepseek chat completion:', error);
       throw this.handleError(error);
     }
+  }
+
+  async getCompletion(prompt: string, options?: {
+    temperature?: number;
+    max_tokens?: number;
+    model?: string;
+  }) {
+    const defaultOptions = {
+      temperature: 0.7,
+      max_tokens: 1000,
+      model: 'deepseek-chat'
+    };
+
+    const params = {
+      ...defaultOptions,
+      ...options,
+      messages: [
+        {
+          role: 'user' as const,
+          content: prompt
+        }
+      ]
+    };
+
+    return this.chat(params);
   }
 
   async analyze(text: string, options?: {

@@ -17,51 +17,30 @@
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  position: relative;
   background: white;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
 }
 
 .pdf-header {
-  padding: var(--margin-top, 20mm) var(--margin-right, 25mm) 15mm var(--margin-left, 25mm);
-  text-align: center;
-  border-bottom: 1px solid;
+  padding: 20mm 25mm 10mm;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
   background: white;
-  position: relative;
 }
 
 .pdf-content {
-  padding: 0 var(--margin-right, 25mm) var(--margin-bottom, 20mm) var(--margin-left, 25mm);
-  min-height: calc(297mm - 40mm); /* Subtract header height */
+  padding: 10mm 25mm;
+  min-height: calc(297mm - 40mm);
   background: white;
-  position: relative;
-  font-size: var(--pdf-font-size, 11pt);
-}
-
-.pdf-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 10mm var(--margin-right, 25mm);
-  border-top: 1px solid;
-  background: white;
+  font-size: 11pt;
 }
 
 .pdf-section {
   margin-bottom: 6mm;
 }
 
-.pdf-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6mm;
-}
-
 .pdf-label {
   @apply text-sm font-medium text-gray-600;
-  margin-bottom: 1mm;
+  margin-bottom: 2mm;
 }
 
 .pdf-value {
@@ -79,28 +58,23 @@
   text-align: left;
   padding: 2.5mm;
   border: 1px solid #e5e7eb;
-  font-size: 11px;
+  background-color: #f9fafb;
 }
 
 .pdf-table td {
   padding: 2.5mm;
   border: 1px solid #e5e7eb;
-  font-size: 11px;
   vertical-align: top;
 }
 
-/* Watermark styles */
-.pdf-watermark {
+.pdf-footer-info {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  font-size: 4rem;
-  opacity: var(--watermark-opacity, 0.1);
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
-  color: #000;
+  bottom: 20mm;
+  left: 25mm;
+  right: 25mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* Print Styles */
@@ -115,190 +89,16 @@
     padding: 0;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  .pdf-container,
-  .pdf-container * {
-    visibility: visible;
-  }
-
   .pdf-container {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 210mm;
-    min-height: 297mm;
+    height: 297mm;
     margin: 0;
     padding: 0;
     box-shadow: none;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-
-  .pdf-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background-color: white !important;
-  }
-
-  .pdf-content {
-    margin-top: 40mm;
-    padding-bottom: 30mm;
-    background-color: white !important;
-  }
-
-  .pdf-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background-color: white !important;
-  }
-
-  .pdf-table th {
-    background-color: #f9fafb !important;
-    -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   .no-print {
     display: none !important;
-  }
-
-  /* Force background colors in print */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-}
-
-/* Mobile Optimizations */
-@media (hover: hover) and (pointer: fine) {
-  .hover-only {
-    @apply transition-opacity opacity-0 group-hover:opacity-100;
-  }
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Animation Classes */
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-.animate-scale {
-  animation: scale 0.2s ease-in-out;
-}
-
-.animate-bounce-in {
-  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-/* Base Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes scale {
-  from { transform: scale(0.95); }
-  to { transform: scale(1); }
-}
-
-@keyframes bounceIn {
-  0% {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  70% { transform: scale(0.9); }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Success Animation */
-@keyframes successPop {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* Error Animation */
-@keyframes errorShake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-}
-
-/* Error-specific Animations */
-@keyframes errorBounceIn {
-  0% {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-  70% { transform: scale(0.9); }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Mobile Optimizations */
-@media (hover: hover) and (pointer: fine) {
-  .hover-only {
-    @apply transition-opacity opacity-0 group-hover:opacity-100;
-  }
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }

@@ -648,3 +648,50 @@ export const auditLogs = pgTable("audit_logs", {
   userAgent: text("user_agent"),
   timestamp: timestamp("timestamp").defaultNow()
 });
+
+// Add pdfSettings table after the auditLogs table
+export const pdfSettings = pgTable("pdf_settings", {
+  id: serial("id").primaryKey(),
+  headerTitle: text("header_title").notNull(),
+  headerSubtitle: text("header_subtitle"),
+  headerColor: text("header_color").notNull(),
+  footerText: text("footer_text"),
+  footerColor: text("footer_color").notNull(),
+  pageNumbering: boolean("page_numbering").notNull().default(true),
+  watermarkOpacity: integer("watermark_opacity").notNull().default(10),
+  marginTop: integer("margin_top").notNull().default(20),
+  marginBottom: integer("margin_bottom").notNull().default(20),
+  marginLeft: integer("margin_left").notNull().default(25),
+  marginRight: integer("margin_right").notNull().default(25),
+  fontSize: integer("font_size").notNull().default(11),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id),
+});
+
+// Add schema validation
+export const insertPdfSettingsSchema = createInsertSchema(pdfSettings, {
+  headerTitle: z.string().min(1, "Header title is required"),
+  headerSubtitle: z.string().optional(),
+  headerColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  footerText: z.string().optional(),
+  footerColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format"),
+  pageNumbering: z.boolean().default(true),
+  watermarkOpacity: z.number().min(0).max(100).default(10),
+  marginTop: z.number().min(10).max(50).default(20),
+  marginBottom: z.number().min(10).max(50).default(20),
+  marginLeft: z.number().min(15).max(50).default(25),
+  marginRight: z.number().min(15).max(50).default(25),
+  fontSize: z.number().min(8).max(16).default(11),
+});
+
+// Add relations
+export const pdfSettingsRelations = relations(pdfSettings, ({ one }) => ({
+  updatedByUser: one(users, {
+    fields: [pdfSettings.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+// Add types
+export type PdfSettings = typeof pdfSettings.$inferSelect;
+export type InsertPdfSettings = typeof pdfSettings.$inferInsert;

@@ -35,7 +35,8 @@ import {
   type InsertVendor,
   type AuditAction,
   insertSubPurposeSchema,
-  auditLogs // Add auditLogs import here
+  auditLogs,
+  pdfSettings // Added import for pdfSettings
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
@@ -2172,10 +2173,143 @@ export function registerRoutes(app: Express): Server {
   //   }
   // });
   //
+  // PDF Settings endpoints
+  app.get("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const settings = await db
+        .select()
+        .from(pdfSettings)
+        .limit(1);
+
+      // Return default settings if none exist
+      if (settings.length === 0) {
+        return res.json({
+          headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerSubtitle: "PURCHASE REQUEST",
+          headerColor: "#1a365d",
+          footerText: "ALL RIGHTS RESERVED BY E3",
+          footerColor: "#1a365d",
+          pageNumbering: true,
+          watermarkOpacity: 0.1,
+          marginTop: 20,
+          marginBottom: 20,
+          marginLeft: 25,
+          marginRight: 25,
+          fontSize: 11
+        });
+      }
+
+      res.json(settings[0]);
+    } catch (error) {
+      debug(req, 'Error fetching PDF settings:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/enhance-pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const settings = req.body;
+
+      // Use Deepseek to enhance and validate the PDF settings
+      const prompt = `Analyze and enhance the following PDF template settings for a purchase request document. 
+    Consider readability, professional appearance, and brand consistency:
+    ${JSON.stringify(settings, null, 2)}
+
+    Suggest improvements for:
+    1. Color combinations for better contrast
+    2. Font size adjustments for readability
+    3. Margin optimization
+    4. Header/footer content formatting
+
+    Provide the enhanced settings in JSON format.`;
+
+      const enhancedSettings = await deepseekService.getCompletion(prompt);
+      let parsedSettings;
+
+      try {
+        parsedSettings = JSON.parse(enhancedSettings);
+      } catch (e) {
+        // If parsing fails, extract JSON from the response
+        const jsonMatch = enhancedSettings.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedSettings = JSON.parse(jsonMatch[0]);
+        } else {
+          // If no valid JSON found, return original settings
+          parsedSettings = settings;
+        }
+      }
+
+      // Validate the enhanced settings
+      const validatedSettings = {
+        ...settings,
+        ...parsedSettings,
+        headerColor: parsedSettings.headerColor?.match(/^#[0-9A-Fa-f]{6}$/) 
+          ? parsedSettings.headerColor 
+          : settings.headerColor,
+        footerColor: parsedSettings.footerColor?.match(/^#[0-9A-Fa-f]{6}$/)
+          ? parsedSettings.footerColor
+          : settings.footerColor,
+        fontSize: Math.min(Math.max(parsedSettings.fontSize || settings.fontSize, 8), 16),
+        marginTop: Math.max(parsedSettings.marginTop || settings.marginTop, 10),
+        marginBottom: Math.max(parsedSettings.marginBottom || settings.marginBottom, 10),
+        marginLeft: Math.max(parsedSettings.marginLeft || settings.marginLeft, 15),
+        marginRight: Math.max(parsedSettings.marginRight || settings.marginRight, 15),
+      };
+
+      res.json(validatedSettings);
+    } catch (error) {
+      debug(req, 'Error enhancing PDF settings:', error);
+      next(error);
+    }
+  });
+
+  app.post("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const settings = req.body;
+
+      // First, delete existing settings
+      await db.delete(pdfSettings);
+
+      // Insert new settings
+      const [newSettings] = await db
+        .insert(pdfSettings)
+        .values({
+          ...settings,
+          updatedAt: new Date(),
+          updatedBy: req.user.id
+        })
+        .returning();
+
+      // Log the settings update
+      await logAuditEvent(req.user.id, 'pdf_settings_updated', {
+        settingsId: newSettings.id,
+        changes: settings
+      });
+
+      res.json(newSettings);
+    } catch (error) {
+      debug(req, 'Error saving PDF settings:', error);
+      next(error);
+    }
+  });
+
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
     
+
     if (err instanceof ValidationError) {
       return res.status(400).json({
         message: err.message,
@@ -2183,6 +2317,7 @@ export function registerRoutes(app: Express): Server {
       });
     }
     
+
     if (err instanceof DatabaseError) {
       return res.status(500).json({
         message: 'Database error occurred',
@@ -2190,12 +2325,14 @@ export function registerRoutes(app: Express): Server {
       });
     }
     
+
     if (err instanceof AppError) {
       return res.status(err.status).json({
         message: err.message
       });
     }
     
+
     res.status(500).json({
       message: 'Internal server error',
       error: err.message
