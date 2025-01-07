@@ -19,15 +19,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/lib/toast";
+import { useToast } from "@/hooks/use-toast";
 import type { Vendor } from "@db/schema";
 import { vendorFormSchema } from "@db/schema";
-import type { z } from "zod";
 
 interface VendorDialogProps {
   isOpen: boolean;
@@ -35,13 +30,11 @@ interface VendorDialogProps {
   onVendorCreated: (vendor: Vendor) => void;
 }
 
-type VendorFormValues = z.infer<typeof vendorFormSchema>;
-
 export default function VendorDialog({ isOpen, onClose, onVendorCreated }: VendorDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<VendorFormValues>({
+  const form = useForm({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       companyName: "",
@@ -55,15 +48,11 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
       accountNumber: "",
       ibanNumber: "",
       branchName: "",
-      category: "supplier",
-      payment_currency: "QAR",
-      rating: "average",
-      remarks: "",
-      status: "active",
+      status: "active" as const,
     },
   });
 
-  const onSubmit = async (data: VendorFormValues) => {
+  const onSubmit = async (data: any) => {
     try {
       setIsSubmitting(true);
       const response = await fetch("/api/vendors", {
@@ -86,7 +75,6 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
         title: "Success",
         description: "Vendor created successfully",
       });
-      onClose();
     } catch (error) {
       toast({
         title: "Error",
@@ -100,7 +88,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] h-[90vh]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New Vendor</DialogTitle>
           <DialogDescription>
@@ -108,300 +96,102 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-full pr-4">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Company Information */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-foreground">Company Information</h3>
-                <Separator className="my-2" />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="companyName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company Name*</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter company name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="companyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Name*</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter company name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="contactPerson"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Person*</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter contact person" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="contactPerson"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter contact person" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <FormField
+                control={form.control}
+                name="contactNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Number*</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter contact number" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-                  <FormField
-                    control={form.control}
-                    name="contactNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Number*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter contact number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email*</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="email" placeholder="Enter email address" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email*</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" placeholder="Enter email address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address*</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter address" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address*</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter complete address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Business Information */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-foreground">Business Information</h3>
-                <Separator className="my-2" />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="taxNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tax Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="Enter tax number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="registrationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Registration Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="Enter registration number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category*</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="supplier">Supplier</SelectItem>
-                            <SelectItem value="contractor">Contractor</SelectItem>
-                            <SelectItem value="service">Service Provider</SelectItem>
-                            <SelectItem value="manufacturer">Manufacturer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="payment_currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Currency*</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="QAR">QAR</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="rating"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vendor Rating</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select rating" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="excellent">Excellent</SelectItem>
-                          <SelectItem value="good">Good</SelectItem>
-                          <SelectItem value="average">Average</SelectItem>
-                          <SelectItem value="poor">Poor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="remarks"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Remarks</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} value={field.value || ""} placeholder="Enter any additional remarks" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Bank Details */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-foreground">Bank Details</h3>
-                <Separator className="my-2" />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Name*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter bank name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="branchName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Branch Name*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter branch name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="accountNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Number*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter account number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="ibanNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>IBAN Number*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter IBAN number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter className="pt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Vendor"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </ScrollArea>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Vendor'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
