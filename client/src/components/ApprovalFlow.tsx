@@ -62,44 +62,61 @@ export default function ApprovalFlow({
 
   const approvalMutation = useMutation({
     mutationFn: async (data: ApprovalAction) => {
+      console.log("Starting approval mutation with data:", data);
+
       // Validate required fields
       if (!data.requestId || !data.status || !data.departmentId) {
-        console.error("Missing required fields:", { data });
-        throw new Error("Missing required fields: requestId, status, and department are required");
+        const error = new Error("Missing required fields for approval");
+        console.error("Validation error:", { data, error });
+        throw error;
       }
 
       // Validate department is valid
       if (!requiredDepartments.includes(data.departmentId)) {
-        console.error("Invalid department:", data.departmentId);
-        throw new Error("Invalid department");
+        const error = new Error(`Invalid department: ${data.departmentId}`);
+        console.error("Department validation error:", error);
+        throw error;
       }
 
       try {
+        console.log("Making API request to:", `/api/requests/${data.requestId}/approvals`);
+        const requestBody = {
+          requestId: data.requestId,
+          status: data.status,
+          departmentId: data.departmentId,
+          comments: data.comments?.trim() || undefined
+        };
+        console.log("Request body:", requestBody);
+
         const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            status: data.status,
-            departmentId: data.departmentId,
-            comments: data.comments?.trim() || undefined
-          }),
+          body: JSON.stringify(requestBody),
           credentials: 'include'
         });
 
         if (!response.ok) {
           const errorText = await response.text();
+          console.error("API error response:", {
+            status: response.status,
+            statusText: response.statusText,
+            errorText
+          });
           throw new Error(errorText || `Failed to process approval: ${response.status}`);
         }
 
-        return response.json();
+        const result = await response.json();
+        console.log("API success response:", result);
+        return result;
       } catch (error) {
         console.error("API call error:", error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Approval mutation succeeded:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       setComments("");
       toast({
@@ -120,6 +137,7 @@ export default function ApprovalFlow({
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
+      console.error("Missing user data:", { department: user?.department, id: user?.id });
       toast({
         title: "Error",
         description: "User department information is missing",
@@ -133,6 +151,12 @@ export default function ApprovalFlow({
     }
 
     if (!canApprove) {
+      console.error("User cannot approve:", { 
+        department: user.department,
+        isOwnRequest,
+        requestStatus: request.status,
+        existingApprovals: request.approvals 
+      });
       toast({
         title: "Error",
         description: "You don't have permission to approve this request",
@@ -142,6 +166,12 @@ export default function ApprovalFlow({
     }
 
     try {
+      console.log("Starting approval process:", {
+        requestId: request.id,
+        status,
+        department: user.department
+      });
+
       setIsSubmitting(true);
       await approvalMutation.mutateAsync({
         requestId: request.id,
@@ -150,7 +180,7 @@ export default function ApprovalFlow({
         departmentId: user.department
       });
     } catch (error) {
-      console.error("Approval error:", error);
+      console.error("Approval process error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -166,6 +196,13 @@ export default function ApprovalFlow({
       processedAt: approval?.processedAt,
       comments: approval?.comments
     };
+  });
+
+  console.log("Rendering ApprovalFlow with:", {
+    requestId: request.id,
+    currentStatus: request.status,
+    departmentStatuses,
+    canApprove
   });
 
   return (
