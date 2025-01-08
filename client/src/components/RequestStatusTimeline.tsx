@@ -35,29 +35,6 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   // Calculate progress percentage based on actual status
   const progressPercentage = ((currentStatusIndex + 1) / statusFlow.length) * 100;
 
-  // Find the most recent change request comment and details
-  const getChangeRequestDetails = () => {
-    if (!request.approvals) return null;
-
-    // Sort approvals by date in descending order and find the most recent changes_requested
-    const changeRequest = [...request.approvals]
-      .sort((a, b) => {
-        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .find(a => a.status === 'changes_requested');
-
-    if (!changeRequest) return null;
-
-    return {
-      comments: changeRequest.comments,
-      department: changeRequest.department,
-      updatedAt: changeRequest.updatedAt,
-      approver: changeRequest.approver
-    };
-  };
-
   // Get all required departments for approval
   const getRequiredDepartments = () => {
     const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
@@ -76,28 +53,10 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
     };
   };
 
-  // Check if all departments have approved
-  const checkAllApproved = () => {
-    const departments = getRequiredDepartments();
-    return departments.every(dept => {
-      const { status } = getDepartmentApprovalStatus(dept);
-      return status === 'approved';
-    });
-  };
-
-  const isFullyApproved = checkAllApproved();
-
   return (
     <Card className="animate-fade-in">
       <CardContent className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-medium">Request Timeline</h3>
-          {isFullyApproved && (
-            <Badge variant="outline" className="bg-green-50 text-green-700">
-              All Approvals Complete
-            </Badge>
-          )}
-        </div>
+        <h3 className="text-lg font-medium mb-6">Request Timeline</h3>
 
         {/* Progress Bar */}
         <div className="mb-8">
@@ -122,7 +81,6 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
             {statusFlow.map((status, index) => {
               const isPast = index < currentStatusIndex;
               const isCurrent = index === currentStatusIndex;
-              const changeRequestDetails = status.status === 'changes_requested' ? getChangeRequestDetails() : null;
 
               return (
                 <div key={status.status} className="relative">
@@ -164,30 +122,10 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                         )}
                       </div>
 
-                      {/* Show change request details */}
-                      {status.status === 'changes_requested' && isCurrent && changeRequestDetails && (
-                        <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <p className="text-sm text-orange-700 font-medium">
-                                Changes Requested by {changeRequestDetails.department}
-                              </p>
-                              <p className="text-xs text-orange-600 mt-1">
-                                {changeRequestDetails.updatedAt && format(new Date(changeRequestDetails.updatedAt), "PPp")}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-sm text-orange-600 mt-2">{changeRequestDetails.comments}</p>
-                        </div>
-                      )}
-
-                      {/* Show pending approvals and approval status */}
-                      {(status.status === 'pending' && request.status === 'pending' || 
-                        status.status === 'approved' && request.status === 'approved') && (
+                      {/* Show pending approvals section */}
+                      {status.status === 'pending' && request.status === 'pending' && (
                         <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">
-                            {request.status === 'approved' ? 'Approval Flow Complete' : 'Pending Approvals'}
-                          </h4>
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
                           {getRequiredDepartments().map(department => {
                             const { status: approvalStatus, approval } = getDepartmentApprovalStatus(department);
                             const isMandatory = ['CEO Office', 'Finance', 'Director'].includes(department);
@@ -232,7 +170,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                                     approvalStatus === 'changes_requested' ? "text-orange-600" :
                                     "text-gray-500"
                                   )}>
-                                    {approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1)}
+                                    {approvalStatus.toUpperCase()}
                                     {approval?.approver?.username && ` by ${approval.approver.username}`}
                                   </p>
                                   {approval?.processedAt && (
