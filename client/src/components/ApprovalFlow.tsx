@@ -25,6 +25,7 @@ interface ApprovalFlowProps {
   requestId: number;
   requesterId: number;
   status: string;
+  additionalApprovers?: string[];
   onApprovalUpdate?: () => void;
 }
 
@@ -33,13 +34,32 @@ export default function ApprovalFlow({
   requestId,
   requesterId,
   status,
+  additionalApprovers = [],
   onApprovalUpdate,
 }: ApprovalFlowProps) {
   const { user } = useUser();
-  const { createApproval } = usePurchaseRequests();
+  const { createApproval, updateRequestStatus } = usePurchaseRequests();
   const { toast } = useToast();
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get all required departments
+  const requiredDepartments = useMemo(() => {
+    const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+    return [...new Set([...mandatoryDepartments, ...additionalApprovers])];
+  }, [additionalApprovers]);
+
+  // Check if all required departments have approved
+  const checkAllApproved = useMemo(() => {
+    const departmentApprovals = requiredDepartments.map(dept => {
+      const approval = approvals.find(a => 
+        a.department === dept && 
+        a.status === 'approved'
+      );
+      return !!approval;
+    });
+    return departmentApprovals.every(approved => approved);
+  }, [approvals, requiredDepartments]);
 
   // Track department and user approval states
   const approvalState = useMemo(() => {
@@ -66,9 +86,6 @@ export default function ApprovalFlow({
       (a) => a.approverId === user.id && 
              ["approved", "rejected", "changes_requested"].includes(a.status)
     );
-
-    // Special roles check
-    const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
 
     // Cannot approve own requests
     if (requesterId === user.id) {
@@ -111,9 +128,17 @@ export default function ApprovalFlow({
       };
     }
 
+    // Check if user's department is required for approval
+    if (!requiredDepartments.includes(user.department)) {
+      return { 
+        canApprove: false, 
+        message: "Your department is not required for this approval" 
+      };
+    }
+
     // All checks passed
     return { canApprove: true, message: "" };
-  }, [approvals, user, requesterId, status]);
+  }, [approvals, user, requesterId, status, requiredDepartments]);
 
   const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
@@ -137,26 +162,6 @@ export default function ApprovalFlow({
     try {
       setIsSubmitting(true);
 
-      // Double-check approval state before proceeding
-      const currentDepartmentApproval = approvals.find(
-        (a) => a.department === user.department && 
-               ["approved", "rejected", "changes_requested"].includes(a.status)
-      );
-
-      const currentUserApproval = approvals.find(
-        (a) => a.approverId === user.id && 
-               ["approved", "rejected", "changes_requested"].includes(a.status)
-      );
-
-      if (currentDepartmentApproval || currentUserApproval) {
-        toast({
-          title: "Error",
-          description: "This request has already been processed",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const approvalData = {
         requestId,
         status: approvalStatus,
@@ -168,10 +173,25 @@ export default function ApprovalFlow({
 
       await createApproval(approvalData);
 
-      toast({
-        title: "Success",
-        description: `Request ${approvalStatus.replace('_', ' ')} successfully at ${format(new Date(), "PPp")}`,
-      });
+      // Check if all departments have approved after this approval
+      const updatedApprovals = [...approvals, { ...approvalData, id: 0 }];
+      const allDepartmentsApproved = requiredDepartments.every(dept => 
+        updatedApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // If all departments have approved, update the request status
+      if (allDepartmentsApproved) {
+        await updateRequestStatus(requestId, 'approved');
+        toast({
+          title: "Success",
+          description: "All departments have approved. Request status updated to approved.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Request ${approvalStatus.replace('_', ' ')} successfully`,
+        });
+      }
 
       setComments("");
       onApprovalUpdate?.();
@@ -215,45 +235,63 @@ export default function ApprovalFlow({
 
   return (
     <div className="space-y-4">
-      <h4 className="font-medium">Approval Flow</h4>
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium">Approval Flow</h4>
+        {checkAllApproved && (
+          <Badge variant="success" className="animate-fade-in">
+            All Approvals Complete
+          </Badge>
+        )}
+      </div>
+
       <div className="space-y-2">
-        {approvals.map((approval) => (
-          <Card key={approval.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {getStatusIcon(approval.status)}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{approval.department}</p>
-                      {approval.isMandatory && (
-                        <Badge variant="outline" className="text-xs">
-                          Mandatory
-                        </Badge>
+        {/* Show all required departments with their status */}
+        {requiredDepartments.map((department) => {
+          const departmentApproval = approvals.find(a => a.department === department);
+          const isMandatory = ['CEO Office', 'Finance', 'Director'].includes(department);
+
+          return (
+            <Card key={department}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    {getStatusIcon(departmentApproval?.status || 'pending')}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{department}</p>
+                        {isMandatory && (
+                          <Badge variant="outline" className="text-xs">
+                            Mandatory
+                          </Badge>
+                        )}
+                      </div>
+                      {departmentApproval?.approver && (
+                        <p className="text-sm text-gray-500">
+                          {departmentApproval.approver.username}
+                        </p>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {approval.approver?.username || 'Unknown Approver'}
-                    </p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <Badge className={getStatusColor(departmentApproval?.status || 'pending')}>
+                      {(departmentApproval?.status || 'PENDING').toUpperCase().replace('_', ' ')}
+                    </Badge>
+                    {departmentApproval?.processedAt && (
+                      <span className="text-sm text-gray-500">
+                        {format(new Date(departmentApproval.processedAt), "PPp")}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <Badge className={getStatusColor(approval.status)}>
-                    {approval.status.toUpperCase().replace('_', ' ')}
-                  </Badge>
-                  <span className="text-sm text-gray-500">
-                    {approval.processedAt && format(new Date(approval.processedAt), "PPp")}
-                  </span>
-                </div>
-              </div>
-              {approval.comments && (
-                <p className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                  {approval.comments}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                {departmentApproval?.comments && (
+                  <p className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                    {departmentApproval.comments}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {/* Only show approval form if user can approve */}
         {status === "pending" && (
