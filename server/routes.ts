@@ -2668,6 +2668,144 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add this route after other API routes but before the httpServer creation
+  app.post("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status, department, comments } = req.body;
+
+      if (!status || !['approved', 'rejected', 'changes_requested'].includes(status)) {
+        throw new ValidationError('Invalid status', { status: ['Invalid status value'] });
+      }
+
+      if (!department) {
+        throw new ValidationError('Invalid department', { department: ['Department is required'] });
+      }
+
+      debug(req, 'Creating approval:', { requestId, status, department });
+
+      // Get the current request
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Check if department already approved
+      const [existingApproval] = await db
+        .select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.department, department)
+        ))
+        .limit(1);
+
+      if (existingApproval) {
+        throw new ValidationError('Duplicate approval', {
+          message: `This department has already processed this request at ${
+            new Date(existingApproval.processedAt).toLocaleString()
+          }`
+        });
+      }
+
+      // Create the approval
+      const [approval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status,
+          department,
+          comments: comments || null,
+          processedAt: new Date()
+        })
+        .returning();
+
+      // Get all approvals after adding the new one
+      const allApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Check if all required departments have approved
+      const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+      const allRequired = requiredDepartments.every(dept =>
+        allApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // If all required departments approved, update request status
+      if (allRequired) {
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: 'approved',
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+      // Notify the requester
+        await createNotification(
+          existingRequest.requesterId,
+          'Request Approved',
+          `Your purchase request "${existingRequest.title}" has been approved by all departments`,
+          'request',
+          requestId
+        );
+      } else if (status === 'rejected') {
+        // If any department rejects, update request status to rejected
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: 'rejected',
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+        // Notify the requester
+        await createNotification(
+          existingRequest.requesterId,
+          'Request Rejected',
+          `Your purchase request "${existingRequest.title}" has been rejected by ${department}`,
+          'request',
+          requestId
+        );
+      } else if (status === 'changes_requested') {
+        // Update request status to changes_requested
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: 'changes_requested',
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+        // Notify the requester
+        await createNotification(
+          existingRequest.requesterId,
+          'Changes Requested',
+          `Changes have been requested for your purchase request "${existingRequest.title}" by ${department}`,
+          'request',
+          requestId
+        );
+      }
+
+      debug(req, 'Approval created successfully:', approval);
+      res.json({ message: "Approval processed successfully", approval });
+    } catch (error) {
+      debug(req, 'Error creating approval:', error);
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
