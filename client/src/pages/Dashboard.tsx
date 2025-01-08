@@ -7,143 +7,112 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
-import DashboardPreferences from "@/components/DashboardPreferences";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { updateRequest } from "@/services/requests";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useDashboardPreferences, DEFAULT_PREFERENCES } from "@/hooks/use-dashboard-preferences";
+import DashboardPreferences from "@/components/DashboardPreferences";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
 import { isWithinInterval, parseISO } from "date-fns";
 import { type RequestData } from "@/types/requests";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSubPurposes } from "@/hooks/use-sub-purposes";
-import cn from 'classnames';
+
+// Brand colors
+const BRAND = {
+  primary: '#7156a2',
+  secondary: '#35bbba',
+};
+
+interface RequestCounts {
+  myRequests: number;
+  draftsToSubmit: number;
+  allRequests: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  changes: number;
+  approvals: number;
+}
 
 export default function Dashboard() {
+  // Core hooks and state
   const { user, logout } = useUser();
-  const { requests = [], isLoading, error } = usePurchaseRequests();
+  const { requests, isLoading } = usePurchaseRequests();
   const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { vendors = [] } = useVendors();
+  const { subPurposes = [] } = useSubPurposes();
+
+  // Local state
   const [activeFilters, setActiveFilters] = useState<FilterValues>({
     status: [],
-    dateRange: {
-      from: undefined,
-      to: undefined,
-    },
+    dateRange: { from: undefined, to: undefined },
     priority: [],
     department: [],
     purposeType: [],
     subPurposeId: null,
     vendorId: null,
-    costRange: {
-      min: "",
-      max: "",
-    },
+    costRange: { min: "", max: "" },
     searchQuery: "",
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
-  const { vendors = [] } = useVendors();
-  const { subPurposes = [] } = useSubPurposes();
 
-  // Effect to extract unique departments
-  useEffect(() => {
-    if (Array.isArray(requests)) {
-      const uniqueDepartments = Array.from(
-        new Set(
-          requests
-            .map((r) => r.requester?.department)
-            .filter((d): d is string => !!d)
-        )
-      );
-      setDepartments(uniqueDepartments);
-    }
-  }, [requests]);
+  // Role-based access control
+  const isAdmin = useMemo(() => user?.role === "admin", [user?.role]);
+  const isSpecialRole = useMemo(() => (
+    user?.role === "admin" ||
+    user?.role === "approver" ||
+    user?.department === "CEO Office" ||
+    user?.department === "Director" ||
+    user?.department === "Finance"
+  ), [user?.role, user?.department]);
 
-  const isSpecialRole = useMemo(() => {
-    const hasSpecialRole =
-      user?.role === "admin" ||
-      user?.role === "approver" ||
-      user?.department === "CEO Office" ||
-      user?.department === "Director" ||
-      user?.department === "Finance";
+  // Safe requests array
+  const safeRequests = useMemo(() => requests || [], [requests]);
 
-    return hasSpecialRole;
-  }, [user?.role, user?.department]);
+  // Filtering logic
+  const getFilteredRequests = useCallback((currentTab: string): RequestData[] => {
+    if (!Array.isArray(safeRequests)) return [];
 
-  const isAdmin = useMemo(() => {
-    return user?.role === "admin";
-  }, [user?.role]);
+    let filtered = [...safeRequests];
 
-  const isApprover = useMemo(() => {
-    return user?.role === "approver";
-  }, [user?.role]);
-
-  // Function to apply filters based on tab and filter panel
-  const getFilteredRequests = useCallback((allRequests: RequestData[], currentTab: string) => {
-    if (!Array.isArray(allRequests)) return [];
-
-    let filtered = [...allRequests];
-
-    // First apply tab-specific filters
+    // Tab-specific filters
     switch (currentTab) {
       case "my-requests":
-        filtered = filtered.filter(r => r?.requesterId === user?.id);
+        filtered = filtered.filter(r => r.requesterId === user?.id);
         break;
       case "drafts-to-submit":
-        filtered = filtered.filter(r =>
-          r?.requesterId === user?.id &&
-          r?.status === "draft" &&
-          r?.title &&
-          r?.description &&
-          Array.isArray(r?.items) &&
-          r?.items.length > 0
+        filtered = filtered.filter(r => 
+          r.requesterId === user?.id &&
+          r.status === "draft" &&
+          r.title &&
+          r.description &&
+          Array.isArray(r.items) &&
+          r.items.length > 0
         );
         break;
       case "pending":
-        filtered = filtered.filter(r => r?.status === "pending");
+        filtered = filtered.filter(r => r.status === "pending");
         break;
       case "approved":
-        filtered = filtered.filter(r => r?.status === "approved");
+        filtered = filtered.filter(r => r.status === "approved");
         break;
       case "rejected":
-        filtered = filtered.filter(r => r?.status === "rejected");
+        filtered = filtered.filter(r => r.status === "rejected");
         break;
       case "changes":
         filtered = filtered.filter(r =>
-          r?.status === "changes_requested" ||
-          (r?.approvals && r?.approvals.some(a => a.status === "changes_requested"))
+          r.status === "changes_requested" ||
+          r.approvals?.some(a => a.status === "changes_requested")
         );
         break;
       case "approvals":
@@ -151,7 +120,6 @@ export default function Dashboard() {
         filtered = filtered.filter(request => {
           if (request.status !== "pending") return false;
           if (request.requesterId === user.id) return false;
-
           const departmentApproval = request.approvals?.find(
             a => a.department === user.department
           );
@@ -160,14 +128,21 @@ export default function Dashboard() {
         break;
     }
 
-    // Then apply filter panel filters
-    if (activeFilters.status.length > 0) {
-      filtered = filtered.filter(r => activeFilters.status.includes(r.status));
+    // Apply additional filters
+    if (activeFilters.searchQuery) {
+      const query = activeFilters.searchQuery.toLowerCase();
+      filtered = filtered.filter(r =>
+        r.title.toLowerCase().includes(query) ||
+        r.description?.toLowerCase().includes(query) ||
+        r.requestNumber?.toLowerCase().includes(query)
+      );
     }
 
     if (activeFilters.dateRange.from || activeFilters.dateRange.to) {
       filtered = filtered.filter(r => {
+        if (!r.createdAt) return false;
         const requestDate = parseISO(r.createdAt);
+
         if (activeFilters.dateRange.from && activeFilters.dateRange.to) {
           return isWithinInterval(requestDate, {
             start: activeFilters.dateRange.from,
@@ -184,92 +159,54 @@ export default function Dashboard() {
       });
     }
 
-    if (activeFilters.priority.length > 0) {
-      filtered = filtered.filter(r => activeFilters.priority.includes(r.priority));
-    }
-
-    if (activeFilters.department.length > 0) {
-      filtered = filtered.filter(r =>
-        activeFilters.department.includes(r.requester?.department || '')
-      );
-    }
-
-    if (activeFilters.purposeType.length > 0) {
-      filtered = filtered.filter(r =>
-        activeFilters.purposeType.includes(r.purposeType)
-      );
-    }
-
-    if (activeFilters.subPurposeId !== null) {
-      filtered = filtered.filter(r => r.subPurposeId === activeFilters.subPurposeId);
-    }
-
-    if (activeFilters.vendorId !== null) {
-      filtered = filtered.filter(r => r.vendorId === activeFilters.vendorId);
-    }
-
-    if (activeFilters.costRange.min || activeFilters.costRange.max) {
-      filtered = filtered.filter(r => {
-        const cost = r.totalEstimatedCost || 0;
-        const min = activeFilters.costRange.min
-          ? parseFloat(activeFilters.costRange.min)
-          : -Infinity;
-        const max = activeFilters.costRange.max
-          ? parseFloat(activeFilters.costRange.max)
-          : Infinity;
-        return cost >= min && cost <= max;
-      });
-    }
-
-    if (activeFilters.searchQuery) {
-      const query = activeFilters.searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        r =>
-          r.title.toLowerCase().includes(query) ||
-          r.description.toLowerCase().includes(query) ||
-          r.requestNumber.toLowerCase().includes(query)
-      );
-    }
-
     return filtered;
-  }, [activeFilters, user]);
+  }, [safeRequests, user, activeFilters]);
 
-  // Function to handle filter changes
+  // Update department list from requests
+  useEffect(() => {
+    if (Array.isArray(safeRequests)) {
+      const uniqueDepartments = Array.from(
+        new Set(
+          safeRequests
+            .map((r) => r.requester?.department)
+            .filter((d): d is string => !!d)
+        )
+      );
+      setDepartments(uniqueDepartments);
+    }
+  }, [safeRequests]);
+
+  // Calculate filtered requests for each category
+  const categorizedRequests = useMemo(() => ({
+    myRequests: getFilteredRequests("my-requests"),
+    draftsToSubmit: getFilteredRequests("drafts-to-submit"),
+    pending: getFilteredRequests("pending"),
+    approved: getFilteredRequests("approved"),
+    rejected: getFilteredRequests("rejected"),
+    changes: getFilteredRequests("changes"),
+    approvals: getFilteredRequests("approvals")
+  }), [getFilteredRequests]);
+
+  // Request counts
+  const requestCounts: RequestCounts = useMemo(() => ({
+    myRequests: categorizedRequests.myRequests.length,
+    draftsToSubmit: categorizedRequests.draftsToSubmit.length,
+    allRequests: safeRequests.length,
+    pending: categorizedRequests.pending.length,
+    approved: categorizedRequests.approved.length,
+    rejected: categorizedRequests.rejected.length,
+    changes: categorizedRequests.changes.length,
+    approvals: categorizedRequests.approvals.length
+  }), [categorizedRequests, safeRequests.length]);
+
+  const showApprovalsTab = useMemo(() => 
+    requestCounts.approvals > 0
+  , [requestCounts.approvals]);
+
+  // Event handlers
   const handleFilterChange = useCallback((newFilters: FilterValues) => {
     setActiveFilters(newFilters);
   }, []);
-
-  // Get filtered requests based on current tab
-  const getTabContent = useCallback((tabValue: string) => {
-    const filteredRequests = getFilteredRequests(requests, tabValue);
-    return renderRequestsTable(filteredRequests, tabValue === "approvals" || (isAdmin && tabValue === "pending"));
-  }, [requests, getFilteredRequests, isAdmin]);
-
-  const pendingApprovals = useMemo(() => {
-    if (!user || !Array.isArray(requests)) return [];
-
-    return getFilteredRequests(requests, "approvals");
-  }, [requests, user, getFilteredRequests]);
-
-  const showApprovalsTab = useMemo(() => {
-    return pendingApprovals.length > 0;
-  }, [pendingApprovals.length]);
-
-  // Get request counts for each tab
-  const requestCounts = useMemo(() => {
-    if (!Array.isArray(requests)) return {};
-
-    return {
-      myRequests: getFilteredRequests(requests, "my-requests").length,
-      draftsToSubmit: getFilteredRequests(requests, "drafts-to-submit").length,
-      allRequests: requests.length,
-      pending: getFilteredRequests(requests, "pending").length,
-      approved: getFilteredRequests(requests, "approved").length,
-      rejected: getFilteredRequests(requests, "rejected").length,
-      changes: getFilteredRequests(requests, "changes").length,
-      approvals: pendingApprovals.length
-    };
-  }, [requests, getFilteredRequests, pendingApprovals]);
 
   const handleExport = async (format: "xlsx" | "csv") => {
     try {
@@ -308,89 +245,33 @@ export default function Dashboard() {
     }).format(Number(amount));
   };
 
-  const deleteRequest = async (requestId: string) => {
-    try {
-      const response = await fetch(`/api/requests/${requestId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-
-      toast({
-        title: "Success",
-        description: "Request deleted successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete request",
-        variant: "destructive",
-      });
+  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
+    if (notification.link) {
+      setLocation(notification.link);
     }
   };
 
-  const handleDraftSubmit = async (requestId: number) => {
-    try {
-      await updateRequest({
-        id: requestId,
-        data: { status: "pending" },
-      });
-
-      toast({
-        title: "Success",
-        description: "Draft request submitted successfully",
-      });
-
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-    } catch (error: any) {
-      console.error("Submit error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit request",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const renderRequestsTable = (
-    requests: RequestData[],
-    showApproval: boolean = false
-  ) => {
-    const canSubmitDraft = (request: RequestData) => {
-      return (
-        request.status === "draft" &&
-        request.requesterId === user?.id &&
-        request.title &&
-        request.description &&
-        Array.isArray(request.items) &&
-        request.items.length > 0
-      );
-    };
+  // Render methods
+  const renderRequestsTable = (requests: RequestData[], showApproval: boolean = false) => {
+    if (!Array.isArray(requests)) return null;
 
     return (
-      <Table>
-        <TableHeader>
-          <TableRow className="border-b border-[#7156a2]/20 bg-[#7156a2]/5">
-            <TableHead className="font-semibold">Request #</TableHead>
-            <TableHead className="font-semibold">Title</TableHead>
-            <TableHead className="font-semibold">Status</TableHead>
-            <TableHead className="font-semibold">Priority</TableHead>
-            <TableHead className="font-semibold">Department</TableHead>
-            <TableHead className="font-semibold">Created</TableHead>
-            <TableHead className="font-semibold">Total Cost</TableHead>
-            <TableHead className="w-[200px] font-semibold">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requests.map((request) => {
-            if (!request) return null;
-
-            return (
+      <div className="rounded-lg border border-[#35bbba]/20 overflow-hidden shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-[#7156a2]/20 bg-[#7156a2]/5">
+              <TableHead className="font-semibold">Request #</TableHead>
+              <TableHead className="font-semibold">Title</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Priority</TableHead>
+              <TableHead className="font-semibold">Department</TableHead>
+              <TableHead className="font-semibold">Created</TableHead>
+              <TableHead className="font-semibold">Total Cost</TableHead>
+              <TableHead className="w-[200px] font-semibold">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {requests.map((request) => (
               <TableRow key={request.id} className="hover:bg-[#35bbba]/5 transition-colors">
                 <TableCell className="font-medium">
                   {request.requestNumber}
@@ -400,15 +281,15 @@ export default function Dashboard() {
                   <Badge
                     className={cn(
                       "transition-colors",
-                      request.status === "draft"
-                        ? "bg-gray-100 text-gray-800 border-gray-200"
-                        : request.status === "pending"
-                        ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20"
-                        : request.status === "approved"
+                      request.status === "approved"
                         ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20"
                         : request.status === "rejected"
                         ? "bg-red-100 text-red-800 border-red-200"
-                        : "bg-orange-100 text-orange-800 border-orange-200"
+                        : request.status === "changes_requested"
+                        ? "bg-orange-100 text-orange-800 border-orange-200"
+                        : request.status === "pending"
+                        ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20"
+                        : "bg-gray-100 text-gray-800 border-gray-200"
                     )}
                   >
                     {request.status.toUpperCase().replace("_", " ")}
@@ -419,7 +300,7 @@ export default function Dashboard() {
                 </TableCell>
                 <TableCell>{request.requester?.department}</TableCell>
                 <TableCell>
-                  {format(new Date(request.createdAt), "MMM d, yyyy")}
+                  {request.createdAt && format(new Date(request.createdAt), "MMM d, yyyy")}
                 </TableCell>
                 <TableCell>
                   {formatCurrency(request.totalEstimatedCost || 0)}
@@ -430,103 +311,54 @@ export default function Dashboard() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setLocation(`/requests/${request.id}`)}
-                      className="hover:bg-[#7156a2]/10 transition-colors"
+                      className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors"
                     >
                       View
                     </Button>
-                    {(isAdmin ||
-                      (request.status === "draft" &&
-                        request.requesterId === user?.id)) && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setLocation(`/requests/${request.id}/edit`)
-                          }
-                          className="text-[#35bbba] hover:text-[#35bbba]/90 hover:bg-[#35bbba]/10"
-                        >
-                          Edit
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Delete Request
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this request? This
-                                action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700"
-                                onClick={() =>
-                                  deleteRequest(request.id.toString())
-                                }
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
-                    )}
-                    {canSubmitDraft(request) && (
+                    {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                       <Button
-                        variant="default"
+                        variant="ghost"
                         size="sm"
-                        className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
-                        onClick={() => handleDraftSubmit(request.id)}
+                        onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                        className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10"
                       >
-                        Submit Draft
+                        Edit
                       </Button>
                     )}
-                    {showApproval &&
-                      request.status === "pending" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setLocation(`/requests/${request.id}`)
-                          }
-                          className="text-[#35bbba] hover:text-[#35bbba]/90 hover:bg-[#35bbba]/10"
-                        >
-                          Review
-                        </Button>
-                      )}
+                    {showApproval && request.status === "pending" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation(`/requests/${request.id}`)}
+                        className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10"
+                      >
+                        Review
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     );
   };
 
-  const handleNotificationClick = (
-    notification: { id: number; link: string | null }
-  ) => {
-    if (notification.link) {
-      setLocation(notification.link);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7156a2] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
-      <header className="bg-white shadow">
+      <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
@@ -538,7 +370,7 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <Link href="/admin">
                   <Button variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10">
                     <Settings className="h-4 w-4 mr-2" />
@@ -552,16 +384,16 @@ export default function Dashboard() {
                   New Request
                 </Button>
               </Link>
-              <NotificationsDropdown
-                onNotificationClick={handleNotificationClick}
-              />
+              <NotificationsDropdown onNotificationClick={handleNotificationClick} />
               <DashboardPreferences
-                preferences={preferences}
+                preferences={preferences || DEFAULT_PREFERENCES}
                 onUpdate={updatePreferences}
               />
-              <Button variant="outline"
+              <Button
+                variant="outline"
                 className="border-[#7156a2]/20 hover:bg-[#7156a2]/10"
-                onClick={() => logout()}>
+                onClick={() => logout()}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -571,19 +403,17 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="mb-6 border-[#35bbba]/20 shadow-lg">
+        <Card className="mb-6 border-[#35bbba]/20 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex justify-between gap-4">
               <div className="relative flex-1">
                 <Input
                   placeholder="Search requests..."
                   value={activeFilters.searchQuery}
-                  onChange={(e) => {
-                    handleFilterChange({
-                      ...activeFilters,
-                      searchQuery: e.target.value,
-                    });
-                  }}
+                  onChange={(e) => handleFilterChange({
+                    ...activeFilters,
+                    searchQuery: e.target.value,
+                  })}
                   className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50"
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
@@ -616,74 +446,58 @@ export default function Dashboard() {
           isLoading={isFilterLoading}
         />
 
-        <Tabs defaultValue={preferences.defaultView} className="space-y-6">
+        <Tabs defaultValue={(preferences?.defaultView || "my-requests")} className="space-y-6">
           <TabsList className="mb-8 bg-white border border-[#7156a2]/20 p-1">
-            <TabsTrigger
-              value="my-requests"
-              className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+            <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               My Requests
-              <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+              <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                 {requestCounts.myRequests}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger
-              value="drafts-to-submit"
-              className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+            <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               Ready to Submit
-              <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+              <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                 {requestCounts.draftsToSubmit}
               </Badge>
             </TabsTrigger>
             {(isAdmin || isSpecialRole) && (
               <>
-                <TabsTrigger
-                  value="all-requests"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+                <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   All Requests
-                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                     {requestCounts.allRequests}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="pending"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+                <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Pending
-                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                     {requestCounts.pending}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="approved"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+                <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Approved
-                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                     {requestCounts.approved}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="rejected"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+                <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Rejected
-                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                     {requestCounts.rejected}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="changes"
-                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+                <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Changes Requested
-                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                     {requestCounts.changes}
                   </Badge>
                 </TabsTrigger>
               </>
             )}
             {!isAdmin && !isSpecialRole && showApprovalsTab && (
-              <TabsTrigger
-                value="approvals"
-                className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
+              <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                 Pending Approvals
-                <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
                   {requestCounts.approvals}
                 </Badge>
               </TabsTrigger>
@@ -692,33 +506,33 @@ export default function Dashboard() {
 
           <div className="bg-white rounded-lg border border-[#35bbba]/20 shadow-lg p-6">
             <TabsContent value="my-requests">
-              {getTabContent("my-requests")}
+              {renderRequestsTable(categorizedRequests.myRequests)}
             </TabsContent>
             <TabsContent value="drafts-to-submit">
-              {getTabContent("drafts-to-submit")}
+              {renderRequestsTable(categorizedRequests.draftsToSubmit)}
             </TabsContent>
             {(isAdmin || isSpecialRole) && (
               <>
                 <TabsContent value="all-requests">
-                  {getTabContent("all-requests")}
+                  {renderRequestsTable(safeRequests)}
                 </TabsContent>
                 <TabsContent value="pending">
-                  {getTabContent("pending")}
+                  {renderRequestsTable(categorizedRequests.pending, isAdmin)}
                 </TabsContent>
                 <TabsContent value="approved">
-                  {getTabContent("approved")}
+                  {renderRequestsTable(categorizedRequests.approved)}
                 </TabsContent>
                 <TabsContent value="rejected">
-                  {getTabContent("rejected")}
+                  {renderRequestsTable(categorizedRequests.rejected)}
                 </TabsContent>
                 <TabsContent value="changes">
-                  {getTabContent("changes")}
+                  {renderRequestsTable(categorizedRequests.changes)}
                 </TabsContent>
               </>
             )}
             {!isAdmin && !isSpecialRole && showApprovalsTab && (
               <TabsContent value="approvals">
-                {getTabContent("approvals")}
+                {renderRequestsTable(categorizedRequests.approvals, true)}
               </TabsContent>
             )}
           </div>

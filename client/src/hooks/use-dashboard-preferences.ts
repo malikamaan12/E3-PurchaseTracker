@@ -11,7 +11,7 @@ export interface DashboardPreferences {
   defaultPriorityFilter: string;
 }
 
-const defaultPreferences: DashboardPreferences = {
+export const DEFAULT_PREFERENCES: DashboardPreferences = {
   theme: "system",
   layout: "list",
   defaultView: "my-requests",
@@ -23,25 +23,36 @@ const defaultPreferences: DashboardPreferences = {
 };
 
 export function useDashboardPreferences() {
+  // Initialize state with default preferences
   const [preferences, setPreferences] = useState<DashboardPreferences>(() => {
-    const saved = localStorage.getItem("dashboard-preferences");
-    return saved ? JSON.parse(saved) : defaultPreferences;
+    try {
+      const saved = localStorage.getItem("dashboard-preferences");
+      return saved ? { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_PREFERENCES;
+    } catch (error) {
+      console.error("Error loading preferences:", error);
+      return DEFAULT_PREFERENCES;
+    }
   });
 
+  // Save preferences to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem("dashboard-preferences", JSON.stringify(preferences));
+    try {
+      localStorage.setItem("dashboard-preferences", JSON.stringify(preferences));
 
-    // Apply theme preference
-    const root = window.document.documentElement;
-    if (preferences.theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      root.classList.remove("light", "dark");
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.remove("light", "dark");
-      root.classList.add(preferences.theme);
+      // Apply theme preference
+      const root = window.document.documentElement;
+      if (preferences.theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+        root.classList.remove("light", "dark");
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.remove("light", "dark");
+        root.classList.add(preferences.theme);
+      }
+    } catch (error) {
+      console.error("Error saving preferences:", error);
     }
   }, [preferences]);
 
@@ -49,18 +60,13 @@ export function useDashboardPreferences() {
     setPreferences((prev) => ({ ...prev, ...updates }));
   };
 
-  const resetFilters = () => {
-    setPreferences((prev) => ({
-      ...prev,
-      defaultDepartmentFilter: "all",
-      defaultPurposeFilter: "all",
-      defaultPriorityFilter: "all"
-    }));
+  const resetPreferences = () => {
+    setPreferences(DEFAULT_PREFERENCES);
   };
 
   return {
     preferences,
     updatePreferences,
-    resetFilters,
+    resetPreferences,
   };
 }
