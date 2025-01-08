@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PurchaseRequest } from "@db/schema";
 import { useErrorHandler } from "@/services/error-logging";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
+import { useEffect, useCallback, useRef } from "react";
 
 interface ApprovalData {
   requestId: number;
@@ -19,29 +20,46 @@ export function usePurchaseRequests() {
   // Required departments for approval
   const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
 
-  // Helper function to determine effective status
-  const getEffectiveStatus = (request: any) => {
-    const allDepartmentsApproved = requiredDepartments.every(dept => 
-      request.approvals?.some((approval: any) => 
+  // Ref to track processed auto-approvals
+  const processedAutoApprovals = useRef(new Set<string>());
+
+  // Helper function to determine if all other departments except the given one have approved
+  const allOtherDepartmentsApproved = useCallback((request: any, excludeDepartment: string) => {
+    const otherDepartments = requiredDepartments.filter(dept => dept !== excludeDepartment);
+    return otherDepartments.every(dept =>
+      request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
       )
     );
-    return allDepartmentsApproved ? 'approved' : request.status;
-  };
+  }, []);
 
-  // Fetch all requests with optimized fields
+  // Helper function to determine effective status
+  const getEffectiveStatus = useCallback((request: any) => {
+    if (!request.approvals) return request.status;
+
+    // Check if all departments have approved
+    const allDepartmentsApproved = requiredDepartments.every(dept =>
+      request.approvals?.some((approval: any) =>
+        approval.department === dept && approval.status === 'approved'
+      )
+    );
+
+    return allDepartmentsApproved ? 'approved' : request.status;
+  }, []);
+
+  // Fetch all requests
   const { data: rawRequests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/requests", {
+        const response = await fetch("/api/requests", {
           credentials: 'include'
         });
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || `Failed to fetch requests: ${res.status}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to fetch requests: ${response.status}`);
         }
-        return res.json();
+        return response.json();
       } catch (error) {
         console.error("Error fetching requests:", error);
         throw error;
@@ -53,34 +71,32 @@ export function usePurchaseRequests() {
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
 
-  // Process requests to include effective status
-  const requests = rawRequests.map((request: any) => ({
-    ...request,
-    status: getEffectiveStatus(request)
-  }));
-
-  // Draft mutation with proper type safety
-  const draftMutation = useMutation<PurchaseRequest, Error, Partial<PurchaseRequest>>({
+  // Approval mutation
+  const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
     mutationFn: async (data) => {
-      if (!data) {
-        throw new Error("Request data is required");
+      if (!data.requestId || !data.status || !data.departmentId) {
+        throw new Error("Missing required fields");
       }
 
-      const response = await fetch("/api/requests", {
-        method: "POST",
+      const requestBody = {
+        status: data.status,
+        department: data.departmentId,
+        comments: data.comments?.trim() || undefined,
+        isAutoApproval: data.comments?.includes('Auto-approved') || false
+      };
+
+      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: "draft",
-          data
-        }),
-        credentials: "include",
+        body: JSON.stringify(requestBody),
+        credentials: 'include'
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || `Failed to save draft: ${response.status}`);
+        throw new Error(errorText || `Failed to process approval: ${response.status}`);
       }
 
       return response.json();
@@ -89,73 +105,10 @@ export function usePurchaseRequests() {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
-        description: "Draft saved successfully",
-      });
-    },
-    onError: async (error) => {
-      await handleError(error, {
-        title: "Error saving draft"
-      });
-    }
-  });
-
-  // Approval mutation with proper type safety
-  const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
-    mutationFn: async (data) => {
-      console.log("Starting approval mutation with data:", data);
-
-      if (!data.requestId || !data.status || !data.departmentId) {
-        const error = new Error("Missing required fields");
-        console.error("Validation error:", { data, error });
-        throw error;
-      }
-
-      try {
-        console.log("Making API request to:", `/api/requests/${data.requestId}/approvals`);
-        const requestBody = {
-          status: data.status,
-          department: data.departmentId, 
-          comments: data.comments?.trim() || undefined
-        };
-        console.log("Request body:", requestBody);
-
-        const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response:", {
-            status: response.status,
-            statusText: response.statusText,
-            errorText
-          });
-          throw new Error(errorText || `Failed to process approval: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log("API success response:", result);
-        return result;
-      } catch (error) {
-        console.error("API call error:", error);
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      console.log("Approval mutation succeeded:", data);
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
         description: "Approval submitted successfully"
       });
     },
-    onError: (error: Error) => {
-      console.error("Approval mutation error:", error);
+    onError: (error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to process approval",
@@ -164,11 +117,61 @@ export function usePurchaseRequests() {
     }
   });
 
+  // Process auto-approvals
+  const processAutoApprovals = useCallback((requests: any[]) => {
+    requests.forEach((request: any) => {
+      if (!request.requester || !request.approvals) return;
+
+      const requesterDepartment = request.requester.department;
+      if (!requiredDepartments.includes(requesterDepartment)) return;
+
+      const requesterDeptApproval = request.approvals.find(
+        (approval: any) => approval.department === requesterDepartment
+      );
+
+      // Create a unique key for this auto-approval
+      const autoApprovalKey = `${request.id}-${requesterDepartment}`;
+
+      // Check if we haven't processed this auto-approval yet
+      if (
+        !processedAutoApprovals.current.has(autoApprovalKey) &&
+        requesterDeptApproval?.status === 'pending' &&
+        allOtherDepartmentsApproved(request, requesterDepartment)
+      ) {
+        // Mark this auto-approval as processed
+        processedAutoApprovals.current.add(autoApprovalKey);
+
+        // Schedule the auto-approval for the next tick to avoid render cycle issues
+        setTimeout(() => {
+          approvalMutation.mutate({
+            requestId: request.id,
+            status: 'approved',
+            departmentId: requesterDepartment,
+            comments: 'Auto-approved as all other departments have approved'
+          });
+        }, 0);
+      }
+    });
+  }, [approvalMutation, allOtherDepartmentsApproved]);
+
+  // Effect to handle auto-approvals
+  useEffect(() => {
+    if (!rawRequests?.length) return;
+    processAutoApprovals(rawRequests);
+
+    // Cleanup function
+    return () => {
+      processedAutoApprovals.current.clear();
+    };
+  }, [rawRequests, processAutoApprovals]);
+
   return {
-    requests,
+    requests: rawRequests.map((request: any) => ({
+      ...request,
+      status: getEffectiveStatus(request)
+    })),
     isLoading,
     error,
-    saveDraft: draftMutation.mutateAsync,
     processApproval: approvalMutation.mutateAsync,
   };
 }
