@@ -245,6 +245,16 @@ export default function Dashboard() {
     return renderRequestsTable(filteredRequests, tabValue === "approvals" || (isAdmin && tabValue === "pending"));
   }, [requests, getFilteredRequests, isAdmin]);
 
+  const pendingApprovals = useMemo(() => {
+    if (!user || !Array.isArray(requests)) return [];
+
+    return getFilteredRequests(requests, "approvals");
+  }, [requests, user, getFilteredRequests]);
+
+  const showApprovalsTab = useMemo(() => {
+    return pendingApprovals.length > 0;
+  }, [pendingApprovals.length]);
+
   // Get request counts for each tab
   const requestCounts = useMemo(() => {
     if (!Array.isArray(requests)) return {};
@@ -260,16 +270,6 @@ export default function Dashboard() {
       approvals: pendingApprovals.length
     };
   }, [requests, getFilteredRequests, pendingApprovals]);
-
-  const pendingApprovals = useMemo(() => {
-    if (!user || !Array.isArray(requests)) return [];
-
-    return getFilteredRequests(requests, "approvals");
-  }, [requests, user, getFilteredRequests]);
-
-  const showApprovalsTab = useMemo(() => {
-    return pendingApprovals.length > 0;
-  }, [pendingApprovals.length]);
 
   const handleExport = async (format: "xlsx" | "csv") => {
     try {
