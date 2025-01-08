@@ -46,6 +46,7 @@ import { isWithinInterval, parseISO } from "date-fns";
 import { type RequestData } from "@/types/requests";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSubPurposes } from "@/hooks/use-sub-purposes";
+import cn from 'classnames';
 
 export default function Dashboard() {
   const { user, logout } = useUser();
@@ -121,8 +122,8 @@ export default function Dashboard() {
         filtered = filtered.filter(r => r?.requesterId === user?.id);
         break;
       case "drafts-to-submit":
-        filtered = filtered.filter(r => 
-          r?.requesterId === user?.id && 
+        filtered = filtered.filter(r =>
+          r?.requesterId === user?.id &&
           r?.status === "draft" &&
           r?.title &&
           r?.description &&
@@ -140,7 +141,7 @@ export default function Dashboard() {
         filtered = filtered.filter(r => r?.status === "rejected");
         break;
       case "changes":
-        filtered = filtered.filter(r => 
+        filtered = filtered.filter(r =>
           r?.status === "changes_requested" ||
           (r?.approvals && r?.approvals.some(a => a.status === "changes_requested"))
         );
@@ -358,15 +359,15 @@ export default function Dashboard() {
     return (
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Request #</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Priority</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Total Cost</TableHead>
-            <TableHead className="w-[200px]">Actions</TableHead>
+          <TableRow className="border-b border-[#7156a2]/20 bg-[#7156a2]/5">
+            <TableHead className="font-semibold">Request #</TableHead>
+            <TableHead className="font-semibold">Title</TableHead>
+            <TableHead className="font-semibold">Status</TableHead>
+            <TableHead className="font-semibold">Priority</TableHead>
+            <TableHead className="font-semibold">Department</TableHead>
+            <TableHead className="font-semibold">Created</TableHead>
+            <TableHead className="font-semibold">Total Cost</TableHead>
+            <TableHead className="w-[200px] font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -374,24 +375,25 @@ export default function Dashboard() {
             if (!request) return null;
 
             return (
-              <TableRow key={request.id}>
+              <TableRow key={request.id} className="hover:bg-[#35bbba]/5 transition-colors">
                 <TableCell className="font-medium">
                   {request.requestNumber}
                 </TableCell>
                 <TableCell>{request.title}</TableCell>
                 <TableCell>
                   <Badge
-                    className={
+                    className={cn(
+                      "transition-colors",
                       request.status === "draft"
-                        ? "bg-gray-500/10 text-gray-600"
+                        ? "bg-gray-100 text-gray-800 border-gray-200"
                         : request.status === "pending"
-                        ? "bg-yellow-500/10 text-yellow-700"
+                        ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20"
                         : request.status === "approved"
-                        ? "bg-green-500/10 text-green-700"
+                        ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20"
                         : request.status === "rejected"
-                        ? "bg-red-500/10 text-red-700"
-                        : "bg-orange-500/10 text-orange-700"
-                    }
+                        ? "bg-red-100 text-red-800 border-red-200"
+                        : "bg-orange-100 text-orange-800 border-orange-200"
+                    )}
                   >
                     {request.status.toUpperCase().replace("_", " ")}
                   </Badge>
@@ -412,6 +414,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setLocation(`/requests/${request.id}`)}
+                      className="hover:bg-[#7156a2]/10 transition-colors"
                     >
                       View
                     </Button>
@@ -425,7 +428,7 @@ export default function Dashboard() {
                           onClick={() =>
                             setLocation(`/requests/${request.id}/edit`)
                           }
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-[#35bbba] hover:text-[#35bbba]/90 hover:bg-[#35bbba]/10"
                         >
                           Edit
                         </Button>
@@ -434,7 +437,7 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:text-red-700"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               Delete
                             </Button>
@@ -468,7 +471,7 @@ export default function Dashboard() {
                       <Button
                         variant="default"
                         size="sm"
-                        className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white ml-2"
+                        className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
                         onClick={() => handleDraftSubmit(request.id)}
                       >
                         Submit Draft
@@ -482,7 +485,7 @@ export default function Dashboard() {
                           onClick={() =>
                             setLocation(`/requests/${request.id}`)
                           }
-                          className="text-yellow-600 hover:text-yellow-700"
+                          className="text-[#35bbba] hover:text-[#35bbba]/90 hover:bg-[#35bbba]/10"
                         >
                           Review
                         </Button>
@@ -506,7 +509,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -521,14 +524,14 @@ export default function Dashboard() {
             <div className="flex items-center gap-4">
               {user?.role === "admin" && (
                 <Link href="/admin">
-                  <Button variant="outline">
+                  <Button variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10">
                     <Settings className="h-4 w-4 mr-2" />
                     Admin Panel
                   </Button>
                 </Link>
               )}
               <Link href="/new-request">
-                <Button>
+                <Button className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white">
                   <Plus className="h-4 w-4 mr-2" />
                   New Request
                 </Button>
@@ -540,7 +543,9 @@ export default function Dashboard() {
                 preferences={preferences}
                 onUpdate={updatePreferences}
               />
-              <Button variant="outline" onClick={() => logout()}>
+              <Button variant="outline"
+                className="border-[#7156a2]/20 hover:bg-[#7156a2]/10"
+                onClick={() => logout()}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -550,7 +555,7 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="mb-6">
+        <Card className="mb-6 border-[#35bbba]/20 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex justify-between gap-4">
               <div className="relative flex-1">
@@ -563,13 +568,13 @@ export default function Dashboard() {
                       searchQuery: e.target.value,
                     });
                   }}
-                  className="pl-8"
+                  className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50"
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="secondary">
+                  <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba]">
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </Button>
@@ -595,70 +600,88 @@ export default function Dashboard() {
           isLoading={isFilterLoading}
         />
 
-        <Tabs defaultValue={preferences.defaultView}>
-          <TabsList className="mb-8">
-            <TabsTrigger value="my-requests">
+        <Tabs defaultValue={preferences.defaultView} className="space-y-6">
+          <TabsList className="mb-8 bg-white border border-[#7156a2]/20 p-1">
+            <TabsTrigger
+              value="my-requests"
+              className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               My Requests
             </TabsTrigger>
-            <TabsTrigger value="drafts-to-submit">
+            <TabsTrigger
+              value="drafts-to-submit"
+              className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               Ready to Submit
             </TabsTrigger>
             {(isAdmin || isSpecialRole) && (
               <>
-                <TabsTrigger value="all-requests">
+                <TabsTrigger
+                  value="all-requests"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   All Requests
                 </TabsTrigger>
-                <TabsTrigger value="pending">
+                <TabsTrigger
+                  value="pending"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Pending
                 </TabsTrigger>
-                <TabsTrigger value="approved">
+                <TabsTrigger
+                  value="approved"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Approved
                 </TabsTrigger>
-                <TabsTrigger value="rejected">
+                <TabsTrigger
+                  value="rejected"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Rejected
                 </TabsTrigger>
-                <TabsTrigger value="changes">
+                <TabsTrigger
+                  value="changes"
+                  className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Changes Requested
                 </TabsTrigger>
               </>
             )}
             {!isAdmin && !isSpecialRole && showApprovalsTab && (
-              <TabsTrigger value="approvals">
+              <TabsTrigger
+                value="approvals"
+                className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                 Pending Approvals
               </TabsTrigger>
             )}
           </TabsList>
 
-          <TabsContent value="my-requests">
-            {getTabContent("my-requests")}
-          </TabsContent>
-          <TabsContent value="drafts-to-submit">
-            {getTabContent("drafts-to-submit")}
-          </TabsContent>
-          {(isAdmin || isSpecialRole) && (
-            <>
-              <TabsContent value="all-requests">
-                {getTabContent("all-requests")}
-              </TabsContent>
-              <TabsContent value="pending">
-                {getTabContent("pending")}
-              </TabsContent>
-              <TabsContent value="approved">
-                {getTabContent("approved")}
-              </TabsContent>
-              <TabsContent value="rejected">
-                {getTabContent("rejected")}
-              </TabsContent>
-              <TabsContent value="changes">
-                {getTabContent("changes")}
-              </TabsContent>
-            </>
-          )}
-          {!isAdmin && !isSpecialRole && showApprovalsTab && (
-            <TabsContent value="approvals">
-              {getTabContent("approvals")}
+          <div className="bg-white rounded-lg border border-[#35bbba]/20 shadow-lg p-6">
+            <TabsContent value="my-requests">
+              {getTabContent("my-requests")}
             </TabsContent>
-          )}
+            <TabsContent value="drafts-to-submit">
+              {getTabContent("drafts-to-submit")}
+            </TabsContent>
+            {(isAdmin || isSpecialRole) && (
+              <>
+                <TabsContent value="all-requests">
+                  {getTabContent("all-requests")}
+                </TabsContent>
+                <TabsContent value="pending">
+                  {getTabContent("pending")}
+                </TabsContent>
+                <TabsContent value="approved">
+                  {getTabContent("approved")}
+                </TabsContent>
+                <TabsContent value="rejected">
+                  {getTabContent("rejected")}
+                </TabsContent>
+                <TabsContent value="changes">
+                  {getTabContent("changes")}
+                </TabsContent>
+              </>
+            )}
+            {!isAdmin && !isSpecialRole && showApprovalsTab && (
+              <TabsContent value="approvals">
+                {getTabContent("approvals")}
+              </TabsContent>
+            )}
+          </div>
         </Tabs>
       </main>
     </div>
