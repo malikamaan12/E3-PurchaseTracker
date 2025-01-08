@@ -965,7 +965,7 @@ export function registerRoutes(app: Express): Server {
         .returning();;
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
-      res.status(201).json(newSubPurpose);    } catch (error) {
+      res.json(newSubPurpose);    } catch (error) {
       debug(req, 'Error creating sub-purpose:', error);
       next(error);
     }
@@ -2548,6 +2548,92 @@ export function registerRoutes(app: Express): Server {
 
   // Add Deepseek API endpoints
   // Removed Deepseek API endpoints
+
+  // Add request status update endpoint
+  app.post("/api/requests/:id/status", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!status || !['approved', 'rejected', 'changes_requested', 'pending'].includes(status)) {
+        throw new ValidationError('Invalid status', { status: ['Invalid status value'] });
+      }
+
+      debug(req, 'Updating request status:', { requestId, status });
+
+      // Get the current request with approvals
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get all approvals for this request
+      const currentApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Get all required departments
+      const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+      const allDepartmentsApproved = requiredDepartments.every(dept => 
+        currentApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // Only allow status update to approved if all required departments have approved
+      if (status === 'approved' && !allDepartmentsApproved) {
+        throw new ValidationError('Cannot mark as approved', {
+          message: 'All required departments must approve first'
+        });
+      }
+
+      // Update the request status
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          status,
+          updatedAt: new Date()
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      // Log the status change
+      await logAuditEvent({
+        action: 'request_status_updated' as AuditAction,
+        userId: req.user!.id,
+        details: {
+          requestId,
+          oldStatus: existingRequest.status,
+          newStatus: status
+        }
+      });
+
+      // If status is approved, create notifications for requester
+      if (status === 'approved') {
+        await createNotification(
+          existingRequest.requesterId,
+          'Request Approved',
+          `Your purchase request has been fully approved`,
+          'request',
+          requestId
+        );
+      }
+
+      debug(req, 'Request status updated successfully:', updatedRequest);
+      res.json(updatedRequest);
+    } catch (error) {
+      debug(req, 'Error updating request status:', error);
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

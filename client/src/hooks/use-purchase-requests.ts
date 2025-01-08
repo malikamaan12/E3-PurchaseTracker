@@ -151,6 +151,39 @@ export function usePurchaseRequests() {
     }
   });
 
+  // Update request status mutation
+  const updateStatusMutation = useMutation<PurchaseRequest, Error, { requestId: number; status: string }>({
+    mutationFn: async ({ requestId, status }) => {
+      if (!requestId) {
+        throw new Error("Request ID is required for status update");
+      }
+
+      const response = await fetch(`/api/requests/${requestId}/status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to update request status: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+    },
+    onError: async (error) => {
+      await handleError(error, {
+        title: "Error updating request status"
+      });
+    }
+  });
+
   // Approval mutation with proper type safety and duplicate prevention
   const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
     mutationFn: async (data) => {
@@ -218,5 +251,6 @@ export function usePurchaseRequests() {
     submitRequest: submitMutation.mutateAsync,
     createApproval: approvalMutation.mutateAsync,
     deleteRequest: deleteMutation.mutateAsync,
+    updateRequestStatus: updateStatusMutation.mutateAsync
   };
 }

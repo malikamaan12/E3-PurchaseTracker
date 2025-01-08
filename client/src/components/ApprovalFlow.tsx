@@ -153,7 +153,7 @@ export default function ApprovalFlow({
 
       // If all departments have approved, update the request status
       if (allDepartmentsApproved && approvalStatus === 'approved') {
-        await updateRequestStatus(requestId, 'approved');
+        await updateRequestStatus({ requestId, status: 'approved' });
         toast({
           title: "Success",
           description: "All departments have approved. Request status updated to approved.",
