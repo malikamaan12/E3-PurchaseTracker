@@ -151,13 +151,35 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Approval mutation with proper type safety
+  // Approval mutation with proper type safety and duplicate prevention
   const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
     mutationFn: async (data) => {
       if (!data.requestId) {
         throw new Error("Request ID is required for approval");
       }
 
+      // First, fetch current approvals to check for duplicates
+      const checkResponse = await fetch(`/api/requests/${data.requestId}`, {
+        credentials: 'include'
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error(`Failed to verify approval status: ${checkResponse.status}`);
+      }
+
+      const request = await checkResponse.json();
+      const existingDepartmentApproval = request.approvals?.find(
+        (a: any) => a.department === data.department && 
+                    ["approved", "rejected", "changes_requested"].includes(a.status)
+      );
+
+      if (existingDepartmentApproval) {
+        throw new Error(`Your department has already processed this request at ${
+          new Date(existingDepartmentApproval.processedAt).toLocaleString()
+        }`);
+      }
+
+      // Proceed with approval if no duplicates found
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: 'POST',
         headers: {
