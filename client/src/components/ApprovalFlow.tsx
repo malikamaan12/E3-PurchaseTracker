@@ -44,7 +44,7 @@ export default function ApprovalFlow({
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if this user's department has already approved
+    // Check if this department has already approved
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
              (a.status === 'approved' || a.status === 'rejected')
@@ -59,6 +59,28 @@ export default function ApprovalFlow({
     // Return false if either department has approved or user has already approved
     return !departmentApproval && !userHasApproved;
   }, [approvals, user, requesterId, status]);
+
+  // Get the reason why approval is not possible
+  const getApprovalDisabledReason = () => {
+    if (!user?.department) return "You must be logged in to approve requests";
+    if (!["pending", "changes_requested"].includes(status)) return "Request is not in an approvable state";
+    if (requesterId === user.id && !["CEO Office", "Director", "Finance"].includes(user.department)) 
+      return "You cannot approve your own requests";
+
+    const departmentApproval = approvals.find(
+      (a) => a.department === user.department && 
+             (a.status === 'approved' || a.status === 'rejected')
+    );
+    if (departmentApproval) return "Your department has already processed this request";
+
+    const userHasApproved = approvals.find(
+      (a) => a.approverId === user.id && 
+             (a.status === 'approved' || a.status === 'rejected')
+    );
+    if (userHasApproved) return "You have already processed this request";
+
+    return "";
+  };
 
   const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
     if (isSubmitting || !canApprove) return;
@@ -138,35 +160,11 @@ export default function ApprovalFlow({
     }
   };
 
-  // Get unique approvals by department (keep only the latest approval for each department)
-  const uniqueApprovals = approvals.reduce((acc: (Approval & { approver?: User })[], curr) => {
-    const existing = acc.find(a => a.department === curr.department);
-    if (!existing || new Date(curr.updatedAt!) > new Date(existing.updatedAt!)) {
-      // Remove existing if found
-      if (existing) {
-        acc = acc.filter(a => a.department !== curr.department);
-      }
-      // Add current
-      acc.push(curr);
-    }
-    return acc;
-  }, []);
-
-  // Sort approvals: mandatory first, then by status (pending first)
-  const sortedApprovals = uniqueApprovals.sort((a, b) => {
-    if (a.isMandatory && !b.isMandatory) return -1;
-    if (!a.isMandatory && b.isMandatory) return 1;
-
-    const statusOrder = { pending: 0, changes_requested: 1, approved: 2, rejected: 3 };
-    return (statusOrder[a.status as keyof typeof statusOrder] || 0) - 
-           (statusOrder[b.status as keyof typeof statusOrder] || 0);
-  });
-
   return (
     <div className="space-y-4">
       <h4 className="font-medium">Approval Flow</h4>
       <div className="space-y-2">
-        {sortedApprovals.map((approval) => (
+        {approvals.map((approval) => (
           <Card key={approval.id}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -222,6 +220,7 @@ export default function ApprovalFlow({
                     onClick={() => handleApproval("approved")}
                     disabled={isSubmitting || !canApprove}
                     className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                    title={!canApprove ? getApprovalDisabledReason() : ""}
                   >
                     {isSubmitting ? "Processing..." : "Approve"}
                   </Button>
@@ -230,6 +229,7 @@ export default function ApprovalFlow({
                     disabled={isSubmitting || !canApprove}
                     variant="destructive"
                     className="flex-1"
+                    title={!canApprove ? getApprovalDisabledReason() : ""}
                   >
                     {isSubmitting ? "Processing..." : "Reject"}
                   </Button>
@@ -238,6 +238,7 @@ export default function ApprovalFlow({
                     disabled={isSubmitting || !canApprove}
                     variant="outline"
                     className="bg-orange-50 text-orange-600 hover:bg-orange-100 flex-1"
+                    title={!canApprove ? getApprovalDisabledReason() : ""}
                   >
                     {isSubmitting ? "Processing..." : "Request Changes"}
                   </Button>
