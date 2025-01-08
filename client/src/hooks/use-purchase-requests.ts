@@ -16,8 +16,21 @@ export function usePurchaseRequests() {
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
 
+  // Required departments for approval
+  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+
+  // Helper function to determine effective status
+  const getEffectiveStatus = (request: any) => {
+    const allDepartmentsApproved = requiredDepartments.every(dept => 
+      request.approvals?.some((approval: any) => 
+        approval.department === dept && approval.status === 'approved'
+      )
+    );
+    return allDepartmentsApproved ? 'approved' : request.status;
+  };
+
   // Fetch all requests with optimized fields
-  const { data: requests = [], isLoading, error } = useQuery({
+  const { data: rawRequests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
       try {
@@ -39,6 +52,12 @@ export function usePurchaseRequests() {
     retry: NOTIFICATION_CONFIG.MAX_RETRIES,
     refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
+
+  // Process requests to include effective status
+  const requests = rawRequests.map((request: any) => ({
+    ...request,
+    status: getEffectiveStatus(request)
+  }));
 
   // Draft mutation with proper type safety
   const draftMutation = useMutation<PurchaseRequest, Error, Partial<PurchaseRequest>>({
@@ -83,36 +102,64 @@ export function usePurchaseRequests() {
   // Approval mutation with proper type safety
   const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
     mutationFn: async (data) => {
-      if (!data.requestId) {
-        throw new Error("Request ID is required for approval");
+      console.log("Starting approval mutation with data:", data);
+
+      if (!data.requestId || !data.status || !data.departmentId) {
+        const error = new Error("Missing required fields");
+        console.error("Validation error:", { data, error });
+        throw error;
       }
 
-      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
+      try {
+        console.log("Making API request to:", `/api/requests/${data.requestId}/approvals`);
+        const requestBody = {
+          status: data.status,
+          department: data.departmentId, 
+          comments: data.comments?.trim() || undefined
+        };
+        console.log("Request body:", requestBody);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to process approval: ${response.status}`);
+        const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API error response:", {
+            status: response.status,
+            statusText: response.statusText,
+            errorText
+          });
+          throw new Error(errorText || `Failed to process approval: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log("API success response:", result);
+        return result;
+      } catch (error) {
+        console.error("API call error:", error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: (data) => {
+      console.log("Approval mutation succeeded:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       toast({
         title: "Success",
-        description: data.message || "Approval processed successfully",
+        description: "Approval submitted successfully"
       });
     },
-    onError: async (error) => {
-      await handleError(error, {
-        title: "Error processing approval"
+    onError: (error: Error) => {
+      console.error("Approval mutation error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process approval",
+        variant: "destructive"
       });
     }
   });
