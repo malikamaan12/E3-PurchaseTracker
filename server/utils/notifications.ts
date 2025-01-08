@@ -7,6 +7,9 @@ import { analyzeNotificationError } from "./error-analysis";
 // Define valid notification types and their route patterns
 export const NOTIFICATION_ROUTES = {
   request: (id: number) => `/requests/${id}`,
+  request_approved: (id: number) => `/requests/${id}`,
+  request_rejected: (id: number) => `/requests/${id}`,
+  request_changes: (id: number) => `/requests/${id}`,
   account_request: () => '/admin/account-requests',
   system: () => '/',
   error_analytics: () => '/admin/error-analytics',
@@ -23,17 +26,34 @@ export async function createNotification(
   title: string,
   message: string,
   type: string,
-  requestId?: number
+  requestId?: number,
+  priority: 'high' | 'normal' | 'low' = 'normal'
 ) {
   try {
     // Determine the correct link based on notification type
     let link: string | null = null;
 
     // Log the incoming notification data
-    logNotification('create-params', { userId, title, message, type, requestId });
+    logNotification('create-params', { userId, title, message, type, requestId, priority });
 
-    if (type === 'request' && requestId) {
-      link = NOTIFICATION_ROUTES.request(requestId);
+    // Enhanced routing for approval-related notifications
+    if (type.startsWith('request_')) {
+      if (!requestId) {
+        throw new Error('Request ID is required for request-related notifications');
+      }
+      switch (type) {
+        case 'request_approved':
+          link = NOTIFICATION_ROUTES.request_approved(requestId);
+          break;
+        case 'request_rejected':
+          link = NOTIFICATION_ROUTES.request_rejected(requestId);
+          break;
+        case 'request_changes':
+          link = NOTIFICATION_ROUTES.request_changes(requestId);
+          break;
+        default:
+          link = NOTIFICATION_ROUTES.request(requestId);
+      }
     } else if (type === 'account_request') {
       link = NOTIFICATION_ROUTES.account_request();
     } else if (type === 'system') {
@@ -57,6 +77,7 @@ export async function createNotification(
         requestId,
         link,
         isRead: false,
+        priority,
         createdAt: new Date()
       })
       .returning();
@@ -78,6 +99,51 @@ export async function createNotification(
   }
 }
 
+// Enhanced notification creation for approvals
+export async function createApprovalNotification(
+  requesterId: number,
+  requestId: number,
+  approverName: string,
+  department: string,
+  status: 'approved' | 'rejected' | 'changes_requested',
+  comments?: string
+) {
+  const statusMap = {
+    approved: {
+      type: 'request_approved',
+      title: 'Request Approved',
+      priority: 'high' as const,
+      message: `Your request has been approved by ${approverName} from ${department}`
+    },
+    rejected: {
+      type: 'request_rejected',
+      title: 'Request Rejected',
+      priority: 'high' as const,
+      message: `Your request has been rejected by ${approverName} from ${department}`
+    },
+    changes_requested: {
+      type: 'request_changes',
+      title: 'Changes Requested',
+      priority: 'high' as const,
+      message: `${approverName} from ${department} has requested changes to your request`
+    }
+  };
+
+  const notificationData = statusMap[status];
+  const finalMessage = comments 
+    ? `${notificationData.message}. Comments: ${comments}`
+    : notificationData.message;
+
+  return createNotification(
+    requesterId,
+    notificationData.title,
+    finalMessage,
+    notificationData.type,
+    requestId,
+    notificationData.priority
+  );
+}
+
 // Get notifications with proper filtering and error handling
 export async function getNotifications(userId: number, lastFetchTime?: Date) {
   try {
@@ -95,7 +161,7 @@ export async function getNotifications(userId: number, lastFetchTime?: Date) {
       .from(notifications)
       .where(whereClause)
       .orderBy(desc(notifications.createdAt))
-      .limit(50); // Limit to prevent excessive data transfer
+      .limit(50);
 
     return results;
   } catch (error) {
@@ -111,7 +177,6 @@ export async function getNotifications(userId: number, lastFetchTime?: Date) {
   }
 }
 
-// Mark notification as read with proper error handling
 export async function markNotificationAsRead(notificationId: number, userId: number) {
   try {
     const [updatedNotification] = await db

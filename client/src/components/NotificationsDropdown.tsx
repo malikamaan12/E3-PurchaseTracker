@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
-import { NOTIFICATION_CONFIG } from "../../../server/utils/config";
+import { cn } from "@/lib/utils";
 
 interface NotificationsDropdownProps {
   onNotificationClick: (notification: { id: number; link: string | null }) => void;
@@ -18,7 +18,7 @@ interface NotificationsDropdownProps {
 
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, isLoading, markAsRead, refetch } = useNotifications();
+  const { notifications, unreadCount, highPriorityCount, isLoading, markAsRead, refetch } = useNotifications();
   const pollTimerRef = useRef<number | null>(null);
 
   // Setup polling with proper error handling and cleanup
@@ -28,7 +28,6 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         await refetch();
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
-        // Error handling is managed by useNotifications hook
       }
     };
 
@@ -36,10 +35,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
     if (open) {
       pollNotifications();
       // Start polling
-      pollTimerRef.current = window.setInterval(
-        pollNotifications, 
-        NOTIFICATION_CONFIG.POLLING_INTERVAL
-      );
+      pollTimerRef.current = window.setInterval(pollNotifications, 10000); // Poll every 10 seconds
     }
 
     // Cleanup function
@@ -62,21 +58,29 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
 
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
-      // Mark as read if needed
       if (!notifications.find(n => n.id === notification.id)?.isRead) {
         await markAsRead(notification.id);
       }
 
-      // Close dropdown first for better UX
       setOpen(false);
-
-      // Call the provided click handler
       onNotificationClick(notification);
     } catch (error) {
-      // Error handling is managed by useNotifications hook's markAsRead mutation
       console.error('Error handling notification click:', error);
     }
   }, [notifications, markAsRead, onNotificationClick]);
+
+  const getPriorityStyles = (priority: string = 'normal') => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-500';
+      case 'normal':
+        return 'bg-blue-500';
+      case 'low':
+        return 'bg-gray-500';
+      default:
+        return 'bg-blue-500';
+    }
+  };
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -87,9 +91,15 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
           className="relative interactive-bounce"
           aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
         >
-          <Bell className="h-5 w-5" />
+          <Bell className={cn(
+            "h-5 w-5",
+            highPriorityCount > 0 && "text-red-500"
+          )} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center animate-fade-in">
+            <span className={cn(
+              "absolute -top-1 -right-1 h-5 w-5 rounded-full text-white text-xs flex items-center justify-center animate-fade-in",
+              highPriorityCount > 0 ? "bg-red-500" : "bg-blue-500"
+            )}>
               {unreadCount}
             </span>
           )}
@@ -100,9 +110,16 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <h4 className="font-medium">Notifications</h4>
           {unreadCount > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {unreadCount} unread
-            </span>
+            <div className="flex gap-2 items-center">
+              {highPriorityCount > 0 && (
+                <span className="text-sm text-red-500 font-medium">
+                  {highPriorityCount} high priority
+                </span>
+              )}
+              <span className="text-sm text-muted-foreground">
+                {unreadCount} unread
+              </span>
+            </div>
           )}
         </div>
 
@@ -128,9 +145,10 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group relative ${
-                    !notification.isRead ? "bg-muted/20" : ""
-                  }`}
+                  className={cn(
+                    "w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group relative",
+                    !notification.isRead && "bg-muted/20"
+                  )}
                 >
                   <button
                     onClick={(e) => {
@@ -145,8 +163,15 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div>
-                        <p className="font-medium mb-1">{notification.title}</p>
-                        <p className="text-sm text-muted-foreground">{notification.message}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{notification.title}</p>
+                          {notification.priority === 'high' && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                              High Priority
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                       </div>
                       {notification.link && (
                         <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -157,7 +182,10 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                     </p>
                   </button>
                   {!notification.isRead && (
-                    <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
+                    <div className={cn(
+                      "absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full",
+                      getPriorityStyles(notification.priority)
+                    )} />
                   )}
                 </div>
               ))}

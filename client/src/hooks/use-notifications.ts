@@ -12,6 +12,7 @@ export function useNotifications() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Enhanced real-time notification query with proper error handling
   const { data: notifications = [], isLoading, error } = useQuery<Notification[], NotificationError>({
     queryKey: [API_ROUTES.NOTIFICATIONS],
     retry: NOTIFICATION_CONFIG.MAX_RETRIES,
@@ -19,11 +20,12 @@ export function useNotifications() {
       NOTIFICATION_CONFIG.MIN_RETRY_DELAY * Math.pow(2, attemptIndex),
       NOTIFICATION_CONFIG.MAX_RETRY_DELAY
     ),
-    refetchInterval: NOTIFICATION_CONFIG.POLLING_INTERVAL,
-    refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS,
-    staleTime: NOTIFICATION_CONFIG.STALE_TIME,
-    gcTime: NOTIFICATION_CONFIG.CACHE_TIME, // Updated from cacheTime to gcTime
-    refetchOnReconnect: true, // Add automatic refetch on reconnection
+    // Increase polling frequency for real-time updates
+    refetchInterval: 10000, // Poll every 10 seconds for real-time updates
+    refetchOnWindowFocus: true,
+    staleTime: 5000, // Consider data stale after 5 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnReconnect: true,
     onError: (error) => {
       console.error("Failed to fetch notifications:", error);
       toast({
@@ -35,10 +37,20 @@ export function useNotifications() {
       });
     },
     select: (data) => {
-      // Transform and sort notifications before returning
-      return [...data].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      // Transform and sort notifications, prioritizing unread and high priority
+      return [...data].sort((a, b) => {
+        // First sort by read status
+        if (!a.isRead && b.isRead) return -1;
+        if (a.isRead && !b.isRead) return 1;
+
+        // Then by priority
+        const priorityOrder = { high: 0, normal: 1, low: 2 };
+        const priorityDiff = priorityOrder[a.priority || 'normal'] - priorityOrder[b.priority || 'normal'];
+        if (priorityDiff !== 0) return priorityDiff;
+
+        // Finally by date
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     }
   });
 
@@ -87,10 +99,12 @@ export function useNotifications() {
   });
 
   const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
+  const highPriorityCount = (notifications || []).filter((n) => !n.isRead && n.priority === 'high').length;
 
   return {
     notifications,
     unreadCount,
+    highPriorityCount,
     isLoading,
     error,
     markAsRead: markAsRead.mutate,
