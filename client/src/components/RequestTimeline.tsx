@@ -31,10 +31,26 @@ interface RequestTimelineProps {
     requester?: {
       username: string;
     };
+    approvals?: Array<{
+      status: string;
+      department: string;
+      processedAt: string | null;
+    }>;
   };
 }
 
 export default function RequestTimeline({ request }: RequestTimelineProps) {
+  // Check if all required departments have approved
+  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+  const allDepartmentsApproved = requiredDepartments.every(dept => 
+    request.approvals?.some(approval => 
+      approval.department === dept && approval.status === 'approved'
+    )
+  );
+
+  // Update the request status based on approvals
+  const effectiveStatus = allDepartmentsApproved ? 'approved' : request.status;
+
   // Define all possible statuses and their order
   const statusFlow = [
     { 
@@ -54,28 +70,28 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
     { 
       status: 'changes_requested', 
       label: 'Changes Requested', 
-      date: request.status === 'changes_requested' ? request.updatedAt : null,
+      date: effectiveStatus === 'changes_requested' ? request.updatedAt : null,
       icon: AlertTriangle,
       color: 'text-orange-500'
     },
     { 
       status: 'approved', 
       label: 'Approved', 
-      date: request.status === 'approved' ? request.updatedAt : null,
+      date: effectiveStatus === 'approved' ? request.updatedAt : null,
       icon: CheckCircle2,
       color: 'text-green-500'
     },
     { 
       status: 'rejected', 
       label: 'Rejected', 
-      date: request.status === 'rejected' ? request.updatedAt : null,
+      date: effectiveStatus === 'rejected' ? request.updatedAt : null,
       icon: XCircle,
       color: 'text-red-500'
     }
   ];
 
-  // Find the current status index
-  const currentStatusIndex = statusFlow.findIndex(s => s.status === request.status);
+  // Find the current status index based on effective status
+  const currentStatusIndex = statusFlow.findIndex(s => s.status === effectiveStatus);
 
   // Calculate progress percentage
   const progressPercentage = ((currentStatusIndex + 1) / statusFlow.length) * 100;
@@ -87,13 +103,13 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
           <h3 className="text-lg font-semibold">Request Timeline</h3>
           <Badge variant="outline" className={cn(
             "text-sm",
-            request.status === 'approved' ? "border-green-200 bg-green-50 text-green-700" :
-            request.status === 'rejected' ? "border-red-200 bg-red-50 text-red-700" :
-            request.status === 'changes_requested' ? "border-orange-200 bg-orange-50 text-orange-700" :
-            request.status === 'pending' ? "border-blue-200 bg-blue-50 text-blue-700" :
+            effectiveStatus === 'approved' ? "border-green-200 bg-green-50 text-green-700" :
+            effectiveStatus === 'rejected' ? "border-red-200 bg-red-50 text-red-700" :
+            effectiveStatus === 'changes_requested' ? "border-orange-200 bg-orange-50 text-orange-700" :
+            effectiveStatus === 'pending' ? "border-blue-200 bg-blue-50 text-blue-700" :
             "border-gray-200 bg-gray-50 text-gray-700"
           )}>
-            {request.status.toUpperCase().replace('_', ' ')}
+            {effectiveStatus.toUpperCase().replace('_', ' ')}
           </Badge>
         </div>
 
@@ -103,9 +119,9 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
             value={progressPercentage} 
             className={cn(
               "h-2",
-              request.status === 'approved' ? "bg-green-500" :
-              request.status === 'rejected' ? "bg-red-500" :
-              request.status === 'changes_requested' ? "bg-orange-500" :
+              effectiveStatus === 'approved' ? "bg-green-500" :
+              effectiveStatus === 'rejected' ? "bg-red-500" :
+              effectiveStatus === 'changes_requested' ? "bg-orange-500" :
               "bg-blue-500"
             )} 
           />
