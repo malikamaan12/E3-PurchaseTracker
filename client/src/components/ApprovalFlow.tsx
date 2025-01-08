@@ -41,48 +41,41 @@ export default function ApprovalFlow({
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check if department has already processed this request
-  const departmentApproval = useMemo(() => {
-    if (!user?.department) return null;
-    return approvals.find(
+  // Track department and user approval states
+  const approvalState = useMemo(() => {
+    if (!user?.department || !user?.id) {
+      return { canApprove: false, message: "You must be logged in to approve requests" };
+    }
+
+    // Check if request is in an approvable state
+    if (!["pending", "changes_requested"].includes(status)) {
+      return { 
+        canApprove: false, 
+        message: `Request is not in an approvable state (current status: ${status})` 
+      };
+    }
+
+    // Find existing department approval if any
+    const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
              ["approved", "rejected", "changes_requested"].includes(a.status)
     );
-  }, [approvals, user?.department]);
 
-  // Check if this specific user has already processed
-  const userApproval = useMemo(() => {
-    if (!user?.id) return null;
-    return approvals.find(
+    // Find existing user approval if any
+    const userApproval = approvals.find(
       (a) => a.approverId === user.id && 
              ["approved", "rejected", "changes_requested"].includes(a.status)
     );
-  }, [approvals, user?.id]);
 
-  // Check if user can approve this request
-  const canApprove = useMemo(() => {
-    if (!user?.department || !user?.id) return false;
-
-    // Check if request is in an approvable state
-    if (!["pending", "changes_requested"].includes(status)) return false;
-
-    // Special roles can approve any request except their own
+    // Special roles check
     const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
-    if (isSpecialRole && requesterId === user.id) return false;
 
-    // For non-special roles, users cannot approve their own requests
-    if (!isSpecialRole && requesterId === user.id) return false;
+    // Cannot approve own requests
+    if (requesterId === user.id) {
+      return { canApprove: false, message: "You cannot approve your own requests" };
+    }
 
-    // Cannot approve if department or user has already processed
-    return !departmentApproval && !userApproval;
-  }, [approvals, user, requesterId, status, departmentApproval, userApproval]);
-
-  // Get the reason why approval is not possible
-  const getApprovalDisabledReason = () => {
-    if (!user?.department) return "You must be logged in to approve requests";
-    if (!["pending", "changes_requested"].includes(status)) return "Request is not in an approvable state";
-    if (requesterId === user.id) return "You cannot approve your own requests";
-
+    // Department already processed
     if (departmentApproval) {
       const action = departmentApproval.status === 'approved' 
         ? 'approved' 
@@ -94,9 +87,13 @@ export default function ApprovalFlow({
         ? format(new Date(departmentApproval.processedAt), "PPp")
         : 'previously';
 
-      return `Your department has already ${action} this request at ${time}`;
+      return { 
+        canApprove: false, 
+        message: `Your department has already ${action} this request at ${time}` 
+      };
     }
 
+    // User already processed
     if (userApproval) {
       const action = userApproval.status === 'approved' 
         ? 'approved' 
@@ -108,11 +105,15 @@ export default function ApprovalFlow({
         ? format(new Date(userApproval.processedAt), "PPp")
         : 'previously';
 
-      return `You have already ${action} this request at ${time}`;
+      return { 
+        canApprove: false, 
+        message: `You have already ${action} this request at ${time}` 
+      };
     }
 
-    return "";
-  };
+    // All checks passed
+    return { canApprove: true, message: "" };
+  }, [approvals, user, requesterId, status]);
 
   const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
@@ -124,10 +125,10 @@ export default function ApprovalFlow({
       return;
     }
 
-    if (isSubmitting || !canApprove) {
+    if (isSubmitting || !approvalState.canApprove) {
       toast({
         title: "Error",
-        description: getApprovalDisabledReason(),
+        description: approvalState.message,
         variant: "destructive",
       });
       return;
@@ -136,11 +137,21 @@ export default function ApprovalFlow({
     try {
       setIsSubmitting(true);
 
-      // Double-check for existing approvals before proceeding
-      if (departmentApproval || userApproval) {
+      // Double-check approval state before proceeding
+      const currentDepartmentApproval = approvals.find(
+        (a) => a.department === user.department && 
+               ["approved", "rejected", "changes_requested"].includes(a.status)
+      );
+
+      const currentUserApproval = approvals.find(
+        (a) => a.approverId === user.id && 
+               ["approved", "rejected", "changes_requested"].includes(a.status)
+      );
+
+      if (currentDepartmentApproval || currentUserApproval) {
         toast({
           title: "Error",
-          description: getApprovalDisabledReason(),
+          description: "This request has already been processed",
           variant: "destructive",
         });
         return;
@@ -244,7 +255,8 @@ export default function ApprovalFlow({
           </Card>
         ))}
 
-        {canApprove && (
+        {/* Only show approval form if user can approve */}
+        {status === "pending" && (
           <Card className="mt-4">
             <CardContent className="p-4">
               <h5 className="font-medium mb-2">Add Your Approval</h5>
@@ -254,7 +266,7 @@ export default function ApprovalFlow({
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !approvalState.canApprove}
                 />
                 <div className="flex gap-2">
                   <TooltipProvider>
@@ -263,16 +275,16 @@ export default function ApprovalFlow({
                         <span className="flex-1">
                           <Button
                             onClick={() => handleApproval("approved")}
-                            disabled={isSubmitting || !canApprove}
+                            disabled={isSubmitting || !approvalState.canApprove}
                             className="w-full bg-green-600 hover:bg-green-700 text-white"
                           >
                             {isSubmitting ? "Processing..." : "Approve"}
                           </Button>
                         </span>
                       </TooltipTrigger>
-                      {!canApprove && (
+                      {!approvalState.canApprove && (
                         <TooltipContent>
-                          <p>{getApprovalDisabledReason()}</p>
+                          <p>{approvalState.message}</p>
                         </TooltipContent>
                       )}
                     </Tooltip>
@@ -284,7 +296,7 @@ export default function ApprovalFlow({
                         <span className="flex-1">
                           <Button
                             onClick={() => handleApproval("rejected")}
-                            disabled={isSubmitting || !canApprove}
+                            disabled={isSubmitting || !approvalState.canApprove}
                             variant="destructive"
                             className="w-full"
                           >
@@ -292,9 +304,9 @@ export default function ApprovalFlow({
                           </Button>
                         </span>
                       </TooltipTrigger>
-                      {!canApprove && (
+                      {!approvalState.canApprove && (
                         <TooltipContent>
-                          <p>{getApprovalDisabledReason()}</p>
+                          <p>{approvalState.message}</p>
                         </TooltipContent>
                       )}
                     </Tooltip>
@@ -306,7 +318,7 @@ export default function ApprovalFlow({
                         <span className="flex-1">
                           <Button
                             onClick={() => handleApproval("changes_requested")}
-                            disabled={isSubmitting || !canApprove}
+                            disabled={isSubmitting || !approvalState.canApprove}
                             variant="outline"
                             className="w-full bg-orange-50 text-orange-600 hover:bg-orange-100"
                           >
@@ -314,9 +326,9 @@ export default function ApprovalFlow({
                           </Button>
                         </span>
                       </TooltipTrigger>
-                      {!canApprove && (
+                      {!approvalState.canApprove && (
                         <TooltipContent>
-                          <p>{getApprovalDisabledReason()}</p>
+                          <p>{approvalState.message}</p>
                         </TooltipContent>
                       )}
                     </Tooltip>
