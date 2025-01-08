@@ -24,9 +24,9 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   const statusFlow = [
     { status: 'draft', label: 'Draft', date: request.createdAt },
     { status: 'pending', label: 'Pending Approval', date: request.updatedAt },
-    { status: 'changes_requested', label: 'Changes Requested', date: request.statusChangedAt },
-    { status: 'approved', label: 'Approved' },
-    { status: 'rejected', label: 'Rejected' }
+    { status: 'changes_requested', label: 'Changes Requested', date: request.updatedAt },
+    { status: 'approved', label: 'Approved', date: request.updatedAt },
+    { status: 'rejected', label: 'Rejected', date: request.updatedAt }
   ];
 
   // Find the current status index
@@ -41,7 +41,11 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
 
     // Sort approvals by date in descending order and find the most recent changes_requested
     const changeRequest = [...request.approvals]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .sort((a, b) => {
+        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dateB - dateA;
+      })
       .find(a => a.status === 'changes_requested');
 
     if (!changeRequest) return null;
@@ -50,7 +54,25 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
       comments: changeRequest.comments,
       department: changeRequest.department,
       updatedAt: changeRequest.updatedAt,
-      requester: changeRequest.requester
+      approver: changeRequest.approver
+    };
+  };
+
+  // Get all required departments for approval
+  const getRequiredDepartments = () => {
+    const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+    const additionalDepartments = request.additionalApprovers || [];
+    return [...new Set([...mandatoryDepartments, ...additionalDepartments])];
+  };
+
+  // Get approval status for each department
+  const getDepartmentApprovalStatus = (department: string) => {
+    if (!request.approvals) return { status: 'pending', approval: null };
+
+    const approval = request.approvals.find(a => a.department === department);
+    return {
+      status: approval?.status || 'pending',
+      approval
     };
   };
 
@@ -63,7 +85,13 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
         <div className="mb-8">
           <Progress 
             value={progressPercentage} 
-            className={cn("h-2", request.status === 'changes_requested' ? "bg-orange-500" : "bg-gray-500")} 
+            className={cn(
+              "h-2",
+              request.status === 'changes_requested' ? "bg-orange-500" :
+              request.status === 'approved' ? "bg-green-500" :
+              request.status === 'rejected' ? "bg-red-500" :
+              "bg-blue-500"
+            )} 
           />
         </div>
 
@@ -104,6 +132,8 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                         <p className={cn(
                           "font-medium",
                           isCurrent && status.status === 'changes_requested' ? "text-orange-600" :
+                          isCurrent && status.status === 'approved' ? "text-green-600" :
+                          isCurrent && status.status === 'rejected' ? "text-red-600" :
                           isCurrent ? "text-blue-600" :
                           isPast ? "text-gray-600" : "text-gray-400"
                         )}>
@@ -125,7 +155,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                                 Changes Requested by {changeRequestDetails.department}
                               </p>
                               <p className="text-xs text-orange-600 mt-1">
-                                {format(new Date(changeRequestDetails.updatedAt), "PPp")}
+                                {changeRequestDetails.updatedAt && format(new Date(changeRequestDetails.updatedAt), "PPp")}
                               </p>
                             </div>
                           </div>
@@ -133,49 +163,74 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                         </div>
                       )}
 
-                      {/* Show pending approvals */}
-                      {status.status === 'pending' && request.status === 'pending' && request.approvals && (
+                      {/* Show pending approvals and approval status */}
+                      {(status.status === 'pending' && request.status === 'pending' || 
+                        status.status === 'approved' && request.status === 'approved') && (
                         <div className="mt-4 space-y-3 bg-gray-50 rounded-lg p-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
-                          {request.approvals
-                            .filter(approval => approval.status === 'pending' || approval.status === 'approved')
-                            .map((approval: Approval & { approver?: User }) => (
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">
+                            {request.status === 'approved' ? 'Approval Flow Complete' : 'Pending Approvals'}
+                          </h4>
+                          {getRequiredDepartments().map(department => {
+                            const { status: approvalStatus, approval } = getDepartmentApprovalStatus(department);
+                            const isMandatory = ['CEO Office', 'Finance', 'Director'].includes(department);
+
+                            return (
                               <div 
-                                key={approval.id} 
+                                key={department} 
                                 className={cn(
                                   "flex items-start gap-3 p-3 rounded-md transition-colors",
-                                  approval.status === 'pending' ? 'bg-white' : 'bg-gray-50'
+                                  approvalStatus === 'pending' ? 'bg-white' : 
+                                  approvalStatus === 'approved' ? 'bg-green-50' :
+                                  approvalStatus === 'rejected' ? 'bg-red-50' :
+                                  'bg-orange-50'
                                 )}
                               >
                                 <div className="flex-shrink-0">
-                                  {approval.status === 'pending' ? (
+                                  {approvalStatus === 'pending' ? (
                                     <Clock className="h-5 w-5 text-blue-500" />
-                                  ) : (
+                                  ) : approvalStatus === 'approved' ? (
                                     <CheckCircle className="h-5 w-5 text-green-500" />
+                                  ) : approvalStatus === 'rejected' ? (
+                                    <XCircle className="h-5 w-5 text-red-500" />
+                                  ) : (
+                                    <AlertTriangle className="h-5 w-5 text-orange-500" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <p className="text-sm font-medium text-gray-900">
-                                      {approval.department}
+                                      {department}
                                     </p>
-                                    {approval.isMandatory && (
+                                    {isMandatory && (
                                       <Badge variant="outline" className="text-xs">
                                         Mandatory
                                       </Badge>
                                     )}
                                   </div>
-                                  <p className="text-sm text-gray-500">
-                                    {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                                  <p className={cn(
+                                    "text-sm",
+                                    approvalStatus === 'approved' ? "text-green-600" :
+                                    approvalStatus === 'rejected' ? "text-red-600" :
+                                    approvalStatus === 'changes_requested' ? "text-orange-600" :
+                                    "text-gray-500"
+                                  )}>
+                                    {approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1)}
+                                    {approval?.approver?.username && ` by ${approval.approver.username}`}
                                   </p>
-                                  {approval.comments && (
+                                  {approval?.processedAt && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {format(new Date(approval.processedAt), "PPp")}
+                                    </p>
+                                  )}
+                                  {approval?.comments && (
                                     <p className="text-sm text-gray-600 mt-1 italic">
                                       "{approval.comments}"
                                     </p>
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
