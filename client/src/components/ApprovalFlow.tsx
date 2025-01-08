@@ -41,18 +41,27 @@ export default function ApprovalFlow({
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check if department has already approved
-  const departmentHasApproved = useMemo(() => {
-    if (!user?.department) return false;
-    return approvals.some(
+  // Check if department has already processed this request
+  const departmentApproval = useMemo(() => {
+    if (!user?.department) return null;
+    return approvals.find(
       (a) => a.department === user.department && 
              ["approved", "rejected", "changes_requested"].includes(a.status)
     );
   }, [approvals, user?.department]);
 
+  // Check if this specific user has already processed
+  const userApproval = useMemo(() => {
+    if (!user?.id) return null;
+    return approvals.find(
+      (a) => a.approverId === user.id && 
+             ["approved", "rejected", "changes_requested"].includes(a.status)
+    );
+  }, [approvals, user?.id]);
+
   // Check if user can approve this request
   const canApprove = useMemo(() => {
-    if (!user?.department) return false;
+    if (!user?.department || !user?.id) return false;
 
     // Check if request is in an approvable state
     if (!["pending", "changes_requested"].includes(status)) return false;
@@ -64,9 +73,9 @@ export default function ApprovalFlow({
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Cannot approve if department has already processed
-    return !departmentHasApproved;
-  }, [approvals, user, requesterId, status, departmentHasApproved]);
+    // Cannot approve if department or user has already processed
+    return !departmentApproval && !userApproval;
+  }, [approvals, user, requesterId, status, departmentApproval, userApproval]);
 
   // Get the reason why approval is not possible
   const getApprovalDisabledReason = () => {
@@ -74,31 +83,47 @@ export default function ApprovalFlow({
     if (!["pending", "changes_requested"].includes(status)) return "Request is not in an approvable state";
     if (requesterId === user.id) return "You cannot approve your own requests";
 
-    if (departmentHasApproved) {
-      const existingApproval = approvals.find(
-        (a) => a.department === user.department && 
-               ["approved", "rejected", "changes_requested"].includes(a.status)
-      );
+    if (departmentApproval) {
+      const action = departmentApproval.status === 'approved' 
+        ? 'approved' 
+        : departmentApproval.status === 'rejected'
+          ? 'rejected'
+          : 'requested changes for';
 
-      if (existingApproval) {
-        const action = existingApproval.status === 'approved' 
-          ? 'approved' 
-          : existingApproval.status === 'rejected'
-            ? 'rejected'
-            : 'requested changes for';
+      const time = departmentApproval.processedAt 
+        ? format(new Date(departmentApproval.processedAt), "PPp")
+        : 'previously';
 
-        const time = existingApproval.processedAt 
-          ? format(new Date(existingApproval.processedAt), "PPp")
-          : 'previously';
+      return `Your department has already ${action} this request at ${time}`;
+    }
 
-        return `Your department has already ${action} this request at ${time}`;
-      }
+    if (userApproval) {
+      const action = userApproval.status === 'approved' 
+        ? 'approved' 
+        : userApproval.status === 'rejected'
+          ? 'rejected'
+          : 'requested changes for';
+
+      const time = userApproval.processedAt 
+        ? format(new Date(userApproval.processedAt), "PPp")
+        : 'previously';
+
+      return `You have already ${action} this request at ${time}`;
     }
 
     return "";
   };
 
   const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
+    if (!user?.department || !user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to approve requests",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (isSubmitting || !canApprove) {
       toast({
         title: "Error",
@@ -108,17 +133,18 @@ export default function ApprovalFlow({
       return;
     }
 
-    if (!user?.department) {
-      toast({
-        title: "Error",
-        description: "You don't have permission to approve this request",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
+
+      // Double-check for existing approvals before proceeding
+      if (departmentApproval || userApproval) {
+        toast({
+          title: "Error",
+          description: getApprovalDisabledReason(),
+          variant: "destructive",
+        });
+        return;
+      }
 
       const approvalData = {
         requestId,
@@ -131,7 +157,6 @@ export default function ApprovalFlow({
 
       await createApproval(approvalData);
 
-      // Show success notification with timestamp
       toast({
         title: "Success",
         description: `Request ${approvalStatus.replace('_', ' ')} successfully at ${format(new Date(), "PPp")}`,
