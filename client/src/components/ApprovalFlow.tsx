@@ -66,7 +66,7 @@ export default function ApprovalFlow({
 
       // Validate required fields
       if (!data.requestId || !data.status || !data.departmentId) {
-        const error = new Error("Missing required fields for approval");
+        const error = new Error("Missing required fields");
         console.error("Validation error:", { data, error });
         throw error;
       }
@@ -81,9 +81,8 @@ export default function ApprovalFlow({
       try {
         console.log("Making API request to:", `/api/requests/${data.requestId}/approvals`);
         const requestBody = {
-          requestId: data.requestId,
           status: data.status,
-          departmentId: data.departmentId,
+          department: data.departmentId, 
           comments: data.comments?.trim() || undefined
         };
         console.log("Request body:", requestBody);
