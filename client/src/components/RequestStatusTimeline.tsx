@@ -12,7 +12,7 @@ import {
   PencilLine
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import type { PurchaseRequestWithRelations, Approval } from "@db/schema";
+import type { PurchaseRequestWithRelations } from "@db/schema";
 import { cn } from "@/lib/utils";
 
 interface RequestStatusTimelineProps {
@@ -32,7 +32,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
   // Find the current status index
   const currentStatusIndex = statusFlow.findIndex(s => s.status === request.status);
 
-  // Calculate progress percentage
+  // Calculate progress percentage based on actual status
   const progressPercentage = ((currentStatusIndex + 1) / statusFlow.length) * 100;
 
   // Find the most recent change request comment and details
@@ -76,10 +76,28 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
     };
   };
 
+  // Check if all departments have approved
+  const checkAllApproved = () => {
+    const departments = getRequiredDepartments();
+    return departments.every(dept => {
+      const { status } = getDepartmentApprovalStatus(dept);
+      return status === 'approved';
+    });
+  };
+
+  const isFullyApproved = checkAllApproved();
+
   return (
     <Card className="animate-fade-in">
       <CardContent className="p-6">
-        <h3 className="text-lg font-medium mb-6">Request Timeline</h3>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-medium">Request Timeline</h3>
+          {isFullyApproved && (
+            <Badge variant="outline" className="bg-green-50 text-green-700">
+              All Approvals Complete
+            </Badge>
+          )}
+        </div>
 
         {/* Progress Bar */}
         <div className="mb-8">

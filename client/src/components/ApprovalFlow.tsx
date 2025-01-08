@@ -46,19 +46,15 @@ export default function ApprovalFlow({
   // Get all required departments
   const requiredDepartments = useMemo(() => {
     const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
-    return [...new Set([...mandatoryDepartments, ...additionalApprovers])];
+    const uniqueDepartments = [...new Set([...mandatoryDepartments, ...additionalApprovers])];
+    return uniqueDepartments;
   }, [additionalApprovers]);
 
   // Check if all required departments have approved
   const checkAllApproved = useMemo(() => {
-    const departmentApprovals = requiredDepartments.map(dept => {
-      const approval = approvals.find(a => 
-        a.department === dept && 
-        a.status === 'approved'
-      );
-      return !!approval;
-    });
-    return departmentApprovals.every(approved => approved);
+    return requiredDepartments.every(dept => 
+      approvals.some(a => a.department === dept && a.status === 'approved')
+    );
   }, [approvals, requiredDepartments]);
 
   // Track department and user approval states
@@ -75,22 +71,16 @@ export default function ApprovalFlow({
       };
     }
 
+    // Cannot approve own requests
+    if (requesterId === user.id) {
+      return { canApprove: false, message: "You cannot approve your own requests" };
+    }
+
     // Find existing department approval if any
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
              ["approved", "rejected", "changes_requested"].includes(a.status)
     );
-
-    // Find existing user approval if any
-    const userApproval = approvals.find(
-      (a) => a.approverId === user.id && 
-             ["approved", "rejected", "changes_requested"].includes(a.status)
-    );
-
-    // Cannot approve own requests
-    if (requesterId === user.id) {
-      return { canApprove: false, message: "You cannot approve your own requests" };
-    }
 
     // Department already processed
     if (departmentApproval) {
@@ -107,24 +97,6 @@ export default function ApprovalFlow({
       return { 
         canApprove: false, 
         message: `Your department has already ${action} this request at ${time}` 
-      };
-    }
-
-    // User already processed
-    if (userApproval) {
-      const action = userApproval.status === 'approved' 
-        ? 'approved' 
-        : userApproval.status === 'rejected'
-          ? 'rejected'
-          : 'requested changes for';
-
-      const time = userApproval.processedAt 
-        ? format(new Date(userApproval.processedAt), "PPp")
-        : 'previously';
-
-      return { 
-        canApprove: false, 
-        message: `You have already ${action} this request at ${time}` 
       };
     }
 
@@ -174,13 +146,13 @@ export default function ApprovalFlow({
       await createApproval(approvalData);
 
       // Check if all departments have approved after this approval
-      const updatedApprovals = [...approvals, { ...approvalData, id: 0 }];
+      const updatedApprovals = [...approvals, approvalData];
       const allDepartmentsApproved = requiredDepartments.every(dept => 
         updatedApprovals.some(a => a.department === dept && a.status === 'approved')
       );
 
       // If all departments have approved, update the request status
-      if (allDepartmentsApproved) {
+      if (allDepartmentsApproved && approvalStatus === 'approved') {
         await updateRequestStatus(requestId, 'approved');
         toast({
           title: "Success",
@@ -238,7 +210,7 @@ export default function ApprovalFlow({
       <div className="flex justify-between items-center">
         <h4 className="font-medium">Approval Flow</h4>
         {checkAllApproved && (
-          <Badge variant="success" className="animate-fade-in">
+          <Badge variant="outline" className="bg-green-50 text-green-700 animate-fade-in">
             All Approvals Complete
           </Badge>
         )}
