@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { PurchaseRequest } from "@db/schema";
-import { useErrorHandler } from "@/services/error-logging";
+import type { PurchaseRequest, Approval } from "@db/schema";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
 import { useEffect, useCallback, useRef } from "react";
 
@@ -12,34 +11,46 @@ interface ApprovalData {
   departmentId: string;
 }
 
+interface RequestWithApprovals extends PurchaseRequest {
+  approvals?: Approval[];
+  requester?: {
+    id: number;
+    department: string;
+  };
+}
+
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const handleError = useErrorHandler();
 
   // Required departments for approval
-  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+  const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
 
   // Ref to track processed auto-approvals
   const processedAutoApprovals = useRef(new Set<string>());
 
+  // Helper function to check if department is mandatory
+  const isMandatoryDepartment = useCallback((department: string) => {
+    return mandatoryDepartments.includes(department);
+  }, []);
+
   // Helper function to determine if all other departments except the given one have approved
-  const allOtherDepartmentsApproved = useCallback((request: any, excludeDepartment: string) => {
-    const otherDepartments = requiredDepartments.filter(dept => dept !== excludeDepartment);
+  const allOtherDepartmentsApproved = useCallback((request: RequestWithApprovals, excludeDepartment: string) => {
+    const otherDepartments = mandatoryDepartments.filter(dept => dept !== excludeDepartment);
     return otherDepartments.every(dept =>
-      request.approvals?.some((approval: any) =>
+      request.approvals?.some(approval =>
         approval.department === dept && approval.status === 'approved'
       )
     );
   }, []);
 
   // Helper function to determine effective status
-  const getEffectiveStatus = useCallback((request: any) => {
+  const getEffectiveStatus = useCallback((request: RequestWithApprovals) => {
     if (!request.approvals) return request.status;
 
     // Check if all departments have approved
-    const allDepartmentsApproved = requiredDepartments.every(dept =>
-      request.approvals?.some((approval: any) =>
+    const allDepartmentsApproved = mandatoryDepartments.every(dept =>
+      request.approvals?.some(approval =>
         approval.department === dept && approval.status === 'approved'
       )
     );
@@ -55,11 +66,14 @@ export function usePurchaseRequests() {
         const response = await fetch("/api/requests", {
           credentials: 'include'
         });
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || `Failed to fetch requests: ${response.status}`);
         }
-        return response.json();
+
+        const data = await response.json();
+        return data as RequestWithApprovals[];
       } catch (error) {
         console.error("Error fetching requests:", error);
         throw error;
@@ -101,11 +115,12 @@ export function usePurchaseRequests() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      const approvalType = variables.comments?.includes('Auto-approved') ? 'auto-approved' : 'approved';
       toast({
         title: "Success",
-        description: "Approval submitted successfully"
+        description: `Request ${approvalType} successfully`
       });
     },
     onError: (error) => {
@@ -118,15 +133,18 @@ export function usePurchaseRequests() {
   });
 
   // Process auto-approvals
-  const processAutoApprovals = useCallback((requests: any[]) => {
-    requests.forEach((request: any) => {
-      if (!request.requester || !request.approvals) return;
+  const processAutoApprovals = useCallback((requests: RequestWithApprovals[]) => {
+    requests.forEach((request) => {
+      // Skip if request is not pending or missing required data
+      if (!request.requester || !request.approvals || request.status !== 'pending') return;
 
       const requesterDepartment = request.requester.department;
-      if (!requiredDepartments.includes(requesterDepartment)) return;
+
+      // Only process if requester is from a mandatory department
+      if (!isMandatoryDepartment(requesterDepartment)) return;
 
       const requesterDeptApproval = request.approvals.find(
-        (approval: any) => approval.department === requesterDepartment
+        (approval) => approval.department === requesterDepartment
       );
 
       // Create a unique key for this auto-approval
@@ -147,12 +165,12 @@ export function usePurchaseRequests() {
             requestId: request.id,
             status: 'approved',
             departmentId: requesterDepartment,
-            comments: 'Auto-approved as all other departments have approved'
+            comments: `Auto-approved as all other departments have approved. This request was created by ${requesterDepartment}.`
           });
         }, 0);
       }
     });
-  }, [approvalMutation, allOtherDepartmentsApproved]);
+  }, [approvalMutation, allOtherDepartmentsApproved, isMandatoryDepartment]);
 
   // Effect to handle auto-approvals
   useEffect(() => {
@@ -166,7 +184,7 @@ export function usePurchaseRequests() {
   }, [rawRequests, processAutoApprovals]);
 
   return {
-    requests: rawRequests.map((request: any) => ({
+    requests: rawRequests.map((request) => ({
       ...request,
       status: getEffectiveStatus(request)
     })),
