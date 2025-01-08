@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import RequestCard from "@/components/RequestCard";
 import { useLocation } from "wouter";
+import RequestTimeline from "@/components/RequestTimeline";
+import ApprovalFlow from "@/components/ApprovalFlow";
 import { type RequestData } from "@/types/requests";
+import { useQueryClient } from '@tanstack/react-query'; // Added import for queryClient
 
 export default function ViewRequest() {
   const { id } = useParams();
   const { requests, isLoading } = usePurchaseRequests();
   const { user } = useUser();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient(); // Initialize queryClient
 
   if (isLoading) {
     return (
@@ -58,16 +62,37 @@ export default function ViewRequest() {
           </Button>
         </div>
 
-        <Card className="border-[#35bbba]/20 shadow-lg">
-          <CardContent className="p-6">
-            <RequestCard
-              request={request}
-              showActions={request.requesterId === user?.id}
-              showApproval={showApproval}
-              showItemDescriptions={true}
-            />
-          </CardContent>
-        </Card>
+        <div className="grid gap-6">
+          {/* Request Timeline */}
+          <RequestTimeline request={request} />
+
+          {/* Request Details */}
+          <Card className="border-[#35bbba]/20 shadow-lg">
+            <CardContent className="p-6">
+              <RequestCard
+                request={request}
+                showActions={request.requesterId === user?.id}
+                showApproval={showApproval}
+                showItemDescriptions={true}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Approval Flow */}
+          {(showApproval || request.status !== 'draft') && (
+            <Card className="border-[#35bbba]/20 shadow-lg">
+              <CardContent className="p-6">
+                <ApprovalFlow
+                  request={request}
+                  onApprovalUpdate={() => {
+                    // This will trigger a refetch of the request data
+                    queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

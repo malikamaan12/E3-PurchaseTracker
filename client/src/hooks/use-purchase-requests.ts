@@ -4,6 +4,13 @@ import type { PurchaseRequest } from "@db/schema";
 import { useErrorHandler } from "@/services/error-logging";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
 
+interface ApprovalData {
+  requestId: number;
+  status: 'approved' | 'rejected' | 'changes_requested';
+  comments?: string;
+  departmentId: string;
+}
+
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,10 +80,48 @@ export function usePurchaseRequests() {
     }
   });
 
+  // Approval mutation with proper type safety
+  const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
+    mutationFn: async (data) => {
+      if (!data.requestId) {
+        throw new Error("Request ID is required for approval");
+      }
+
+      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to process approval: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      toast({
+        title: "Success",
+        description: data.message || "Approval processed successfully",
+      });
+    },
+    onError: async (error) => {
+      await handleError(error, {
+        title: "Error processing approval"
+      });
+    }
+  });
+
   return {
     requests,
     isLoading,
     error,
     saveDraft: draftMutation.mutateAsync,
+    processApproval: approvalMutation.mutateAsync,
   };
 }
