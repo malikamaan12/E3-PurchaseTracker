@@ -64,34 +64,40 @@ export default function ApprovalFlow({
     mutationFn: async (data: ApprovalAction) => {
       // Validate required fields
       if (!data.requestId || !data.status || !data.departmentId) {
+        console.error("Missing required fields:", { data });
         throw new Error("Missing required fields: requestId, status, and department are required");
       }
 
       // Validate department is valid
       if (!requiredDepartments.includes(data.departmentId)) {
+        console.error("Invalid department:", data.departmentId);
         throw new Error("Invalid department");
       }
 
-      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requestId: data.requestId,
-          status: data.status,
-          departmentId: data.departmentId,
-          comments: data.comments
-        }),
-        credentials: 'include'
-      });
+      try {
+        const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: data.status,
+            departmentId: data.departmentId,
+            comments: data.comments?.trim() || undefined
+          }),
+          credentials: 'include'
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to process approval: ${response.status}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to process approval: ${response.status}`);
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("API call error:", error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
@@ -103,16 +109,30 @@ export default function ApprovalFlow({
       onApprovalUpdate?.();
     },
     onError: (error: Error) => {
+      console.error("Approval mutation error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to process approval",
         variant: "destructive"
       });
     }
   });
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
-    if (!user?.department || !user?.id || isSubmitting || !canApprove) {
+    if (!user?.department || !user?.id) {
+      toast({
+        title: "Error",
+        description: "User department information is missing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    if (!canApprove) {
       toast({
         title: "Error",
         description: "You don't have permission to approve this request",
