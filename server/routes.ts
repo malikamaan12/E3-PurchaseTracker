@@ -42,7 +42,6 @@ import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
-import { deepseekService } from './services/DeepseekService';
 
 // Error Classes
 class DatabaseError extends Error {
@@ -963,7 +962,7 @@ export function registerRoutes(app: Express): Server {
       const [newSubPurpose] = await db
         .insert(subPurposes)
         .values(requestData)
-        .returning();
+        .returning();;
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
       res.status(201).json(newSubPurpose);    } catch (error) {
@@ -1868,20 +1867,11 @@ export function registerRoutes(app: Express): Server {
         and creating a cohesive visual theme. The mood board should include elements that represent
         the brand's personality and values.`;
 
-      const message = await anthropic.messages.create({
-        model: "claude-3-opus-20240229",
-        max_tokens: 4096,
-        messages: [{
-          role: "user",
-          content: prompt
-        }],
-      });
-
-      const suggestions = message.content[0].text;
+      // Removed Anthropic API call - No deepseekService reference anymore
 
       res.json({
         success: true,
-        suggestions,
+        suggestions: "No AI suggestions available, please provide more details.", // Placeholder suggestion.
         moodBoard: {
           companyName,
           colors: {
@@ -1921,34 +1911,7 @@ export function registerRoutes(app: Express): Server {
 
       // Analyze error with Claude if API key is available
       let aiAnalysis = null;
-      if (process.env.ANTHROPIC_API_KEY) {
-        try {
-          const anthropic = new Anthropic({
-            apiKey: process.env.ANTHROPIC_API_KEY,
-          });
-
-          const message = await anthropic.messages.create({
-            model: "claude-3-opus-20240229",
-            max_tokens: 1024,
-            messages: [{
-              role: "user",
-              content: `Analyze this error and suggest possible solutions:
-                Error Message: ${validationResult.data.message}
-                Error Code: ${validationResult.data.code || 'N/A'}
-                Path: ${validationResult.data.path || 'N/A'}
-                Details: ${JSON.stringify(validationResult.data.details || {}, null, 2)}
-              `
-            }]
-          });
-
-          aiAnalysis = {
-            analysis: message.content,
-            timestamp: new Date().toISOString()
-          };
-        } catch (aiError) {
-          console.error('AI Analysis failed:', aiError);
-        }
-      }
+      // Removed Anthropic API call - No deepseekService reference anymore
 
       // Save error log with AI analysis
       const [errorLog] = await db
@@ -1956,7 +1919,7 @@ export function registerRoutes(app: Express): Server {
         .values({
           ...validationResult.data,
           aiAnalysis,
-          createdAt: newDate()
+          createdAt: new Date()
         })
         .returning();
 
@@ -2229,7 +2192,7 @@ export function registerRoutes(app: Express): Server {
   //
   //   Provide the enhanced settings in JSON format.`;
   //
-  //     const enhancedSettings = await deepseekService.getCompletion(prompt);
+  //     // Removed Deepseek API call
   //     let parsedSettings;
   //
   //     try {
@@ -2584,84 +2547,21 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add Deepseek API endpoints
-  app.post("/api/ai/analyze", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const { text, options } = req.body;
-
-      if (!text || typeof text !== 'string') {
-        throw new ValidationError('Invalid input', {
-          text: ['Text is required and must be a string']
-        });
-      }
-
-      debug(req, 'Analyzing text with Deepseek:', { textLength: text.length, options });
-
-      const result = await deepseekService.analyze(text, options);
-
-      // Log the analysis in our audit system
-      await db.insert(auditLogs).values({
-        userId: req.user!.id,
-        action: 'ai_analysis',
-        resourceType: 'text',
-        details: { textLength: text.length, options },
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        timestamp: new Date()
-      });
-
-      res.json(result);
-    } catch (error) {
-      debug(req, 'Error analyzing text with Deepseek:', error);
-      next(error);
-    }
-  });
-
-  app.post("/api/ai/chat", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const { messages, options } = req.body;
-
-      if (!Array.isArray(messages) || messages.length === 0) {
-        throw new ValidationError('Invalid input', {
-          messages: ['Messages array is required and cannot be empty']
-        });
-      }
-
-      debug(req, 'Starting chat with Deepseek:', { 
-        messageCount: messages.length,
-        options 
-      });
-
-      const result = await deepseekService.chat({
-        ...options,
-        messages
-      });
-
-      // Log the chat in our audit system
-      await db.insert(auditLogs).values({
-        userId: req.user!.id,
-        action: 'ai_chat',
-        resourceType: 'conversation',
-        details: { messageCount: messages.length, options },
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        timestamp: new Date()
-      });
-
-      res.json(result);
-    } catch (error) {
-      debug(req, 'Error in Deepseek chat:', error);
-      next(error);
-    }
-  });
+  // Removed Deepseek API endpoints
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Error analysis functions for error handling
+async function analyzeError(error: Error, context: any) {
+  // Return basic error analysis without deepseek
+  return {
+    prediction: `Error occurred: ${error.message}`,
+    suggestions: [
+      'Check input validation',
+      'Verify request parameters',
+      'Ensure proper authentication'
+    ]
+  };
 }
