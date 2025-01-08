@@ -2584,6 +2584,8 @@ export function registerRoutes(app: Express): Server {
 
       // Get all required departments
       const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+
+      // Check if all required departments have approved
       const allDepartmentsApproved = requiredDepartments.every(dept => 
         currentApprovals.some(a => a.department === dept && a.status === 'approved')
       );
@@ -2600,28 +2602,18 @@ export function registerRoutes(app: Express): Server {
         .update(purchaseRequests)
         .set({
           status,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          isLocked: status === 'approved' // Lock the request if it's approved
         })
         .where(eq(purchaseRequests.id, requestId))
         .returning();
 
-      // Log the status change
-      await logAuditEvent({
-        action: 'request_status_updated' as AuditAction,
-        userId: req.user!.id,
-        details: {
-          requestId,
-          oldStatus: existingRequest.status,
-          newStatus: status
-        }
-      });
-
-      // If status is approved, create notifications for requester
+      // Create notification for the requester
       if (status === 'approved') {
         await createNotification(
           existingRequest.requesterId,
           'Request Approved',
-          `Your purchase request has been fully approved`,
+          `Your purchase request "${existingRequest.title}" has been fully approved`,
           'request',
           requestId
         );
@@ -2631,6 +2623,47 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedRequest);
     } catch (error) {
       debug(req, 'Error updating request status:', error);
+      next(error);
+    }
+  });
+
+  // Add route to get request approvals
+  app.get("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      // Get all approvals for this request with approver details
+      const requestApprovals = await db
+        .select({
+          id: approvals.id,
+          requestId: approvals.requestId,
+          approverId: approvals.approverId,
+          status: approvals.status,
+          comments: approvals.comments,
+          department: approvals.department,
+          processedAt: approvals.processedAt,
+          approver: {
+            id: users.id,
+            username: users.username,
+            department: users.department,
+          }
+        })
+        .from(approvals)
+        .leftJoin(users, eq(approvals.approverId, users.id))
+        .where(eq(approvals.requestId, requestId))
+        .orderBy(desc(approvals.processedAt));
+
+      debug(req, `Found ${requestApprovals.length} approvals for request ${requestId}`);
+      res.json(requestApprovals);
+    } catch (error) {
+      debug(req, 'Error fetching request approvals:', error);
       next(error);
     }
   });

@@ -134,26 +134,27 @@ export default function ApprovalFlow({
     try {
       setIsSubmitting(true);
 
-      const approvalData = {
+      // First, create the approval
+      await createApproval({
         requestId,
         status: approvalStatus,
         department: user.department,
         comments: comments.trim() || undefined,
-        approverId: user.id,
-        processedAt: new Date().toISOString()
-      };
+      });
 
-      await createApproval(approvalData);
-
-      // Check if all departments have approved after this approval
-      const updatedApprovals = [...approvals, approvalData];
+      // Check if all required departments have approved
+      const updatedApprovals = await fetch(`/api/requests/${requestId}/approvals`).then(res => res.json());
       const allDepartmentsApproved = requiredDepartments.every(dept => 
-        updatedApprovals.some(a => a.department === dept && a.status === 'approved')
+        updatedApprovals.some((a: Approval) => a.department === dept && a.status === 'approved')
       );
 
       // If all departments have approved, update the request status
       if (allDepartmentsApproved && approvalStatus === 'approved') {
-        await updateRequestStatus({ requestId, status: 'approved' });
+        await updateRequestStatus({ 
+          requestId, 
+          status: 'approved' 
+        });
+
         toast({
           title: "Success",
           description: "All departments have approved. Request status updated to approved.",
