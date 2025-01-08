@@ -70,7 +70,7 @@ export default function ViewRequest() {
               <RequestCard
                 request={request}
                 showActions={request.requesterId === user?.id}
-                showApproval={showApproval}
+                showApproval={false} 
                 showItemDescriptions={true}
               />
             </CardContent>
@@ -79,7 +79,7 @@ export default function ViewRequest() {
           {/* Single Timeline Component */}
           <RequestTimeline request={request} />
 
-          {/* Approval Flow */}
+          {/* Single Approval Flow Component */}
           {(showApproval || request.status !== 'draft') && (
             <Card className="border-[#35bbba]/20 shadow-lg">
               <CardContent className="p-6">
