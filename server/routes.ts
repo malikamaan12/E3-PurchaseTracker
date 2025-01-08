@@ -89,6 +89,58 @@ const getContentDisposition = (filename: string, forceDownload: boolean): string
   return forceDownload ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
 };
 
+// Helper function for updating request status
+async function updateRequestStatus(requestId: number): Promise<void> {
+  // Get all approvals for the request
+  const requestApprovals = await db
+    .select()
+    .from(approvals)
+    .where(eq(approvals.requestId, requestId));
+
+  // Get the request
+  const [request] = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.id, requestId))
+    .limit(1);
+
+  if (!request) {
+    throw new Error('Request not found');
+  }
+
+  // Check status based on approvals
+  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+  const departmentApprovals = requiredDepartments.map(dept =>
+    requestApprovals.find(a => a.department === dept)
+  );
+
+  let newStatus = 'pending';
+
+  // If any department rejected, mark as rejected
+  if (departmentApprovals.some(a => a?.status === 'rejected')) {
+    newStatus = 'rejected';
+  }
+  // If any department requested changes, mark as changes_requested
+  else if (departmentApprovals.some(a => a?.status === 'changes_requested')) {
+    newStatus = 'changes_requested';
+  }
+  // If all departments approved, mark as approved
+  else if (departmentApprovals.every(a => a?.status === 'approved')) {
+    newStatus = 'approved';
+  }
+
+  // Update the request status
+  await db
+    .update(purchaseRequests)
+    .set({
+      status: newStatus,
+      updatedAt: new Date()
+    })
+    .where(eq(purchaseRequests.id, requestId));
+
+  // Log the status change
+  console.log(`Request ${requestId} status updated to ${newStatus}`);
+}
 
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
@@ -909,8 +961,7 @@ export function registerRoutes(app: Express): Server {
         // Log unexpected errors with analysis
         await db.insert(errorLogs).values({
           message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',
-          userId: req.user?.id,
+          severity: 'error',          userId: req.user?.id,
           path: req.path,
           aiAnalysis: analysis,
           createdAt: new Date()
@@ -1862,7 +1913,7 @@ export function registerRoutes(app: Express): Server {
         - Primary: ${primaryColor}
         - Secondary: ${secondaryColor || 'not specified'}
         - Accent: ${accentColor || 'not specified'}
-
+        
         Generate a mood board that reflects the company's brand identity, incorporating these colors
         and creating a cohesive visual theme. The mood board should include elements that represent
         the brand's personality and values.`;
@@ -1892,7 +1943,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+        throw new AppError('Notauthenticated', 401);
       }
 
       debug(req, 'Logging error:', req.body);
@@ -1900,9 +1951,7 @@ export function registerRoutes(app: Express): Server {
       const validationResult = insertErrorLogSchema.safeParse({
         ...req.body,
         userId: req.user?.id
-      });
-
-      if (!validationResult.success) {
+      });      if (!validationResult.success) {
         debug(req, 'Error log validation failed:', validationResult.error);
         throw new ValidationError('Invalid error log data', {
           errors: validationResult.error.errors
@@ -2212,8 +2261,8 @@ export function registerRoutes(app: Express): Server {
   //     const validatedSettings = {
   //       ...settings,
   //       ...parsedSettings,
-  //       headerColor: parsedSettings.headerColor?.match(/^#[0-9A-Fa-f]{6}$/) 
-  //         ? parsedSettings.headerColor 
+  //       headerColor: parsedSettings.headerColor?.match(/^#[0-9A-Fa-f]{6}$/)
+  //         ? parsedSettings.headerColor
   //         : settings.headerColor,
   //       footerColor: parsedSettings.footerColor?.match(/^#[0-9A-Fa-f]{6}$/)
   //         ? parsedSettings.footerColor
@@ -2269,7 +2318,7 @@ export function registerRoutes(app: Express): Server {
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
-    
+
 
     if (err instanceof ValidationError) {
       return res.status(400).json({
@@ -2277,7 +2326,7 @@ export function registerRoutes(app: Express): Server {
         details: err.details
       });
     }
-    
+
 
     if (err instanceof DatabaseError) {
       return res.status(500).json({
@@ -2285,14 +2334,14 @@ export function registerRoutes(app: Express): Server {
         error: err.message
       });
     }
-    
+
 
     if (err instanceof AppError) {
       return res.status(err.status).json({
         message: err.message
       });
     }
-    
+
 
     res.status(500).json({
       message: 'Internal server error',
@@ -2586,7 +2635,7 @@ export function registerRoutes(app: Express): Server {
       const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
 
       // Check if all required departments have approved
-      const allDepartmentsApproved = requiredDepartments.every(dept => 
+      const allDepartmentsApproved = requiredDepartments.every(dept =>
         currentApprovals.some(a => a.department === dept && a.status === 'approved')
       );
 
@@ -2726,82 +2775,37 @@ export function registerRoutes(app: Express): Server {
           status,
           department,
           comments: comments || null,
-          processedAt: new Date()
+          processedAt: new Date(),
+          isMandatory: ['CEO Office', 'Finance', 'Director'].includes(department)
         })
         .returning();
 
-      // Get all approvals after adding the new one
-      const allApprovals = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId));
+      // Update the request status based on all approvals
+      await updateRequestStatus(requestId);
 
-      // Check if all required departments have approved
-      const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
-      const allRequired = requiredDepartments.every(dept =>
-        allApprovals.some(a => a.department === dept && a.status === 'approved')
+      // Get the updated request status
+      const [updatedRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      // Create notification
+      await createNotification(
+        existingRequest.requesterId,
+        `Request ${status.replace('_', ' ')}`,
+        `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
+        'request',
+        requestId
       );
 
-      // If all required departments approved, update request status
-      if (allRequired) {
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: 'approved',
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-      // Notify the requester
-        await createNotification(
-          existingRequest.requesterId,
-          'Request Approved',
-          `Your purchase request "${existingRequest.title}" has been approved by all departments`,
-          'request',
-          requestId
-        );
-      } else if (status === 'rejected') {
-        // If any department rejects, update request status to rejected
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: 'rejected',
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-        // Notify the requester
-        await createNotification(
-          existingRequest.requesterId,
-          'Request Rejected',
-          `Your purchase request "${existingRequest.title}" has been rejected by ${department}`,
-          'request',
-          requestId
-        );
-      } else if (status === 'changes_requested') {
-        // Update request status to changes_requested
-        await db
-          .update(purchaseRequests)
-          .set({
-            status: 'changes_requested',
-            updatedAt: new Date()
-          })
-          .where(eq(purchaseRequests.id, requestId));
-
-        // Notify the requester
-        await createNotification(
-          existingRequest.requesterId,
-          'Changes Requested',
-          `Changes have been requested for your purchase request "${existingRequest.title}" by ${department}`,
-          'request',
-          requestId
-        );
-      }
-
-      debug(req, 'Approval created successfully:', approval);
-      res.json({ message: "Approval processed successfully", approval });
+      console.log('Approval created successfully:', approval);
+      res.json({
+        message: "Approval processed successfully",
+        approval,
+        currentStatus: updatedRequest.status
+      });
     } catch (error) {
-      debug(req, 'Error creating approval:', error);
       next(error);
     }
   });
