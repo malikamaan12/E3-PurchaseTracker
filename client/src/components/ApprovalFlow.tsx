@@ -44,19 +44,26 @@ export default function ApprovalFlow({
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if this department hasn't approved yet or if it's changes requested
+    // Check if this user's department has already approved
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
              (a.status === 'approved' || a.status === 'rejected')
     );
 
-    return !departmentApproval;
+    // Check if this specific user has already approved
+    const userHasApproved = approvals.find(
+      (a) => a.approverId === user.id && 
+             (a.status === 'approved' || a.status === 'rejected')
+    );
+
+    // Return false if either department has approved or user has already approved
+    return !departmentApproval && !userHasApproved;
   }, [approvals, user, requesterId, status]);
 
   const handleApproval = async (approvalStatus: "approved" | "rejected" | "changes_requested") => {
-    if (isSubmitting) return;
+    if (isSubmitting || !canApprove) return;
 
-    if (!user?.department || !canApprove) {
+    if (!user?.department) {
       toast({
         title: "Error",
         description: "You don't have permission to approve this request",
@@ -73,7 +80,8 @@ export default function ApprovalFlow({
         requestId,
         status: approvalStatus,
         department: user.department,
-        comments: comments.trim() || undefined
+        comments: comments.trim() || undefined,
+        approverId: user.id
       };
 
       // Validate required fields
@@ -81,7 +89,6 @@ export default function ApprovalFlow({
         throw new Error("Missing required fields: requestId, status, and department are required");
       }
 
-      console.log('Submitting approval with data:', approvalData);
       await createApproval(approvalData);
 
       toast({
@@ -213,14 +220,14 @@ export default function ApprovalFlow({
                 <div className="flex gap-2">
                   <Button
                     onClick={() => handleApproval("approved")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canApprove}
                     className="bg-green-600 hover:bg-green-700 text-white flex-1"
                   >
                     {isSubmitting ? "Processing..." : "Approve"}
                   </Button>
                   <Button
                     onClick={() => handleApproval("rejected")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canApprove}
                     variant="destructive"
                     className="flex-1"
                   >
@@ -228,7 +235,7 @@ export default function ApprovalFlow({
                   </Button>
                   <Button
                     onClick={() => handleApproval("changes_requested")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canApprove}
                     variant="outline"
                     className="bg-orange-50 text-orange-600 hover:bg-orange-100 flex-1"
                   >

@@ -12,7 +12,7 @@ import {
   PencilLine
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import type { PurchaseRequestWithRelations } from "@db/schema";
+import type { PurchaseRequestWithRelations, Approval } from "@db/schema";
 import { cn } from "@/lib/utils";
 
 interface RequestStatusTimelineProps {
@@ -139,7 +139,7 @@ export default function RequestStatusTimeline({ request }: RequestStatusTimeline
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Pending Approvals</h4>
                           {request.approvals
                             .filter(approval => approval.status === 'pending' || approval.status === 'approved')
-                            .map((approval: any) => (
+                            .map((approval: Approval & { approver?: User }) => (
                               <div 
                                 key={approval.id} 
                                 className={cn(

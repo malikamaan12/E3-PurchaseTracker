@@ -304,6 +304,14 @@ export type VendorCategory = InferModel<typeof vendorCategories>;
 export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
 
+// Add PurchaseRequestWithRelations type
+export type PurchaseRequestWithRelations = PurchaseRequest & {
+  requester?: User;
+  approvals?: (Approval & { approver?: User })[];
+  subPurpose?: SubPurpose;
+  attachments?: FileAttachment[];
+  vendor?: Vendor;
+};
 
 // ============= Validation Schemas =============
 export const loginSchema = z.object({
