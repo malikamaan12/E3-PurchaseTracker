@@ -245,6 +245,22 @@ export default function Dashboard() {
     return renderRequestsTable(filteredRequests, tabValue === "approvals" || (isAdmin && tabValue === "pending"));
   }, [requests, getFilteredRequests, isAdmin]);
 
+  // Get request counts for each tab
+  const requestCounts = useMemo(() => {
+    if (!Array.isArray(requests)) return {};
+
+    return {
+      myRequests: getFilteredRequests(requests, "my-requests").length,
+      draftsToSubmit: getFilteredRequests(requests, "drafts-to-submit").length,
+      allRequests: requests.length,
+      pending: getFilteredRequests(requests, "pending").length,
+      approved: getFilteredRequests(requests, "approved").length,
+      rejected: getFilteredRequests(requests, "rejected").length,
+      changes: getFilteredRequests(requests, "changes").length,
+      approvals: pendingApprovals.length
+    };
+  }, [requests, getFilteredRequests, pendingApprovals]);
+
   const pendingApprovals = useMemo(() => {
     if (!user || !Array.isArray(requests)) return [];
 
@@ -606,11 +622,17 @@ export default function Dashboard() {
               value="my-requests"
               className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               My Requests
+              <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                {requestCounts.myRequests}
+              </Badge>
             </TabsTrigger>
             <TabsTrigger
               value="drafts-to-submit"
               className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
               Ready to Submit
+              <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                {requestCounts.draftsToSubmit}
+              </Badge>
             </TabsTrigger>
             {(isAdmin || isSpecialRole) && (
               <>
@@ -618,26 +640,41 @@ export default function Dashboard() {
                   value="all-requests"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   All Requests
+                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                    {requestCounts.allRequests}
+                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="pending"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Pending
+                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                    {requestCounts.pending}
+                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="approved"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Approved
+                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                    {requestCounts.approved}
+                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="rejected"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Rejected
+                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                    {requestCounts.rejected}
+                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="changes"
                   className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Changes Requested
+                  <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                    {requestCounts.changes}
+                  </Badge>
                 </TabsTrigger>
               </>
             )}
@@ -646,6 +683,9 @@ export default function Dashboard() {
                 value="approvals"
                 className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                 Pending Approvals
+                <Badge variant="outline" className="ml-2 bg-[#7156a2]/5 border-[#7156a2]/20">
+                  {requestCounts.approvals}
+                </Badge>
               </TabsTrigger>
             )}
           </TabsList>
