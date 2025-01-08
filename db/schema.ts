@@ -105,8 +105,25 @@ export const approvals = pgTable("approvals", {
   status: text("status").notNull().default("pending"),
   comments: text("comments"),
   isMandatory: boolean("is_mandatory").notNull().default(false),
+  processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const approvalAuditLogs = pgTable("approval_audit_logs", {
+  id: serial("id").primaryKey(),
+  approvalId: integer("approval_id").notNull().references(() => approvals.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  action: text("action").notNull(), 
+  previousStatus: text("previous_status"),
+  newStatus: text("new_status").notNull(),
+  comments: text("comments"),
+  metadata: jsonb("metadata").$type<{
+    userAgent?: string;
+    ipAddress?: string;
+    department?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const fileAttachments = pgTable("file_attachments", {
@@ -240,7 +257,7 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
   }),
 }));
 
-export const approvalRelations = relations(approvals, ({ one }) => ({
+export const approvalRelations = relations(approvals, ({ one, many }) => ({
   request: one(purchaseRequests, {
     fields: [approvals.requestId],
     references: [purchaseRequests.id],
@@ -249,7 +266,20 @@ export const approvalRelations = relations(approvals, ({ one }) => ({
     fields: [approvals.approverId],
     references: [users.id],
   }),
+  auditLogs: many(approvalAuditLogs)
 }));
+
+export const approvalAuditLogRelations = relations(approvalAuditLogs, ({ one }) => ({
+  approval: one(approvals, {
+    fields: [approvalAuditLogs.approvalId],
+    references: [approvals.id],
+  }),
+  user: one(users, {
+    fields: [approvalAuditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 
 export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => ({
   request: one(purchaseRequests, {
@@ -532,8 +562,8 @@ export type MandatoryDepartment = typeof mandatoryDepartments[number];
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  category: text("category").notNull(), // e.g., 'requests', 'approvals', 'system'
-  type: text("type").notNull(), // e.g., 'new_request', 'status_change', 'mention'
+  category: text("category").notNull(), 
+  type: text("type").notNull(), 
   enabled: boolean("enabled").notNull().default(true),
   inAppEnabled: boolean("in_app_enabled").notNull().default(true),
   emailEnabled: boolean("email_enabled").notNull().default(false),

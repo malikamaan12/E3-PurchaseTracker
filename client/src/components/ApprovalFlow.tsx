@@ -8,7 +8,17 @@ import { useUser } from "@/hooks/use-user";
 import { useState, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { type PurchaseRequest, type User, type Approval } from "@db/schema";
+import { 
+  type PurchaseRequest, 
+  type User, 
+  type Approval 
+} from "@db/schema";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ApprovalFlowProps {
   approvals: (Approval & { approver?: User })[];
@@ -35,7 +45,7 @@ export default function ApprovalFlow({
   const canApprove = useMemo(() => {
     if (!user?.department) return false;
 
-    // Check if request is pending or changes requested
+    // Check if request is in an approvable state
     if (!["pending", "changes_requested"].includes(status)) return false;
 
     // Special roles can approve any request except their own
@@ -45,13 +55,12 @@ export default function ApprovalFlow({
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if this department has already approved or rejected
+    // Check if this department has already processed the request
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
              ["approved", "rejected"].includes(a.status)
     );
 
-    // Return false if department has already processed this request
     return !departmentApproval;
   }, [approvals, user, requesterId, status]);
 
@@ -65,7 +74,14 @@ export default function ApprovalFlow({
       (a) => a.department === user.department && 
              ["approved", "rejected"].includes(a.status)
     );
-    if (departmentApproval) return "Your department has already processed this request";
+
+    if (departmentApproval) {
+      const action = departmentApproval.status === 'approved' ? 'approved' : 'rejected';
+      const time = departmentApproval.processedAt 
+        ? format(new Date(departmentApproval.processedAt), "PPp")
+        : 'previously';
+      return `Your department has already ${action} this request at ${time}`;
+    }
 
     return "";
   };
@@ -85,25 +101,21 @@ export default function ApprovalFlow({
     try {
       setIsSubmitting(true);
 
-      // Create approval data with all required fields
       const approvalData = {
         requestId,
         status: approvalStatus,
         department: user.department,
         comments: comments.trim() || undefined,
-        approverId: user.id // Added approverId back in.
+        approverId: user.id,
+        processedAt: new Date().toISOString()
       };
-
-      // Validate required fields
-      if (!approvalData.requestId || !approvalData.status || !approvalData.department) {
-        throw new Error("Missing required fields: requestId, status, and department are required");
-      }
 
       await createApproval(approvalData);
 
+      // Show success notification with timestamp
       toast({
         title: "Success",
-        description: `Request ${approvalStatus.replace('_', ' ')} successfully`,
+        description: `Request ${approvalStatus.replace('_', ' ')} successfully at ${format(new Date(), "PPp")}`,
       });
 
       setComments("");
@@ -177,8 +189,7 @@ export default function ApprovalFlow({
                     {approval.status.toUpperCase().replace('_', ' ')}
                   </Badge>
                   <span className="text-sm text-gray-500">
-                    {approval.updatedAt &&
-                      format(new Date(approval.updatedAt), "PPp")}
+                    {approval.processedAt && format(new Date(approval.processedAt), "PPp")}
                   </span>
                 </div>
               </div>
@@ -204,32 +215,70 @@ export default function ApprovalFlow({
                   disabled={isSubmitting}
                 />
                 <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleApproval("approved")}
-                    disabled={isSubmitting || !canApprove}
-                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                    title={!canApprove ? getApprovalDisabledReason() : ""}
-                  >
-                    {isSubmitting ? "Processing..." : "Approve"}
-                  </Button>
-                  <Button
-                    onClick={() => handleApproval("rejected")}
-                    disabled={isSubmitting || !canApprove}
-                    variant="destructive"
-                    className="flex-1"
-                    title={!canApprove ? getApprovalDisabledReason() : ""}
-                  >
-                    {isSubmitting ? "Processing..." : "Reject"}
-                  </Button>
-                  <Button
-                    onClick={() => handleApproval("changes_requested")}
-                    disabled={isSubmitting || !canApprove}
-                    variant="outline"
-                    className="bg-orange-50 text-orange-600 hover:bg-orange-100 flex-1"
-                    title={!canApprove ? getApprovalDisabledReason() : ""}
-                  >
-                    {isSubmitting ? "Processing..." : "Request Changes"}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1">
+                          <Button
+                            onClick={() => handleApproval("approved")}
+                            disabled={isSubmitting || !canApprove}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {isSubmitting ? "Processing..." : "Approve"}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!canApprove && (
+                        <TooltipContent>
+                          <p>{getApprovalDisabledReason()}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1">
+                          <Button
+                            onClick={() => handleApproval("rejected")}
+                            disabled={isSubmitting || !canApprove}
+                            variant="destructive"
+                            className="w-full"
+                          >
+                            {isSubmitting ? "Processing..." : "Reject"}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!canApprove && (
+                        <TooltipContent>
+                          <p>{getApprovalDisabledReason()}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex-1">
+                          <Button
+                            onClick={() => handleApproval("changes_requested")}
+                            disabled={isSubmitting || !canApprove}
+                            variant="outline"
+                            className="w-full bg-orange-50 text-orange-600 hover:bg-orange-100"
+                          >
+                            {isSubmitting ? "Processing..." : "Request Changes"}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!canApprove && (
+                        <TooltipContent>
+                          <p>{getApprovalDisabledReason()}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             </CardContent>
