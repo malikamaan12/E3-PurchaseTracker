@@ -9,14 +9,14 @@ import { useLocation } from "wouter";
 import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import { type RequestData } from "@/types/requests";
-import { useQueryClient } from '@tanstack/react-query'; // Added import for queryClient
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ViewRequest() {
   const { id } = useParams();
   const { requests, isLoading } = usePurchaseRequests();
   const { user } = useUser();
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient(); // Initialize queryClient
+  const queryClient = useQueryClient();
 
   if (isLoading) {
     return (
@@ -51,6 +51,7 @@ export default function ViewRequest() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back Button */}
         <div className="flex items-center mb-6">
           <Button 
             variant="ghost" 
@@ -63,10 +64,7 @@ export default function ViewRequest() {
         </div>
 
         <div className="grid gap-6">
-          {/* Request Timeline */}
-          <RequestTimeline request={request} />
-
-          {/* Request Details */}
+          {/* Request Details Card */}
           <Card className="border-[#35bbba]/20 shadow-lg">
             <CardContent className="p-6">
               <RequestCard
@@ -78,6 +76,9 @@ export default function ViewRequest() {
             </CardContent>
           </Card>
 
+          {/* Single Timeline Component */}
+          <RequestTimeline request={request} />
+
           {/* Approval Flow */}
           {(showApproval || request.status !== 'draft') && (
             <Card className="border-[#35bbba]/20 shadow-lg">
@@ -85,7 +86,6 @@ export default function ViewRequest() {
                 <ApprovalFlow
                   request={request}
                   onApprovalUpdate={() => {
-                    // This will trigger a refetch of the request data
                     queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
                   }}
                 />
