@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,12 +62,27 @@ export default function ApprovalFlow({
 
   const approvalMutation = useMutation({
     mutationFn: async (data: ApprovalAction) => {
+      // Validate required fields
+      if (!data.requestId || !data.status || !data.departmentId) {
+        throw new Error("Missing required fields: requestId, status, and department are required");
+      }
+
+      // Validate department is valid
+      if (!requiredDepartments.includes(data.departmentId)) {
+        throw new Error("Invalid department");
+      }
+
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          requestId: data.requestId,
+          status: data.status,
+          departmentId: data.departmentId,
+          comments: data.comments
+        }),
         credentials: 'include'
       });
 
@@ -99,6 +113,11 @@ export default function ApprovalFlow({
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id || isSubmitting || !canApprove) {
+      toast({
+        title: "Error",
+        description: "You don't have permission to approve this request",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -110,6 +129,8 @@ export default function ApprovalFlow({
         comments: comments.trim() || undefined,
         departmentId: user.department
       });
+    } catch (error) {
+      console.error("Approval error:", error);
     } finally {
       setIsSubmitting(false);
     }
