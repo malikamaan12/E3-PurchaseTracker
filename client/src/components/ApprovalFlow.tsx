@@ -38,46 +38,34 @@ export default function ApprovalFlow({
     // Check if request is pending or changes requested
     if (!["pending", "changes_requested"].includes(status)) return false;
 
-    // Special roles can approve any request
+    // Special roles can approve any request except their own
     const isSpecialRole = ["CEO Office", "Director", "Finance"].includes(user.department);
+    if (isSpecialRole && requesterId === user.id) return false;
 
     // For non-special roles, users cannot approve their own requests
     if (!isSpecialRole && requesterId === user.id) return false;
 
-    // Check if this department has already approved
+    // Check if this department has already approved or rejected
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
-             (a.status === 'approved' || a.status === 'rejected')
+             ["approved", "rejected"].includes(a.status)
     );
 
-    // Check if this specific user has already approved
-    const userHasApproved = approvals.find(
-      (a) => a.approverId === user.id && 
-             (a.status === 'approved' || a.status === 'rejected')
-    );
-
-    // Return false if either department has approved or user has already approved
-    return !departmentApproval && !userHasApproved;
+    // Return false if department has already processed this request
+    return !departmentApproval;
   }, [approvals, user, requesterId, status]);
 
   // Get the reason why approval is not possible
   const getApprovalDisabledReason = () => {
     if (!user?.department) return "You must be logged in to approve requests";
     if (!["pending", "changes_requested"].includes(status)) return "Request is not in an approvable state";
-    if (requesterId === user.id && !["CEO Office", "Director", "Finance"].includes(user.department)) 
-      return "You cannot approve your own requests";
+    if (requesterId === user.id) return "You cannot approve your own requests";
 
     const departmentApproval = approvals.find(
       (a) => a.department === user.department && 
-             (a.status === 'approved' || a.status === 'rejected')
+             ["approved", "rejected"].includes(a.status)
     );
     if (departmentApproval) return "Your department has already processed this request";
-
-    const userHasApproved = approvals.find(
-      (a) => a.approverId === user.id && 
-             (a.status === 'approved' || a.status === 'rejected')
-    );
-    if (userHasApproved) return "You have already processed this request";
 
     return "";
   };
@@ -103,7 +91,7 @@ export default function ApprovalFlow({
         status: approvalStatus,
         department: user.department,
         comments: comments.trim() || undefined,
-        approverId: user.id
+        approverId: user.id // Added approverId back in.
       };
 
       // Validate required fields
