@@ -69,7 +69,6 @@ class ValidationError extends Error {
   }
 }
 
-
 // Helper functions for content type and disposition
 const getContentType = (filename: string): string => {
   const ext = path.extname(filename).toLowerCase();
@@ -89,58 +88,6 @@ const getContentDisposition = (filename: string, forceDownload: boolean): string
   return forceDownload ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
 };
 
-// Helper function for updating request status
-async function updateRequestStatus(requestId: number): Promise<void> {
-  // Get all approvals for the request
-  const requestApprovals = await db
-    .select()
-    .from(approvals)
-    .where(eq(approvals.requestId, requestId));
-
-  // Get the request
-  const [request] = await db
-    .select()
-    .from(purchaseRequests)
-    .where(eq(purchaseRequests.id, requestId))
-    .limit(1);
-
-  if (!request) {
-    throw new Error('Request not found');
-  }
-
-  // Check status based on approvals
-  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
-  const departmentApprovals = requiredDepartments.map(dept =>
-    requestApprovals.find(a => a.department === dept)
-  );
-
-  let newStatus = 'pending';
-
-  // If any department rejected, mark as rejected
-  if (departmentApprovals.some(a => a?.status === 'rejected')) {
-    newStatus = 'rejected';
-  }
-  // If any department requested changes, mark as changes_requested
-  else if (departmentApprovals.some(a => a?.status === 'changes_requested')) {
-    newStatus = 'changes_requested';
-  }
-  // If all departments approved, mark as approved
-  else if (departmentApprovals.every(a => a?.status === 'approved')) {
-    newStatus = 'approved';
-  }
-
-  // Update the request status
-  await db
-    .update(purchaseRequests)
-    .set({
-      status: newStatus,
-      updatedAt: new Date()
-    })
-    .where(eq(purchaseRequests.id, requestId));
-
-  // Log the status change
-  console.log(`Request ${requestId} status updated to ${newStatus}`);
-}
 
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
@@ -961,7 +908,8 @@ export function registerRoutes(app: Express): Server {
         // Log unexpected errors with analysis
         await db.insert(errorLogs).values({
           message: error instanceof Error ? error.message : 'Unknown error',
-          severity: 'error',          userId: req.user?.id,
+          severity: 'error',
+          userId: req.user?.id,
           path: req.path,
           aiAnalysis: analysis,
           createdAt: new Date()
@@ -1016,7 +964,8 @@ export function registerRoutes(app: Express): Server {
         .returning();;
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
-      res.json(newSubPurpose);    } catch (error) {
+      res.json(newSubPurpose);
+    } catch (error) {
       debug(req, 'Error creating sub-purpose:', error);
       next(error);
     }
@@ -1951,7 +1900,8 @@ export function registerRoutes(app: Express): Server {
       const validationResult = insertErrorLogSchema.safeParse({
         ...req.body,
         userId: req.user?.id
-      });      if (!validationResult.success) {
+      });
+      if (!validationResult.success) {
         debug(req, 'Error log validation failed:', validationResult.error);
         throw new ValidationError('Invalid error log data', {
           errors: validationResult.error.errors
@@ -2318,31 +2268,23 @@ export function registerRoutes(app: Express): Server {
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
-
-
     if (err instanceof ValidationError) {
       return res.status(400).json({
         message: err.message,
         details: err.details
       });
     }
-
-
     if (err instanceof DatabaseError) {
       return res.status(500).json({
         message: 'Database error occurred',
         error: err.message
       });
     }
-
-
     if (err instanceof AppError) {
       return res.status(err.status).json({
         message: err.message
       });
     }
-
-
     res.status(500).json({
       message: 'Internal server error',
       error: err.message
