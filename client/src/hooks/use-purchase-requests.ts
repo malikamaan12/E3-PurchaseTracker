@@ -132,7 +132,7 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Process auto-approvals
+  // Process auto-approvals immediately when conditions are met
   const processAutoApprovals = useCallback((requests: RequestWithApprovals[]) => {
     requests.forEach((request) => {
       // Skip if request is not pending or missing required data
@@ -150,27 +150,31 @@ export function usePurchaseRequests() {
       // Create a unique key for this auto-approval
       const autoApprovalKey = `${request.id}-${requesterDepartment}`;
 
-      // Check if we haven't processed this auto-approval yet
+      // Check if we haven't processed this auto-approval yet and if other departments have approved
       if (
         !processedAutoApprovals.current.has(autoApprovalKey) &&
         requesterDeptApproval?.status === 'pending' &&
         allOtherDepartmentsApproved(request, requesterDepartment)
       ) {
-        // Mark this auto-approval as processed
+        // Mark this auto-approval as processed immediately
         processedAutoApprovals.current.add(autoApprovalKey);
 
-        // Schedule the auto-approval for the next tick to avoid render cycle issues
-        setTimeout(() => {
-          approvalMutation.mutate({
-            requestId: request.id,
-            status: 'approved',
-            departmentId: requesterDepartment,
-            comments: `Auto-approved as all other departments have approved. This request was created by ${requesterDepartment}.`
-          });
-        }, 0);
+        // Execute auto-approval immediately
+        approvalMutation.mutate({
+          requestId: request.id,
+          status: 'approved',
+          departmentId: requesterDepartment,
+          comments: `Auto-approved as all other departments have approved. This request was created by ${requesterDepartment}.`
+        });
+
+        // Notify about the auto-approval
+        toast({
+          title: "Auto-Approval",
+          description: `Request automatically approved for ${requesterDepartment} as all other departments have approved.`
+        });
       }
     });
-  }, [approvalMutation, allOtherDepartmentsApproved, isMandatoryDepartment]);
+  }, [approvalMutation, allOtherDepartmentsApproved, isMandatoryDepartment, toast]);
 
   // Effect to handle auto-approvals
   useEffect(() => {

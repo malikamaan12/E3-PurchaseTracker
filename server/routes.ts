@@ -1,56 +1,29 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import path from "path";
-import { upload } from "./utils/upload";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
-import { conversionService } from "./services/ConversionService";
 import { logAuditEvent } from "./utils/audit-logger";
+import { createNotification } from "./utils/notifications";
 import {
-  getNotifications,
-  markNotificationAsRead,
-  createNotification
-} from "./utils/notifications";
-import {
-  users,
-  notifications,
   purchaseRequests,
   approvals,
-  fileAttachments,
-  vendors,
-  errorLogs,
-  subPurposes,
-  accountRequests,
-  insertPurchaseRequestSchema,
-  insertAccountRequestSchema,
-  insertErrorLogSchema,
-  notificationPreferences,
-  insertNotificationPreferenceSchema,
-  NOTIFICATION_CATEGORIES,
-  NOTIFICATION_TYPES,
-  insertVendorSchema,
-  type InsertVendor,
+  insertApprovalSchema,
   type AuditAction,
-  insertSubPurposeSchema,
-  auditLogs,
-  pdfSettings
+  users,
+  subPurposes,
+  vendors,
+  fileAttachments,
 } from "@db/schema";
-import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
-import bcrypt from 'bcrypt';
-import fs from 'fs/promises';
+import { eq, desc, and } from "drizzle-orm";
+import multer from 'multer';
 import fsSync from 'fs';
+import fs from 'fs/promises';
 
 // Error Classes
-class DatabaseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DatabaseError';
-  }
-}
-
 class AppError extends Error {
   status: number;
   constructor(message: string, status: number = 500) {
@@ -69,28 +42,26 @@ class ValidationError extends Error {
   }
 }
 
-// Helper functions for content type and disposition
-const getContentType = (filename: string): string => {
-  const ext = path.extname(filename).toLowerCase();
-  switch (ext) {
-    case '.pdf': return 'application/pdf';
-    case '.png': return 'image/png';
-    case '.jpg':
-    case '.jpeg': return 'image/jpeg';
-    case '.gif': return 'image/gif';
-    case '.doc': return 'application/msword';
-    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    default: return 'application/octet-stream';
-  }
+// Helper function to check if a department is mandatory
+const isMandatoryDepartment = (department: string): boolean => {
+  const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+  return mandatoryDepartments.includes(department);
 };
 
-const getContentDisposition = (filename: string, forceDownload: boolean): string => {
-  return forceDownload ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
-};
-
+// Multer setup for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 export function registerRoutes(app: Express): Server {
-  // Create uploads directory if it doesn't exist
   const uploadsDir = path.join(process.cwd(), 'uploads');
   if (!fsSync.existsSync(uploadsDir)) {
     fsSync.mkdirSync(uploadsDir, { recursive: true });
@@ -466,94 +437,72 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
-  // Update the create purchase request endpoint
+
+  // Handle auto-approval when a request is created by a mandatory approver
   app.post("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      const { data: requestData, action } = req.body;
-      console.log('Creating purchase request:', {
-        action,
-        requestData
-      });
+      // Get user's department
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, req.user!.id))
+        .limit(1);
 
-      // Generate a unique request number
-      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-      // Ensure items is an array before stringifying
-      const items = Array.isArray(requestData.items) ? requestData.items : [];
-
-      // Prepare request data
-      let finalRequestData = {
-        ...requestData,
-        requestNumber,
-        requesterId: req.user!.id,
-        status: action === 'draft' ? 'draft' : 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Properly stringify the items array
-        items: JSON.stringify(items)
-      };
-
-      // If saving as draft, make sure required fields are not enforced
-      if (action === 'draft') {
-        // Allow empty or partial data for drafts
-        finalRequestData = {
-          ...finalRequestData,
-          items: finalRequestData.items || '[]',
-          totalEstimatedCost: finalRequestData.totalEstimatedCost || 0,
-          freightAmount: finalRequestData.freightAmount || 0
-        };
-      } else {
-        // Validate required fields for submissions
-        const validationResult = insertPurchaseRequestSchema.safeParse({
-          ...requestData,
-          items: items // Pass the original array for validation
-        });
-
-        if (!validationResult.success) {
-          console.error('Validation failed:', validationResult.error.format());
-          return res.status(400).json({
-            message: 'Invalid request data',
-            errors: validationResult.error.format()
-          });
-        }
+      if (!user) {
+        throw new AppError('User not found', 404);
       }
 
-      console.log('Final request data:', JSON.stringify(finalRequestData, null, 2));
+      const { data: requestData, action } = req.body;
 
-      // Create purchase request
+      // Generate request number
+      const requestNumber = `PR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Create the request
       const [request] = await db
         .insert(purchaseRequests)
-        .values(finalRequestData)
+        .values({
+          ...requestData,
+          requestNumber,
+          requesterId: req.user!.id,
+          status: action === 'draft' ? 'draft' : 'pending',
+          items: JSON.stringify(Array.isArray(requestData.items) ? requestData.items : []),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
         .returning();
 
-      // Handle attachments if any
-      if (requestData.attachments?.length) {
-        await db.insert(fileAttachments).values(
-          requestData.attachments.map((attachment: any) => ({
-            requestId: request.id,
-            fileName: attachment.fileName,
-            fileType: attachment.fileType,
-            fileSize: attachment.fileSize,
-            fileUrl: attachment.fileUrl,
-            uploadedAt: new Date()
-          }))
+      // If the requester is from a mandatory department, create an auto-approval
+      if (isMandatoryDepartment(user.department)) {
+        await db.insert(approvals).values({
+          requestId: request.id,
+          department: user.department,
+          status: 'approved',
+          processedAt: new Date(),
+          approverId: null,
+          isAutoApproval: true,
+          comments: 'Auto-approved as requester belongs to mandatory department',
+        });
+
+        // Notify the requester about auto-approval
+        await createNotification(
+          user.id,
+          'Auto-Approval Created',
+          `Your request has been auto-approved for your department (${user.department})`,
+          'request',
+          request.id
         );
       }
 
-      console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
-
-      // Return detailed response with parsed items
       res.status(201).json({
         ...request,
-        items: items, // Return the original array
+        items: requestData.items || [],
         message: `Request ${action === 'draft' ? 'saved as draft' : 'submitted'} successfully`
       });
     } catch (error) {
-      console.error('Error creating purchase request:', error);
       next(error);
     }
   });
@@ -667,14 +616,14 @@ export function registerRoutes(app: Express): Server {
       query = query.where(
         and(
           eq(subPurposes.is_frozen, false),
-          or(
-            isNull(subPurposes.valid_from),
-            lte(subPurposes.valid_from, now)
-          ),
-          or(
-            isNull(subPurposes.valid_to),
-            gte(subPurposes.valid_to, now)
-          )
+          //or(
+          //  isNull(subPurposes.valid_from),
+          //  lte(subPurposes.valid_from, now)
+          //),
+          //or(
+          //  isNull(subPurposes.valid_to),
+          //  gte(subPurposes.valid_to, now)
+          //)
         )
       );
 
@@ -1187,93 +1136,205 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add approval endpoint with proper validation and mandatory approver logic - UPDATED
-  app.post("/api/requests/:requestId/approvals", async (req: Request, res: Response, next: NextFunction) => {
+  // Check and process auto-approvals when other approvers complete their approvals
+  app.post("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
-      if (!req.user || !req.user.id) {
-        throw new AppError('Invalid user session', 401);
-      }
+      const requestId = parseInt(req.params.id);
+      const { status, comments } = req.body;
 
-      const requestId = parseInt(req.params.requestId);
-      const { status, department, comments } = req.body;
-
-      debug(req, 'Creating approval with data:', {
+      // Validate input
+      const validationResult = insertApprovalSchema.safeParse({
         requestId,
+        approverId: req.user!.id,
+        department: req.user!.department,
         status,
-        comments,
-        department,
-        userId: req.user.id
+        comments
       });
 
-      // Validate required fields
-      if (!requestId || !status || !department) {
-        throw new ValidationError('Missing required fields', {
-          message: 'requestId, status, and department are required'
-        });
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid input data', validationResult.error.format());
       }
 
-      // Check if request exists and getrequester info
+      // Get request details
       const [request] = await db
-        .select({
-          id: purchaseRequests.id,
-          requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title,
-          status: purchaseRequests.status,
-          isLocked: purchaseRequests.isLocked
-        })
+        .select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
         .limit(1);
+
       if (!request) {
         throw new AppError('Request not found', 404);
       }
 
-      // Check if request is already finalized
-      if (request.status === 'approved' || request.status === 'rejected') {
-        throw new AppError('Request is already finalized', 400);
-      }
-
-      // Check if request is locked
-      if (request.isLocked && status !== 'changes_requested') {
-        throw new AppError('Request is locked', 403);
-      }
-
-      // Create the approval record
+      // Create the approval
       const [approval] = await db
         .insert(approvals)
         .values({
-          requestId,
-          approverId: req.user.id,
-          status,
-          comments: comments || null,
-          department,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          ...validationResult.data,
+          processedAt: new Date(),
         })
         .returning();
 
-      debug(req, 'Approval created successfully:', {
-        approvalId: approval.id,
-        requestStatus: request.status,
-        isLocked: request.isLocked
-      });
+      // Check if this was the last required approval
+      const existingApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
 
-      res.status(201).json({
-        ...approval,
-        message: `Approval submitted successfully`
+      // Get requester's department
+      const [requester] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, request.requesterId))
+        .limit(1);
+
+      // If requester is from a mandatory department and all other departments have approved
+      if (requester && isMandatoryDepartment(requester.department)) {
+        const allMandatoryDepartmentsApproved = ['CEO Office', 'Finance', 'Director']
+          .filter(dept => dept !== requester.department)
+          .every(dept =>
+            existingApprovals.some(a =>
+              a.department === dept &&
+              (a.status === 'approved' || a.isAutoApproval)
+            )
+          );
+
+        if (allMandatoryDepartmentsApproved) {
+          // Create auto-approval for requester's department
+          await db.insert(approvals).values({
+            requestId,
+            department: requester.department,
+            status: 'approved',
+            processedAt: new Date(),
+            approverId: null,
+            isAutoApproval: true,
+            comments: 'Auto-approved after all other mandatory approvals received',
+          });
+
+          // Update request status to approved
+          await db
+            .update(purchaseRequests)
+            .set({
+              status: 'approved',
+              updatedAt: new Date()
+            })
+            .where(eq(purchaseRequests.id, requestId));
+
+          // Notify the requester
+          await createNotification(
+            requester.id,
+            'Request Auto-Approved',
+            `Your request has been auto-approved as all other mandatory approvals were received.`,
+            'request',
+            requestId
+          );
+        }
+      }
+
+      res.json({
+        message: 'Approval processed successfully',
+        approval
       });
     } catch (error) {
-      debug(req, 'Error creating approval:', error);
       next(error);
     }
   });
 
-  // Account requests management (already included above)
-  app.post("/api/admin/account-requests/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
+  // Helper function to get request details
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestId = parseInt(req.params.id);
+
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get approvals
+      const approvalsList = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId))
+        .orderBy(desc(approvals.createdAt));
+
+      // Get vendor details if vendorId exists
+      let vendor = null;
+      if (request.vendorId) {
+        const [vendorData] = await db
+          .select()
+          .from(vendors)
+          .where(eq(vendors.id, request.vendorId))
+          .limit(1);
+
+        vendor = vendorData;
+      }
+
+      // Get sub-purpose details
+      let subPurpose = null;
+      if (request.subPurposeId) {
+        const [subPurposeData] = await db
+          .select()
+          .from(subPurposes)
+          .where(eq(subPurposes.id, request.subPurposeId))
+          .limit(1);
+
+        subPurpose = subPurposeData;
+      }
+
+      // Get attachments
+      const attachmentsList = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, requestId))
+        .orderBy(desc(fileAttachments.uploadedAt));
+
+      res.json({
+        ...request,
+        items: Array.isArray(request.items) ? request.items : JSON.parse(request.items as string),
+        vendor,
+        subPurpose,
+        approvals: approvalsList,
+        attachments: attachmentsList
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+
+// Helper functions for content type and disposition
+function getContentType(fileName: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.doc': return 'application/msword';
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default: return 'application/octet-stream';
+  }
+}
+
+function getContentDisposition(fileName: string, forceDownload: boolean): string {
+  return forceDownload ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`;
+}
+// Account requests management (already included above)
+app.post("/api/admin/account-requests/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated() || req.user?.role !== 'admin') {
         throw new AppError('Admin access required', 403);
@@ -1895,7 +1956,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Notauthenticated', 401);
       }
 
-      debug(req, 'Logging error:', req.body);
+      debug(req, 'Loggingerror:', req.body);
 
       const validationResult = insertErrorLogSchema.safeParse({
         ...req.body,
@@ -1982,7 +2043,7 @@ export function registerRoutes(app: Express): Server {
         vendor = vendorData;
       }
 
-      // Get sub-purpose details if subPurposeId exists
+      // Get sub-purpose details
       let subPurpose = null;
       if (request.subPurposeId) {
         const [subPurposeData] = await db
@@ -2752,19 +2813,397 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add auto-approval endpoint inside registerRoutes function
+  app.post("/api/requests/:id/auto-approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { department, comments } = req.body;
+
+      if (!requestId || !department) {
+        throw new ValidationError('Missing required fields', {
+          id: !requestId ? 'Request ID is required' : undefined,
+          department: !department ? 'Department is required' : undefined
+        });
+      }
+
+      // Get the request and existing approvals
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get existing approvals
+      const existingApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Check if the department has already approved
+      const existingApproval = existingApprovals.find(a => a.department === department);
+      if (existingApproval) {
+        throw new ValidationError('Department has already processed this request', {
+          department: 'Already processed'
+        });
+      }
+
+      // Create the approval
+      const [newApproval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          department,
+          status: 'approved',
+          comments: comments?.trim(),
+          processedAt: new Date(),
+          approverId: null, // Auto-approvals don't have an approver
+          isAutoApproval: true
+        })
+        .returning();
+
+      // Check if all required departments have approved
+      const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+      const allApprovals = [...existingApprovals, newApproval];
+
+      const allMandatoryApproved = mandatoryDepartments.every(dept =>
+        allApprovals.some(approval =>
+          approval.department === dept &&
+          (approval.status === 'approved' || approval.isAutoApproval)
+        )
+      );
+
+      // If all mandatory departments have approved, update request status
+      if (allMandatoryApproved) {
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: 'approved',
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+        // Create notification for request owner
+        await createNotification(
+          request.requesterId,
+          'Request Approved',
+          `Your purchase request has been fully approved (includes auto-approval).`,
+          'request',
+          requestId
+        );
+      }
+
+      // Log the approval action
+      await logAuditEvent({
+        userId: null, // Auto-approvals don't have a user ID
+        action: 'auto_approval' as AuditAction,
+        details: {
+          requestId,
+          department,
+          isAutoApproval: true
+        }
+      });
+
+      res.json({
+        message: 'Auto-approval processed successfully',
+        approval: newApproval,
+        requestStatus: allMandatoryApproved ? 'approved' : request.status
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add route to get request approvals
+  app.get("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      // Get all approvals for this request with approver details
+      const requestApprovals = await db
+        .select({
+          id: approvals.id,
+          requestId: approvals.requestId,
+          approverId: approvals.approverId,
+          status: approvals.status,
+          comments: approvals.comments,
+          department: approvals.department,
+          processedAt: approvals.processedAt,
+          approver: {
+            id: users.id,
+            username: users.username,
+            department: users.department,
+          }
+        })
+        .from(approvals)
+        .leftJoin(users, eq(approvals.approverId, users.id))
+        .where(eq(approvals.requestId, requestId))
+        .orderBy(desc(approvals.processedAt));
+
+      debug(req, `Found ${requestApprovals.length} approvals for request ${requestId}`);
+      res.json(requestApprovals);
+    } catch (error) {
+      debug(req, 'Error fetching request approvals:', error);
+      next(error);
+    }
+  });
+
+  // Add this route after other API routes but before the httpServer creation
+  app.post("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status, department, comments } = req.body;
+
+      if (!status || !['approved', 'rejected', 'changes_requested'].includes(status)) {
+        throw new ValidationError('Invalid status', { status: ['Invalid status value'] });
+      }
+
+      if (!department) {
+        throw new ValidationError('Invalid department', { department: ['Department is required'] });
+      }
+
+      debug(req, 'Creating approval:', { requestId, status, department });
+
+      // Get the current request
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Check if department already approved
+      const [existingApproval] = await db
+        .select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.department, department)
+        ))
+        .limit(1);
+
+      if (existingApproval) {
+        throw new ValidationError('Duplicate approval', {
+          message: `This department has already processed this request at ${
+            new Date(existingApproval.processedAt).toLocaleString()
+          }`
+        });
+      }
+
+      // Create the approval
+      const [approval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status,
+          department,
+          comments: comments || null,
+          processedAt: new Date(),
+          isMandatory: ['CEO Office', 'Finance', 'Director'].includes(department)
+        })
+        .returning();
+
+      // Update the request status based on all approvals
+      await updateRequestStatus(requestId);
+
+      // Get the updated request status
+      const [updatedRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      // Create notification
+      await createNotification(
+        existingRequest.requesterId,
+        `Request ${status.replace('_', ' ')}`,
+        `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
+        'request',
+        requestId
+      );
+
+      console.log('Approval created successfully:', approval);
+      res.json({
+        message: "Approval processed successfully",
+        approval,
+        currentStatus: updatedRequest.status
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add auto-approval endpoint inside registerRoutes function
+  app.post("/api/requests/:id/auto-approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { department, comments } = req.body;
+
+      if (!requestId || !department) {
+        throw new ValidationError('Missing required fields', {
+          id: !requestId ? 'Request ID is required' : undefined,
+          department: !department ? 'Department is required' : undefined
+        });
+      }
+
+      // Get the request and existing approvals
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get existing approvals
+      const existingApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Check if the department has already approved
+      const existingApproval = existingApprovals.find(a => a.department === department);
+      if (existingApproval) {
+        throw new ValidationError('Department has already processed this request', {
+          department: 'Already processed'
+        });
+      }
+
+      // Create the approval
+      const [newApproval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          department,
+          status: 'approved',
+          comments: comments?.trim(),
+          processedAt: new Date(),
+          approverId: null, // Auto-approvals don't have an approver
+          isAutoApproval: true
+        })
+        .returning();
+
+      // Check if all required departments have approved
+      const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+      const allApprovals = [...existingApprovals, newApproval];
+
+      const allMandatoryApproved = mandatoryDepartments.every(dept =>
+        allApprovals.some(approval =>
+          approval.department === dept &&
+          (approval.status === 'approved' || approval.isAutoApproval)
+        )
+      );
+
+      // If all mandatory departments have approved, update request status
+      if (allMandatoryApproved) {
+        await db
+          .update(purchaseRequests)
+          .set({
+            status: 'approved',
+            updatedAt: new Date()
+          })
+          .where(eq(purchaseRequests.id, requestId));
+
+        // Create notification for request owner
+        await createNotification(
+          request.requesterId,
+          'Request Approved',
+          `Your purchase request has been fully approved (includes auto-approval).`,
+          'request',
+          requestId
+        );
+      }
+
+      // Log the approval action
+      await logAuditEvent({
+        userId: null, // Auto-approvals don't have a user ID
+        action: 'auto_approval' as AuditAction,
+        details: {
+          requestId,
+          department,
+          isAutoApproval: true
+        }
+      });
+
+      res.json({
+        message: 'Auto-approval processed successfully',
+        approval: newApproval,
+        requestStatus: allMandatoryApproved ? 'approved' : request.status
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
 
-// Error analysis functions for error handling
-async function analyzeError(error: Error, context: any) {
-  // Return basic error analysis without deepseek
-  return {
-    prediction: `Error occurred: ${error.message}`,
-    suggestions: [
-      'Check input validation',
-      'Verify request parameters',
-      'Ensure proper authentication'
-    ]
-  };
+// Helper function to update request status
+async function updateRequestStatus(requestId: number) {
+  const allApprovals = await db
+    .select()
+    .from(approvals)
+    .where(eq(approvals.requestId, requestId));
+
+  const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+  const allMandatoryApproved = mandatoryDepartments.every(dept =>
+    allApprovals.some(approval =>
+      approval.department === dept &&
+      (approval.status === 'approved' || approval.isAutoApproval)
+    )
+  );
+
+  const requestStatus = allMandatoryApproved ? 'approved' : 'pending';
+  await db
+    .update(purchaseRequests)
+    .set({ status: requestStatus, updatedAt: new Date() })
+    .where(eq(purchaseRequests.id, requestId));
+}
+
+// Helper functions for content type and disposition
+function getContentType(fileName: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.doc': return 'application/msword';
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default: return 'application/octet-stream';
+  }
+}
+
+function getContentDisposition(fileName: string, forceDownload: boolean): string {
+  return forceDownload ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`;
 }
