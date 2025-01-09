@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { PurchaseRequest, Approval } from "@db/schema";
+import type { PurchaseRequest } from "@db/schema";
+import { useErrorHandler } from "@/services/error-logging";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
 import { useEffect, useCallback, useRef } from "react";
 
@@ -11,46 +12,34 @@ interface ApprovalData {
   departmentId: string;
 }
 
-interface RequestWithApprovals extends PurchaseRequest {
-  approvals?: Approval[];
-  requester?: {
-    id: number;
-    department: string;
-  };
-}
-
 export function usePurchaseRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const handleError = useErrorHandler();
 
   // Required departments for approval
-  const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+  const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
 
   // Ref to track processed auto-approvals
   const processedAutoApprovals = useRef(new Set<string>());
 
-  // Helper function to check if department is mandatory
-  const isMandatoryDepartment = useCallback((department: string) => {
-    return mandatoryDepartments.includes(department);
-  }, []);
-
   // Helper function to determine if all other departments except the given one have approved
-  const allOtherDepartmentsApproved = useCallback((request: RequestWithApprovals, excludeDepartment: string) => {
-    const otherDepartments = mandatoryDepartments.filter(dept => dept !== excludeDepartment);
+  const allOtherDepartmentsApproved = useCallback((request: any, excludeDepartment: string) => {
+    const otherDepartments = requiredDepartments.filter(dept => dept !== excludeDepartment);
     return otherDepartments.every(dept =>
-      request.approvals?.some(approval =>
+      request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
       )
     );
   }, []);
 
   // Helper function to determine effective status
-  const getEffectiveStatus = useCallback((request: RequestWithApprovals) => {
+  const getEffectiveStatus = useCallback((request: any) => {
     if (!request.approvals) return request.status;
 
     // Check if all departments have approved
-    const allDepartmentsApproved = mandatoryDepartments.every(dept =>
-      request.approvals?.some(approval =>
+    const allDepartmentsApproved = requiredDepartments.every(dept =>
+      request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
       )
     );
@@ -66,14 +55,11 @@ export function usePurchaseRequests() {
         const response = await fetch("/api/requests", {
           credentials: 'include'
         });
-
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || `Failed to fetch requests: ${response.status}`);
         }
-
-        const data = await response.json();
-        return data as RequestWithApprovals[];
+        return response.json();
       } catch (error) {
         console.error("Error fetching requests:", error);
         throw error;
@@ -115,12 +101,11 @@ export function usePurchaseRequests() {
 
       return response.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      const approvalType = variables.comments?.includes('Auto-approved') ? 'auto-approved' : 'approved';
       toast({
         title: "Success",
-        description: `Request ${approvalType} successfully`
+        description: "Approval submitted successfully"
       });
     },
     onError: (error) => {
@@ -132,49 +117,42 @@ export function usePurchaseRequests() {
     }
   });
 
-  // Process auto-approvals immediately when conditions are met
-  const processAutoApprovals = useCallback((requests: RequestWithApprovals[]) => {
-    requests.forEach((request) => {
-      // Skip if request is not pending or missing required data
-      if (!request.requester || !request.approvals || request.status !== 'pending') return;
+  // Process auto-approvals
+  const processAutoApprovals = useCallback((requests: any[]) => {
+    requests.forEach((request: any) => {
+      if (!request.requester || !request.approvals) return;
 
       const requesterDepartment = request.requester.department;
-
-      // Only process if requester is from a mandatory department
-      if (!isMandatoryDepartment(requesterDepartment)) return;
+      if (!requiredDepartments.includes(requesterDepartment)) return;
 
       const requesterDeptApproval = request.approvals.find(
-        (approval) => approval.department === requesterDepartment
+        (approval: any) => approval.department === requesterDepartment
       );
 
       // Create a unique key for this auto-approval
       const autoApprovalKey = `${request.id}-${requesterDepartment}`;
 
-      // Check if we haven't processed this auto-approval yet and if other departments have approved
+      // Check if we haven't processed this auto-approval yet
       if (
         !processedAutoApprovals.current.has(autoApprovalKey) &&
         requesterDeptApproval?.status === 'pending' &&
         allOtherDepartmentsApproved(request, requesterDepartment)
       ) {
-        // Mark this auto-approval as processed immediately
+        // Mark this auto-approval as processed
         processedAutoApprovals.current.add(autoApprovalKey);
 
-        // Execute auto-approval immediately
-        approvalMutation.mutate({
-          requestId: request.id,
-          status: 'approved',
-          departmentId: requesterDepartment,
-          comments: `Auto-approved as all other departments have approved. This request was created by ${requesterDepartment}.`
-        });
-
-        // Notify about the auto-approval
-        toast({
-          title: "Auto-Approval",
-          description: `Request automatically approved for ${requesterDepartment} as all other departments have approved.`
-        });
+        // Schedule the auto-approval for the next tick to avoid render cycle issues
+        setTimeout(() => {
+          approvalMutation.mutate({
+            requestId: request.id,
+            status: 'approved',
+            departmentId: requesterDepartment,
+            comments: 'Auto-approved as all other departments have approved'
+          });
+        }, 0);
       }
     });
-  }, [approvalMutation, allOtherDepartmentsApproved, isMandatoryDepartment, toast]);
+  }, [approvalMutation, allOtherDepartmentsApproved]);
 
   // Effect to handle auto-approvals
   useEffect(() => {
@@ -188,7 +166,7 @@ export function usePurchaseRequests() {
   }, [rawRequests, processAutoApprovals]);
 
   return {
-    requests: rawRequests.map((request) => ({
+    requests: rawRequests.map((request: any) => ({
       ...request,
       status: getEffectiveStatus(request)
     })),

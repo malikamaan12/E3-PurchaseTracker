@@ -97,16 +97,14 @@ export const purchaseRequests = pgTable("purchase_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Update approvals table definition
 export const approvals = pgTable("approvals", {
   id: serial("id").primaryKey(),
   requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
-  approverId: integer("approver_id").references(() => users.id), // Can be null for auto-approvals
+  approverId: integer("approver_id").notNull().references(() => users.id),
   department: text("department").notNull(),
   status: text("status").notNull().default("pending"),
   comments: text("comments"),
   isMandatory: boolean("is_mandatory").notNull().default(false),
-  isAutoApproval: boolean("is_auto_approval").notNull().default(false),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -116,7 +114,7 @@ export const approvalAuditLogs = pgTable("approval_audit_logs", {
   id: serial("id").primaryKey(),
   approvalId: integer("approval_id").notNull().references(() => approvals.id),
   userId: integer("user_id").notNull().references(() => users.id),
-  action: text("action").notNull(),
+  action: text("action").notNull(), 
   previousStatus: text("previous_status"),
   newStatus: text("new_status").notNull(),
   comments: text("comments"),
@@ -564,8 +562,8 @@ export type MandatoryDepartment = typeof mandatoryDepartments[number];
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  category: text("category").notNull(),
-  type: text("type").notNull(),
+  category: text("category").notNull(), 
+  type: text("type").notNull(), 
   enabled: boolean("enabled").notNull().default(true),
   inAppEnabled: boolean("in_app_enabled").notNull().default(true),
   emailEnabled: boolean("email_enabled").notNull().default(false),
@@ -735,15 +733,3 @@ export const pdfSettingsRelations = relations(pdfSettings, ({ one }) => ({
 // Add types
 export type PdfSettings = typeof pdfSettings.$inferSelect;
 export type InsertPdfSettings = typeof pdfSettings.$inferInsert;
-
-// Update approval validation schema
-export const insertApprovalSchema = createInsertSchema(approvals, {
-  requestId: z.number().int().positive("Request ID is required"),
-  approverId: z.number().int().positive("Approver ID is required").nullable(),
-  department: z.string().min(1, "Department is required"),
-  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
-  comments: z.string().optional(),
-  isMandatory: z.boolean().default(false),
-  isAutoApproval: z.boolean().default(false),
-  processedAt: z.date().optional().nullable(),
-});
