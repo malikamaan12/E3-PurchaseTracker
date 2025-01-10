@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import ToastService from "@/services/toast.service";
 import type { Vendor } from "@db/schema";
 import { vendorFormSchema } from "@db/schema";
 
@@ -34,7 +34,6 @@ interface VendorDialogProps {
 
 export default function VendorDialog({ isOpen, onClose, onVendorCreated }: VendorDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
 
   const form = useForm({
     resolver: zodResolver(vendorFormSchema),
@@ -60,6 +59,8 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
   const onSubmit = async (data: any) => {
     try {
       setIsSubmitting(true);
+      ToastService.loading("Creating Vendor", "Please wait while we create the vendor...");
+
       const response = await fetch("/api/vendors", {
         method: "POST",
         headers: {
@@ -76,17 +77,13 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
       const newVendor = await response.json();
       onVendorCreated(newVendor);
       form.reset();
-      toast({
-        title: "Success",
-        description: "Vendor created successfully",
-      });
+      ToastService.success("Success", "Vendor created successfully");
       onClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create vendor",
-        variant: "destructive",
-      });
+      ToastService.error(
+        "Error",
+        error instanceof Error ? error.message : "Failed to create vendor"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -336,7 +333,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                     Creating...
                   </>
                 ) : (
-                  'Create Vendor'
+                  "Create Vendor"
                 )}
               </Button>
             </DialogFooter>

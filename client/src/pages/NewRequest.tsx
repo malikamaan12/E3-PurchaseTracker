@@ -21,6 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FilePreview } from "@/components/FilePreview";
 import type { File } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import ToastService from "@/services/toast.service";
 
 const currencies = [
   { label: "QAR", value: "QAR" },
@@ -130,7 +131,14 @@ export default function NewRequest() {
       });
     }
 
-    return validationErrors;
+    if (validationErrors.length > 0) {
+      validationErrors.forEach(error => {
+        ToastService.error("Validation Error", error);
+      });
+      return false;
+    }
+
+    return true;
   };
 
   const onSubmit = async (values: PurchaseRequest) => {
@@ -138,16 +146,11 @@ export default function NewRequest() {
 
     try {
       setIsSubmitting(true);
+      ToastService.loading("Processing Request", "Please wait while we process your request...");
 
-      const validationErrors = await validateFormData();
-      if (validationErrors.length > 0) {
-        validationErrors.forEach(error => {
-          toast({
-            title: "Validation Error",
-            description: error,
-            variant: "destructive",
-          });
-        });
+      const isValid = await validateFormData();
+      if (!isValid) {
+        setIsSubmitting(false);
         return;
       }
 
@@ -155,35 +158,24 @@ export default function NewRequest() {
       const maxFileSize = 10 * 1024 * 1024; // 10MB
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
-      console.log('Files to be uploaded:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
-
       const invalidFiles = files.filter(file => {
         if (file.size > maxFileSize) {
-          toast({
-            title: "File Too Large",
-            description: `${file.name} exceeds 10MB limit`,
-            variant: "destructive",
-          });
+          ToastService.error("File Too Large", `${file.name} exceeds 10MB limit`);
           return true;
         }
         if (!allowedTypes.includes(file.type)) {
-          toast({
-            title: "Invalid File Type",
-            description: `${file.name} is not an allowed file type`,
-            variant: "destructive",
-          });
+          ToastService.error("Invalid File Type", `${file.name} is not an allowed file type`);
           return true;
         }
         return false;
       });
 
       if (invalidFiles.length > 0) {
+        setIsSubmitting(false);
         return;
       }
 
       const formData = new FormData();
-
-      // Prepare request data
       const formattedData = {
         ...values,
         items: items.map(item => ({
@@ -196,19 +188,11 @@ export default function NewRequest() {
         totalEstimatedCost: calculateTotalCost(),
         vendorId: selectedVendor,
         additionalApprovers: selectedDepartments,
-        action: values.status // 'draft' or 'pending'
+        action: values.status
       };
 
-      console.log('Formatted data:', formattedData);
       formData.append('data', JSON.stringify(formattedData));
-
-      // Add files to FormData
-      files.forEach((file, index) => {
-        console.log(`Appending file ${index}:`, { name: file.name, type: file.type, size: file.size });
-        formData.append('files', file);
-      });
-
-      console.log('Sending request with files count:', files.length);
+      files.forEach(file => formData.append('files', file));
 
       const response = await fetch('/api/requests', {
         method: 'POST',
@@ -218,30 +202,23 @@ export default function NewRequest() {
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('Upload error response:', errorData);
         throw new Error(errorData || "Failed to create request");
       }
 
       const result = await response.json();
-      console.log('Upload success response:', result);
 
-      toast({
-        title: "Success",
-        description: `Request ${result.requestNumber} ${values.status === 'draft' ? 'saved as draft' : 'submitted'} successfully`,
-        className: "animate-success",
-      });
+      ToastService.success(
+        "Request Created",
+        `Request ${result.requestNumber} ${values.status === 'draft' ? 'saved as draft' : 'submitted'} successfully`
+      );
 
       setLocation("/");
     } catch (error: any) {
       console.error("Create request error:", error);
-
-      const errorMessage = error.message || "Failed to create request. Please try again.";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-        className: "animate-error",
-      });
+      ToastService.error(
+        "Error",
+        error.message || "Failed to create request. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -250,33 +227,25 @@ export default function NewRequest() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      const maxFileSize = 10 * 1024 * 1024; // 10MB
+      const maxFileSize = 10 * 1024 * 1024;
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-
-      console.log('Selected files:', newFiles.map(f => ({ name: f.name, type: f.type, size: f.size })));
 
       const validFiles = newFiles.filter(file => {
         if (file.size > maxFileSize) {
-          toast({
-            title: "File Too Large",
-            description: `${file.name} exceeds 10MB limit`,
-            variant: "destructive",
-          });
+          ToastService.error("File Too Large", `${file.name} exceeds 10MB limit`);
           return false;
         }
         if (!allowedTypes.includes(file.type)) {
-          toast({
-            title: "Invalid File Type",
-            description: `${file.name} is not an allowed file type`,
-            variant: "destructive",
-          });
+          ToastService.error("Invalid File Type", `${file.name} is not an allowed file type`);
           return false;
         }
         return true;
       });
 
-      console.log('Valid files after filtering:', validFiles.map(f => ({ name: f.name, type: f.type, size: f.size })));
-      setFiles(prev => [...prev, ...validFiles]);
+      if (validFiles.length > 0) {
+        ToastService.success("Files Added", `${validFiles.length} file(s) added successfully`);
+        setFiles(prev => [...prev, ...validFiles]);
+      }
     }
   };
 
@@ -292,10 +261,7 @@ export default function NewRequest() {
   const handleVendorCreated = (vendor: Vendor) => {
     setSelectedVendor(vendor.id);
     setIsAddVendorOpen(false);
-    toast({
-      title: "Success",
-      description: "Vendor added successfully",
-    });
+    ToastService.success("Success", "Vendor added successfully");
   };
 
   const addItem = () => {
@@ -768,7 +734,7 @@ export default function NewRequest() {
                                 onClick={() => removeFile(index)}
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
                               >
-                                <Trash<span className="h-4 w-4" />
+                                <Trash className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
@@ -813,8 +779,7 @@ export default function NewRequest() {
                 </div>
               </form>
             </Form>
-          </CardContent>
-        </Card>
+          </CardContent</Card>
       </div>
 
       <VendorDialog
@@ -832,4 +797,4 @@ export default function NewRequest() {
       )}
     </div>
   );
-}
+}}
