@@ -131,6 +131,33 @@ interface RequestCardProps {
   showItemDescriptions?: boolean;
 }
 
+const getPriorityColor = (priority: string = 'medium') => {
+  switch (priority?.toLowerCase()) {
+    case "urgent":
+      return "text-red-600";
+    case "high":
+      return "text-orange-600";
+    case "medium":
+      return "text-yellow-600";
+    case "low":
+      return "text-blue-600";
+    default:
+      return "text-gray-600";
+  }
+};
+
+const getPriorityIcon = (priority: string = 'medium') => {
+  switch (priority?.toLowerCase()) {
+    case "urgent":
+      return <AlertTriangle className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+    case "high":
+      return <Flag className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+    default:
+      return <Clock className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
+  }
+};
+
+
 export default function RequestCard({
   request,
   showActions = false,
@@ -168,31 +195,6 @@ export default function RequestCard({
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "text-red-600";
-      case "high":
-        return "text-orange-600";
-      case "medium":
-        return "text-yellow-600";
-      case "low":
-        return "text-blue-600";
-      default:
-        return "text-gray-600";
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return <AlertTriangle className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
-      case "high":
-        return <Flag className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
-      default:
-        return <Clock className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -588,8 +590,8 @@ export default function RequestCard({
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Badge className={getStatusColor(request.status)}>
-              {request.status.toUpperCase().replace("_", " ")}
+            <Badge className={getStatusColor(request.status || 'draft')}>
+              {(request.status || 'draft').toUpperCase().replace("_", " ")}
             </Badge>
             {request.isLocked && (
               <Badge variant="outline" className="border-orange-500/20 text-orange-600 bg-orange-50">
@@ -602,7 +604,7 @@ export default function RequestCard({
             >
               <div className="flex items-center gap-1">
                 {getPriorityIcon(request.priority)}
-                <span>{request.priority.toUpperCase()}</span>
+                <span>{(request.priority || 'medium').toUpperCase()}</span>
               </div>
             </Badge>
           </div>
