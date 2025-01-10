@@ -1,33 +1,9 @@
-import type { PurchaseRequest, Vendor, SubPurpose } from "@db/schema";
+import type { PurchaseRequest } from "@db/schema";
+import ToastService from "./toast.service";
 
 interface RequestError extends Error {
   status?: number;
   code?: string;
-}
-
-interface CreateRequestData {
-  title: string;
-  description: string;
-  status: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    description?: string;
-    estimatedCost: number;
-  }>;
-  vendorId?: number;
-  purposeType: string;
-  subPurposeId?: number;
-  priority: string;
-  freightAmount?: number;
-  currency?: string;
-  attachments?: Array<{
-    id: number;
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    fileUrl: string;
-  }>;
 }
 
 export interface RequestFilters {
@@ -92,29 +68,45 @@ export async function createRequest(data: Partial<CreateRequestData>): Promise<P
 
 export async function getRequest(id: number): Promise<PurchaseRequest> {
   try {
-    console.log('Fetching request:', id);
-
     const response = await fetch(`/api/requests/${id}?include=vendor,subPurpose,attachments,approvals`, {
       credentials: "include",
     });
 
     if (!response.ok) {
-      let errorMessage = 'Failed to fetch request';
+      let errorMessage = 'Failed to fetch request details';
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorMessage;
       } catch {
         const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
+        errorMessage = errorText || `Failed to fetch request: ${response.status}`;
       }
+
+      // Show toast for fetch errors
+      ToastService.error(
+        "Error Loading Request",
+        errorMessage,
+        7000
+      );
+
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    console.log('Received request data:', data);
     return data;
   } catch (error) {
+    // Log error for debugging
     console.error('Error fetching request:', error);
+
+    // If it's not already a handled error, show a toast
+    if (!(error instanceof Error && error.message.includes('Failed to fetch request'))) {
+      ToastService.error(
+        "Error Loading Request",
+        "There was a problem loading the request details. Please try again.",
+        7000
+      );
+    }
+
     throw error;
   }
 }
@@ -276,8 +268,6 @@ export async function getRequests(filters?: RequestFilters) {
     const queryString = queryParams.toString();
     const url = `/api/requests${queryString ? `?${queryString}` : ''}`;
 
-    console.log('Fetching requests with URL:', url);
-
     const response = await fetch(url, {
       credentials: 'include'
     });
@@ -289,14 +279,59 @@ export async function getRequests(filters?: RequestFilters) {
         errorMessage = errorData.message || errorMessage;
       } catch {
         const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
+        errorMessage = errorText || `Failed to fetch requests: ${response.status}`;
       }
+
+      // Show toast for fetch errors
+      ToastService.error(
+        "Error Loading Requests",
+        errorMessage,
+        7000 // longer duration for error messages
+      );
+
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
+    // Log error for debugging
     console.error('Error fetching requests:', error);
+
+    // If it's not already a handled error, show a toast
+    if (!(error instanceof Error && error.message.includes('Failed to fetch requests'))) {
+      ToastService.error(
+        "Error Loading Requests",
+        "There was a problem loading the requests. Please try again.",
+        7000
+      );
+    }
+
     throw error;
   }
+}
+
+interface CreateRequestData {
+  title: string;
+  description: string;
+  status: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    description?: string;
+    estimatedCost: number;
+  }>;
+  vendorId?: number;
+  purposeType: string;
+  subPurposeId?: number;
+  priority: string;
+  freightAmount?: number;
+  currency?: string;
+  attachments?: Array<{
+    id: number;
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+  }>;
 }

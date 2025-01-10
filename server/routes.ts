@@ -36,7 +36,8 @@ import {
   type AuditAction,
   insertSubPurposeSchema,
   auditLogs,
-  pdfSettings
+  pdfSettings,
+  purchaseApprovers
 } from "@db/schema";
 import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
@@ -1042,7 +1043,120 @@ export function registerRoutes(app: Express): Server {
 
   // Account Request endpoint with proper error handling (already included above)
 
+  // Add better error handling for request fetching
+  app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Fetching requests with filters:', req.query);
+
+      // Build query conditions based on filters
+      const queryConditions = [];
+
+      // Add status filter
+      if (req.query.status) {
+        const statuses = Array.isArray(req.query.status)
+          ? req.query.status
+          : [req.query.status];
+        queryConditions.push(inArray(purchaseRequests.status, statuses as string[]));
+      }
+
+      // Add department filter
+      if (req.query.department) {
+        const departments = Array.isArray(req.query.department)
+          ? req.query.department
+          : [req.query.department];
+        queryConditions.push(inArray(purchaseRequests.department, departments as string[]));
+      }
+
+      // Add date range filter
+      if (req.query.startDate) {
+        queryConditions.push(
+          gte(purchaseRequests.createdAt, new Date(req.query.startDate as string))
+        );
+      }
+      if (req.query.endDate) {
+        queryConditions.push(
+          lte(purchaseRequests.createdAt, new Date(req.query.endDate as string))
+        );
+      }
+
+      // Execute query with proper error handling
+      try {
+        const requests = await db
+          .select({
+            id: purchaseRequests.id,
+            title: purchaseRequests.title,
+            status: purchaseRequests.status,
+            createdAt: purchaseRequests.createdAt,
+            requesterId: purchaseRequests.requesterId,
+            // Add other fields as needed
+          })
+          .from(purchaseRequests)
+          .where(and(...queryConditions))
+          .orderBy(desc(purchaseRequests.createdAt));
+
+        debug(req, `Found ${requests.length} requests matching filters`);
+        res.json(requests);
+      } catch (dbError) {
+        debug(req, 'Database error while fetching requests:', dbError);
+        throw new DatabaseError('Failed to fetch requests from database');
+      }
+    } catch (error) {
+      debug(req, 'Error in /api/requests:', error);
+      next(error);
+    }
+  });
+
+  // Add better error handling for single request fetching
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      debug(req, 'Fetching request details:', requestId);
+
+      try {
+        const [request] = await db
+          .select({
+            id: purchaseRequests.id,
+            title: purchaseRequests.title,
+            status: purchaseRequests.status,
+            description: purchaseRequests.description,
+            createdAt: purchaseRequests.createdAt,
+            requesterId: purchaseRequests.requesterId,
+            // Add other fields as needed
+          })
+          .from(purchaseRequests)
+          .where(eq(purchaseRequests.id, requestId))
+          .limit(1);
+
+        if (!request) {
+          throw new AppError('Request not found', 404);
+        }
+
+        debug(req, 'Found request:', request.id);
+        res.json(request);
+      } catch (dbError) {
+        debug(req, 'Database error while fetching request:', dbError);
+        throw new DatabaseError('Failed to fetch request details from database');
+      }
+    } catch (error) {
+      debug(req, 'Error in /api/requests/:id:', error);
+      next(error);
+    }
+  });
+
   // Update the GET /api/requests endpoint
+
 
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1834,7 +1948,7 @@ export function registerRoutes(app: Express): Server {
 
       // Update notification
       await db
-        .update(notifications)
+                .update(notifications)
         .set({ isRead: true })
         .where(eq(notifications.id, notificationId));
 
@@ -2767,4 +2881,25 @@ async function analyzeError(error: Error, context: any) {
       'Ensure proper authentication'
     ]
   };
+}
+
+async function updateRequestStatus(requestId: number) {
+  const approvals = await db.select().from(approvals).where(eq(approvals.requestId, requestId));
+  const mandatoryApprovals = approvals.filter(a => a.isMandatory);
+  const allApproved = mandatoryApprovals.every(a => a.status === 'approved');
+  const allRejected = mandatoryApprovals.every(a => a.status === 'rejected');
+  const anyChangesRequested = mandatoryApprovals.some(a => a.status === 'changes_requested');
+
+  let newStatus: string;
+  if (allApproved) {
+    newStatus = 'approved';
+  } else if (allRejected) {
+    newStatus = 'rejected';
+  } else if (anyChangesRequested) {
+    newStatus = 'changes_requested';
+  } else {
+    newStatus = 'pending';
+  }
+
+  await db.update(purchaseRequests).set({ status: newStatus }).where(eq(purchaseRequests.id, requestId));
 }
