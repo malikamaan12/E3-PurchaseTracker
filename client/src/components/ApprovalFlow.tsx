@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { useToastContext } from "@/contexts/ToastContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export default function ApprovalFlow({
   onApprovalUpdate
 }: ApprovalFlowProps) {
   const { user } = useUser();
-  const { toast } = useToast();
+  const { showToast } = useToastContext();
   const queryClient = useQueryClient();
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +54,7 @@ export default function ApprovalFlow({
   const isOwnRequest = request.requesterId === user?.id;
 
   // Check if user's department is required and hasn't approved yet
-  const canApprove = user?.department && 
+  const canApprove = user?.department &&
     requiredDepartments.includes(user.department) &&
     !isOwnRequest &&
     request.status === 'pending' &&
@@ -62,85 +62,63 @@ export default function ApprovalFlow({
 
   const approvalMutation = useMutation({
     mutationFn: async (data: ApprovalAction) => {
-      console.log("Starting approval mutation with data:", data);
-
-      // Validate required fields
       if (!data.requestId || !data.status || !data.departmentId) {
-        const error = new Error("Missing required fields");
-        console.error("Validation error:", { data, error });
-        throw error;
+        throw new Error("Missing required fields");
       }
 
       // Validate department is valid
       if (!requiredDepartments.includes(data.departmentId)) {
-        const error = new Error(`Invalid department: ${data.departmentId}`);
-        console.error("Department validation error:", error);
-        throw error;
+        throw new Error(`Invalid department: ${data.departmentId}`);
       }
 
-      try {
-        console.log("Making API request to:", `/api/requests/${data.requestId}/approvals`);
-        const requestBody = {
+      const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           status: data.status,
-          department: data.departmentId, 
+          department: data.departmentId,
           comments: data.comments?.trim() || undefined
-        };
-        console.log("Request body:", requestBody);
+        }),
+        credentials: 'include'
+      });
 
-        const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response:", {
-            status: response.status,
-            statusText: response.statusText,
-            errorText
-          });
-          throw new Error(errorText || `Failed to process approval: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log("API success response:", result);
-        return result;
-      } catch (error) {
-        console.error("API call error:", error);
-        throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to process approval: ${response.status}`);
       }
+
+      return response.json();
     },
     onSuccess: (data) => {
-      console.log("Approval mutation succeeded:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       setComments("");
-      toast({
+
+      showToast({
         title: "Success",
-        description: "Approval submitted successfully"
+        description: "Approval submitted successfully",
+        variant: "success",
+        duration: 3000
       });
+
       onApprovalUpdate?.();
     },
     onError: (error: Error) => {
-      console.error("Approval mutation error:", error);
-      toast({
+      showToast({
         title: "Error",
         description: error.message || "Failed to process approval",
-        variant: "destructive"
+        variant: "error"
       });
     }
   });
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
-      console.error("Missing user data:", { department: user?.department, id: user?.id });
-      toast({
+      showToast({
         title: "Error",
         description: "User department information is missing",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
@@ -150,27 +128,15 @@ export default function ApprovalFlow({
     }
 
     if (!canApprove) {
-      console.error("User cannot approve:", { 
-        department: user.department,
-        isOwnRequest,
-        requestStatus: request.status,
-        existingApprovals: request.approvals 
-      });
-      toast({
+      showToast({
         title: "Error",
         description: "You don't have permission to approve this request",
-        variant: "destructive"
+        variant: "error"
       });
       return;
     }
 
     try {
-      console.log("Starting approval process:", {
-        requestId: request.id,
-        status,
-        department: user.department
-      });
-
       setIsSubmitting(true);
       await approvalMutation.mutateAsync({
         requestId: request.id,
@@ -179,7 +145,7 @@ export default function ApprovalFlow({
         departmentId: user.department
       });
     } catch (error) {
-      console.error("Approval process error:", error);
+      // Error is handled by mutation's onError
     } finally {
       setIsSubmitting(false);
     }
@@ -197,12 +163,6 @@ export default function ApprovalFlow({
     };
   });
 
-  console.log("Rendering ApprovalFlow with:", {
-    requestId: request.id,
-    currentStatus: request.status,
-    departmentStatuses,
-    canApprove
-  });
 
   return (
     <div className="space-y-4">
@@ -215,9 +175,9 @@ export default function ApprovalFlow({
           <Card key={department} className={cn(
             "transition-colors",
             status === 'approved' ? "border-green-200 bg-green-50" :
-            status === 'rejected' ? "border-red-200 bg-red-50" :
-            status === 'changes_requested' ? "border-orange-200 bg-orange-50" :
-            "border-gray-200"
+              status === 'rejected' ? "border-red-200 bg-red-50" :
+                status === 'changes_requested' ? "border-orange-200 bg-orange-50" :
+                  "border-gray-200"
           )}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -244,12 +204,12 @@ export default function ApprovalFlow({
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Badge 
+                  <Badge
                     className={cn(
                       status === 'approved' ? "bg-green-100 text-green-700 border-green-200" :
-                      status === 'rejected' ? "bg-red-100 text-red-700 border-red-200" :
-                      status === 'changes_requested' ? "bg-orange-100 text-orange-700 border-orange-200" :
-                      "bg-blue-100 text-blue-700 border-blue-200"
+                        status === 'rejected' ? "bg-red-100 text-red-700 border-red-200" :
+                          status === 'changes_requested' ? "bg-orange-100 text-orange-700 border-orange-200" :
+                            "bg-blue-100 text-blue-700 border-blue-200"
                     )}
                   >
                     {status === 'changes_requested' ? 'CHANGES REQUESTED' : status.toUpperCase()}
