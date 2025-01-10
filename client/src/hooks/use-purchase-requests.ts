@@ -3,7 +3,7 @@ import { useToastContext } from "@/contexts/ToastContext";
 import type { PurchaseRequest } from "@db/schema";
 import { useErrorHandler } from "@/services/error-logging";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 
 interface ApprovalData {
   requestId: number;
@@ -17,12 +17,10 @@ export function usePurchaseRequests() {
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
   const toastTimeoutRef = useRef<NodeJS.Timeout>();
+  const [processedRequests] = useState(() => new Set<string>());
 
   // Required departments for approval
   const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
-
-  // Ref to track processed auto-approvals
-  const processedAutoApprovals = useRef(new Set<string>());
 
   // Helper function to determine if all other departments except the given one have approved
   const allOtherDepartmentsApproved = useCallback((request: any, excludeDepartment: string) => {
@@ -38,7 +36,6 @@ export function usePurchaseRequests() {
   const getEffectiveStatus = useCallback((request: any) => {
     if (!request.approvals) return request.status;
 
-    // Check if all departments have approved
     const allDepartmentsApproved = requiredDepartments.every(dept =>
       request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
@@ -77,10 +74,6 @@ export function usePurchaseRequests() {
   // Approval mutation
   const approvalMutation = useMutation<{ message: string }, Error, ApprovalData>({
     mutationFn: async (data) => {
-      if (!data.requestId || !data.status || !data.departmentId) {
-        throw new Error("Missing required fields");
-      }
-
       const requestBody = {
         status: data.status,
         department: data.departmentId,
@@ -98,8 +91,7 @@ export function usePurchaseRequests() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to process approval: ${response.status}`);
+        throw new Error(`Failed to process approval: ${response.status}`);
       }
 
       return response.json();
@@ -107,7 +99,6 @@ export function usePurchaseRequests() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
 
-      // Show different toast messages based on auto-approval
       const isAutoApproval = variables.comments?.includes('Auto-approved');
       showToast({
         title: isAutoApproval ? "Auto-Approval Completed" : "Success",
@@ -131,7 +122,7 @@ export function usePurchaseRequests() {
   // Process auto-approvals
   const processAutoApprovals = useCallback((requests: any[]) => {
     requests.forEach((request: any) => {
-      if (!request.requester || !request.approvals) return;
+      if (!request.requester?.department || !request.approvals) return;
 
       const requesterDepartment = request.requester.department;
       if (!requiredDepartments.includes(requesterDepartment)) return;
@@ -139,40 +130,32 @@ export function usePurchaseRequests() {
       // Create a unique key for this auto-approval
       const autoApprovalKey = `${request.id}-${requesterDepartment}`;
 
-      // Check if we haven't processed this auto-approval yet and conditions are met
+      // Skip if we've already processed this request
+      if (processedRequests.has(autoApprovalKey)) return;
+
+      // Check if conditions are met for auto-approval
       if (
-        !processedAutoApprovals.current.has(autoApprovalKey) &&
-        !request.approvals.some((a: any) => a.department === requesterDepartment && a.status !== 'pending') &&
+        !request.approvals.some((a: any) => a.department === requesterDepartment) &&
         allOtherDepartmentsApproved(request, requesterDepartment)
       ) {
-        // Mark this auto-approval as processed
-        processedAutoApprovals.current.add(autoApprovalKey);
+        processedRequests.add(autoApprovalKey);
 
-        // Execute the auto-approval
-        setTimeout(() => {
-          approvalMutation.mutate({
-            requestId: request.id,
-            status: 'approved',
-            departmentId: requesterDepartment,
-            comments: `Auto-approved as all other departments have approved - ${new Date().toISOString()}`
-          });
-        }, 0);
+        approvalMutation.mutate({
+          requestId: request.id,
+          status: 'approved',
+          departmentId: requesterDepartment,
+          comments: `Auto-approved as all other departments have approved - ${new Date().toISOString()}`
+        });
       }
     });
-  }, [approvalMutation, allOtherDepartmentsApproved]);
+  }, [approvalMutation, allOtherDepartmentsApproved, processedRequests]);
 
   // Effect to handle auto-approvals
   useEffect(() => {
-    if (!rawRequests?.length) return;
-    processAutoApprovals(rawRequests);
-
-    return () => {
-      processedAutoApprovals.current.clear();
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-    };
-  }, [rawRequests, processAutoApprovals]);
+    if (rawRequests?.length) {
+      processAutoApprovals(rawRequests);
+    }
+  }, [rawRequests, processAutoApprovals]); // Proper dependency array
 
   return {
     requests: rawRequests.map((request: any) => ({
