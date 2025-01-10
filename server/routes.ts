@@ -43,6 +43,8 @@ import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import XLSX from 'xlsx'; // Import XLSX library
+
 
 // Error Classes
 class DatabaseError extends Error {
@@ -1953,8 +1955,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json({ message: 'Notification markedas read' });
     } catch (error) {
-      next(error);
-    }
+      next(error);    }
   });
 
   // Add mood board generation endpoint
@@ -2885,6 +2886,91 @@ export function registerRoutes(app: Express): Server {
       res.json(defaultBranding);
     } catch (error) {
       debug(req, 'Error fetching branding:', error);
+      next(error);
+    }
+  });
+
+  // Add request export endpoint
+  app.get("/api/requests/export", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const format = req.query.format as string;
+      if (!format || !['xlsx', 'csv'].includes(format)) {
+        throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
+      }
+
+      debug(req, 'Exporting requests in format:', format);
+
+      // Fetch all requests with related data
+      const requests = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          priority: purchaseRequests.priority,
+          purposeType: purchaseRequests.purposeType,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+        })
+        .from(purchaseRequests)
+        .orderBy(desc(purchaseRequests.createdAt));
+
+      if (requests.length === 0) {
+        throw new AppError('No requests found to export', 404);
+      }
+
+      // Transform dates and format data
+      const formattedRequests = requests.map(request => ({
+        'Request ID': request.id,
+        'Request Number': request.requestNumber,
+        'Title': request.title,
+        'Description': request.description,
+        'Status': request.status,
+        'Priority': request.priority,
+        'Purpose Type': request.purposeType,
+        'Total Cost': request.totalEstimatedCost?.toFixed(2) || '0.00',
+        'Created Date': new Date(request.createdAt).toLocaleDateString(),
+        'Last Updated': new Date(request.updatedAt).toLocaleDateString()
+      }));
+
+      const filename = `purchase_requests_${new Date().toISOString().split('T')[0]}`;
+
+      if (format === 'csv') {
+        // Generate CSV
+        const fields = Object.keys(formattedRequests[0]);
+        const csv = [
+          fields.join(','), // Header row
+          ...formattedRequests.map(row => 
+            fields.map(field => 
+              JSON.stringify(row[field as keyof typeof row] || '')
+            ).join(',')
+          )
+        ].join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+        return res.send(csv);
+      } else {
+        // Generate Excel
+        const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+
+        // Generate buffer
+        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+        return res.send(Buffer.from(excelBuffer));
+      }
+    } catch (error) {
+      debug(req, 'Error exporting requests:', error);
       next(error);
     }
   });
