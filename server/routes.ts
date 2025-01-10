@@ -13,13 +13,18 @@ import {
   purchaseRequests,
   notifications,
   notificationPreferences,
+  vendors,
+  subPurposes,
+  approvals,
+  fileAttachments,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_TYPES
 } from "@db/schema";
-import { eq, and, desc, or, isNull, inArray } from "drizzle-orm";
+import { eq, and, desc, or, isNull, inArray, gte, lte } from "drizzle-orm";
 import XLSX from 'xlsx';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import path from 'path';
 
 // Error Classes 
 class AppError extends Error {
@@ -89,6 +94,273 @@ export function registerRoutes(app: Express): Server {
   if (!fsSync.existsSync(uploadsDir)) {
     fsSync.mkdirSync(uploadsDir, { recursive: true });
   }
+
+  // Put this at the very beginning of the routes file, before other routes
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  // Initialize auth second
+  setupAuth(app);
+
+  // Add notification endpoints
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const lastFetchTime = req.query.lastFetchTime
+        ? new Date(req.query.lastFetchTime as string)
+        : undefined;
+
+      debug(req, 'Fetching notifications', { lastFetchTime });
+      const results = await getNotifications(req.user!.id, lastFetchTime);
+      debug(req, `Found ${results.length} notifications`);
+
+      res.json(results);
+    } catch (error) {
+      debug(req, 'Error fetching notifications:', error);
+      next(error);
+    }
+  });
+
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+      if (isNaN(notificationId)) {
+        throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
+      }
+
+      debug(req, 'Marking notification as read:', notificationId);
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      debug(req, 'Notification updated successfully');
+
+      res.json(updatedNotification);
+    } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
+      next(error);
+    }
+  });
+
+  // Add notification preferences endpoints
+  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferences = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, req.user!.id))
+        .orderBy(notificationPreferences.category, notificationPreferences.type);
+
+      // If no preferences exist, create defaults
+      if (preferences.length === 0) {
+        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
+          Object.keys(NOTIFICATION_TYPES)
+            .filter(type => type.startsWith(category.toLowerCase()))
+            .map(type => ({
+              userId: req.user!.id,
+              category,
+              type,
+              enabled: true,
+              inAppEnabled: true,
+              emailEnabled: false,
+            }))
+        );
+
+        const insertedPreferences = await db
+          .insert(notificationPreferences)
+          .values(defaultPreferences)
+          .returning();
+
+        return res.json(insertedPreferences);
+      }
+
+      res.json(preferences);
+    } catch (error) {
+      debug(req, 'Error fetching notification preferences:', error);
+      next(error);
+    }
+  });
+
+
+  // Add vendors endpoint
+  app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      debug(req, 'Fetching vendors');
+
+      const vendorsList = await db
+        .select()
+        .from(vendors)
+        .orderBy(desc(vendors.createdAt));
+
+      debug(req, `Found ${vendorsList.length} vendors`);
+      res.json(vendorsList);
+    } catch (error) {
+      debug(req, 'Error fetching vendors:', error);
+      next(error);
+    }
+  });
+
+  // Add sub-purposes endpoint
+  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { purposeType } = req.query;
+      debug(req, 'Fetching sub-purposes with filters:', { purposeType });
+
+      let query = db.select().from(subPurposes);
+
+      // Apply purpose type filter if provided
+      if (purposeType) {
+        query = query.where(eq(subPurposes.purposeType, purposeType as string));
+      }
+
+      // Only return non-frozen and valid sub-purposes
+      const now = new Date();
+      query = query.where(
+        and(
+          eq(subPurposes.isFrozen, false),
+          or(
+            isNull(subPurposes.validFrom),
+            lte(subPurposes.validFrom, now)
+          ),
+          or(
+            isNull(subPurposes.validTo),
+            gte(subPurposes.validTo, now)
+          )
+        )
+      );
+
+      const results = await query.orderBy(desc(subPurposes.createdAt));
+      debug(req, `Found ${results.length} sub-purposes`);
+
+      res.json(results);
+    } catch (error) {
+      debug(req, 'Error fetching sub-purposes:', error);
+      next(error);
+    }
+  });
+
+  // Add request export endpoint
+  app.get("/api/requests/export", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const format = req.query.format as string;
+      if (!format || !['xlsx', 'csv'].includes(format)) {
+        throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
+      }
+
+      debug(req, 'Exporting requests in format:', format);
+
+      // Fetch all requests with related data
+      const requests = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          priority: purchaseRequests.priority,
+          purposeType: purchaseRequests.purposeType,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+        })
+        .from(purchaseRequests)
+        .orderBy(desc(purchaseRequests.createdAt));
+
+      if (requests.length === 0) {
+        throw new AppError('No requests found to export', 404);
+      }
+
+      // Transform dates and format data
+      const formattedRequests = requests.map(request => ({
+        'Request ID': request.id,
+        'Request Number': request.requestNumber || '',
+        'Title': request.title || '',
+        'Description': request.description || '',
+        'Status': request.status || '',
+        'Priority': request.priority || '',
+        'Purpose Type': request.purposeType || '',
+        'Total Cost': request.totalEstimatedCost ? `${request.totalEstimatedCost.toFixed(2)}` : '0.00',
+        'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
+        'Last Updated': request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : ''
+      }));
+
+      const filename = `purchase_requests_${new Date().toISOString().split('T')[0]}`;
+
+      // Set response headers for download
+      res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+
+      if (format === 'csv') {
+        // Generate CSV
+        const fields = Object.keys(formattedRequests[0]);
+        const csv = [
+          fields.join(','), // Header row
+          ...formattedRequests.map(row =>
+            fields.map(field => {
+              const value = row[field as keyof typeof row];
+              // Properly escape and quote values containing commas or quotes
+              return typeof value === 'string' && (value.includes(',') || value.includes('"'))
+                ? `"${value.replace(/"/g, '""')}"` // Escape quotes by doubling them
+                : value;
+            }).join(',')
+          )
+        ].join('\n');
+
+        res.set({
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}.csv"`
+        });
+
+        return res.send(csv);
+      } else {
+        // Generate Excel
+        const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+
+        // Generate buffer
+        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.set({
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${filename}.xlsx"`,
+          'Content-Length': excelBuffer.length
+        });
+
+        return res.send(Buffer.from(excelBuffer));
+      }
+    } catch (error) {
+      debug(req, 'Error exporting requests:', error);
+      next(error);
+    }
+  });
 
   // Serve uploaded files with proper content types
   app.use('/uploads', (req, res, next) => {
@@ -240,102 +512,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Put this at the very beginning of the routes file, before other routes
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: 'ok' });
-  });
-
-  // Initialize auth second
-  setupAuth(app);
-
-  // Add notification endpoints
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const lastFetchTime = req.query.lastFetchTime
-        ? new Date(req.query.lastFetchTime as string)
-        : undefined;
-
-      debug(req, 'Fetching notifications', { lastFetchTime });
-      const results = await getNotifications(req.user!.id, lastFetchTime);
-      debug(req, `Found ${results.length} notifications`);
-
-      res.json(results);
-    } catch (error) {
-      debug(req, 'Error fetching notifications:', error);
-      next(error);
-    }
-  });
-
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const notificationId = parseInt(req.params.id);
-      if (isNaN(notificationId)) {
-        throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
-      }
-
-      debug(req, 'Marking notification as read:', notificationId);
-      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
-      debug(req, 'Notification updated successfully');
-
-      res.json(updatedNotification);
-    } catch (error) {
-      debug(req, 'Error marking notification as read:', error);
-      next(error);
-    }
-  });
 
   // Add notification preferences endpoints
-  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const preferences = await db
-        .select()
-        .from(notificationPreferences)
-        .where(eq(notificationPreferences.userId, req.user!.id))
-        .orderBy(notificationPreferences.category, notificationPreferences.type);
-
-      // If no preferences exist, create defaults
-      if (preferences.length === 0) {
-        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
-          Object.keys(NOTIFICATION_TYPES)
-            .filter(type => type.startsWith(category.toLowerCase()))
-            .map(type => ({
-              userId: req.user!.id,
-              category,
-              type,
-              enabled: true,
-              inAppEnabled: true,
-              emailEnabled: false,
-            }))
-        );
-
-        const insertedPreferences = await db
-          .insert(notificationPreferences)
-          .values(defaultPreferences)
-          .returning();
-
-        return res.json(insertedPreferences);
-      }
-
-      res.json(preferences);
-    } catch (error) {
-      debug(req, 'Error fetching notification preferences:', error);
-      next(error);
-    }
-  });
-
-
   app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
     res.json({
       categories: NOTIFICATION_CATEGORIES,
@@ -1789,7 +1967,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get company branding settings
-  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  // app.get("/api/branding", async (req: Request, res: Response, next:NextFunction) => {
   //   try {
   //     if (!req.isAuthenticated()) {
   //       throw new AppError('Not authenticated', 401);
@@ -1902,7 +2080,6 @@ export function registerRoutes(app: Express): Server {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
-
       const userNotifications = await db
         .select()
         .from(notifications)
@@ -1957,7 +2134,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const format = req.query.format as string;
-if (!format || !['xlsx', 'csv'].includes(format)) {
+      if (!format || !['xlsx', 'csv'].includes(format)) {
         throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
       }
 
