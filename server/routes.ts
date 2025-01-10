@@ -7,26 +7,53 @@ import type { Request, Response, NextFunction } from "express";
 import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
+import { conversionService } from "./services/ConversionService";
 import { logAuditEvent } from "./utils/audit-logger";
 import {
+  getNotifications,
+  markNotificationAsRead,
+  createNotification
+} from "./utils/notifications";
+import {
   users,
-  purchaseRequests,
   notifications,
-  notificationPreferences,
-  vendors,
-  subPurposes,
+  purchaseRequests,
   approvals,
   fileAttachments,
+  vendors,
+  errorLogs,
+  subPurposes,
+  accountRequests,
+  insertPurchaseRequestSchema,
+  insertAccountRequestSchema,
+  insertErrorLogSchema,
+  notificationPreferences,
+  insertNotificationPreferenceSchema,
   NOTIFICATION_CATEGORIES,
-  NOTIFICATION_TYPES
+  NOTIFICATION_TYPES,
+  insertVendorSchema,
+  type InsertVendor,
+  type AuditAction,
+  insertSubPurposeSchema,
+  auditLogs,
+  pdfSettings,
+  purchaseApprovers
 } from "@db/schema";
-import { eq, and, desc, or, isNull, inArray, gte, lte } from "drizzle-orm";
-import XLSX from 'xlsx';
+import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
+import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
-import path from 'path';
+import XLSX from 'xlsx'; // Import XLSX library
 
-// Error Classes 
+
+// Error Classes
+class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+
 class AppError extends Error {
   status: number;
   constructor(message: string, status: number = 500) {
@@ -45,48 +72,25 @@ class ValidationError extends Error {
   }
 }
 
-// Notification functions
-async function createNotification(userId: number, title: string, message: string, type: string = 'general', resourceId?: number) {
-  return db.insert(notifications).values({
-    userId,
-    title,
-    message,
-    type,
-    resourceId,
-    isRead: false,
-    createdAt: new Date()
-  }).returning();
-}
-
-async function getNotifications(userId: number, lastFetchTime?: Date) {
-  let query = db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.userId, userId))
-    .orderBy(desc(notifications.createdAt));
-
-  if (lastFetchTime) {
-    query = query.where(and(
-      eq(notifications.userId, userId),
-      gte(notifications.createdAt, lastFetchTime)
-    ));
+// Helper functions for content type and disposition
+const getContentType = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.doc': return 'application/msword';
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default: return 'application/octet-stream';
   }
+};
 
-  return query;
-}
+const getContentDisposition = (filename: string, forceDownload: boolean): string => {
+  return forceDownload ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
+};
 
-async function markNotificationAsRead(notificationId: number, userId: number) {
-  const [notification] = await db
-    .update(notifications)
-    .set({ isRead: true })
-    .where(and(
-      eq(notifications.id, notificationId),
-      eq(notifications.userId, userId)
-    ))
-    .returning();
-
-  return notification;
-}
 
 export function registerRoutes(app: Express): Server {
   // Create uploads directory if it doesn't exist
@@ -94,273 +98,6 @@ export function registerRoutes(app: Express): Server {
   if (!fsSync.existsSync(uploadsDir)) {
     fsSync.mkdirSync(uploadsDir, { recursive: true });
   }
-
-  // Put this at the very beginning of the routes file, before other routes
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: 'ok' });
-  });
-
-  // Initialize auth second
-  setupAuth(app);
-
-  // Add notification endpoints
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const lastFetchTime = req.query.lastFetchTime
-        ? new Date(req.query.lastFetchTime as string)
-        : undefined;
-
-      debug(req, 'Fetching notifications', { lastFetchTime });
-      const results = await getNotifications(req.user!.id, lastFetchTime);
-      debug(req, `Found ${results.length} notifications`);
-
-      res.json(results);
-    } catch (error) {
-      debug(req, 'Error fetching notifications:', error);
-      next(error);
-    }
-  });
-
-  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const notificationId = parseInt(req.params.id);
-      if (isNaN(notificationId)) {
-        throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
-      }
-
-      debug(req, 'Marking notification as read:', notificationId);
-      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
-      debug(req, 'Notification updated successfully');
-
-      res.json(updatedNotification);
-    } catch (error) {
-      debug(req, 'Error marking notification as read:', error);
-      next(error);
-    }
-  });
-
-  // Add notification preferences endpoints
-  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const preferences = await db
-        .select()
-        .from(notificationPreferences)
-        .where(eq(notificationPreferences.userId, req.user!.id))
-        .orderBy(notificationPreferences.category, notificationPreferences.type);
-
-      // If no preferences exist, create defaults
-      if (preferences.length === 0) {
-        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
-          Object.keys(NOTIFICATION_TYPES)
-            .filter(type => type.startsWith(category.toLowerCase()))
-            .map(type => ({
-              userId: req.user!.id,
-              category,
-              type,
-              enabled: true,
-              inAppEnabled: true,
-              emailEnabled: false,
-            }))
-        );
-
-        const insertedPreferences = await db
-          .insert(notificationPreferences)
-          .values(defaultPreferences)
-          .returning();
-
-        return res.json(insertedPreferences);
-      }
-
-      res.json(preferences);
-    } catch (error) {
-      debug(req, 'Error fetching notification preferences:', error);
-      next(error);
-    }
-  });
-
-
-  // Add vendors endpoint
-  app.get("/api/vendors", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      debug(req, 'Fetching vendors');
-
-      const vendorsList = await db
-        .select()
-        .from(vendors)
-        .orderBy(desc(vendors.createdAt));
-
-      debug(req, `Found ${vendorsList.length} vendors`);
-      res.json(vendorsList);
-    } catch (error) {
-      debug(req, 'Error fetching vendors:', error);
-      next(error);
-    }
-  });
-
-  // Add sub-purposes endpoint
-  app.get("/api/sub-purposes", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const { purposeType } = req.query;
-      debug(req, 'Fetching sub-purposes with filters:', { purposeType });
-
-      let query = db.select().from(subPurposes);
-
-      // Apply purpose type filter if provided
-      if (purposeType) {
-        query = query.where(eq(subPurposes.purposeType, purposeType as string));
-      }
-
-      // Only return non-frozen and valid sub-purposes
-      const now = new Date();
-      query = query.where(
-        and(
-          eq(subPurposes.isFrozen, false),
-          or(
-            isNull(subPurposes.validFrom),
-            lte(subPurposes.validFrom, now)
-          ),
-          or(
-            isNull(subPurposes.validTo),
-            gte(subPurposes.validTo, now)
-          )
-        )
-      );
-
-      const results = await query.orderBy(desc(subPurposes.createdAt));
-      debug(req, `Found ${results.length} sub-purposes`);
-
-      res.json(results);
-    } catch (error) {
-      debug(req, 'Error fetching sub-purposes:', error);
-      next(error);
-    }
-  });
-
-  // Add request export endpoint
-  app.get("/api/requests/export", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-
-      const format = req.query.format as string;
-      if (!format || !['xlsx', 'csv'].includes(format)) {
-        throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
-      }
-
-      debug(req, 'Exporting requests in format:', format);
-
-      // Fetch all requests with related data
-      const requests = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          priority: purchaseRequests.priority,
-          purposeType: purchaseRequests.purposeType,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-        })
-        .from(purchaseRequests)
-        .orderBy(desc(purchaseRequests.createdAt));
-
-      if (requests.length === 0) {
-        throw new AppError('No requests found to export', 404);
-      }
-
-      // Transform dates and format data
-      const formattedRequests = requests.map(request => ({
-        'Request ID': request.id,
-        'Request Number': request.requestNumber || '',
-        'Title': request.title || '',
-        'Description': request.description || '',
-        'Status': request.status || '',
-        'Priority': request.priority || '',
-        'Purpose Type': request.purposeType || '',
-        'Total Cost': request.totalEstimatedCost ? `${request.totalEstimatedCost.toFixed(2)}` : '0.00',
-        'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
-        'Last Updated': request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : ''
-      }));
-
-      const filename = `purchase_requests_${new Date().toISOString().split('T')[0]}`;
-
-      // Set response headers for download
-      res.set({
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      });
-
-      if (format === 'csv') {
-        // Generate CSV
-        const fields = Object.keys(formattedRequests[0]);
-        const csv = [
-          fields.join(','), // Header row
-          ...formattedRequests.map(row =>
-            fields.map(field => {
-              const value = row[field as keyof typeof row];
-              // Properly escape and quote values containing commas or quotes
-              return typeof value === 'string' && (value.includes(',') || value.includes('"'))
-                ? `"${value.replace(/"/g, '""')}"` // Escape quotes by doubling them
-                : value;
-            }).join(',')
-          )
-        ].join('\n');
-
-        res.set({
-          'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="${filename}.csv"`
-        });
-
-        return res.send(csv);
-      } else {
-        // Generate Excel
-        const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
-
-        // Generate buffer
-        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-        res.set({
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${filename}.xlsx"`,
-          'Content-Length': excelBuffer.length
-        });
-
-        return res.send(Buffer.from(excelBuffer));
-      }
-    } catch (error) {
-      debug(req, 'Error exporting requests:', error);
-      next(error);
-    }
-  });
 
   // Serve uploaded files with proper content types
   app.use('/uploads', (req, res, next) => {
@@ -512,8 +249,102 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Put this at the very beginning of the routes file, before other routes
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  // Initialize auth second
+  setupAuth(app);
+
+  // Add notification endpoints
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const lastFetchTime = req.query.lastFetchTime
+        ? new Date(req.query.lastFetchTime as string)
+        : undefined;
+
+      debug(req, 'Fetching notifications', { lastFetchTime });
+      const results = await getNotifications(req.user!.id, lastFetchTime);
+      debug(req, `Found ${results.length} notifications`);
+
+      res.json(results);
+    } catch (error) {
+      debug(req, 'Error fetching notifications:', error);
+      next(error);
+    }
+  });
+
+  app.put("/api/notifications/:id/read", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const notificationId = parseInt(req.params.id);
+      if (isNaN(notificationId)) {
+        throw new ValidationError('Invalid notification ID', { id: 'Must be a number' });
+      }
+
+      debug(req, 'Marking notification as read:', notificationId);
+      const updatedNotification = await markNotificationAsRead(notificationId, req.user!.id);
+      debug(req, 'Notification updated successfully');
+
+      res.json(updatedNotification);
+    } catch (error) {
+      debug(req, 'Error marking notification as read:', error);
+      next(error);
+    }
+  });
 
   // Add notification preferences endpoints
+  app.get("/api/notification-preferences", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferences = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, req.user!.id))
+        .orderBy(notificationPreferences.category, notificationPreferences.type);
+
+      // If no preferences exist, create defaults
+      if (preferences.length === 0) {
+        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
+          Object.keys(NOTIFICATION_TYPES)
+            .filter(type => type.startsWith(category.toLowerCase()))
+            .map(type => ({
+              userId: req.user!.id,
+              category,
+              type,
+              enabled: true,
+              inAppEnabled: true,
+              emailEnabled: false,
+            }))
+        );
+
+        const insertedPreferences = await db
+          .insert(notificationPreferences)
+          .values(defaultPreferences)
+          .returning();
+
+        return res.json(insertedPreferences);
+      }
+
+      res.json(preferences);
+    } catch (error) {
+      debug(req, 'Error fetching notification preferences:', error);
+      next(error);
+    }
+  });
+
+
   app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
     res.json({
       categories: NOTIFICATION_CATEGORIES,
@@ -1133,7 +964,7 @@ export function registerRoutes(app: Express): Server {
       const [newSubPurpose] = await db
         .insert(subPurposes)
         .values(requestData)
-        .returning();
+        .returning();;
 
       debug(req, 'Successfully created sub-purpose:', newSubPurpose);
       res.json(newSubPurpose);
@@ -1967,7 +1798,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get company branding settings
-  // app.get("/api/branding", async (req: Request, res: Response, next:NextFunction) => {
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
   //   try {
   //     if (!req.isAuthenticated()) {
   //       throw new AppError('Not authenticated', 401);
@@ -2080,6 +1911,7 @@ export function registerRoutes(app: Express): Server {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
+
       const userNotifications = await db
         .select()
         .from(notifications)
@@ -2126,7 +1958,939 @@ export function registerRoutes(app: Express): Server {
       next(error);    }
   });
 
-  // Add request export endpoint with proper TypeScript typing
+  // Add mood board generation endpoint
+  app.post("/api/branding/generate-mood-board", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { companyName, primaryColor, secondaryColor, accentColor } = req.body;
+
+      if (!companyName || !primaryColor) {
+        throw new ValidationError('Company name and primary color are required');
+      }
+
+      const prompt = `Create a brand mood board for a company named "${companyName}". 
+        The brand colors are:
+        - Primary: ${primaryColor}
+        - Secondary: ${secondaryColor || 'not specified'}
+        - Accent: ${accentColor || 'not specified'}
+        
+        Generate a mood board that reflects the company's brand identity, incorporating these colors
+        and creating a cohesive visual theme. The mood board should include elements that represent
+        the brand's personality and values.`;
+
+      // Removed Anthropic API call - No deepseekService reference anymore
+
+      res.json({
+        success: true,
+        suggestions: "No AI suggestions available, please provide more details.", // Placeholder suggestion.
+        moodBoard: {
+          companyName,
+          colors: {
+            primary: primaryColor,
+            secondary: secondaryColor,
+            accent: accentColor
+          },
+          timestamp: new Date().toISOString()
+        }
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add to the existing routes
+  app.post("/api/error-logs", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Notauthenticated', 401);
+      }
+
+      debug(req, 'Logging error:', req.body);
+
+      const validationResult = insertErrorLogSchema.safeParse({
+        ...req.body,
+        userId: req.user?.id
+      });
+      if (!validationResult.success) {
+        debug(req, 'Error log validation failed:', validationResult.error);
+        throw new ValidationError('Invalid error log data', {
+          errors: validationResult.error.errors
+        });
+      }
+
+      // Analyze error with Claude if API key is available
+      let aiAnalysis = null;
+      // Removed Anthropic API call - No deepseekService reference anymore
+
+      // Save error log with AI analysis
+      const [errorLog] = await db
+        .insert(errorLogs)
+        .values({
+          ...validationResult.data,
+          aiAnalysis,
+          createdAt: new Date()
+        })
+        .returning();
+
+      debug(req, 'Error logged successfully:', errorLog);
+      res.status(201).json(errorLog);
+    } catch (error) {
+      debug(req, 'Error logging error:', error);
+      next(error);
+    }
+  });
+
+  // Remove Redundant Branding Routes
+  // app.get("/api/branding", ...); // Removed
+  // app.post("/api/branding", ...); // Removed
+  // Update the GET /api/requests/:id endpoint
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+
+      // Get request with all related data
+      const [request] = await db
+        .select({
+          id: purchaseRequests.id,
+          requestNumber: purchaseRequests.requestNumber,
+          requesterId: purchaseRequests.requesterId,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          status: purchaseRequests.status,
+          items: purchaseRequests.items,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          purposeType: purchaseRequests.purposeType,
+          priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
+          vendorId: purchaseRequests.vendorId,
+          subPurposeId: purchaseRequests.subPurposeId,
+          freightAmount: purchaseRequests.freightAmount,
+          currency: purchaseRequests.currency
+        })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get vendor details if vendorId exists
+      let vendor = null;
+      if (request.vendorId) {
+        const [vendorData] = await db
+          .select()
+          .from(vendors)
+          .where(eq(vendors.id, request.vendorId))
+          .limit(1);
+        vendor = vendorData;
+      }
+
+      // Get sub-purpose details if subPurposeId exists
+      let subPurpose = null;
+      if (request.subPurposeId) {
+        const [subPurposeData] = await db
+          .select()
+          .from(subPurposes)
+          .where(eq(subPurposes.id, request.subPurposeId))
+          .limit(1);
+        subPurpose = subPurposeData;
+      }
+
+      // Get approvals for this request
+      const approvalsList = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Get attachments
+      const attachmentsList = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, requestId));
+
+      // Parse items JSON
+      const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
+
+      // Return complete response
+      res.json({
+        ...request,
+        items,
+        vendor,
+        subPurpose,
+        approvals: approvalsList,
+        attachments: attachmentsList
+      });
+
+    } catch (error) {
+      console.error('Error fetching request:', error);
+      next(error);
+    }
+  });
+
+  // Add new route for PDF download
+  // Removed PDF generation endpoint
+
+  // Add branding endpoint
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated()) {
+  //       throw new AppError('Not authenticated', 401);
+  //     }
+  //
+  //     const [branding] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.updatedAt))
+  //       .limit(1);
+  //
+  //     if (!branding) {
+  //       return res.json({
+  //         companyName: 'Company Name',
+  //         primaryColor: '#71569E',
+  //         secondaryColor: '#F0F0FA',
+  //         accentColor: '#191160',
+  //         footerText: 'Confidential Document',
+  //         logo: null,
+  //         logoMimeType: null,
+  //         headerImage: null,
+  //         headerImageMimeType: null,
+  //         footerImage: null,
+  //         footerImageMimeType: null
+  //       });
+  //     }
+  //
+  //     res.json(branding);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // });
+  //
+  // Add branding management endpoints
+  // app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     debug(req, 'Fetching company branding data');
+  //
+  //     const [brandingData] = await db
+  //       .select()
+  //       .from(companyBranding)
+  //       .orderBy(desc(companyBranding.createdAt))
+  //       .limit(1);
+  //
+  //     if (!brandingData) {
+  //       // Return default branding if none exists
+  //       return res.json({
+  //         companyName: "Events & Entertainment Enterprises",
+  //         primaryColor: "#71569E",
+  //         secondaryColor: "#F0F0FA",
+  //         accentColor: "#191160",
+  //         headerStyle: "modern",
+  //         footerText: "Designed with ❤️ by E3",
+  //         logo: null,
+  //         logoMimeType: null,
+  //         headerImageUrl: null,
+  //         headerImageMimeType: null,
+  //         footerImageUrl: null,
+  //         footerImageMimeType: null,
+  //         createdAt: new Date(),
+  //         updatedAt: new Date()
+  //       });
+  //     }
+  //
+  //     debug(req, 'Found branding data:', brandingData);
+  //     res.json(brandingData);
+  //   } catch (error) {
+  //     debug(req, 'Error fetching branding data:', error);
+  //     next(error);
+  //   }
+  // });
+  //
+  // app.post("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
+  //
+  //     debug(req, 'Creating/updating company branding');
+  //
+  //     const validationResult = insertCompanyBrandingSchema.safeParse(req.body);
+  //
+  //     if (!validationResult.success) {
+  //       throw new ValidationError('Invalid branding data', validationResult.error.format());
+  //     }
+  //
+  //     // Create new branding record
+  //     const [newBranding] = await db
+  //       .insert(companyBranding)
+  //       .values({
+  //         ...validationResult.data,
+  //         createdAt: new Date(),
+  //         updatedAt: new Date()
+  //       })
+  //       .returning();
+  //
+  //     debug(req, 'Branding updated successfully:', newBranding.id);
+  //     res.status(201).json(newBranding);
+  //   } catch (error) {
+  //     debug(req, 'Error updating branding:', error);
+  //     next(error);
+  //   }
+  // });
+  //
+  // PDF Settings endpoints
+  // app.get("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated()) {
+  //       throw new AppError('Not authenticated', 401);
+  //     }
+  //
+  //     const settings = await db
+  //       .select()
+  //       .from(pdfSettings)
+  //       .limit(1);
+  //
+  //     // Return default settings if none exist
+  //     if (settings.length === 0) {
+  //       return res.json({
+  //         headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+  //         headerSubtitle: "PURCHASE REQUEST",
+  //         headerColor: "#1a365d",
+  //         footerText: "ALL RIGHTS RESERVED BY E3",
+  //         footerColor: "#1a365d",
+  //         pageNumbering: true,
+  //         watermarkOpacity: 0.1,
+  //         marginTop: 20,
+  //         marginBottom: 20,
+  //         marginLeft: 25,
+  //         marginRight: 25,
+  //         fontSize: 11
+  //       });
+  //     }
+  //
+  //     res.json(settings[0]);
+  //   } catch (error) {
+  //     debug(req, 'Error fetching PDF settings:', error);
+  //     next(error);
+  //   }
+  // });
+  //
+  // app.post("/api/enhance-pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
+  //
+  //     const settings = req.body;
+  //
+  //     // Use Deepseek to enhance and validate the PDF settings
+  //     const prompt = `Analyze and enhance the following PDF template settings for a purchase request document. 
+  //   Consider readability, professional appearance, and brand consistency:
+  //   ${JSON.stringify(settings, null, 2)}
+  //
+  //   Suggest improvements for:
+  //   1. Color combinations for better contrast
+  //   2. Font size adjustments for readability
+  //   3. Margin optimization
+  //   4. Header/footer content formatting
+  //
+  //   Provide the enhanced settings in JSON format.`;
+  //
+  //     // Removed Deepseek API call
+  //     let parsedSettings;
+  //
+  //     try {
+  //       parsedSettings = JSON.parse(enhancedSettings);
+  //     } catch (e) {
+  //       // If parsing fails, extract JSON from the response
+  //       const jsonMatch = enhancedSettings.match(/\{[\s\S]*\}/);
+  //       if (jsonMatch) {
+  //         parsedSettings = JSON.parse(jsonMatch[0]);
+  //       } else {
+  //         // If no valid JSON found, return original settings
+  //         parsedSettings = settings;
+  //       }
+  //     }
+  //
+  //     // Validate the enhanced settings
+  //     const validatedSettings = {
+  //       ...settings,
+  //       ...parsedSettings,
+  //       headerColor: parsedSettings.headerColor?.match(/^#[0-9A-Fa-f]{6}$/)
+  //         ? parsedSettings.headerColor
+  //         : settings.headerColor,
+  //       footerColor: parsedSettings.footerColor?.match(/^#[0-9A-Fa-f]{6}$/)
+  //         ? parsedSettings.footerColor
+  //         : settings.footerColor,
+  //       fontSize: Math.min(Math.max(parsedSettings.fontSize || settings.fontSize, 8), 16),
+  //       marginTop: Math.max(parsedSettings.marginTop || settings.marginTop, 10),
+  //       marginBottom: Math.max(parsedSettings.marginBottom || settings.marginBottom, 10),
+  //       marginLeft: Math.max(parsedSettings.marginLeft || settings.marginLeft, 15),
+  //       marginRight: Math.max(parsedSettings.marginRight || settings.marginRight, 15),
+  //     };
+  //
+  //     res.json(validatedSettings);
+  //   } catch (error) {
+  //     debug(req, 'Error enhancing PDF settings:', error);
+  //     next(error);
+  //   }
+  // });
+  //
+  // app.post("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+  //   try {
+  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+  //       throw new AppError('Admin access required', 403);
+  //     }
+  //
+  //     const settings = req.body;
+  //
+  //     // First, delete existing settings
+  //     await db.delete(pdfSettings);
+  //
+  //     // Insert new settings
+  //     const [newSettings] = await db
+  //       .insert(pdfSettings)
+  //       .values({
+  //         ...settings,
+  //         updatedAt: new Date(),
+  //         updatedBy: req.user.id
+  //       })
+  //       .returning();
+  //
+  //     // Log the settings update
+  //     await logAuditEvent(req.user.id, 'pdf_settings_updated', {
+  //       settingsId: newSettings.id,
+  //       changes: settings
+  //     });
+  //
+  //     res.json(newSettings);
+  //   } catch (error) {
+  //     debug(req, 'Error saving PDF settings:', error);
+  //     next(error);
+  //   }
+  // });
+  //
+  // Error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('Error:', err);
+    if (err instanceof ValidationError) {
+      return res.status(400).json({
+        message: err.message,
+        details: err.details
+      });
+    }
+    if (err instanceof DatabaseError) {
+      return res.status(500).json({
+        message: 'Database error occurred',
+        error: err.message
+      });
+    }
+    if (err instanceof AppError) {
+      return res.status(err.status).json({
+        message: err.message
+      });
+    }
+    res.status(500).json({
+      message: 'Internal server error',
+      error: err.message
+    });
+  });
+
+  // Add PDF audit endpoint inside registerRoutes
+  app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const { action, requestId } = req.body;
+
+      if (!action || !requestId) {
+        throw new ValidationError('Invalid input', {
+          action: !action ? ['Action is required'] : [],
+          requestId: !requestId ? ['Request ID is required'] : []
+        });
+      }
+
+      // Validate action type
+      const validActions = ['pdf_viewed', 'pdf_downloaded', 'pdf_generated'];
+      if (!validActions.includes(action)) {
+        throw new ValidationError('Invalid action', {
+          action: [`Action must be one of: ${validActions.join(', ')}`]
+        });
+      }
+
+      // Log the PDF event
+      await logAuditEvent(req, {
+        userId: req.user!.id,
+        action: action as AuditAction,
+        resourceId: requestId,
+        resourceType: 'purchase_request',
+        details: {
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      debug(req, `PDF audit logged: ${action} for request ${requestId}`);
+      res.json({ success: true });
+    } catch (error) {
+      debug(req, 'Error logging PDF audit:', error);
+      next(error);
+    }
+  });
+  // Add DELETE endpoint for purchase requests
+  app.delete("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      debug(req, 'Attempting to delete request:', requestId);
+
+      // Get the request to check permissions and existence
+      const [request] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!request) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Allow deletion if user is admin or the request owner
+      if (req.user!.role !== 'admin' && request.requesterId !== req.user!.id) {
+        throw new AppError('Unauthorized to delete this request', 403);
+      }
+
+      // Start deletion process
+      try {
+        // Delete associated records first
+        await db.transaction(async (tx) => {
+          // Delete approvals
+          await tx.delete(approvals)
+            .where(eq(approvals.requestId, requestId));
+
+          // Get attachments before deleting records
+          const attachments = await tx
+            .select()
+            .from(fileAttachments)
+            .where(eq(fileAttachments.requestId, requestId));
+
+          // Delete attachment records
+          await tx.delete(fileAttachments)
+            .where(eq(fileAttachments.requestId, requestId));
+
+          // Delete the request
+          await tx.delete(purchaseRequests)
+            .where(eq(purchaseRequests.id, requestId));
+
+          // After successful database deletion, delete physical files
+          for (const attachment of attachments) {
+            const filePath = path.join(process.cwd(), attachment.fileUrl.replace(/^\/uploads\//, 'uploads/'));
+            try {
+              await fs.unlink(filePath);
+            } catch (error) {
+              console.error(`Failed to delete file ${filePath}:`, error);
+              // Continue with other files even if one fails
+            }
+          }
+        });
+
+        // Log the successful deletion in audit log
+        await logAuditEvent(req, {
+          userId: req.user!.id,
+          action: 'request_deleted' as AuditAction,
+          resourceId: requestId,
+          resourceType: 'purchase_request',
+          details: {
+            requestNumber: request.requestNumber,
+            deletedAt: new Date().toISOString(),
+            deletedBy: req.user!.username
+          }
+        });
+
+        debug(req, `Request ${requestId} deleted successfully`);
+        res.json({
+          success: true,
+          message: 'Request deleted successfully',
+          requestId: requestId
+        });
+      } catch (error) {
+        debug(req, 'Error during deletion transaction:', error);
+        throw new DatabaseError('Failed to delete request and associated records');
+      }
+    } catch (error) {
+      debug(req, 'Error in delete request endpoint:', error);
+      next(error);
+    }
+  });
+
+  // Add these routes after the existing sub-purposes routes
+
+  // Update sub-purpose endpoint
+  app.put("/api/admin/sub-purposes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const subPurposeId = parseInt(req.params.id);
+      if (isNaN(subPurposeId)) {
+        throw new ValidationError('Invalid sub-purpose ID', {
+          id: 'Must be a number'
+        });
+      }
+
+      debug(req, 'Updating sub-purpose:', { id: subPurposeId, data: req.body });
+
+      // Validate the input data
+      const validationResult = insertSubPurposeSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid input data', validationResult.error.format());
+      }
+
+      // Verify the sub-purpose exists
+      const [existingSubPurpose] = await db
+        .select()
+        .from(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId))
+        .limit(1);
+
+      if (!existingSubPurpose) {
+        throw new AppError('Sub-purpose not found', 404);
+      }
+
+      // Type-safe update data
+      const updateData = {
+        name: validationResult.data.name,
+        purpose_type: validationResult.data.purpose_type,
+        is_frozen: validationResult.data.is_frozen,
+        valid_from: validationResult.data.valid_from,
+        valid_to: validationResult.data.valid_to,
+        updated_at: new Date()
+      };
+
+      // Update the sub-purpose with proper typing
+      const [updatedSubPurpose] = await db
+        .update(subPurposes)
+        .set(updateData)
+        .where(eq(subPurposes.id, subPurposeId))
+        .returning();
+
+      debug(req, 'Successfully updated sub-purpose:', updatedSubPurpose);
+      res.json(updatedSubPurpose);
+    } catch (error) {
+      debug(req, 'Error updating sub-purpose:', error);
+      next(error);
+    }
+  });
+
+  // Delete sub-purpose endpoint with proper validation
+  app.delete("/api/admin/sub-purposes/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const subPurposeId = parseInt(req.params.id);
+      if (isNaN(subPurposeId)) {
+        throw new ValidationError('Invalid sub-purpose ID', {
+          id: 'Must be a number'
+        });
+      }
+
+      debug(req, 'Deleting sub-purpose:', { id: subPurposeId });
+
+      // Check for existing references in purchase requests
+      const [existingReference] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.subPurposeId, subPurposeId))
+        .limit(1);
+
+      if (existingReference) {
+        throw new AppError('Cannot delete sub-purpose: It is referenced by existing purchase requests', 400);
+      }
+
+      // Verify the sub-purpose exists
+      const [existingSubPurpose] = await db
+        .select()
+        .from(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId))
+        .limit(1);
+
+      if (!existingSubPurpose) {
+        throw new AppError('Sub-purpose not found', 404);
+      }
+
+      // Delete the sub-purpose
+      await db
+        .delete(subPurposes)
+        .where(eq(subPurposes.id, subPurposeId));
+
+      debug(req, 'Successfully deleted sub-purpose:', subPurposeId);
+      res.status(204).end();
+    } catch (error) {
+      debug(req, 'Error deleting sub-purpose:', error);
+      next(error);
+    }
+  });
+
+  // Add Deepseek API endpoints
+  // Removed Deepseek API endpoints
+
+  // Add request status update endpoint
+  app.post("/api/requests/:id/status", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!status || !['approved', 'rejected', 'changes_requested', 'pending'].includes(status)) {
+        throw new ValidationError('Invalid status', { status: ['Invalid status value'] });
+      }
+
+      debug(req, 'Updating request status:', { requestId, status });
+
+      // Get the current request with approvals
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Get all approvals for this request
+      const currentApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Get all required departments
+      const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+
+      // Check if all required departments have approved
+      const allDepartmentsApproved = requiredDepartments.every(dept =>
+        currentApprovals.some(a => a.department === dept && a.status === 'approved')
+      );
+
+      // Only allow status update to approved if all required departments have approved
+      if (status === 'approved' && !allDepartmentsApproved) {
+        throw new ValidationError('Cannot mark as approved', {
+          message: 'All required departments must approve first'
+        });
+      }
+
+      // Update the request status
+      const [updatedRequest] = await db
+        .update(purchaseRequests)
+        .set({
+          status,
+          updatedAt: new Date(),
+          isLocked: status === 'approved' // Lock the request if it's approved
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      // Create notification for the requester
+      if (status === 'approved') {
+        await createNotification(
+          existingRequest.requesterId,
+          'Request Approved',
+          `Your purchase request "${existingRequest.title}" has been fully approved`,
+          'request',
+          requestId
+        );
+      }
+
+      debug(req, 'Request status updated successfully:', updatedRequest);
+      res.json(updatedRequest);
+    } catch (error) {
+      debug(req, 'Error updating request status:', error);
+      next(error);
+    }
+  });
+
+  // Add route to get request approvals
+  app.get("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      // Get all approvals for this request with approver details
+      const requestApprovals = await db
+        .select({
+          id: approvals.id,
+          requestId: approvals.requestId,
+          approverId: approvals.approverId,
+          status: approvals.status,
+          comments: approvals.comments,
+          department: approvals.department,
+          processedAt: approvals.processedAt,
+          approver: {
+            id: users.id,
+            username: users.username,
+            department: users.department,
+          }
+        })
+        .from(approvals)
+        .leftJoin(users, eq(approvals.approverId, users.id))
+        .where(eq(approvals.requestId, requestId))
+        .orderBy(desc(approvals.processedAt));
+
+      debug(req, `Found ${requestApprovals.length} approvals for request ${requestId}`);
+      res.json(requestApprovals);
+    } catch (error) {
+      debug(req, 'Error fetching request approvals:', error);
+      next(error);
+    }
+  });
+
+  // Add this route after other API routes but before the httpServer creation
+  app.post("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status, department, comments } = req.body;
+
+      if (!status || !['approved', 'rejected', 'changes_requested'].includes(status)) {
+        throw new ValidationError('Invalid status', { status: ['Invalid status value'] });
+      }
+
+      if (!department) {
+        throw new ValidationError('Invalid department', { department: ['Department is required'] });
+      }
+
+      debug(req, 'Creating approval:', { requestId, status, department });
+
+      // Get the current request
+      const [existingRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        throw new AppError('Request not found', 404);
+      }
+
+      // Check if department already approved
+      const [existingApproval] = await db
+        .select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.department, department)
+        ))
+        .limit(1);
+
+      if (existingApproval) {
+        throw new ValidationError('Duplicate approval', {
+          message: `This department has already processed this request at ${
+            new Date(existingApproval.processedAt).toLocaleString()
+          }`
+        });
+      }
+
+      // Create the approval
+      const [approval] = await db
+        .insert(approvals)
+        .values({
+          requestId,
+          approverId: req.user!.id,
+          status,
+          department,
+          comments: comments || null,
+          processedAt: new Date(),
+          isMandatory: ['CEO Office', 'Finance', 'Director'].includes(department)
+        })
+        .returning();
+
+      // Update the request status based on all approvals
+      await updateRequestStatus(requestId);
+
+      // Get the updated request status
+      const [updatedRequest] = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      // Create notification
+      await createNotification(
+        existingRequest.requesterId,
+        `Request ${status.replace('_', ' ')}`,
+        `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
+        'request',
+        requestId
+      );
+
+      console.log('Approval created successfully:', approval);
+      res.json({
+        message: "Approval processed successfully",
+        approval,
+        currentStatus: updatedRequest.status
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add branding endpoint
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      // Return default branding config if not customized
+      const defaultBranding = {
+        companyName: 'Enterprise Vendor Management',
+        logo: null,
+        primaryColor: '#1a56db',
+        accentColor: '#7c3aed',
+        theme: 'light',
+        customCss: null
+      };
+
+      res.json(defaultBranding);
+    } catch (error) {
+      debug(req, 'Error fetching branding:', error);
+      next(error);
+    }
+  });
+
+  // Add request export endpoint
   app.get("/api/requests/export", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
@@ -2164,50 +2928,33 @@ export function registerRoutes(app: Express): Server {
       // Transform dates and format data
       const formattedRequests = requests.map(request => ({
         'Request ID': request.id,
-        'Request Number': request.requestNumber || '',
-        'Title': request.title || '',
-        'Description': request.description || '',
-        'Status': request.status || '',
-        'Priority': request.priority || '',
-        'Purpose Type': request.purposeType || '',
-        'Total Cost': request.totalEstimatedCost ? `${request.totalEstimatedCost.toFixed(2)}` : '0.00',
-        'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
-        'Last Updated': request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : ''
+        'Request Number': request.requestNumber,
+        'Title': request.title,
+        'Description': request.description,
+        'Status': request.status,
+        'Priority': request.priority,
+        'Purpose Type': request.purposeType,
+        'Total Cost': request.totalEstimatedCost?.toFixed(2) || '0.00',
+        'Created Date': new Date(request.createdAt).toLocaleDateString(),
+        'Last Updated': new Date(request.updatedAt).toLocaleDateString()
       }));
 
       const filename = `purchase_requests_${new Date().toISOString().split('T')[0]}`;
-
-      // Set response headers for download
-      res.set({
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      });
 
       if (format === 'csv') {
         // Generate CSV
         const fields = Object.keys(formattedRequests[0]);
         const csv = [
           fields.join(','), // Header row
-          ...formattedRequests.map(row =>
-            fields.map(field => {
-              const value = row[field as keyof typeof row];
-              // Properly escape and quote values containing commas or quotes
-              return typeof value === 'string' && (value.includes(',') || value.includes('"'))
-                ? `"${value.replace(/"/g, '""')}"` // Escape quotes by doubling them
-                : value;
-            }).join(',')
+          ...formattedRequests.map(row => 
+            fields.map(field => 
+              JSON.stringify(row[field as keyof typeof row] || '')
+            ).join(',')
           )
         ].join('\n');
 
-        res.set({
-          'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="${filename}.csv"`
-        });
-
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
         return res.send(csv);
       } else {
         // Generate Excel
@@ -2218,12 +2965,8 @@ export function registerRoutes(app: Express): Server {
         // Generate buffer
         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
-        res.set({
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${filename}.xlsx"`,
-          'Content-Length': excelBuffer.length
-        });
-
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
         return res.send(Buffer.from(excelBuffer));
       }
     } catch (error) {
@@ -2232,7 +2975,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Create HTTP server
   const httpServer = createServer(app);
   return httpServer;
 }

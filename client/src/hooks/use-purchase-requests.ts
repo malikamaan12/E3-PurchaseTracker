@@ -12,17 +12,6 @@ interface ApprovalData {
   departmentId: string;
 }
 
-interface RequestWithApprovals extends PurchaseRequest {
-  approvals?: Array<{
-    department: string;
-    status: string;
-    isMandatory?: boolean;
-  }>;
-  requester?: {
-    department: string;
-  };
-}
-
 export function usePurchaseRequests() {
   const { showToast } = useToastContext();
   const queryClient = useQueryClient();
@@ -34,23 +23,21 @@ export function usePurchaseRequests() {
   const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
 
   // Helper function to determine if all other departments except the given one have approved
-  const allOtherDepartmentsApproved = useCallback((request: RequestWithApprovals, excludeDepartment: string) => {
-    if (!request?.approvals) return false;
-
+  const allOtherDepartmentsApproved = useCallback((request: any, excludeDepartment: string) => {
     const otherDepartments = requiredDepartments.filter(dept => dept !== excludeDepartment);
     return otherDepartments.every(dept =>
-      request.approvals.some(approval =>
+      request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
       )
     );
   }, []);
 
   // Helper function to determine effective status
-  const getEffectiveStatus = useCallback((request: RequestWithApprovals) => {
-    if (!request?.approvals) return request?.status || 'pending';
+  const getEffectiveStatus = useCallback((request: any) => {
+    if (!request.approvals) return request.status;
 
     const allDepartmentsApproved = requiredDepartments.every(dept =>
-      request.approvals.some(approval =>
+      request.approvals?.some((approval: any) =>
         approval.department === dept && approval.status === 'approved'
       )
     );
@@ -59,7 +46,7 @@ export function usePurchaseRequests() {
   }, []);
 
   // Fetch all requests
-  const { data: rawRequests = [], isLoading, error } = useQuery<RequestWithApprovals[]>({
+  const { data: rawRequests = [], isLoading, error } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
       try {
@@ -77,73 +64,11 @@ export function usePurchaseRequests() {
         });
         throw error;
       }
-    }
-  });
-
-  // Submit request mutation
-  const submitRequestMutation = useMutation({
-    mutationFn: async (request: Partial<RequestWithApprovals>) => {
-      const response = await fetch(`/api/requests/${request.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...request, status: 'pending' }),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to submit request: ${response.status}`);
-      }
-
-      return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      showToast({
-        title: "Success",
-        description: "Request submitted successfully",
-        variant: "success"
-      });
-    },
-    onError: (error: Error) => {
-      showToast({
-        title: "Error",
-        description: error.message || "Failed to submit request",
-        variant: "error"
-      });
-    }
-  });
-
-  // Delete request mutation
-  const deleteRequestMutation = useMutation({
-    mutationFn: async (requestId: number) => {
-      const response = await fetch(`/api/requests/${requestId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete request: ${response.status}`);
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      showToast({
-        title: "Success",
-        description: "Request deleted successfully",
-        variant: "success"
-      });
-    },
-    onError: (error: Error) => {
-      showToast({
-        title: "Error",
-        description: error.message || "Failed to delete request",
-        variant: "error"
-      });
-    }
+    staleTime: NOTIFICATION_CONFIG.STALE_TIME,
+    gcTime: NOTIFICATION_CONFIG.CACHE_TIME,
+    retry: NOTIFICATION_CONFIG.MAX_RETRIES,
+    refetchOnWindowFocus: NOTIFICATION_CONFIG.REFRESH_ON_FOCUS
   });
 
   // Approval mutation
@@ -173,6 +98,7 @@ export function usePurchaseRequests() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+
       const isAutoApproval = variables.comments?.includes('Auto-approved');
       showToast({
         title: isAutoApproval ? "Auto-Approval Completed" : "Success",
@@ -194,9 +120,9 @@ export function usePurchaseRequests() {
   });
 
   // Process auto-approvals
-  const processAutoApprovals = useCallback((requests: RequestWithApprovals[]) => {
-    requests.forEach((request) => {
-      if (!request?.requester?.department || !request.approvals) return;
+  const processAutoApprovals = useCallback((requests: any[]) => {
+    requests.forEach((request: any) => {
+      if (!request.requester?.department || !request.approvals) return;
 
       const requesterDepartment = request.requester.department;
       if (!requiredDepartments.includes(requesterDepartment)) return;
@@ -209,7 +135,7 @@ export function usePurchaseRequests() {
 
       // Check if conditions are met for auto-approval
       if (
-        !request.approvals.some(a => a.department === requesterDepartment) &&
+        !request.approvals.some((a: any) => a.department === requesterDepartment) &&
         allOtherDepartmentsApproved(request, requesterDepartment)
       ) {
         processedRequests.add(autoApprovalKey);
@@ -229,17 +155,15 @@ export function usePurchaseRequests() {
     if (rawRequests?.length) {
       processAutoApprovals(rawRequests);
     }
-  }, [rawRequests, processAutoApprovals]);
+  }, [rawRequests, processAutoApprovals]); // Proper dependency array
 
   return {
-    requests: rawRequests.map((request) => ({
+    requests: rawRequests.map((request: any) => ({
       ...request,
       status: getEffectiveStatus(request)
     })),
     isLoading,
     error,
-    submitRequest: submitRequestMutation.mutateAsync,
-    deleteRequest: deleteRequestMutation.mutateAsync,
     processApproval: approvalMutation.mutateAsync,
   };
 }

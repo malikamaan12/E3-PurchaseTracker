@@ -108,32 +108,45 @@ export default function DepartmentDashboard() {
   }, [filteredRequests]);
 
   // Export functions
+  const prepareExportData = () => {
+    return filteredRequests.map(request => ({
+      'Request ID': request.id,
+      'Title': request.title,
+      'Status': request.status,
+      'Purpose': request.purposeType,
+      'Total Amount': request.totalEstimatedCost,
+      'Created At': new Date(request.createdAt).toLocaleDateString(),
+      'Vendor': vendors.find(v => v.id === request.vendorId)?.name || 'N/A',
+      'Sub Purpose': subPurposes.find(sp => sp.id === request.subPurposeId)?.name || 'N/A'
+    }));
+  };
+
   const exportToExcel = async () => {
     try {
       setIsExporting(true);
-      const response = await fetch('/api/requests/export?format=xlsx', {
-        credentials: 'include'
-      });
+      const exportData = prepareExportData();
 
-      if (!response.ok) {
-        throw new Error('Failed to export data');
-      }
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
 
-      // Get the filename from the content-disposition header
-      const contentDisposition = response.headers.get('content-disposition');
-      const filenameMatch = contentDisposition?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'purchase_requests.xlsx';
+      // Add summary sheet
+      const summaryData = [
+        { Metric: 'Total Requests', Value: stats.total },
+        { Metric: 'Approved', Value: stats.approved },
+        { Metric: 'Rejected', Value: stats.rejected },
+        { Metric: 'Pending', Value: stats.pending },
+        { Metric: 'Draft', Value: stats.draft },
+        { Metric: 'Total Amount', Value: stats.totalAmount },
+      ];
+      const summaryWs = XLSX.utils.json_to_sheet(summaryData);
 
-      // Create blob from response
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Add worksheets to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Requests");
+      XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
+
+      // Generate Excel file
+      XLSX.writeFile(wb, `department_dashboard_${new Date().toISOString().split('T')[0]}.xlsx`);
 
       toast({
         title: "Export Successful",
@@ -141,10 +154,9 @@ export default function DepartmentDashboard() {
         className: "bg-green-50 border-green-200",
       });
     } catch (error) {
-      console.error('Error exporting data:', error);
       toast({
         title: "Export Failed",
-        description: "Failed to export dashboard data. Please try again.",
+        description: "Failed to export dashboard data",
         variant: "destructive",
       });
     } finally {
@@ -155,29 +167,22 @@ export default function DepartmentDashboard() {
   const exportToCSV = async () => {
     try {
       setIsExporting(true);
-      const response = await fetch('/api/requests/export?format=csv', {
-        credentials: 'include'
-      });
+      const exportData = prepareExportData();
+      const csv = [
+        Object.keys(exportData[0]).join(','), // Header
+        ...exportData.map(row => Object.values(row).join(',')) // Data rows
+      ].join('\n');
 
-      if (!response.ok) {
-        throw new Error('Failed to export data');
-      }
-
-      // Get the filename from the content-disposition header
-      const contentDisposition = response.headers.get('content-disposition');
-      const filenameMatch = contentDisposition?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'purchase_requests.csv';
-
-      // Create blob from response
-      const blob = await response.blob();
+      // Create blob and download
+      const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      const a = document.createElement('a');
+      a.setAttribute('hidden', '');
+      a.setAttribute('href', url);
+      a.setAttribute('download', `department_dashboard_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       toast({
         title: "Export Successful",
@@ -185,10 +190,9 @@ export default function DepartmentDashboard() {
         className: "bg-green-50 border-green-200",
       });
     } catch (error) {
-      console.error('Error exporting data:', error);
       toast({
         title: "Export Failed",
-        description: "Failed to export dashboard data. Please try again.",
+        description: "Failed to export dashboard data",
         variant: "destructive",
       });
     } finally {
