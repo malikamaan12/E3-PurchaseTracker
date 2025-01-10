@@ -1095,7 +1095,7 @@ export function registerRoutes(app: Express): Server {
             // Add other fields as needed
           })
           .from(purchaseRequests)
-          .where(and(...queryConditions))
+          .where(queryConditions.length > 0 ? and(...queryConditions) : undefined)
           .orderBy(desc(purchaseRequests.createdAt));
 
         debug(req, `Found ${requests.length} requests matching filters`);
@@ -1156,7 +1156,6 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update the GET /api/requests endpoint
-
 
   app.get("/api/requests", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1952,7 +1951,7 @@ export function registerRoutes(app: Express): Server {
         .set({ isRead: true })
         .where(eq(notifications.id, notificationId));
 
-      res.json({ message: 'Notification marked as read' });
+      res.json({ message: 'Notification markedas read' });
     } catch (error) {
       next(error);
     }
@@ -2866,40 +2865,73 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add branding endpoint
+  app.get("/api/branding", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      // Return default branding config if not customized
+      const defaultBranding = {
+        companyName: 'Enterprise Vendor Management',
+        logo: null,
+        primaryColor: '#1a56db',
+        accentColor: '#7c3aed',
+        theme: 'light',
+        customCss: null
+      };
+
+      res.json(defaultBranding);
+    } catch (error) {
+      debug(req, 'Error fetching branding:', error);
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
 
-// Error analysis functions for error handling
+// Helper function for analyzing errors
 async function analyzeError(error: Error, context: any) {
-  // Return basic error analysis without deepseek
   return {
-    prediction: `Error occurred: ${error.message}`,
-    suggestions: [
-      'Check input validation',
-      'Verify request parameters',
-      'Ensure proper authentication'
-    ]
+    timestamp: new Date().toISOString(),
+    errorType: error.constructor.name,
+    message: error.message,
+    context
   };
 }
 
 async function updateRequestStatus(requestId: number) {
-  const approvals = await db.select().from(approvals).where(eq(approvals.requestId, requestId));
-  const mandatoryApprovals = approvals.filter(a => a.isMandatory);
-  const allApproved = mandatoryApprovals.every(a => a.status === 'approved');
-  const allRejected = mandatoryApprovals.every(a => a.status === 'rejected');
-  const anyChangesRequested = mandatoryApprovals.some(a => a.status === 'changes_requested');
+  try {
+    const approvalsList = await db
+      .select()
+      .from(approvals)
+      .where(eq(approvals.requestId, requestId));
 
-  let newStatus: string;
-  if (allApproved) {
-    newStatus = 'approved';
-  } else if (allRejected) {
-    newStatus = 'rejected';
-  } else if (anyChangesRequested) {
-    newStatus = 'changes_requested';
-  } else {
-    newStatus = 'pending';
+    const mandatoryApprovals = approvalsList.filter(a => a.isMandatory);
+    const allApproved = mandatoryApprovals.every(a => a.status === 'approved');
+    const allRejected = mandatoryApprovals.every(a => a.status === 'rejected');
+    const anyChangesRequested = mandatoryApprovals.some(a => a.status === 'changes_requested');
+
+    let newStatus: string;
+    if (allApproved) {
+      newStatus = 'approved';
+    } else if (allRejected) {
+      newStatus = 'rejected';
+    } else if (anyChangesRequested) {
+      newStatus = 'changes_requested';
+    } else {
+      newStatus = 'pending';
+    }
+
+    await db
+      .update(purchaseRequests)
+      .set({ status: newStatus })
+      .where(eq(purchaseRequests.id, requestId));
+  } catch (error) {
+    console.error('Error updating request status:', error);
+    throw error;
   }
-
-  await db.update(purchaseRequests).set({ status: newStatus }).where(eq(purchaseRequests.id, requestId));
 }
