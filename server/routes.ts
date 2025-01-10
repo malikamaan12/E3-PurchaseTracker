@@ -8,8 +8,15 @@ import { db } from "@db";
 import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import { logAuditEvent } from "./utils/audit-logger";
-import { purchaseRequests } from "@db/schema";
-import { desc } from "drizzle-orm";
+import {
+  users,
+  purchaseRequests,
+  notifications,
+  notificationPreferences,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_TYPES
+} from "@db/schema";
+import { eq, and, desc, or, isNull, inArray } from "drizzle-orm";
 import XLSX from 'xlsx';
 import fs from 'fs/promises';
 import fsSync from 'fs';
@@ -31,6 +38,49 @@ class ValidationError extends Error {
     this.name = 'ValidationError';
     this.details = details;
   }
+}
+
+// Notification functions
+async function createNotification(userId: number, title: string, message: string, type: string = 'general', resourceId?: number) {
+  return db.insert(notifications).values({
+    userId,
+    title,
+    message,
+    type,
+    resourceId,
+    isRead: false,
+    createdAt: new Date()
+  }).returning();
+}
+
+async function getNotifications(userId: number, lastFetchTime?: Date) {
+  let query = db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt));
+
+  if (lastFetchTime) {
+    query = query.where(and(
+      eq(notifications.userId, userId),
+      gte(notifications.createdAt, lastFetchTime)
+    ));
+  }
+
+  return query;
+}
+
+async function markNotificationAsRead(notificationId: number, userId: number) {
+  const [notification] = await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(and(
+      eq(notifications.id, notificationId),
+      eq(notifications.userId, userId)
+    ))
+    .returning();
+
+  return notification;
 }
 
 export function registerRoutes(app: Express): Server {
@@ -1907,7 +1957,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const format = req.query.format as string;
-      if (!format || !['xlsx', 'csv'].includes(format)) {
+if (!format || !['xlsx', 'csv'].includes(format)) {
         throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
       }
 
@@ -2005,6 +2055,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Create HTTP server
   const httpServer = createServer(app);
   return httpServer;
 }
