@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useToastContext } from "@/contexts/ToastContext";
 import type { PurchaseRequest } from "@db/schema";
 import { useErrorHandler } from "@/services/error-logging";
 import { NOTIFICATION_CONFIG } from "@/config/notification";
@@ -13,9 +13,10 @@ interface ApprovalData {
 }
 
 export function usePurchaseRequests() {
-  const { toast } = useToast();
+  const { showToast } = useToastContext();
   const queryClient = useQueryClient();
   const handleError = useErrorHandler();
+  const toastTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Required departments for approval
   const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
@@ -56,12 +57,14 @@ export function usePurchaseRequests() {
           credentials: 'include'
         });
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `Failed to fetch requests: ${response.status}`);
+          throw new Error(`Failed to fetch requests: ${response.status}`);
         }
         return response.json();
       } catch (error) {
-        console.error("Error fetching requests:", error);
+        handleError(error, {
+          title: 'Error Fetching Requests',
+          silent: false
+        });
         throw error;
       }
     },
@@ -101,18 +104,26 @@ export function usePurchaseRequests() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-      toast({
-        title: "Success",
-        description: "Approval submitted successfully"
+
+      // Show different toast messages based on auto-approval
+      const isAutoApproval = variables.comments?.includes('Auto-approved');
+      showToast({
+        title: isAutoApproval ? "Auto-Approval Completed" : "Success",
+        description: isAutoApproval
+          ? `Request automatically approved for ${variables.departmentId}`
+          : "Approval submitted successfully",
+        variant: "success",
+        duration: 3000
       });
     },
     onError: (error) => {
-      toast({
+      showToast({
         title: "Error",
         description: error.message || "Failed to process approval",
-        variant: "destructive"
+        variant: "error",
+        duration: 7000
       });
     }
   });
@@ -125,29 +136,25 @@ export function usePurchaseRequests() {
       const requesterDepartment = request.requester.department;
       if (!requiredDepartments.includes(requesterDepartment)) return;
 
-      const requesterDeptApproval = request.approvals.find(
-        (approval: any) => approval.department === requesterDepartment
-      );
-
       // Create a unique key for this auto-approval
       const autoApprovalKey = `${request.id}-${requesterDepartment}`;
 
-      // Check if we haven't processed this auto-approval yet
+      // Check if we haven't processed this auto-approval yet and conditions are met
       if (
         !processedAutoApprovals.current.has(autoApprovalKey) &&
-        requesterDeptApproval?.status === 'pending' &&
+        !request.approvals.some((a: any) => a.department === requesterDepartment && a.status !== 'pending') &&
         allOtherDepartmentsApproved(request, requesterDepartment)
       ) {
         // Mark this auto-approval as processed
         processedAutoApprovals.current.add(autoApprovalKey);
 
-        // Schedule the auto-approval for the next tick to avoid render cycle issues
+        // Execute the auto-approval
         setTimeout(() => {
           approvalMutation.mutate({
             requestId: request.id,
             status: 'approved',
             departmentId: requesterDepartment,
-            comments: 'Auto-approved as all other departments have approved'
+            comments: `Auto-approved as all other departments have approved - ${new Date().toISOString()}`
           });
         }, 0);
       }
@@ -159,9 +166,11 @@ export function usePurchaseRequests() {
     if (!rawRequests?.length) return;
     processAutoApprovals(rawRequests);
 
-    // Cleanup function
     return () => {
       processedAutoApprovals.current.clear();
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
     };
   }, [rawRequests, processAutoApprovals]);
 

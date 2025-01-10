@@ -1,4 +1,4 @@
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ErrorLogData {
   message: string;
@@ -7,6 +7,10 @@ interface ErrorLogData {
   path?: string;
   details?: Record<string, unknown>;
 }
+
+// Keep track of recent error messages to prevent duplicates
+const recentErrors = new Map<string, number>();
+const ERROR_DEBOUNCE_TIME = 5000; // 5 seconds
 
 export async function logError(error: Error | unknown, context?: Record<string, unknown>) {
   try {
@@ -66,11 +70,28 @@ export function useErrorHandler() {
     const errorData = await logError(error);
 
     if (!context?.silent) {
-      toast({
-        title: context?.title || 'Error',
-        description: getFormattedErrorMessage(error),
-        variant: 'destructive',
-      });
+      const errorMessage = getFormattedErrorMessage(error);
+      const errorKey = `${context?.title || 'Error'}-${errorMessage}`;
+      const now = Date.now();
+
+      // Check if we've shown this error recently
+      const lastShown = recentErrors.get(errorKey);
+      if (!lastShown || (now - lastShown) > ERROR_DEBOUNCE_TIME) {
+        toast({
+          title: context?.title || 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 7000, // Show errors for longer
+        });
+
+        // Update the last shown time
+        recentErrors.set(errorKey, now);
+
+        // Clean up old errors after debounce time
+        setTimeout(() => {
+          recentErrors.delete(errorKey);
+        }, ERROR_DEBOUNCE_TIME);
+      }
     }
 
     return errorData;
