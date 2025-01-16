@@ -70,11 +70,6 @@ export default function ApprovalFlow({
         throw new Error(`Invalid department: ${data.departmentId}`);
       }
 
-      toast({
-        description: "Processing approval...",
-        variant: "default"
-      });
-
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: 'POST',
         headers: {
@@ -95,13 +90,14 @@ export default function ApprovalFlow({
 
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       setComments("");
+      setIsSubmitting(false);
 
       toast({
-        title: "Approval Processed",
-        description: "Your approval decision has been recorded successfully",
+        title: "Success",
+        description: "Your approval decision has been recorded",
         variant: "success",
         duration: 3000
       });
@@ -109,6 +105,7 @@ export default function ApprovalFlow({
       onApprovalUpdate?.();
     },
     onError: (error: Error) => {
+      setIsSubmitting(false);
       toast({
         title: "Approval Failed",
         description: error.message || "Failed to process approval. Please try again.",
@@ -121,7 +118,7 @@ export default function ApprovalFlow({
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
       toast({
-        title: "Missing Information",
+        title: "Error",
         description: "Department information is required for approval",
         variant: "destructive"
       });
@@ -147,6 +144,11 @@ export default function ApprovalFlow({
 
     try {
       setIsSubmitting(true);
+      toast({
+        description: `Processing ${status.replace('_', ' ')} action...`,
+        variant: "default"
+      });
+
       await approvalMutation.mutateAsync({
         requestId: request.id,
         status,
@@ -154,9 +156,8 @@ export default function ApprovalFlow({
         departmentId: user.department
       });
     } catch (error) {
-      // Error is handled by mutation's onError
-    } finally {
-      setIsSubmitting(false);
+      // Error handling is done in mutation's onError
+      console.error('Error in handleApproval:', error);
     }
   };
 
