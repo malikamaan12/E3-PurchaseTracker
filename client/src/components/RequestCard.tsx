@@ -292,8 +292,8 @@ export default function RequestCard({
     } else {
       toast({
         title: "Cannot Edit Request",
-        description: request.isLocked ? 
-          "This request is locked and cannot be edited" : 
+        description: request.isLocked ?
+          "This request is locked and cannot be edited" :
           "You don't have permission to edit this request",
         variant: "destructive",
       });
@@ -765,16 +765,16 @@ export default function RequestCard({
                     <h4 className="font-medium text-gray-900">Purpose</h4>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="capitalize">
-                        {request.purposeType.replace("_", " ")}
+                        {(request.purposeType || 'general').replace(/_/g, " ")}
                       </Badge>
-                      {request.subPurpose && (
+                      {request.subPurpose?.name && (
                         <Badge variant="outline" className="capitalize">
                           {request.subPurpose.name}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose}</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose || 'No purpose specified'}</p>
                 </div>
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
