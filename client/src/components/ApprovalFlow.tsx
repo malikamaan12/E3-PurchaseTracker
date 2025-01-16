@@ -14,7 +14,7 @@ interface ApprovalAction {
   requestId: number;
   status: "approved" | "rejected" | "changes_requested";
   comments?: string;
-  departmentId: string;
+  department: string;
 }
 
 interface ApprovalFlowProps {
@@ -62,12 +62,8 @@ export default function ApprovalFlow({
 
   const approvalMutation = useMutation({
     mutationFn: async (data: ApprovalAction) => {
-      if (!data.requestId || !data.status || !data.departmentId) {
+      if (!data.requestId || !data.status || !data.department) {
         throw new Error("Missing required fields for approval");
-      }
-
-      if (!requiredDepartments.includes(data.departmentId)) {
-        throw new Error(`Invalid department: ${data.departmentId}`);
       }
 
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
@@ -77,7 +73,7 @@ export default function ApprovalFlow({
         },
         body: JSON.stringify({
           status: data.status,
-          department: data.departmentId,
+          department: data.department,
           comments: data.comments?.trim() || undefined
         }),
         credentials: 'include'
@@ -99,7 +95,6 @@ export default function ApprovalFlow({
         title: "Success",
         description: "Your approval decision has been recorded",
         variant: "success",
-        duration: 3000
       });
 
       onApprovalUpdate?.();
@@ -110,7 +105,6 @@ export default function ApprovalFlow({
         title: "Approval Failed",
         description: error.message || "Failed to process approval. Please try again.",
         variant: "destructive",
-        duration: 5000
       });
     }
   });
@@ -119,8 +113,17 @@ export default function ApprovalFlow({
     if (!user?.department || !user?.id) {
       toast({
         title: "Error",
-        description: "Department information is required for approval",
-        variant: "destructive"
+        description: "Department information is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!request.id) {
+      toast({
+        title: "Error",
+        description: "Invalid request ID",
+        variant: "destructive",
       });
       return;
     }
@@ -153,11 +156,11 @@ export default function ApprovalFlow({
         requestId: request.id,
         status,
         comments: comments.trim() || undefined,
-        departmentId: user.department
+        department: user.department
       });
     } catch (error) {
-      // Error handling is done in mutation's onError
       console.error('Error in handleApproval:', error);
+      // Error handling is done in mutation's onError
     }
   };
 
