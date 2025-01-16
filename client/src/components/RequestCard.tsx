@@ -168,8 +168,8 @@ export default function RequestCard({
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
+  const getPriorityColor = (priority: string = 'medium') => {
+    switch (priority?.toLowerCase()) {
       case "urgent":
         return "text-red-600";
       case "high":
@@ -183,8 +183,8 @@ export default function RequestCard({
     }
   };
 
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
+  const getPriorityIcon = (priority: string = 'medium') => {
+    switch (priority?.toLowerCase()) {
       case "urgent":
         return <AlertTriangle className={`h-4 w-4 ${getPriorityColor(priority)}`} />;
       case "high":
@@ -550,9 +550,9 @@ export default function RequestCard({
               </div>
               <div className="flex items-center gap-4 flex-wrap justify-end">
                 <div className="flex items-center gap-1">
-                  {getPriorityIcon(request.priority)}
-                  <span className={`text-sm ${getPriorityColor(request.priority)}`}>
-                    {request.priority.toUpperCase()}
+                  {getPriorityIcon(request.priority || 'medium')}
+                  <span className={`text-sm ${getPriorityColor(request.priority || 'medium')}`}>
+                    {(request.priority || 'medium').toUpperCase()}
                   </span>
                 </div>
                 <p className="text-sm font-medium">{formatCurrency(totalCost)}</p>
@@ -598,11 +598,11 @@ export default function RequestCard({
             )}
             <Badge
               variant="outline"
-              className={`border-${getPriorityColor(request.priority)}/20 ${getPriorityColor(request.priority)} bg-${getPriorityColor(request.priority).replace('text-', '')}/5`}
+              className={`border-${getPriorityColor(request.priority || 'medium')}/20 ${getPriorityColor(request.priority || 'medium')} bg-${getPriorityColor(request.priority || 'medium').replace('text-', '')}/5`}
             >
               <div className="flex items-center gap-1">
-                {getPriorityIcon(request.priority)}
-                <span>{request.priority.toUpperCase()}</span>
+                {getPriorityIcon(request.priority || 'medium')}
+                <span>{(request.priority || 'medium').toUpperCase()}</span>
               </div>
             </Badge>
           </div>
@@ -756,7 +756,7 @@ export default function RequestCard({
                   <h4 className="font-medium text-gray-900">Priority Analysis</h4>
                   <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                     <div className="flex items-center gap-2">
-                      {getPriorityIcon(request.priority)}
+                      {getPriorityIcon(request.priority || 'medium')}
                       <p className="text-sm">
                         Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
                       </p>
