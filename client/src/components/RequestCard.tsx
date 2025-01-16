@@ -211,6 +211,46 @@ export default function RequestCard({
 
   const totalCost = itemsTotal + freightAmount;
 
+  const handleDownload = async (attachmentId: number) => {
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : 'download';
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: `File "${filename}" downloaded successfully`,
+        variant: "success"
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Failed to download file",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDraftSubmit = async () => {
     try {
       if (!request.id) {
@@ -223,13 +263,14 @@ export default function RequestCard({
       });
 
       toast({
-        title: "Success",
-        description: "Request submitted for approval",
+        title: "Request Submitted",
+        description: "Your request has been submitted for approval",
+        variant: "success"
       });
     } catch (error) {
       console.error("Error submitting draft:", error);
       toast({
-        title: "Error",
+        title: "Submission Failed",
         description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive",
       });
@@ -244,10 +285,16 @@ export default function RequestCard({
 
     if (canEdit) {
       setLocation(`/requests/${request.id}/edit`);
+      toast({
+        description: "Editing request...",
+        variant: "default"
+      });
     } else {
       toast({
-        title: "Cannot edit request",
-        description: "You don't have permission to edit this request or it is locked",
+        title: "Cannot Edit Request",
+        description: request.isLocked ? 
+          "This request is locked and cannot be edited" : 
+          "You don't have permission to edit this request",
         variant: "destructive",
       });
     }
@@ -255,24 +302,28 @@ export default function RequestCard({
 
   const handleDownloadPDF = async () => {
     try {
-      // Generate PDF with default formatting
+      toast({
+        description: "Generating PDF...",
+        variant: "default"
+      });
+
       const doc = await generateRequestPDF(request);
 
       if (!doc) {
         throw new Error('Failed to generate PDF');
       }
 
-      // Save the PDF with request number as filename
       doc.save(`${request.requestNumber}.pdf`);
 
       toast({
         title: "Success",
         description: "PDF downloaded successfully",
+        variant: "success"
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
-        title: "Error",
+        title: "PDF Generation Failed",
         description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive",
       });
@@ -283,7 +334,7 @@ export default function RequestCard({
     if (!user?.department) {
       toast({
         title: "Error",
-        description: "User department is required for approval",
+        description: "User department information is missing",
         variant: "destructive",
       });
       return;
@@ -301,6 +352,11 @@ export default function RequestCard({
     try {
       const commentsToUse = status === "changes_requested" ? changeRequestComments : comments;
 
+      toast({
+        description: `Processing ${status.replace('_', ' ')} action...`,
+        variant: "default"
+      });
+
       await createApproval({
         requestId: request.id,
         status,
@@ -313,51 +369,48 @@ export default function RequestCard({
       setShowRequestChangesDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
 
+      const statusMessages = {
+        approved: "Request approved successfully",
+        rejected: "Request rejected successfully",
+        changes_requested: "Changes requested successfully"
+      };
+
       toast({
         title: "Success",
-        description: status === "changes_requested"
-          ? "Changes requested successfully"
-          : `Request ${status} successfully`,
+        description: statusMessages[status],
+        variant: "success"
       });
     } catch (error) {
       console.error('Error in handleApproval:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to process approval",
+        title: "Action Failed",
+        description: error instanceof Error ? error.message : `Failed to ${status.replace('_', ' ')} request`,
         variant: "destructive",
       });
     }
   };
 
-  const handleDownload = async (attachmentId: number) => {
+  const handleDelete = async (requestId: number) => {
     try {
-      const response = await fetch(`/api/attachments/${attachmentId}`, {
-        credentials: 'include'
+      toast({
+        description: "Deleting request...",
+        variant: "default"
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download file');
-      }
+      await deleteRequest(requestId);
 
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : 'download';
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading file:', error);
       toast({
-        title: "Error",
-        description: "Failed to download file",
+        title: "Success",
+        description: "Request deleted successfully",
+        variant: "success"
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      toast({
+        title: "Deletion Failed",
+        description: error instanceof Error ? error.message : "Failed to delete request",
         variant: "destructive",
       });
     }
@@ -375,24 +428,6 @@ export default function RequestCard({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-
-  const handleDelete = async (requestId: number) => {
-    try {
-      await deleteRequest(requestId);
-      toast({
-        title: "Success",
-        description: "Request deleted successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-    } catch (error) {
-      console.error("Error deleting request:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete request",
-        variant: "destructive",
-      });
-    }
-  };
 
   const vendorSection = request.vendor && (
     <div className="space-y-4 pt-4 border-t border-gray-100">

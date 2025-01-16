@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { useToastContext } from "@/contexts/ToastContext";
+import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export default function ApprovalFlow({
   onApprovalUpdate
 }: ApprovalFlowProps) {
   const { user } = useUser();
-  const { showToast } = useToastContext();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,13 +63,17 @@ export default function ApprovalFlow({
   const approvalMutation = useMutation({
     mutationFn: async (data: ApprovalAction) => {
       if (!data.requestId || !data.status || !data.departmentId) {
-        throw new Error("Missing required fields");
+        throw new Error("Missing required fields for approval");
       }
 
-      // Validate department is valid
       if (!requiredDepartments.includes(data.departmentId)) {
         throw new Error(`Invalid department: ${data.departmentId}`);
       }
+
+      toast({
+        description: "Processing approval...",
+        variant: "default"
+      });
 
       const response = await fetch(`/api/requests/${data.requestId}/approvals`, {
         method: 'POST',
@@ -95,9 +99,9 @@ export default function ApprovalFlow({
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
       setComments("");
 
-      showToast({
-        title: "Success",
-        description: "Approval submitted successfully",
+      toast({
+        title: "Approval Processed",
+        description: "Your approval decision has been recorded successfully",
         variant: "success",
         duration: 3000
       });
@@ -105,33 +109,38 @@ export default function ApprovalFlow({
       onApprovalUpdate?.();
     },
     onError: (error: Error) => {
-      showToast({
-        title: "Error",
-        description: error.message || "Failed to process approval",
-        variant: "error"
+      toast({
+        title: "Approval Failed",
+        description: error.message || "Failed to process approval. Please try again.",
+        variant: "destructive",
+        duration: 5000
       });
     }
   });
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department || !user?.id) {
-      showToast({
-        title: "Error",
-        description: "User department information is missing",
-        variant: "error"
+      toast({
+        title: "Missing Information",
+        description: "Department information is required for approval",
+        variant: "destructive"
       });
       return;
     }
 
     if (isSubmitting) {
+      toast({
+        description: "Please wait while the previous action completes",
+        variant: "default"
+      });
       return;
     }
 
     if (!canApprove) {
-      showToast({
-        title: "Error",
+      toast({
+        title: "Permission Denied",
         description: "You don't have permission to approve this request",
-        variant: "error"
+        variant: "destructive"
       });
       return;
     }
@@ -162,7 +171,6 @@ export default function ApprovalFlow({
       comments: approval?.comments
     };
   });
-
 
   return (
     <div className="space-y-4">
