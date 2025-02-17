@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
@@ -65,6 +65,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { type UploadedFile } from "@/types";
+import { ErrorPredictionDisplay } from "@/components/ErrorPredictionDisplay";
+import { analyzePurchaseRequest } from "@/lib/request-analyzer";
 
 interface PurchaseRequestWithRelations {
   id: number;
@@ -150,6 +152,10 @@ export default function RequestCard({
   const [showRequestChangesDialog, setShowRequestChangesDialog] = useState(false);
   const [changeRequestComments, setChangeRequestComments] = useState("");
   const [selectedPreviewFile, setSelectedPreviewFile] = useState<UploadedFile | null>(null);
+  const [analysis, setAnalysis] = useState<{
+    warnings: string[];
+    suggestions: string[];
+  }>({ warnings: [], suggestions: [] });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -554,6 +560,19 @@ export default function RequestCard({
     );
   };
 
+  useEffect(() => {
+    const analyzeRequest = async () => {
+      if (request) {
+        const result = await analyzePurchaseRequest(request);
+        setAnalysis({
+          warnings: result.warnings || [],
+          suggestions: result.suggestions || []
+        });
+      }
+    };
+    analyzeRequest();
+  }, [request]);
+
   if (compact) {
     const canSubmitDraft = request.status === "draft" &&
       request.requesterId === user?.id &&
@@ -778,6 +797,15 @@ export default function RequestCard({
                 </div>
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
+                {analysis.warnings.length > 0 || analysis.suggestions.length > 0 ? (
+                  <div className="mt-6">
+                    <ErrorPredictionDisplay
+                      context="Purchase Request"
+                      warnings={analysis.warnings}
+                      suggestions={analysis.suggestions}
+                    />
+                  </div>
+                ) : null}
               </div>
             </TabsContent>
 
