@@ -18,7 +18,7 @@ import { useDashboardPreferences, DEFAULT_PREFERENCES } from "@/hooks/use-dashbo
 import DashboardPreferences from "@/components/DashboardPreferences";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
-import { isWithinInterval, parseISO } from "date-fns";
+import { isWithinInterval, parseISO, isSameDay } from "date-fns";
 import { type RequestData } from "@/types/requests";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSubPurposes } from "@/hooks/use-sub-purposes";
@@ -126,34 +126,96 @@ export default function Dashboard() {
           return !departmentApproval || departmentApproval.status === "pending";
         });
         break;
+      // Default case to handle 'all-requests' tab
+      default:
+        break;
     }
 
-    // Apply additional filters
-    if (activeFilters.searchQuery) {
-      const query = activeFilters.searchQuery.toLowerCase();
-      filtered = filtered.filter(r =>
-        r.title.toLowerCase().includes(query) ||
-        r.description?.toLowerCase().includes(query) ||
-        r.requestNumber?.toLowerCase().includes(query)
+    // Apply status filter
+    if (activeFilters.status.length > 0) {
+      filtered = filtered.filter(r => activeFilters.status.includes(r.status));
+    }
+
+    // Apply priority filter
+    if (activeFilters.priority.length > 0) {
+      filtered = filtered.filter(r => 
+        r.priority && activeFilters.priority.includes(r.priority.toLowerCase())
       );
     }
 
+    // Apply department filter
+    if (activeFilters.department.length > 0) {
+      filtered = filtered.filter(r => 
+        r.requester?.department && activeFilters.department.includes(r.requester.department)
+      );
+    }
+
+    // Apply purpose type filter
+    if (activeFilters.purposeType.length > 0) {
+      filtered = filtered.filter(r => 
+        r.purposeType && activeFilters.purposeType.includes(r.purposeType)
+      );
+    }
+
+    // Apply sub-purpose filter
+    if (activeFilters.subPurposeId !== null) {
+      filtered = filtered.filter(r => r.subPurposeId === activeFilters.subPurposeId);
+    }
+
+    // Apply vendor filter
+    if (activeFilters.vendorId !== null) {
+      filtered = filtered.filter(r => 
+        r.items?.some(item => item.vendorId === activeFilters.vendorId)
+      );
+    }
+
+    // Apply cost range filter
+    if (activeFilters.costRange.min || activeFilters.costRange.max) {
+      filtered = filtered.filter(r => {
+        const cost = Number(r.totalEstimatedCost) || 0;
+        const min = activeFilters.costRange.min ? Number(activeFilters.costRange.min) : 0;
+        const max = activeFilters.costRange.max ? Number(activeFilters.costRange.max) : Infinity;
+
+        return cost >= min && cost <= max;
+      });
+    }
+
+    // Apply search query filter
+    if (activeFilters.searchQuery) {
+      const query = activeFilters.searchQuery.toLowerCase();
+      filtered = filtered.filter(r =>
+        (r.title && r.title.toLowerCase().includes(query)) ||
+        (r.description && r.description.toLowerCase().includes(query)) ||
+        (r.requestNumber && r.requestNumber.toLowerCase().includes(query)) ||
+        (r.requester?.username && r.requester.username.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply date range filter
     if (activeFilters.dateRange.from || activeFilters.dateRange.to) {
       filtered = filtered.filter(r => {
         if (!r.createdAt) return false;
         const requestDate = parseISO(r.createdAt);
 
         if (activeFilters.dateRange.from && activeFilters.dateRange.to) {
+          // Include the end date by extending it to the end of the day
+          const adjustedEndDate = new Date(activeFilters.dateRange.to);
+          adjustedEndDate.setHours(23, 59, 59, 999);
+
           return isWithinInterval(requestDate, {
             start: activeFilters.dateRange.from,
-            end: activeFilters.dateRange.to,
+            end: adjustedEndDate,
           });
         }
         if (activeFilters.dateRange.from) {
           return requestDate >= activeFilters.dateRange.from;
         }
         if (activeFilters.dateRange.to) {
-          return requestDate <= activeFilters.dateRange.to;
+          // Include the end date by extending it to the end of the day
+          const adjustedEndDate = new Date(activeFilters.dateRange.to);
+          adjustedEndDate.setHours(23, 59, 59, 999);
+
+          return requestDate <= adjustedEndDate;
         }
         return true;
       });
@@ -184,20 +246,21 @@ export default function Dashboard() {
     approved: getFilteredRequests("approved"),
     rejected: getFilteredRequests("rejected"),
     changes: getFilteredRequests("changes"),
-    approvals: getFilteredRequests("approvals")
+    approvals: getFilteredRequests("approvals"),
+    allRequests: getFilteredRequests("all-requests") // Added allRequests
   }), [getFilteredRequests]);
 
   // Request counts
   const requestCounts: RequestCounts = useMemo(() => ({
     myRequests: categorizedRequests.myRequests.length,
     draftsToSubmit: categorizedRequests.draftsToSubmit.length,
-    allRequests: safeRequests.length,
+    allRequests: categorizedRequests.allRequests.length, // Use categorizedRequests.allRequests
     pending: categorizedRequests.pending.length,
     approved: categorizedRequests.approved.length,
     rejected: categorizedRequests.rejected.length,
     changes: categorizedRequests.changes.length,
     approvals: categorizedRequests.approvals.length
-  }), [categorizedRequests, safeRequests.length]);
+  }), [categorizedRequests]);
 
   const showApprovalsTab = useMemo(() => 
     requestCounts.approvals > 0
@@ -205,8 +268,20 @@ export default function Dashboard() {
 
   // Event handlers
   const handleFilterChange = useCallback((newFilters: FilterValues) => {
+    console.log("Filter changed:", newFilters);
     setActiveFilters(newFilters);
-  }, []);
+
+    // Show toast notification for filter changes
+    toast({
+      title: "Filters Applied",
+      description: `Applied ${Object.entries(newFilters).filter(([_, value]) => 
+        Array.isArray(value) ? value.length > 0 : 
+        value && typeof value === 'object' ? Object.values(value).some(v => !!v) : 
+        !!value
+      ).length} filters`,
+      variant: "default",
+    });
+  }, [toast]);
 
   const handleExport = async (format: "xlsx" | "csv") => {
     try {
@@ -254,6 +329,14 @@ export default function Dashboard() {
   // Render methods
   const renderRequestsTable = (requests: RequestData[], showApproval: boolean = false) => {
     if (!Array.isArray(requests)) return null;
+
+    if (requests.length === 0) {
+      return (
+        <div className="py-8 text-center text-muted-foreground">
+          No requests found matching your filters
+        </div>
+      );
+    }
 
     return (
       <div className="rounded-lg border border-[#35bbba]/20 overflow-hidden shadow-sm">
@@ -514,7 +597,7 @@ export default function Dashboard() {
             {(isAdmin || isSpecialRole) && (
               <>
                 <TabsContent value="all-requests">
-                  {renderRequestsTable(safeRequests)}
+                  {renderRequestsTable(categorizedRequests.allRequests)}
                 </TabsContent>
                 <TabsContent value="pending">
                   {renderRequestsTable(categorizedRequests.pending, isAdmin)}

@@ -72,6 +72,13 @@ const PURPOSE_TYPES = [
   "BUSINESS GROWTH"
 ];
 
+const PRIORITY_OPTIONS = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" }
+];
+
 export function DashboardFilterPanel({
   onFilterChange,
   departments,
@@ -85,13 +92,26 @@ export function DashboardFilterPanel({
   const [filters, setFilters] = useState<FilterValues>(() => {
     const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
     if (savedFilters) {
-      const parsed = JSON.parse(savedFilters);
-      if (parsed.dateRange) {
-        parsed.dateRange.from = parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined;
-        parsed.dateRange.to = parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined;
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (parsed.dateRange) {
+          parsed.dateRange.from = parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined;
+          parsed.dateRange.to = parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined;
+        }
+        return parsed;
+      } catch (error) {
+        console.error("Error parsing saved filters:", error);
+        // Return default filters if parsing fails
+        return getDefaultFilters();
       }
-      return parsed;
     }
+    return getDefaultFilters();
+  });
+
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+
+  function getDefaultFilters(): FilterValues {
     return {
       status: [],
       dateRange: {
@@ -109,13 +129,18 @@ export function DashboardFilterPanel({
       },
       searchQuery: "",
     };
-  });
-
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
+  }
 
   useEffect(() => {
+    // Update localStorage whenever filters change
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+
+    // Calculate active filters when filters state changes
+    const activeFiltersList = Object.entries(filters)
+      .filter(([key, value]) => isFilterActive(value))
+      .map(([key]) => key);
+
+    setActiveFilters(activeFiltersList);
   }, [filters]);
 
   // Filter available sub-purposes based on selected purpose type
@@ -135,7 +160,7 @@ export function DashboardFilterPanel({
         return Boolean(value.min) || Boolean(value.max);
       }
     }
-    if (typeof value === "number") return value !== null;
+    if (typeof value === "number") return true;
     return Boolean(value);
   };
 
@@ -155,25 +180,36 @@ export function DashboardFilterPanel({
   );
 
   const updateFilters = (key: keyof FilterValues, value: any) => {
+    // Handle purposeType and subPurposeId relationship
     if (key === 'purposeType' && filters.subPurposeId) {
-      const newFilters = {
-        ...filters,
-        [key]: value,
-        subPurposeId: null
-      };
-      setFilters(newFilters);
-      setIsDirty(true);
-    } else {
-      const newFilters = { ...filters, [key]: value };
-      setFilters(newFilters);
-      setIsDirty(true);
+      const newPurposeTypes = Array.isArray(value) ? value : (value ? [value] : []);
+
+      // If the new purpose types don't include the current subPurpose's type, clear subPurposeId
+      if (filters.subPurposeId !== null) {
+        const currentSubPurpose = subPurposes.find(sp => sp.id === filters.subPurposeId);
+        if (currentSubPurpose && !newPurposeTypes.includes(currentSubPurpose.purposeType)) {
+          const newFilters = {
+            ...filters,
+            [key]: newPurposeTypes,
+            subPurposeId: null
+          };
+          setFilters(newFilters);
+          setIsDirty(true);
+          return;
+        }
+      }
     }
 
-    const activeFiltersList = Object.entries(filters)
-      .filter(([_, value]) => isFilterActive(value))
-      .map(([key]) => key);
+    // For single-value selects, convert to array if not already
+    if ((key === 'status' || key === 'priority' || key === 'department' || key === 'purposeType') && 
+        !Array.isArray(value) && value) {
+      value = [value];
+    }
 
-    setActiveFilters(activeFiltersList);
+    // Update the filters
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    setIsDirty(true);
   };
 
   const applyFilters = () => {
@@ -193,26 +229,13 @@ export function DashboardFilterPanel({
       : "";
 
     updateFilters(key, clearedValue);
+
+    // Apply filters immediately when clearing
+    applyFilters();
   };
 
   const clearAllFilters = () => {
-    const clearedFilters: FilterValues = {
-      status: [],
-      dateRange: {
-        from: undefined,
-        to: undefined,
-      },
-      priority: [],
-      department: [],
-      purposeType: [],
-      subPurposeId: null,
-      vendorId: null,
-      costRange: {
-        min: "",
-        max: "",
-      },
-      searchQuery: "",
-    };
+    const clearedFilters = getDefaultFilters();
     setFilters(clearedFilters);
     onFilterChange(clearedFilters);
     setActiveFilters([]);
@@ -318,6 +341,28 @@ export function DashboardFilterPanel({
                   </SelectTrigger>
                   <SelectContent>
                     {STATUS_OPTIONS.map(({value, label}) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Priority Filter */}
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={filters.priority[0] || ""}
+                  onValueChange={(value) =>
+                    updateFilters("priority", value ? [value] : [])
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map(({value, label}) => (
                       <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
