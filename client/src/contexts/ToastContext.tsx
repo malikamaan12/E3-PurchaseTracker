@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useRef, useCallback } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import React, { createContext, useContext, useCallback } from 'react';
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, Loader2 } from "lucide-react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
@@ -18,13 +18,8 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-// Keep track of active toasts to prevent duplicates
-const activeToasts = new Map<string, number>();
-const TOAST_DEBOUNCE_TIME = 3000; // 3 seconds
-
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
-  const toastTimeoutRef = useRef<NodeJS.Timeout>();
 
   const showToast = useCallback(({ 
     title, 
@@ -39,21 +34,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     duration?: number;
     action?: ToastActionElement;
   }) => {
-    // Create a unique key for this toast
-    const toastKey = `${variant}-${title}-${description}`;
-    const now = Date.now();
-
-    // Check if we've shown this toast recently
-    const lastShown = activeToasts.get(toastKey);
-    if (lastShown && (now - lastShown) < TOAST_DEBOUNCE_TIME) {
-      return; // Skip showing duplicate toast
-    }
-
-    // Clear any pending toast timeouts
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
-
     const icons: Record<ToastVariant, React.ReactNode> = {
       success: <CheckCircle2 className="h-5 w-5 text-green-500" />,
       error: <AlertCircle className="h-5 w-5 text-destructive" />,
@@ -73,33 +53,27 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     // Convert our variant to shadcn/ui toast variant
     const toastVariant: ToastProps['variant'] = variant === 'error' ? 'destructive' : 'default';
 
-    // Show the toast with a small delay to prevent overlapping animations
-    toastTimeoutRef.current = setTimeout(() => {
-      toast({
-        variant: toastVariant,
-        title,
-        description,
-        duration: variant === 'error' ? 7000 : duration,
-        className: cn(
-          "flex gap-3 border-2",
-          styles[variant],
-          {
-            'animate-in slide-in-from-top-full': true,
-          }
-        ),
-        icon: icons[variant],
-        action
-      });
+    // Add debugging
+    console.log('[ToastContext] Showing toast:', { title, description, variant, duration });
 
-      // Update the last shown time
-      activeToasts.set(toastKey, now);
+    const result = toast({
+      variant: toastVariant,
+      title,
+      description,
+      duration: variant === 'error' ? 7000 : duration,
+      className: cn(
+        "flex gap-3 border-2",
+        styles[variant],
+        {
+          'animate-in slide-in-from-top-full': true,
+        }
+      ),
+      icon: icons[variant],
+      action
+    });
 
-      // Clean up after debounce period
-      setTimeout(() => {
-        activeToasts.delete(toastKey);
-      }, TOAST_DEBOUNCE_TIME);
-    }, 50);
-
+    console.log('[ToastContext] Toast result:', result);
+    return result;
   }, [toast]);
 
   return (

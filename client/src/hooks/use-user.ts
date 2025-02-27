@@ -24,7 +24,8 @@ async function handleRequest(
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorData = await response.json().catch(() => null);
+      const errorText = errorData?.message || await response.text();
       return { ok: false, message: errorText };
     }
 
@@ -66,15 +67,28 @@ export function useUser() {
     onSuccess: (data) => {
       if (data.ok && data.user) {
         queryClient.setQueryData(['user'], data.user);
+
+        // Explicitly show a success toast
         toast({
-          title: "Success",
-          description: "Logged in successfully",
+          title: "Login Successful",
+          description: "Welcome back!",
+          variant: "default",
+        });
+      } else if (!data.ok) {
+        // Show error toast for failed login even on "success" path
+        toast({
+          title: "Login Failed",
+          description: data.message || "Invalid username or password",
+          variant: "destructive",
         });
       }
     },
     onError: (error: any) => {
+      console.error("Login error:", error);
+
+      // Explicitly show an error toast
       toast({
-        title: "Error",
+        title: "Authentication Error",
         description: error.message || "Failed to log in",
         variant: "destructive",
       });
@@ -85,14 +99,18 @@ export function useUser() {
     mutationFn: () => handleRequest('/api/auth/logout', 'POST'),
     onSuccess: () => {
       queryClient.setQueryData(['user'], null);
+
+      // Show logout success toast
       toast({
-        title: "Success",
-        description: "Logged out successfully",
+        title: "Logged Out",
+        description: "You have been successfully logged out",
+        variant: "default",
       });
     },
     onError: (error: any) => {
+      // Show logout error toast
       toast({
-        title: "Error",
+        title: "Logout Failed",
         description: error.message || "Failed to log out",
         variant: "destructive",
       });

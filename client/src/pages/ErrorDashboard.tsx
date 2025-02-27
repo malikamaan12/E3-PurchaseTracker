@@ -30,6 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { ErrorPredictionDisplay } from "@/components/ErrorPredictionDisplay";
+import { useToast } from "@/hooks/use-toast";
 
 const SEVERITY_COLORS = {
   critical: "#ef4444",
@@ -72,9 +74,23 @@ interface ErrorAnalytics {
 
 export default function ErrorDashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>("7d");
+  const { toast } = useToast();
 
   const { data: analytics, isLoading, error } = useQuery<ErrorAnalytics>({
     queryKey: ["/api/analytics/errors", { range: timeRange }],
+    onSuccess: () => {
+      toast({
+        description: `Error analytics loaded for ${timeRange} time range`,
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to load error analytics",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
   if (isLoading) {
@@ -88,9 +104,25 @@ export default function ErrorDashboard() {
   if (error || !analytics) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">
-          {error?.message || "No error data available"}
-        </p>
+        <div className="space-y-4 max-w-lg">
+          <p className="text-muted-foreground text-center">
+            {error?.message || "No error data available"}
+          </p>
+          <ErrorPredictionDisplay
+            context="Error Dashboard"
+            error={error instanceof Error ? error : null}
+            predictions={[
+              "API endpoint might be temporarily unavailable",
+              "Data format might have changed",
+              "Authentication might have expired"
+            ]}
+            suggestions={[
+              "Try refreshing the page",
+              "Check your network connection",
+              "Contact system administrator if the issue persists"
+            ]}
+          />
+        </div>
       </div>
     );
   }
@@ -268,8 +300,29 @@ export default function ErrorDashboard() {
                           </ul>
                         </div>
                       )}
+                      {error.aiAnalysis.preventiveMeasures?.length > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium">Preventive Measures:</span>
+                          <ul className="list-disc list-inside mt-1">
+                            {error.aiAnalysis.preventiveMeasures.map((measure, i) => (
+                              <li key={i}>{measure}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
+                  <ErrorPredictionDisplay
+                    context={`Error ID: ${error.id}`}
+                    predictions={[
+                      "This error may reoccur under similar conditions",
+                      error.severity === "critical" ? "System stability might be affected" : null,
+                    ].filter(Boolean) as string[]}
+                    suggestions={[
+                      "Apply recommended preventive measures",
+                      "Monitor system for similar patterns",
+                    ]}
+                  />
                 </div>
               );
             })}

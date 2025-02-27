@@ -136,6 +136,8 @@ async function initializeServer() {
           error: true,
           message: appError.message,
           severity: appError.severity,
+          predictions: appError.predictions || [],  // Include predictions
+          suggestions: appError.suggestions || [],  // Include suggestions
           details: app.get('env') === 'development' ? {
             stack: appError.stack,
             ...appError.details

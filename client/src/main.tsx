@@ -7,6 +7,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import App from './App';
 import "./index.css";
 
+// Ensure toast notifications work properly by setting up providers correctly
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

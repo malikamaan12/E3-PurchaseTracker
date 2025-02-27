@@ -12,6 +12,7 @@ import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import { NotFound } from "@/components/NotFound";
+import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -38,6 +39,7 @@ function App() {
       <Route path="/requests/:id" component={ViewRequest} />
       <Route path="/requests/:id/edit" component={EditRequest} />
       <Route path="/department-dashboard" component={DepartmentDashboard} />
+      <Route path="/error-predictions" component={ErrorPredictionDashboard} />
 
       {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
@@ -47,6 +49,7 @@ function App() {
           <Route path="/admin/account-requests" component={AdminPanel} />
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
+          <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
         </>
       )}
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { enhanceErrorContext } from './error-analyzer';
+import { enhanceErrorWithPredictions } from './error-predictor';
 
 export type ErrorSeverity = 'critical' | 'error' | 'warning' | 'info';
 
@@ -10,6 +11,8 @@ export interface ErrorContext {
   code?: string;
   path?: string;
   timestamp?: Date;
+  predictions?: string[];
+  suggestions?: string[];
 }
 
 export class AppError extends Error {
@@ -19,6 +22,8 @@ export class AppError extends Error {
   public details?: Record<string, unknown>;
   public code?: string;
   public timestamp: Date;
+  public predictions?: string[];
+  public suggestions?: string[];
 
   constructor(message: string, status: number = 500, severity: ErrorSeverity = 'error') {
     super(message);
@@ -36,17 +41,30 @@ export class AppError extends Error {
       severity: this.severity,
       details: this.details,
       code: this.code,
-      timestamp: this.timestamp
+      timestamp: this.timestamp,
+      predictions: this.predictions,
+      suggestions: this.suggestions
     };
   }
 
-  public async withAnalysis(): Promise<ErrorContext> {
+  public async withAnalysis(context: string = 'application'): Promise<ErrorContext> {
     try {
+      // First do the standard analysis
       const enhancedContext = await enhanceErrorContext(this);
+
+      // Then add the AI-powered predictions and suggestions
+      const { error: enhancedError, predictions, suggestions } = 
+        await enhanceErrorWithPredictions(this, context);
+
+      // Merge both enhancements
       this.details = {
         ...this.details,
-        aiAnalysis: enhancedContext.details
+        aiAnalysis: enhancedContext.details,
       };
+
+      this.predictions = predictions;
+      this.suggestions = suggestions;
+
       return this.toJSON();
     } catch (analysisError) {
       console.error('Error analysis failed:', analysisError);
@@ -129,10 +147,11 @@ export async function handleError(err: unknown): Promise<AppError> {
     stack: error.stack
   });
 
-  // Enhance error with AI analysis for 500-level errors
-  if (error.status >= 500) {
+  // Enhance error with AI analysis and predictions
+  if (error.status >= 400) {
     try {
-      await error.withAnalysis();
+      const context = error.code ? error.code.toLowerCase() : 'application';
+      await error.withAnalysis(context);
     } catch (analysisError) {
       console.error('Failed to enhance error with AI analysis:', analysisError);
     }

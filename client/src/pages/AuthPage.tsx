@@ -40,31 +40,19 @@ export default function AuthPage() {
     try {
       setIsLoading(true);
 
-      // Show an initial toast notification
-      toast({
+      // Show temporary loading toast
+      const loadingToast = toast({
         description: "Logging in...",
         variant: "default",
       });
 
-      const result = await login(data);
+      // The login function in useUser will handle success/error toasts
+      await login(data);
 
-      if (!result.ok) {
-        // Clear the loading toast and show error
-        toast({
-          title: "Login Failed",
-          description: result.message || "Invalid username or password. Please try again.",
-          variant: "destructive",
-        });
-      } else {
-        // Success toast
-        toast({
-          title: "Welcome",
-          description: "Login successful!",
-          variant: "success",
-        });
-      }
     } catch (error: any) {
       console.error("Auth error:", error);
+
+      // Only show this toast if the error wasn't caught by the login mutation
       toast({
         title: "Authentication Error",
         description: error.message || "An unexpected error occurred. Please try again.",

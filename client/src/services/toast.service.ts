@@ -3,7 +3,7 @@ import { useToastContext } from "@/contexts/ToastContext";
 type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'loading';
 
 interface ToastOptions {
-  title: string;
+  title?: string;
   description: string;
   variant?: ToastVariant;
   duration?: number;
@@ -44,16 +44,20 @@ class ToastService {
       console.warn('Toast service not initialized');
       return;
     }
+
+    // Add debug logging to trace toast calls
+    console.log('Showing toast:', options);
+
     this.showToast(options);
   }
 }
 
 export const useToastService = () => {
   const { showToast } = useToastContext();
-  
+
   // Initialize the toast service with the context's showToast function
   ToastService.initialize(showToast);
-  
+
   return ToastService;
 };
 

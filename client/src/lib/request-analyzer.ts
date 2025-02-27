@@ -17,11 +17,12 @@ export async function analyzePurchaseRequest(request: PurchaseRequestWithRelatio
       suggestions.push('Prepare detailed justification documentation');
     }
 
-    if (request.items?.length === 0) {
+    if (!request.items || request.items.length === 0) {
       warnings.push('Request contains no items');
       suggestions.push('Add at least one item to the request');
     }
 
+    // Check for purpose - using optional chaining to prevent errors
     if (!request.purpose) {
       warnings.push('Purpose not specified');
       suggestions.push('Add a clear purpose description');
@@ -52,6 +53,18 @@ export async function analyzePurchaseRequest(request: PurchaseRequestWithRelatio
       suggestions.push('Consider submitting during business hours for faster processing');
     }
 
+    // Add missing approvals suggestions
+    if (request.requiredApprovals?.length > 0 && request.approvals) {
+      const pendingApprovals = request.requiredApprovals.filter(
+        dept => !request.approvals?.some(a => a.department === dept)
+      );
+
+      if (pendingApprovals.length > 0) {
+        warnings.push(`Waiting on approvals from: ${pendingApprovals.join(', ')}`);
+        suggestions.push('Follow up with pending approval departments');
+      }
+    }
+
     return {
       priority,
       score,
@@ -69,4 +82,64 @@ export async function analyzePurchaseRequest(request: PurchaseRequestWithRelatio
       reason: 'Unable to analyze - using default priority'
     };
   }
+}
+
+// Function to predict potential errors based on user input or system state
+export function predictPotentialErrors(context: string, currentState: any): string[] {
+  const predictions: string[] = [];
+
+  // Analyze context and current state to predict potential errors
+  if (context === 'purchase-request') {
+    if (!currentState.items || currentState.items.length === 0) {
+      predictions.push('Request might be rejected due to missing items');
+    }
+
+    if (!currentState.purpose) {
+      predictions.push('Purpose is required for request approval');
+    }
+
+    if (Number(currentState.totalEstimatedCost) > 10000 && !currentState.justification) {
+      predictions.push('High-value requests require justification documentation');
+    }
+  } else if (context === 'approval-process') {
+    if (!currentState.comments && currentState.status === 'rejected') {
+      predictions.push('Comments are typically required when rejecting requests');
+    }
+
+    if (currentState.status === 'changes_requested' && !currentState.comments) {
+      predictions.push('Specific change requests should be detailed in comments');
+    }
+  }
+
+  return predictions;
+}
+
+// Function to generate suggestions based on current state
+export function generateSmartSuggestions(context: string, currentState: any): string[] {
+  const suggestions: string[] = [];
+
+  if (context === 'purchase-request') {
+    // Time-based suggestions
+    const currentHour = new Date().getHours();
+    const currentDay = new Date().getDay();
+
+    if (currentHour > 16) {
+      suggestions.push('Consider submitting during business hours for faster processing');
+    }
+
+    if (currentDay === 5) { // Friday
+      suggestions.push('Requests submitted on Friday may not be processed until Monday');
+    }
+
+    // Content-based suggestions
+    if (currentState.items?.length > 0 && currentState.items.length < 3) {
+      suggestions.push('Consider bundling related items to reduce approval complexity');
+    }
+
+    if (Number(currentState.totalEstimatedCost) > 1000) {
+      suggestions.push('Attach quotes from multiple vendors for cost comparison');
+    }
+  }
+
+  return suggestions;
 }
