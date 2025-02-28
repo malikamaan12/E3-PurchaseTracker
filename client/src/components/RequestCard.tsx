@@ -111,6 +111,7 @@ interface PurchaseRequestWithRelations {
   priorityReason?: string;
   priorityScore?: number;
   priorityRecommendations?: string[];
+  additionalApprovers?: string[]; // Ensure additionalApprovers is defined in the interface
   vendor?: {
     name?: string;
     vendorName?: string;
@@ -713,8 +714,10 @@ export default function RequestCard({
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
 
-                {/* Approval Flow - only on details tab */}
-                <ApprovalFlow request={request} />
+                {/* Approval Flow - ONLY on details tab */}
+                {(showApproval || request.status !== 'draft') && (
+                  <ApprovalFlow request={request} />
+                )}
 
                 {analysis.warnings.length > 0 || analysis.suggestions.length > 0 ? (
                   <div className="mt-6">
@@ -919,8 +922,8 @@ export default function RequestCard({
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700"
                       onClick={() => handleDelete(request.id)}
+                      className="bg-red-600 hover:bg-red-700"
                     >
                       Delete
                     </AlertDialogAction>
@@ -930,14 +933,16 @@ export default function RequestCard({
 
               <Button
                 variant="outline"
+                className="bg-blue-50 text-blue-600 hover:bg-blue-100"
                 onClick={handleDownloadPDF}
               >
-                <FileText className="h-4 w-4 mr-2" /> Download PDF
+                <FileText className="h-4 w-4 mr2" /> Download PDF
               </Button>
 
               <Button
                 onClick={handleEdit}
                 className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+                disabled={!(!request.isLocked && (request.status === "draft" || request.status === "changes_requested") && request.requesterId === user?.id)}
               >
                 <Pencil className="h-4 w-4 mr-2" /> Edit
               </Button>
@@ -946,6 +951,7 @@ export default function RequestCard({
         </CardContent>
       </Card>
 
+      {/* File Preview Dialog */}
       {selectedPreviewFile && (
         <FilePreviewDialog
           file={selectedPreviewFile}

@@ -625,7 +625,7 @@ export default function PurchaseRequestForm({
               />
             </div>
 
-            {/* Approval Flow - only on details tab */}
+            {/* Approval Flow - ONLY on details tab */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
@@ -815,7 +815,7 @@ export default function PurchaseRequestForm({
               ))}
             </div>
 
-            {/* Freight amount only on items tab */}
+            {/* Freight amount ONLY on items tab */}
             <div className="pt-4 border-t">
               <FormField
                 control={form.control}
