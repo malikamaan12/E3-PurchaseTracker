@@ -245,7 +245,7 @@ export default function RequestCard({
       toast({
         title: "Success",
         description: `File "${filename}" downloaded successfully`,
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -271,7 +271,7 @@ export default function RequestCard({
       toast({
         title: "Request Submitted",
         description: "Your request has been submitted for approval",
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error("Error submitting draft:", error);
@@ -324,7 +324,7 @@ export default function RequestCard({
       toast({
         title: "Success",
         description: "PDF downloaded successfully",
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -384,7 +384,7 @@ export default function RequestCard({
       toast({
         title: "Success",
         description: statusMessages[status],
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error('Error in handleApproval:', error);
@@ -408,7 +408,7 @@ export default function RequestCard({
       toast({
         title: "Success",
         description: "Request deleted successfully",
-        variant: "success"
+        variant: "default"
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
@@ -666,6 +666,14 @@ export default function RequestCard({
           <Tabs defaultValue="details" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="items">
+                Items
+                {request.items && request.items.length > 0 && (
+                  <span className="ml-2 bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs">
+                    {request.items.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="documents">
                 Documents
                 {request.attachments && request.attachments.length > 0 && (
@@ -688,99 +696,6 @@ export default function RequestCard({
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">Items</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDetails(!showDetails)}
-                      className="text-gray-500"
-                    >
-                      {showDetails ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-
-                  <AnimatePresence>
-                    {showDetails && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-1/4">Item</TableHead>
-                                {showItemDescriptions && <TableHead className="w-2/5">Description</TableHead>}
-                                <TableHead className="w-1/6">Quantity</TableHead>
-                                <TableHead className="w-1/6">Unit Cost</TableHead>
-                                <TableHead className="w-1/6">Total</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {items.map((item, index) => (
-                                <TableRow key={index}>
-                                  <TableCell className="font-medium">{item.name}</TableCell>
-                                  {showItemDescriptions && (
-                                    <TableCell>
-                                      {item.description ? (
-                                        <div className="bg-gray-50 p-2 rounded-md">
-                                          <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                                            {item.description}
-                                          </p>
-                                        </div>
-                                      ) : (
-                                        <p className="text-sm text-gray-400 italic">No description provided</p>
-                                      )}
-                                    </TableCell>
-                                  )}
-                                  <TableCell>{item.quantity}</TableCell>
-                                  <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
-                                  <TableCell>
-                                    {formatCurrency(item.quantity * item.estimatedCost)}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                              <TableRow>
-                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
-                                  Items Total
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {formatCurrency(itemsTotal)}
-                                </TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
-                                  Freight Amount
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {formatCurrency(freightAmount)}
-                                </TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
-                                  Total Estimated Cost
-                                </TableCell>
-                                <TableCell className="font-bold">
-                                  {formatCurrency(totalCost)}
-                                </TableCell>
-                              </TableRow>
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
                     <h4 className="font-medium text-gray-900">Purpose</h4>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="capitalize">
@@ -797,6 +712,10 @@ export default function RequestCard({
                 </div>
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
+
+                {/* Approval Flow - only on details tab */}
+                <ApprovalFlow request={request} />
+
                 {analysis.warnings.length > 0 || analysis.suggestions.length > 0 ? (
                   <div className="mt-6">
                     <ErrorPredictionDisplay
@@ -806,6 +725,73 @@ export default function RequestCard({
                     />
                   </div>
                 ) : null}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="items" className="focus:outline-none">
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-1/4">Item</TableHead>
+                        {showItemDescriptions && <TableHead className="w-2/5">Description</TableHead>}
+                        <TableHead className="w-1/6">Quantity</TableHead>
+                        <TableHead className="w-1/6">Unit Cost</TableHead>
+                        <TableHead className="w-1/6">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          {showItemDescriptions && (
+                            <TableCell>
+                              {item.description ? (
+                                <div className="bg-gray-50 p-2 rounded-md">
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                    {item.description}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-400 italic">No description provided</p>
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{formatCurrency(item.estimatedCost)}</TableCell>
+                          <TableCell>
+                            {formatCurrency(item.quantity * item.estimatedCost)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                          Items Total
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(itemsTotal)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                          Freight Amount
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(freightAmount)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
+                          Total Estimated Cost
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          {formatCurrency(totalCost)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </TabsContent>
 
@@ -914,74 +900,56 @@ export default function RequestCard({
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
-            {showActions && request.status === "draft" && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleEdit}
-                  title="Edit Request"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-red-600 hover:text-red-700"
-                      title="Delete Request"
+          {showActions && (
+            <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="bg-red-50 text-red-600 hover:bg-red-100">
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the
+                      purchase request "{request.title}" and all its data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => handleDelete(request.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Purchase Request</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this purchase request? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => {
-                          if (request.id) {
-                            handleDelete(request.id);
-                          } else {
-                            toast({
-                              title: "Error",
-                              description: "Invalid request ID",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              onClick={handleDownloadPDF}
-              className="text-[#7156a2] hover:text-[#7156a2]/80 hover:bg-[#7156a2]/10 w-full sm:w-auto"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Download as PDF
-            </Button>
-          </div>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <Button
+                variant="outline"
+                onClick={handleDownloadPDF}
+              >
+                <FileText className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
+
+              <Button
+                onClick={handleEdit}
+                className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+              >
+                <Pencil className="h-4 w-4 mr-2" /> Edit
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {selectedPreviewFile && (
         <FilePreviewDialog
           file={selectedPreviewFile}
+          isOpen={!!selectedPreviewFile}
           onClose={() => setSelectedPreviewFile(null)}
         />
       )}

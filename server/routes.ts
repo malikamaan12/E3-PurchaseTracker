@@ -249,6 +249,129 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add GET endpoint for fetching a single purchase request
+  app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      debug(req, `Fetching purchase request with ID: ${requestId}`);
+
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      // Get the purchase request
+      const [purchaseRequest] = await db
+        .select({
+          id: purchaseRequests.id,
+          title: purchaseRequests.title,
+          description: purchaseRequests.description,
+          requestNumber: purchaseRequests.requestNumber,
+          status: purchaseRequests.status,
+          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+          freightAmount: purchaseRequests.freightAmount,
+          currency: purchaseRequests.currency,
+          items: purchaseRequests.items,
+          requesterId: purchaseRequests.requesterId,
+          vendorId: purchaseRequests.vendorId,
+          purposeType: purchaseRequests.purposeType,
+          subPurposeId: purchaseRequests.subPurposeId,
+          justification: purchaseRequests.justification,
+          priority: purchaseRequests.priority,
+          isLocked: purchaseRequests.isLocked,
+          createdAt: purchaseRequests.createdAt,
+          updatedAt: purchaseRequests.updatedAt,
+          additionalApprovers: purchaseRequests.additionalApprovers, // Include additionalApprovers
+        })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+
+      if (!purchaseRequest) {
+        throw new AppError('Purchase request not found', 404);
+      }
+
+      // Get attachments
+      const attachmentList = await db
+        .select()
+        .from(fileAttachments)
+        .where(eq(fileAttachments.requestId, requestId));
+
+      // Get approvals
+      const approvalList = await db
+        .select({
+          id: approvals.id,
+          requestId: approvals.requestId,
+          approverId: approvals.approverId,
+          status: approvals.status,
+          comments: approvals.comments,
+          department: approvals.department,
+          createdAt: approvals.createdAt,
+          updatedAt: approvals.updatedAt,
+        })
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId));
+
+      // Parse items JSON
+      const parsedItems = purchaseRequest.items ? JSON.parse(purchaseRequest.items as string) : [];
+
+      // Enhance response with requester details
+      const [requester] = purchaseRequest.requesterId
+        ? await db
+            .select({
+              id: users.id,
+              username: users.username,
+              email: users.email,
+              department: users.department,
+              role: users.role,
+            })
+            .from(users)
+            .where(eq(users.id, purchaseRequest.requesterId))
+            .limit(1)
+        : [null];
+
+      // Enhance response with vendor details
+      const [vendor] = purchaseRequest.vendorId
+        ? await db
+            .select()
+            .from(vendors)
+            .where(eq(vendors.id, purchaseRequest.vendorId))
+            .limit(1)
+        : [null];
+
+      // Get the sub-purpose if specified
+      const [subPurpose] = purchaseRequest.subPurposeId
+        ? await db
+            .select()
+            .from(subPurposes)
+            .where(eq(subPurposes.id, purchaseRequest.subPurposeId))
+            .limit(1)
+        : [null];
+
+      // Prepare the response
+      const enhancedRequest = {
+        ...purchaseRequest,
+        items: parsedItems,
+        attachments: attachmentList,
+        approvals: approvalList,
+        requester,
+        vendor,
+        subPurpose,
+        // Ensure additionalApprovers is included
+        additionalApprovers: purchaseRequest.additionalApprovers || []
+      };
+
+      debug(req, `Successfully fetched request with additionalApprovers: ${JSON.stringify(purchaseRequest.additionalApprovers || [])}`);
+      res.json(enhancedRequest);
+    } catch (error) {
+      debug(req, 'Error fetching purchase request:', error);
+      next(error);
+    }
+  });
+
   // Put this at the very beginning of the routes file, before other routes
   app.get("/api/health", (_req, res) => {
     res.json({ status: 'ok' });
@@ -488,6 +611,11 @@ export function registerRoutes(app: Express): Server {
       // Ensure items is an array before stringifying
       const items = Array.isArray(requestData.items) ? requestData.items : [];
 
+      // Handle additionalApprovers field if present
+      const additionalApprovers = Array.isArray(requestData.additionalApprovers) 
+        ? requestData.additionalApprovers 
+        : [];
+
       // Prepare request data
       let finalRequestData = {
         ...requestData,
@@ -497,7 +625,9 @@ export function registerRoutes(app: Express): Server {
         createdAt: new Date(),
         updatedAt: new Date(),
         // Properly stringify the items array
-        items: JSON.stringify(items)
+        items: JSON.stringify(items),
+        // Ensure additionalApprovers is saved
+        additionalApprovers: additionalApprovers
       };
 
       // If saving as draft, make sure required fields are not enforced
@@ -513,7 +643,8 @@ export function registerRoutes(app: Express): Server {
         // Validate required fields for submissions
         const validationResult = insertPurchaseRequestSchema.safeParse({
           ...requestData,
-          items: items // Pass the original array for validation
+          items: items, // Pass the original array for validation
+          additionalApprovers: additionalApprovers // Pass the additional approvers
         });
 
         if (!validationResult.success) {
@@ -864,16 +995,53 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
+      // Properly handle additionalApprovers in the update
+      let finalUpdateData = { ...updateData };
+      
+      // If there are items, convert to string for storage
+      if (updateData.items && Array.isArray(updateData.items)) {
+        finalUpdateData.items = JSON.stringify(updateData.items);
+      }
+
+      // Make sure additionalApprovers is an array
+      if (updateData.additionalApprovers !== undefined) {
+        finalUpdateData.additionalApprovers = Array.isArray(updateData.additionalApprovers) 
+          ? updateData.additionalApprovers 
+          : [];
+      }
+
       // Update the request with proper validation
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
-          ...updateData,
+          ...finalUpdateData,
           updatedAt: new Date()
         })
         .where(eq(purchaseRequests.id, requestId))
         .returning();
 
+      // If transitioning to pending, create notification for approvers
+      if (updateData.status === 'pending') {
+        const approvers = await db
+          .select()
+          .from(users)
+          .where(and(
+            eq(users.role, 'approver'),
+            eq(users.isActive, true)
+          ));
+
+        await Promise.all(approvers.map(approver =>
+          createNotification(
+            approver.id,
+            'New Purchase Request',
+            `A new purchase request "${updatedRequest.title}" requires your approval`,
+            'request',
+            updatedRequest.id
+          )
+        ));
+      }
+
+      debug(req, 'Request updated successfully:', updatedRequest);
       // If transitioning to pending, create notification for approvers
       if (updateData.status === 'pending') {
         const approvers = await db

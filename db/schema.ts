@@ -114,7 +114,7 @@ export const approvalAuditLogs = pgTable("approval_audit_logs", {
   id: serial("id").primaryKey(),
   approvalId: integer("approval_id").notNull().references(() => approvals.id),
   userId: integer("user_id").notNull().references(() => users.id),
-  action: text("action").notNull(), 
+  action: text("action").notNull(),
   previousStatus: text("previous_status"),
   newStatus: text("new_status").notNull(),
   comments: text("comments"),
@@ -441,6 +441,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priorityScore: z.number().optional(),
   priorityReason: z.string().optional(),
   priorityRecommendations: z.array(z.string()).optional(),
+  additionalApprovers: z.array(z.string()).optional().default([]),
 });
 
 export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
@@ -562,8 +563,8 @@ export type MandatoryDepartment = typeof mandatoryDepartments[number];
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  category: text("category").notNull(), 
-  type: text("type").notNull(), 
+  category: text("category").notNull(),
+  type: text("type").notNull(),
   enabled: boolean("enabled").notNull().default(true),
   inAppEnabled: boolean("in_app_enabled").notNull().default(true),
   emailEnabled: boolean("email_enabled").notNull().default(false),

@@ -63,6 +63,7 @@ export default function PurchaseRequestForm({
   const [isRecovering, setIsRecovering] = useState(false);
   const [showAddVendor, setShowAddVendor] = useState2(false);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -121,13 +122,7 @@ export default function PurchaseRequestForm({
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Success",
-        description: "Request submitted successfully",
-        variant: "default",
-        duration: 3000,
-      });
-
+      // Toast notification moved to handleSubmitRequest to avoid duplicates
       navigate('/');
     },
     onError: async (error: Error) => {
@@ -274,6 +269,8 @@ export default function PurchaseRequestForm({
 
   const handleSubmitRequest = async (data: z.infer<typeof insertPurchaseRequestSchema>, draft: boolean = false) => {
     try {
+      if (isSubmitting) return; // Prevent multiple submissions
+      setIsSubmitting(true);
       console.log('Form data before submission:', data);
 
       // Basic validation
@@ -296,6 +293,7 @@ export default function PurchaseRequestForm({
               variant: "destructive"
             });
           });
+          setIsSubmitting(false);
           return;
         }
       }
@@ -318,6 +316,7 @@ export default function PurchaseRequestForm({
             description: "Failed to upload files. Please try again.",
             variant: "destructive"
           });
+          setIsSubmitting(false);
           return;
         }
       }
@@ -346,6 +345,7 @@ export default function PurchaseRequestForm({
       const response = await submitMutation.mutateAsync(requestData);
 
       if (response) {
+        // Single toast notification for success - consolidated here
         toast({
           title: "Success",
           description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
@@ -363,6 +363,8 @@ export default function PurchaseRequestForm({
         description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -622,6 +624,66 @@ export default function PurchaseRequestForm({
                 )}
               />
             </div>
+
+            {/* Approval Flow - only on details tab */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
+                  <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                  Approval Flow
+                </h2>
+              </div>
+
+              <Card className="border-[#35bbba]/20 shadow-sm hover:shadow-md transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {['CEO Office', 'Finance', 'Director'].map((dept) => (
+                        <Badge
+                          key={dept}
+                          variant="secondary"
+                          className="bg-[#7058a3]/10 text-[#7058a3] flex items-center"
+                        >
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          {dept}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      These departments must approve your request
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-[#7058a3] mb-2">Additional Approvers</h3>
+                    <FormField
+                      control={form.control}
+                      name="additionalApprovers"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <DepartmentSelect
+                              label=""
+                              onChange={(departments: string[]) => {
+                                field.onChange(departments);
+                                setSelectedDepartments(departments);
+                              }}
+                              value={field.value || []}
+                              multiple={true}
+                              excludeDepartments={['CEO Office', 'Finance', 'Director']}
+                              name="additionalApprovers"
+                              id="additionalApprovers"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="items" className="space-y-4">
@@ -752,6 +814,45 @@ export default function PurchaseRequestForm({
                 </div>
               ))}
             </div>
+
+            {/* Freight amount only on items tab */}
+            <div className="pt-4 border-t">
+              <FormField
+                control={form.control}
+                name="freightAmount"
+                render={({ field }) => (
+                  <FormItem className="max-w-sm ml-auto">
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Freight Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Freight Amount"
+                          className="w-32"
+                          onChange={(e) => {
+                            field.onChange(Number(e.target.value));
+                            updateTotalCost();
+                          }}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="pt-4 text-right">
+                <div className="text-sm font-semibold">
+                  <span className="text-muted-foreground">Total Estimated Cost: </span>
+                  <span className="text-[#7058a2] text-xl">
+                    {form.watch('totalEstimatedCost')} {form.watch('currency')}
+                  </span>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">
@@ -818,165 +919,57 @@ export default function PurchaseRequestForm({
           </TabsContent>
         </Tabs>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-              <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
-              Approval Flow
-            </h2>
-          </div>
-
-          <Card className="border-[#35bbba]/20 shadow-sm hover:shadow-md transition-all duration-200">
-            <CardContent className="p-6">
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-[#7058a3] mb-2">Mandatory Approvers</h3>
-                <div className="flex flex-wrap gap-2">
-                  {['CEO Office', 'Finance', 'Director'].map((dept) => (
-                    <Badge
-                      key={dept}
-                      variant="secondary"
-                      className="bg-[#7058a3]/10 text-[#7058a3] flex items-center"
-                    >
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      {dept}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  These departments must approve your request
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-[#7058a3] mb-2">Additional Approvers</h3>
-                <FormField
-                  control={form.control}
-                  name="additionalApprovers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <DepartmentSelect
-                          label=""
-                          onChange={(departments: string[]) => {
-                            field.onChange(departments);
-                            setSelectedDepartments(departments);
-                          }}
-                          value={field.value || []}
-                          multiple={true}
-                          excludeDepartments={['CEO Office', 'Finance', 'Director']}
-                          name="additionalApprovers"
-                          id="additionalApprovers"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {selectedDepartments.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-[#7058a3] mb-2">Selected Additional Approvers</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedDepartments.map((dept) => (
-                      <Badge
-                        key={dept}
-                        variant="outline"
-                        className="bg-[#7058a3]/5 text-[#7058a3] border-[#7058a3]/20"
-                      >
-                        {dept}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-
-        <FormField
-          control={form.control}
-          name="freightAmount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Freight Amount</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Enter freight amount"
-                  onChange={(e) => {
-                    field.onChange(Number(e.target.value));
-                    updateTotalCost();
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="pt-4 border-t">
-          <p className="text-lg font-semibold">
-            Total Estimated Cost:{" "}
-            <span className="text-green-600">
-              {form.watch("currency")} {form.watch("totalEstimatedCost").toFixed(2)}
-            </span>
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-4 mt-8">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={submitMutation.isPending || uploadMutation.isPending}
-            >
-              Cancel
-            </Button>
-          )}
+        <div className="flex justify-between items-center pt-6 border-t mt-6">
           <Button
             type="button"
             variant="outline"
-            onClick={() => form.handleSubmit((data) => handleSubmitRequest(data, true))()}
-            disabled={submitMutation.isPending || uploadMutation.isPending}
+            onClick={onCancel}
           >
-            {submitMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Save as Draft'
-            )}
+            Cancel
           </Button>
-          <Button
-            type="submit"
-            disabled={submitMutation.isPending || uploadMutation.isPending}
-          >
-            {submitMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Submit Request'
-            )}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleSubmitRequest(form.getValues(), true)}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Save as Draft
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white"
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Submit Request
+            </Button>
+          </div>
         </div>
-
-        <VendorDialog
-          isOpen={showAddVendor}
-          onClose={() => setShowAddVendor(false)}
-          onVendorCreated={(newVendor) => {
-            form.setValue("vendorId", newVendor.id);
-            onVendorCreated?.();
-            setShowAddVendor(false);
-          }}
-        />
       </form>
 
-      {showPreview && previewFile && (
+      {showAddVendor && (
+        <VendorDialog
+          open={showAddVendor}
+          onOpenChange={setShowAddVendor}
+          onVendorCreated={(newVendor) => {
+            form.setValue("vendorId", newVendor.id);
+            if (onVendorCreated) {
+              onVendorCreated(newVendor);
+            }
+          }}
+        />
+      )}
+
+      {previewFile && showPreview && (
         <FilePreviewDialog
           file={previewFile}
+          isOpen={showPreview}
           onClose={() => {
             setShowPreview(false);
             setPreviewFile(null);
