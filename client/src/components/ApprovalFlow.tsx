@@ -23,6 +23,7 @@ interface ApprovalFlowProps {
     status: string;
     requesterId: number;
     title: string;
+    additionalApprovers?: string[];
     approvals?: Array<{
       id: number;
       status: string;
@@ -50,12 +51,18 @@ export default function ApprovalFlow({
   // Required departments for approval
   const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
 
+  // Additional approvers from the request
+  const additionalApprovers = request.additionalApprovers || [];
+
+  // All required approvers (mandatory + additional)
+  const allRequiredDepartments = [...requiredDepartments, ...additionalApprovers];
+
   // Cannot approve own requests
   const isOwnRequest = request.requesterId === user?.id;
 
   // Check if user's department is required and hasn't approved yet
   const canApprove = user?.department &&
-    requiredDepartments.includes(user.department) &&
+    allRequiredDepartments.includes(user.department) &&
     !isOwnRequest &&
     request.status === 'pending' &&
     !request.approvals?.some(a => a.department === user.department);
@@ -94,7 +101,7 @@ export default function ApprovalFlow({
       toast({
         title: "Success",
         description: "Your approval decision has been recorded",
-        variant: "success",
+        variant: "default",
       });
 
       onApprovalUpdate?.();
@@ -165,14 +172,15 @@ export default function ApprovalFlow({
   };
 
   // Get approval status for each department
-  const departmentStatuses = requiredDepartments.map(dept => {
+  const departmentStatuses = allRequiredDepartments.map(dept => {
     const approval = request.approvals?.find(a => a.department === dept);
     return {
       department: dept,
       status: approval?.status || 'pending',
       approver: approval?.approver?.username,
       processedAt: approval?.processedAt,
-      comments: approval?.comments
+      comments: approval?.comments,
+      isAdditional: !requiredDepartments.includes(dept)
     };
   });
 
@@ -183,7 +191,7 @@ export default function ApprovalFlow({
       </div>
 
       <div className="grid gap-4">
-        {departmentStatuses.map(({ department, status, approver, processedAt, comments }) => (
+        {departmentStatuses.map(({ department, status, approver, processedAt, comments, isAdditional }) => (
           <Card key={department} className={cn(
             "transition-colors",
             status === 'approved' ? "border-green-200 bg-green-50" :
@@ -206,8 +214,11 @@ export default function ApprovalFlow({
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{department}</p>
-                      <Badge variant="outline" className="text-xs">
-                        Required
+                      <Badge variant="outline" className={cn(
+                        "text-xs",
+                        isAdditional ? "bg-purple-100 text-purple-700 border-purple-200" : "text-gray-700"
+                      )}>
+                        {isAdditional ? "Additional" : "Required"}
                       </Badge>
                     </div>
                     {approver && (

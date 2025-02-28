@@ -10,13 +10,27 @@ import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import { type RequestData } from "@/types/requests";
 import { useQueryClient } from '@tanstack/react-query';
+import { useRequest } from "@/hooks/use-request";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 export default function ViewRequest() {
   const { id } = useParams();
-  const { requests, isLoading } = usePurchaseRequests();
+  const { toast } = useToast();
+  const { isLoading: isPurchaseRequestsLoading } = usePurchaseRequests();
+  const { data: request, isLoading: isRequestLoading } = useRequest(Number(id));
   const { user } = useUser();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+
+  const isLoading = isPurchaseRequestsLoading || isRequestLoading;
+
+  // Log request data for debugging
+  useEffect(() => {
+    if (request) {
+      console.log("Request data in ViewRequest:", request);
+    }
+  }, [request]);
 
   if (isLoading) {
     return (
@@ -25,8 +39,6 @@ export default function ViewRequest() {
       </div>
     );
   }
-
-  const request = requests?.find((r: RequestData) => r.id === Number(id));
 
   if (!request) {
     return (
@@ -46,7 +58,8 @@ export default function ViewRequest() {
     request.requesterId !== user?.id &&
     (user?.department === "CEO Office" ||
       user?.department === "Director" ||
-      user?.department === "Finance");
+      user?.department === "Finance" ||
+      (request.additionalApprovers && request.additionalApprovers.includes(user?.department || "")));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
@@ -76,17 +89,21 @@ export default function ViewRequest() {
             </CardContent>
           </Card>
 
-          {/* Single Timeline Component */}
-          <RequestTimeline request={request} />
-
-          {/* Single Approval Flow Component */}
+          {/* Only show approval flow when needed */}
           {(showApproval || request.status !== 'draft') && (
             <Card className="border-[#35bbba]/20 shadow-lg">
               <CardContent className="p-6">
                 <ApprovalFlow
                   request={request}
                   onApprovalUpdate={() => {
+                    queryClient.invalidateQueries({ queryKey: [`/api/requests/${id}`] });
                     queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+
+                    toast({
+                      title: "Approval Updated",
+                      description: "The request approval status has been updated",
+                      variant: "default"
+                    });
                   }}
                 />
               </CardContent>

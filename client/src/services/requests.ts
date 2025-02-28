@@ -29,7 +29,8 @@ export async function createRequest(data: Partial<CreateRequestData>): Promise<P
       vendorId: data.vendorId || null,
       subPurposeId: data.subPurposeId || null,
       freightAmount: data.freightAmount || 0,
-      currency: data.currency || 'QAR'
+      currency: data.currency || 'QAR',
+      additionalApprovers: data.additionalApprovers || [] // Ensure additionalApprovers is included
     };
 
     const response = await fetch("/api/requests", {
@@ -129,7 +130,8 @@ export async function updateRequest({
       vendorId: data.vendorId || null,
       subPurposeId: data.subPurposeId || null,
       freightAmount: data.freightAmount || 0,
-      currency: data.currency || 'QAR'
+      currency: data.currency || 'QAR',
+      additionalApprovers: data.additionalApprovers || [] // Ensure additionalApprovers is included
     };
 
     const response = await fetch(`/api/requests/${id}`, {
@@ -327,6 +329,7 @@ interface CreateRequestData {
   priority: string;
   freightAmount?: number;
   currency?: string;
+  additionalApprovers?: string[]; // Add additionalApprovers to the type
   attachments?: Array<{
     id: number;
     fileName: string;

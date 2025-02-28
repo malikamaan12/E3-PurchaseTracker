@@ -105,7 +105,7 @@ export function usePurchaseRequests() {
         description: isAutoApproval
           ? `Request automatically approved for ${variables.departmentId}`
           : "Approval submitted successfully",
-        variant: "success",
+        variant: "default", // Changed from success to default
         duration: 3000
       });
     },
@@ -113,7 +113,7 @@ export function usePurchaseRequests() {
       showToast({
         title: "Error",
         description: error.message || "Failed to process approval",
-        variant: "error",
+        variant: "destructive",
         duration: 7000
       });
     }

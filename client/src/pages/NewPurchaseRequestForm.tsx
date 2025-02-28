@@ -48,6 +48,7 @@ export default function NewPurchaseRequestForm() {
       toast({
         title: "Success",
         description: "Purchase request details have been downloaded",
+        variant: "default" 
       });
     } catch (error) {
       console.error('PDF generation error:', error);
@@ -60,11 +61,6 @@ export default function NewPurchaseRequestForm() {
   };
 
   const handleSubmit = (draft?: boolean) => {
-    toast({
-      title: "Success",
-      description: `Request ${draft ? "saved as draft" : "submitted"} successfully`,
-      variant: "default"
-    });
     setLocation("/");
   };
 
