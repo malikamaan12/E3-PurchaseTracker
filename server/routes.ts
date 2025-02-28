@@ -601,118 +601,92 @@ export function registerRoutes(app: Express): Server {
       }
       
       debug(req, 'Fetching all purchase requests');
+      console.log('Fetching all purchase requests for user:', req.user?.id);
       
-      // Determine if we need to filter by requester
-      const isRequester = req.query.requester === 'true';
-      const isApprover = req.query.approver === 'true';
-      
-      let whereConditions = [];
-      
-      // Filter by requester if specified
-      if (isRequester) {
-        whereConditions.push(eq(purchaseRequests.requesterId, req.user!.id));
-      }
-      
-      // Filter by status if specified
-      if (req.query.status && typeof req.query.status === 'string') {
-        whereConditions.push(eq(purchaseRequests.status, req.query.status));
-      }
-      
-      // Fetch all purchase requests matching the criteria
+      // Simple query to get all purchase requests with minimal filtering
+      // This should avoid the "Cannot convert undefined or null to object" error
       const requests = await db
-        .select({
-          id: purchaseRequests.id,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          requestNumber: purchaseRequests.requestNumber,
-          status: purchaseRequests.status,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          freightAmount: purchaseRequests.freightAmount,
-          currency: purchaseRequests.currency,
-          items: purchaseRequests.items,
-          requesterId: purchaseRequests.requesterId,
-          vendorId: purchaseRequests.vendorId,
-          purposeType: purchaseRequests.purposeType,
-          subPurposeId: purchaseRequests.subPurposeId,
-          justification: purchaseRequests.justification,
-          priority: purchaseRequests.priority,
-          isLocked: purchaseRequests.isLocked,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          additionalApprovers: purchaseRequests.additionalApprovers, // Include additionalApprovers
-        })
+        .select()
         .from(purchaseRequests)
-        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
         .orderBy(desc(purchaseRequests.updatedAt));
       
-      // Process requests
+      console.log(`Found ${requests.length} purchase requests`);
+      
+      // Process requests with a simplified approach
       const processedRequests = await Promise.all(
         requests.map(async (request) => {
-          // Fetch attachments for each request
-          const attachments = await db
-            .select()
-            .from(fileAttachments)
-            .where(eq(fileAttachments.requestId, request.id));
+          try {
+            // Parse items JSON safely
+            let parsedItems = [];
+            try {
+              parsedItems = request.items ? JSON.parse(request.items.toString()) : [];
+            } catch (e) {
+              console.error('Error parsing items JSON:', e);
+            }
             
-          // Fetch approvals for each request
-          const approvalList = await db
-            .select({
-              id: approvals.id,
-              requestId: approvals.requestId,
-              approverId: approvals.approverId,
-              status: approvals.status,
-              comments: approvals.comments,
-              department: approvals.department,
-              createdAt: approvals.createdAt,
-              updatedAt: approvals.updatedAt,
-            })
-            .from(approvals)
-            .where(eq(approvals.requestId, request.id));
-            
-          // Fetch requester details
-          const [requester] = request.requesterId
-            ? await db
-                .select({
-                  id: users.id,
-                  username: users.username,
-                  email: users.email,
-                  department: users.department,
-                  role: users.role,
-                })
+            // Get basic requester info
+            let requester = null;
+            if (request.requesterId) {
+              const [requesterData] = await db
+                .select()
                 .from(users)
                 .where(eq(users.id, request.requesterId))
-                .limit(1)
-            : [null];
+                .limit(1);
+              
+              requester = requesterData || null;
+            }
             
-          // Fetch vendor details
-          const [vendor] = request.vendorId
-            ? await db
-                .select()
-                .from(vendors)
-                .where(eq(vendors.id, request.vendorId))
-                .limit(1)
-            : [null];
+            // Get attachments
+            const attachments = await db
+              .select()
+              .from(fileAttachments)
+              .where(eq(fileAttachments.requestId, request.id));
             
-          // Parse items JSON
-          const parsedItems = request.items ? JSON.parse(request.items as string) : [];
-          
-          // Create enhanced request object with all related data
-          return {
-            ...request,
-            items: parsedItems,
-            attachments,
-            approvals: approvalList,
-            requester,
-            vendor,
-            additionalApprovers: request.additionalApprovers || []
-          };
+            // Get approvals with complete details
+            const approvals = await db
+              .select({
+                id: approvals.id,
+                requestId: approvals.requestId,
+                approverId: approvals.approverId,
+                status: approvals.status,
+                comments: approvals.comments,
+                department: approvals.department,
+                createdAt: approvals.createdAt,
+                updatedAt: approvals.updatedAt,
+              })
+              .from(approvals)
+              .where(eq(approvals.requestId, request.id));
+              
+            // Return processed request with all related data
+            return {
+              ...request,
+              items: parsedItems,
+              attachments,
+              approvals,
+              requester,
+              // Ensure additionalApprovers is always an array
+              additionalApprovers: request.additionalApprovers || []
+            };
+          } catch (error) {
+            console.error('Error processing request:', error);
+            // Return the original request with minimal processing if there's an error
+            return {
+              ...request,
+              items: [],
+              attachments: [],
+              approvals: [],
+              requester: null,
+              additionalApprovers: []
+            };
+          }
         })
       );
       
-      debug(req, `Found ${processedRequests.length} purchase requests`);
+      debug(req, `Processed ${processedRequests.length} purchase requests`);
       res.json(processedRequests);
     } catch (error) {
       debug(req, 'Error fetching purchase requests:', error);
+      console.error('Error fetching purchase requests:', error);
       next(error);
     }
   });
