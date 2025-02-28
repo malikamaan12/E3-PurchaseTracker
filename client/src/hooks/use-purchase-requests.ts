@@ -50,14 +50,18 @@ export function usePurchaseRequests() {
     queryKey: ["/api/requests"],
     queryFn: async () => {
       try {
+        console.log("Fetching all requests");
         const response = await fetch("/api/requests", {
           credentials: 'include'
         });
         if (!response.ok) {
           throw new Error(`Failed to fetch requests: ${response.status}`);
         }
-        return response.json();
+        const data = await response.json();
+        console.log("Fetched requests:", data);
+        return data;
       } catch (error) {
+        console.error("Error fetching requests:", error);
         handleError(error, {
           title: 'Error Fetching Requests',
           silent: false
@@ -160,7 +164,9 @@ export function usePurchaseRequests() {
   return {
     requests: rawRequests.map((request: any) => ({
       ...request,
-      status: getEffectiveStatus(request)
+      status: getEffectiveStatus(request),
+      // Ensure additionalApprovers is always an array
+      additionalApprovers: Array.isArray(request.additionalApprovers) ? request.additionalApprovers : []
     })),
     isLoading,
     error,
