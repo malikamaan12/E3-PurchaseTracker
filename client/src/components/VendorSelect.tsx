@@ -68,7 +68,7 @@ export default function VendorSelect({ value, onChange, onVendorCreated }: Vendo
   });
 
   const createVendor = useMutation({
-    mutationFn: async (data: NewVendor) => {
+    mutationFn: async (data: InsertVendor) => {
       const res = await fetch("/api/vendors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,7 +109,7 @@ export default function VendorSelect({ value, onChange, onVendorCreated }: Vendo
 
   const selectedVendor = vendors.find((v) => v.id === value);
 
-  const onSubmit = (data: NewVendor) => {
+  const onSubmit = (data: InsertVendor) => {
     createVendor.mutate(data);
   };
 
