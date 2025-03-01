@@ -282,7 +282,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  }, [items, freightAmount, totalCost, selectedVendor, params.id, setLocation, toast]);
+  // Removed totalCost from dependency array to prevent circular dependency
+  }, [items, freightAmount, selectedVendor, params.id, setLocation, toast]);
 
   const handleSubmit = useCallback(async (status: "draft" | "pending") => {
     try {
@@ -296,8 +297,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           toast({
             title: "Draft Validation",
             description: "Please provide at least a title, description, or one item to save as draft",
-            variant: "warning",
-            className: "animate-warning",
+            variant: "default",
+            className: "bg-yellow-50 text-yellow-900 animate-warning",
           });
           return;
         }
@@ -309,8 +310,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
             toast({
               title: "Draft Warning",
               description: "Items with names should have valid quantities. These will be saved but can't be submitted until fixed.",
-              variant: "warning",
-              className: "animate-warning",
+              variant: "default",
+              className: "bg-yellow-50 text-yellow-900 animate-warning",
             });
             // Allow to continue for drafts (just a warning)
           }
