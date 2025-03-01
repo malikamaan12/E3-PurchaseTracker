@@ -315,8 +315,22 @@ export function registerRoutes(app: Express): Server {
         .from(approvals)
         .where(eq(approvals.requestId, requestId));
 
-      // Parse items JSON
-      const parsedItems = purchaseRequest.items ? JSON.parse(purchaseRequest.items as string) : [];
+      // Parse items JSON safely
+      let parsedItems = [];
+      try {
+        // Check if items is already an array or needs to be parsed
+        if (Array.isArray(purchaseRequest.items)) {
+          parsedItems = purchaseRequest.items;
+        } else if (typeof purchaseRequest.items === 'string') {
+          parsedItems = JSON.parse(purchaseRequest.items);
+        } else if (purchaseRequest.items && typeof purchaseRequest.items === 'object') {
+          // Try to handle non-standard format
+          console.log('Items is an object, attempting to convert:', purchaseRequest.items);
+          parsedItems = Object.values(purchaseRequest.items);
+        }
+      } catch (e) {
+        console.error('Error parsing items JSON:', e);
+      }
 
       // Enhance response with requester details
       const [requester] = purchaseRequest.requesterId
@@ -619,7 +633,16 @@ export function registerRoutes(app: Express): Server {
             // Parse items JSON safely
             let parsedItems = [];
             try {
-              parsedItems = request.items ? JSON.parse(request.items.toString()) : [];
+              // Check if items is already an array or needs to be parsed
+              if (Array.isArray(request.items)) {
+                parsedItems = request.items;
+              } else if (typeof request.items === 'string') {
+                parsedItems = JSON.parse(request.items);
+              } else if (request.items && typeof request.items === 'object') {
+                // Try to handle non-standard format
+                console.log('Items is an object, attempting to convert:', request.items);
+                parsedItems = Object.values(request.items);
+              }
             } catch (e) {
               console.error('Error parsing items JSON:', e);
             }
