@@ -1082,6 +1082,10 @@ export function registerRoutes(app: Express): Server {
         if (!existingRequest.purposeType) {
           validationErrors.push('Purpose type is required');
         }
+        // Add validation for subPurposeId when purposeType is PROJECT
+        if (existingRequest.purposeType === 'PROJECT' && !existingRequest.subPurposeId) {
+          validationErrors.push('Sub-purpose is required for PROJECT type');
+        }
 
         if (validationErrors.length > 0) {
           const error = new ValidationError('Validation failed', { errors: validationErrors });

@@ -193,8 +193,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           validationErrors.push("Please select a purpose type");
         }
         
-        if (!values.subPurposeId) {
-          validationErrors.push("Please select a sub-purpose");
+        // Require sub-purpose only for PROJECT type
+        if (values.purposeType === 'PROJECT' && !values.subPurposeId) {
+          validationErrors.push("Please select a sub-purpose for PROJECT type");
         }
         
         if (!selectedVendor) {
@@ -347,8 +348,9 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         validationErrors.push("Purpose type is required");
       }
       
-      if (!currentValues.subPurposeId) {
-        validationErrors.push("Sub-purpose is required");
+      // Only require subPurposeId for PROJECT type, or if already provided
+      if (currentValues.purposeType === 'PROJECT' && !currentValues.subPurposeId) {
+        validationErrors.push("Sub-purpose is required for PROJECT type");
       }
       
       if (!selectedVendor) {
