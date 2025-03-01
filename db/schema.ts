@@ -419,7 +419,23 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
     invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
   }).optional(),
   vendorId: z.number().int().positive("Vendor selection is required").optional(),
-  subPurposeId: z.number().optional(),
+  // Make subPurposeId conditionally required only for PROJECT type
+  subPurposeId: z.number().optional().refine(
+    (val, ctx) => {
+      // Only validate if we're not in draft mode
+      if (ctx.path.includes('status') && ctx.path.includes('draft')) {
+        return true;
+      }
+      // Only require for PROJECT type
+      return !(ctx.path.includes('purposeType') && 
+               ctx.path.includes('PROJECT') && 
+               val === undefined);
+    },
+    {
+      message: "Sub-purpose is required for PROJECT type",
+      path: ["subPurposeId"]
+    }
+  ),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   currency: z.enum(["QAR", "USD", "CNY"]).optional(),
   totalEstimatedCost: z.number()

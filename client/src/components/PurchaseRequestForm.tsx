@@ -280,7 +280,12 @@ export default function PurchaseRequestForm({
         if (!data.title?.trim()) validationErrors.push("Title is required");
         if (!data.description?.trim()) validationErrors.push("Description is required");
         if (!data.purposeType) validationErrors.push("Purpose type is required");
-        if (!data.subPurposeId) validationErrors.push("Sub purpose is required");
+        
+        // Only require subPurposeId when purposeType is PROJECT
+        if (data.purposeType === 'PROJECT' && !data.subPurposeId) {
+          validationErrors.push("Sub-purpose is required for PROJECT type");
+        }
+        
         if (!data.items?.length || data.items.some(item => !item.name?.trim())) {
           validationErrors.push("At least one item with a name is required");
         }
