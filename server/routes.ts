@@ -348,22 +348,48 @@ export function registerRoutes(app: Express): Server {
         : [null];
 
       // Enhance response with vendor details
-      const [vendor] = purchaseRequest.vendorId
-        ? await db
+      debug(req, `Fetching vendor with ID: ${purchaseRequest.vendorId}`);
+      let vendor = null;
+      if (purchaseRequest.vendorId) {
+        try {
+          const vendorResults = await db
             .select()
             .from(vendors)
             .where(eq(vendors.id, purchaseRequest.vendorId))
-            .limit(1)
-        : [null];
+            .limit(1);
+          
+          if (vendorResults.length > 0) {
+            vendor = vendorResults[0];
+            debug(req, `Found vendor: ${JSON.stringify(vendor)}`);
+          } else {
+            debug(req, `No vendor found with ID: ${purchaseRequest.vendorId}`);
+          }
+        } catch (error) {
+          console.error("Error fetching vendor:", error);
+        }
+      }
 
       // Get the sub-purpose if specified
-      const [subPurpose] = purchaseRequest.subPurposeId
-        ? await db
+      debug(req, `Fetching sub-purpose with ID: ${purchaseRequest.subPurposeId}`);
+      let subPurpose = null;
+      if (purchaseRequest.subPurposeId) {
+        try {
+          const subPurposeResults = await db
             .select()
             .from(subPurposes)
             .where(eq(subPurposes.id, purchaseRequest.subPurposeId))
-            .limit(1)
-        : [null];
+            .limit(1);
+          
+          if (subPurposeResults.length > 0) {
+            subPurpose = subPurposeResults[0];
+            debug(req, `Found sub-purpose: ${JSON.stringify(subPurpose)}`);
+          } else {
+            debug(req, `No sub-purpose found with ID: ${purchaseRequest.subPurposeId}`);
+          }
+        } catch (error) {
+          console.error("Error fetching sub-purpose:", error);
+        }
+      }
 
       // Prepare the response
       const enhancedRequest = {

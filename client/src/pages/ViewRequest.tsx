@@ -1,42 +1,34 @@
 import { useParams } from "wouter";
-import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, AlertCircle } from "lucide-react";
 import RequestCard from "@/components/RequestCard";
 import { useLocation } from "wouter";
 import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
-import { type RequestData } from "@/types/requests";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
+import { useRequest } from "@/hooks/use-request";
 
 export default function ViewRequest() {
   const { id } = useParams();
   const { toast } = useToast();
-  const { requests, isLoading, refetch } = usePurchaseRequests();
+  const requestId = Number(id);
+  const { data: request, isLoading, error, isError, refetch } = useRequest(requestId);
   const { user } = useUser();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // Force refetch requests when component loads to ensure we have latest data
+  // Log data for debugging
   useEffect(() => {
-    if (refetch) {
-      refetch();
+    if (request) {
+      console.log("ViewRequest - Request data:", request);
+      console.log("ViewRequest - Vendor data:", request.vendor);
+      console.log("ViewRequest - SubPurpose data:", request.subPurpose);
     }
-    console.log("ViewRequest - ID from URL:", id);
-  }, [id, refetch]);
-
-  // Add debug logs for troubleshooting
-  useEffect(() => {
-    if (requests) {
-      console.log("ViewRequest - All requests:", requests);
-      const foundRequest = requests.find((r) => r.id === Number(id));
-      console.log("ViewRequest - Found request:", foundRequest);
-    }
-  }, [requests, id]);
+  }, [request]);
 
   if (isLoading) {
     return (
@@ -46,16 +38,19 @@ export default function ViewRequest() {
     );
   }
 
-  const request = requests?.find((r) => r.id === Number(id));
-
-  if (!request) {
+  if (isError || !request) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-2xl font-bold mb-4">Request Not Found</h1>
-        <p className="text-gray-600 mb-4">The request you're looking for doesn't exist or is still loading.</p>
-        <Button onClick={() => {
-          if (refetch) refetch(); // Try to refetch requests on button click
-        }} className="mb-4">
+        <div className="flex items-center mb-4 text-red-500">
+          <AlertCircle className="h-6 w-6 mr-2" />
+          <h1 className="text-2xl font-bold">Request Not Found</h1>
+        </div>
+        <p className="text-gray-600 mb-4">
+          {error instanceof Error 
+            ? error.message 
+            : "The request you're looking for doesn't exist or could not be loaded."}
+        </p>
+        <Button onClick={() => refetch()} className="mb-4">
           Retry Loading
         </Button>
         <Button onClick={() => setLocation("/")}>
@@ -119,8 +114,9 @@ export default function ViewRequest() {
                   request={request}
                   onApprovalUpdate={() => {
                     // Invalidate queries to refresh data
+                    queryClient.invalidateQueries({ queryKey: [`/api/requests/${requestId}`] });
                     queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-                    if (refetch) refetch();
+                    refetch();
 
                     toast({
                       title: "Approval Updated",
