@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type InsertVendor, vendorFormSchema } from "@db/schema";
@@ -26,7 +26,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
   const { toast } = useToast();
   const form = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
-    defaultValues: defaultValues || {
+    defaultValues: {
       companyName: "",
       contactPerson: "",
       contactNumber: "",
@@ -44,6 +44,21 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       status: "active"
     },
   });
+  
+  // Set default values when they change
+  useEffect(() => {
+    if (defaultValues) {
+      // Process defaultValues to ensure null values are handled correctly
+      const processedValues = Object.entries(defaultValues).reduce((acc, [key, value]) => {
+        // Convert nulls to empty strings for the form
+        acc[key] = value === null ? "" : value;
+        return acc;
+      }, {} as Record<string, any>);
+      
+      console.log('Setting form values with processed defaults:', processedValues);
+      form.reset(processedValues);
+    }
+  }, [defaultValues, form]);
 
   const handleSubmit = async (values: VendorFormValues) => {
     try {
@@ -182,7 +197,11 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
               <FormItem>
                 <FormLabel>Registration Number</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="Enter registration number (optional)" />
+                  <Input 
+                    {...field} 
+                    value={field.value || ''}
+                    placeholder="Enter registration number (optional)" 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -252,7 +271,11 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
               <FormItem className="col-span-2">
                 <FormLabel>Remarks</FormLabel>
                 <FormControl>
-                  <Textarea {...field} placeholder="Enter additional remarks (optional)" />
+                  <Textarea 
+                    {...field} 
+                    value={field.value || ''}
+                    placeholder="Enter additional remarks (optional)" 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

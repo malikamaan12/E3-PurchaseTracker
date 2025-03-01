@@ -2043,11 +2043,27 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
+      // Process data to ensure nulls are handled correctly
+      const processedData = Object.entries(validationResult.data).reduce((acc, [key, value]) => {
+        // Convert empty strings to null for optional fields
+        if (value === '' && 
+            (key === 'taxNumber' || 
+             key === 'registrationNumber' || 
+             key === 'remarks')) {
+          acc[key] = null;
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      
+      debug(req, 'Processed vendor data for update:', processedData);
+      
       // Update vendor in database
       const [updatedVendor] = await db
         .update(vendors)
         .set({
-          ...validationResult.data,
+          ...processedData,
           updatedAt: new Date()
         })
         .where(eq(vendors.id, vendorId))
