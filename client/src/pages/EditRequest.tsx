@@ -26,11 +26,13 @@ import {
 } from "@/components/ui/select";
 import {
   insertPurchaseRequestSchema,
-  type PurchaseRequest
+  type PurchaseRequest,
+  type Vendor
 } from "@db/schema";
 import { updateRequest } from "@/services/requests";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
+import VendorSelect from "@/components/VendorSelect";
 
 // Helper function to parse and format decimal numbers with strict validation
 const formatDecimal = (value: number | string): number => {
@@ -64,6 +66,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const [items, setItems] = useState<RequestItem[]>([]);
   const [freightAmount, setFreightAmount] = useState<number>(0);
+  const [selectedVendor, setSelectedVendor] = useState<number | undefined>(undefined);
 
   const { data: request, isLoading } = useRequest(parseInt(params.id));
 
@@ -115,6 +118,11 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
       setItems(formattedItems);
       setFreightAmount(formatDecimal(request.freightAmount || 0));
+      
+      // Set the vendor ID from the request
+      if (request.vendorId) {
+        setSelectedVendor(request.vendorId);
+      }
 
       form.reset({
         ...request,
@@ -179,6 +187,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         freightAmount: formatDecimal(freightAmount),
         totalEstimatedCost: totalCost,
         contact_number: values.contact_number?.trim(),
+        vendorId: selectedVendor,
       };
 
       await updateRequest({
@@ -202,7 +211,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  }, [items, freightAmount, totalCost, params.id, setLocation, toast]);
+  }, [items, freightAmount, totalCost, selectedVendor, params.id, setLocation, toast]);
 
   const handleSubmit = useCallback(async (status: "draft" | "pending") => {
     try {
