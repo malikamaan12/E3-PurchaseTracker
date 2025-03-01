@@ -3832,6 +3832,71 @@ async function analyzeError(error: Error, context: any) {
   };
 }
 
+async function getRequestWithRelations(requestId: number) {
+  debug(null, "[getRequestWithRelations] Fetching purchase request with ID:", requestId);
+  
+  // Get the base request data
+  const requests = await db.query.purchaseRequests.findMany({
+    where: eq(purchaseRequests.id, requestId),
+    limit: 1
+  });
+  
+  if (requests.length === 0) {
+    throw new AppError('Request not found', 404);
+  }
+  
+  const request = requests[0];
+  
+  // Get vendor details if vendorId exists
+  let vendor = null;
+  if (request.vendorId) {
+    const vendorResults = await db.query.vendors.findMany({
+      where: eq(vendors.id, request.vendorId),
+      limit: 1
+    });
+    
+    if (vendorResults.length > 0) {
+      vendor = vendorResults[0];
+    }
+  }
+  
+  // Get sub-purpose details if subPurposeId exists
+  let subPurpose = null;
+  if (request.subPurposeId) {
+    const subPurposeResults = await db.query.subPurposes.findMany({
+      where: eq(subPurposes.id, request.subPurposeId),
+      limit: 1
+    });
+    
+    if (subPurposeResults.length > 0) {
+      subPurpose = subPurposeResults[0];
+    }
+  }
+  
+  // Get approvals for this request
+  const approvalsList = await db.query.approvals.findMany({
+    where: eq(approvals.requestId, requestId)
+  });
+  
+  // Get attachments
+  const attachmentsList = await db.query.fileAttachments.findMany({
+    where: eq(fileAttachments.requestId, requestId)
+  });
+  
+  // Parse items JSON
+  const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
+  
+  // Return complete request with relations
+  return {
+    ...request,
+    items,
+    vendor,
+    subPurpose,
+    approvals: approvalsList,
+    attachments: attachmentsList
+  };
+}
+
 async function updateRequestStatus(requestId: number) {
   try {
     const approvalsList = await db
