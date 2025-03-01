@@ -2352,77 +2352,81 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
       }
       
-      // First get the request (simpler query)
-      console.log("[GET /api/requests/:id] Executing base request query");
-      const request = await db
-        .select()
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, requestId))
-        .limit(1)
-        .then(rows => rows[0]);
-
-      if (!request) {
-        throw new AppError('Request not found', 404);
-      }
-      
-      console.log("[GET /api/requests/:id] Found request:", request.id);
-
-      // Get vendor details if vendorId exists
-      let vendor = null;
-      if (request.vendorId) {
-        console.log(`[GET /api/requests/:id] Fetching vendor with ID: ${request.vendorId}`);
-        const [vendorData] = await db
-          .select()
-          .from(vendors)
-          .where(eq(vendors.id, request.vendorId))
-          .limit(1);
-        vendor = vendorData;
-        console.log("[GET /api/requests/:id] Vendor data found");
-      } else {
-        console.log("[GET /api/requests/:id] No vendorId found in request");
-      }
-
-      // Get sub-purpose details if subPurposeId exists
-      let subPurpose = null;
-      if (request.subPurposeId) {
-        console.log(`[GET /api/requests/:id] Fetching sub-purpose with ID: ${request.subPurposeId}`);
-        const subPurposeData = await db
-          .select()
-          .from(subPurposes)
-          .where(eq(subPurposes.id, request.subPurposeId))
-          .limit(1)
-          .then(rows => rows[0]);
+      try {
+        // Get the base request data
+        console.log("[GET /api/requests/:id] Executing base request query");
+        const requests = await db.query.purchaseRequests.findMany({
+          where: eq(purchaseRequests.id, requestId),
+          limit: 1
+        });
+        
+        if (requests.length === 0) {
+          throw new AppError('Request not found', 404);
+        }
+        
+        const request = requests[0];
+        console.log("[GET /api/requests/:id] Found request:", request.id);
+        
+        // Get vendor details if vendorId exists
+        let vendor = null;
+        if (request.vendorId) {
+          console.log(`[GET /api/requests/:id] Fetching vendor with ID: ${request.vendorId}`);
+          const vendorResults = await db.query.vendors.findMany({
+            where: eq(vendors.id, request.vendorId),
+            limit: 1
+          });
           
-        subPurpose = subPurposeData;
-        console.log("[GET /api/requests/:id] Sub-purpose data found");
-      } else {
-        console.log("[GET /api/requests/:id] No subPurposeId found in request");
+          if (vendorResults.length > 0) {
+            vendor = vendorResults[0];
+            console.log("[GET /api/requests/:id] Vendor data found");
+          }
+        } else {
+          console.log("[GET /api/requests/:id] No vendorId found in request");
+        }
+        
+        // Get sub-purpose details if subPurposeId exists
+        let subPurpose = null;
+        if (request.subPurposeId) {
+          console.log(`[GET /api/requests/:id] Fetching sub-purpose with ID: ${request.subPurposeId}`);
+          const subPurposeResults = await db.query.subPurposes.findMany({
+            where: eq(subPurposes.id, request.subPurposeId),
+            limit: 1
+          });
+          
+          if (subPurposeResults.length > 0) {
+            subPurpose = subPurposeResults[0];
+            console.log("[GET /api/requests/:id] Sub-purpose data found");
+          }
+        } else {
+          console.log("[GET /api/requests/:id] No subPurposeId found in request");
+        }
+        
+        // Get approvals for this request
+        const approvalsList = await db.query.approvals.findMany({
+          where: eq(approvals.requestId, requestId)
+        });
+        
+        // Get attachments
+        const attachmentsList = await db.query.fileAttachments.findMany({
+          where: eq(fileAttachments.requestId, requestId)
+        });
+        
+        // Parse items JSON
+        const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
+        
+        // Return complete response
+        res.json({
+          ...request,
+          items,
+          vendor,
+          subPurpose,
+          approvals: approvalsList,
+          attachments: attachmentsList
+        });
+      } catch (error) {
+        console.error("[GET /api/requests/:id] Error in database queries:", error);
+        throw error;
       }
-
-      // Get approvals for this request
-      const approvalsList = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId));
-
-      // Get attachments
-      const attachmentsList = await db
-        .select()
-        .from(fileAttachments)
-        .where(eq(fileAttachments.requestId, requestId));
-
-      // Parse items JSON
-      const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
-
-      // Return complete response
-      res.json({
-        ...request,
-        items,
-        vendor,
-        subPurpose,
-        approvals: approvalsList,
-        attachments: attachmentsList
-      });
 
     } catch (error) {
       console.error('Error fetching request:', error);
