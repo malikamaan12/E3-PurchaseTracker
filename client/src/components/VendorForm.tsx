@@ -60,30 +60,42 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
     }
   }, [defaultValues, form]);
 
-  const handleSubmit = async (values: VendorFormValues) => {
+  // Enhanced form submission with better handling of loading states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Direct form handler - simplifying the process
+  const handleFormSubmit = async (values: VendorFormValues) => {
+    if (isSubmitting) return; // Prevent double submission
+    
+    setIsSubmitting(true);
+    console.log('Submitting vendor form with values:', values);
+    
     try {
-      console.log('Submitting vendor form with values:', values);
+      // Process optional fields that can be null
+      const processedData = { ...values };
+      if (processedData.taxNumber === '') processedData.taxNumber = null;
+      if (processedData.registrationNumber === '') processedData.registrationNumber = null;
+      if (processedData.remarks === '') processedData.remarks = null;
       
-      // Process values to ensure optional fields are properly handled
-      const processedValues = { ...values };
+      console.log('Processed values for submission:', processedData);
       
-      // Handle optional fields that can be null
-      if (processedValues.taxNumber === '') processedValues.taxNumber = null;
-      if (processedValues.registrationNumber === '') processedValues.registrationNumber = null;
-      if (processedValues.remarks === '') processedValues.remarks = null;
-      
-      console.log('Processed values for submission:', processedValues);
-      
-      // Add loading state indicator to improve user feedback
+      // Show loading toast
       toast({
         title: "Processing",
         description: "Saving vendor information...",
         variant: "default",
       });
       
-      await onSubmit(processedValues);
+      // Call the parent submission handler
+      await onSubmit(processedData);
       
-      // Only reset the form if this is an add operation (no defaultValues)
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "Vendor information saved successfully",
+      });
+      
+      // Only reset form for new vendor creation
       if (!defaultValues) {
         form.reset();
       }
@@ -94,17 +106,6 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
         description: error instanceof Error ? error.message : "Failed to save vendor",
         variant: "destructive",
       });
-    }
-  };
-
-  // Add form submission state to show loading indicator  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Enhanced submit handler with loading state
-  const handleFormSubmit = async (values: VendorFormValues) => {
-    setIsSubmitting(true);
-    try {
-      await handleSubmit(values);
     } finally {
       setIsSubmitting(false);
     }
