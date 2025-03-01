@@ -15,7 +15,7 @@ import {
   markNotificationAsRead,
   createNotification
 } from "./utils/notifications";
-import { AuthorizationError } from "./utils/errors";
+import { AuthorizationError, NotFoundError } from "./utils/errors";
 import {
   users,
   notifications,
