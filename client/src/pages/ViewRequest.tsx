@@ -1,12 +1,13 @@
 import { useParams } from "wouter";
 import { useUser } from "@/hooks/use-user";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, AlertCircle, FileText } from "lucide-react";
 import RequestCard from "@/components/RequestCard";
 import { useLocation } from "wouter";
 import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
+import { DownloadOptions } from "@/components/DownloadOptions";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
@@ -78,8 +79,8 @@ export default function ViewRequest() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Back Button */}
-        <div className="flex items-center mb-6">
+        {/* Back Button and Download Options */}
+        <div className="flex items-center justify-between mb-6">
           <Button 
             variant="ghost" 
             onClick={() => setLocation("/")}
@@ -88,6 +89,9 @@ export default function ViewRequest() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
+          
+          {/* Download Options */}
+          <DownloadOptions request={request} compact={true} />
         </div>
 
         <div className="grid gap-6">

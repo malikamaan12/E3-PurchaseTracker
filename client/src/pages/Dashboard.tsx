@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
-import { Plus, LogOut, Search, Download, Settings } from "lucide-react";
+import { Plus, LogOut, Search, Download, Settings, FileArchive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,10 +18,9 @@ import { useDashboardPreferences, DEFAULT_PREFERENCES } from "@/hooks/use-dashbo
 import DashboardPreferences from "@/components/DashboardPreferences";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
+import { BulkExportButton } from "@/components/BulkExportButton";
 import { isWithinInterval, parseISO, isSameDay } from "date-fns";
 import { type RequestData } from "@/types/requests";
-import { useVendors } from "@/hooks/use-vendors";
-import { useSubPurposes } from "@/hooks/use-sub-purposes";
 
 // Brand colors
 const BRAND = {
@@ -501,22 +500,32 @@ export default function Dashboard() {
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba]">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleExport("xlsx")}>
-                    Export as Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport("csv")}>
-                    Export as CSV
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba]">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+                      Export as Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport("csv")}>
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {isAdmin && (
+                  <BulkExportButton 
+                    filters={activeFilters}
+                    variant="secondary" 
+                    size="default"
+                  />
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
