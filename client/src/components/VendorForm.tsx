@@ -62,6 +62,18 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
 
   const handleSubmit = async (values: VendorFormValues) => {
     try {
+      console.log('Submitting vendor form with values:', values);
+      
+      // Process values to ensure optional fields are properly handled
+      const processedValues = { ...values };
+      
+      // Handle optional fields that can be null
+      if (processedValues.taxNumber === '') processedValues.taxNumber = null;
+      if (processedValues.registrationNumber === '') processedValues.registrationNumber = null;
+      if (processedValues.remarks === '') processedValues.remarks = null;
+      
+      console.log('Processed values for submission:', processedValues);
+      
       // Add loading state indicator to improve user feedback
       toast({
         title: "Processing",
@@ -69,7 +81,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
         variant: "default",
       });
       
-      await onSubmit(values);
+      await onSubmit(processedValues);
       
       // Only reset the form if this is an add operation (no defaultValues)
       if (!defaultValues) {

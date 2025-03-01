@@ -82,6 +82,8 @@ export default function VendorManagement() {
 
   const updateVendorMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Vendor> }) => {
+      console.log(`Updating vendor ${id} with data:`, data);
+      
       const response = await fetch(`/api/vendors/${id}`, {
         method: "PATCH",
         headers: {
@@ -91,25 +93,43 @@ export default function VendorManagement() {
         credentials: 'include'
       });
 
+      // Detailed error handling
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        console.error(`Vendor update error (${response.status}):`, errorText);
+        
+        let errorMessage;
+        try {
+          // Try to parse the error as JSON
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || 'Failed to update vendor';
+        } catch (e) {
+          // If not JSON, use the raw text
+          errorMessage = errorText || `Server error (${response.status})`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('Vendor update successful, received:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Vendor updated successfully:', data);
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       setIsEditMode(false);
       setSelectedVendor(null);
       toast({
         title: "Success",
-        description: "Vendor updated successfully",
+        description: "Vendor has been updated successfully",
       });
     },
     onError: (error: Error) => {
+      console.error('Vendor update error in mutation:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update vendor",
+        title: "Update Failed",
+        description: error.message || "Failed to update vendor. Please check the form and try again.",
         variant: "destructive",
       });
     },
