@@ -754,7 +754,39 @@ export function registerRoutes(app: Express): Server {
           freightAmount: finalRequestData.freightAmount || 0
         };
       } else {
-        // Validate required fields for submissions
+        // Custom validation checks for submissions
+        const validationErrors = [];
+
+        // Basic validations
+        if (!requestData.vendorId) {
+          validationErrors.push('Vendor selection is required');
+        }
+        if (!items || items.length === 0) {
+          validationErrors.push('At least one item is required');
+        }
+        if (!requestData.title?.trim()) {
+          validationErrors.push('Title is required');
+        }
+        if (!requestData.description?.trim()) {
+          validationErrors.push('Description is required');
+        }
+        if (!requestData.purposeType) {
+          validationErrors.push('Purpose type is required');
+        }
+        
+        // Add validation for subPurposeId when purposeType is PROJECT
+        if (requestData.purposeType === 'PROJECT' && !requestData.subPurposeId) {
+          validationErrors.push('Sub-purpose is required for PROJECT type');
+        }
+
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            message: 'Invalid request data',
+            errors: validationErrors
+          });
+        }
+        
+        // Additional schema validation for safety
         const validationResult = insertPurchaseRequestSchema.safeParse({
           ...requestData,
           items: items, // Pass the original array for validation
