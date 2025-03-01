@@ -180,27 +180,29 @@ export default function VendorManagement() {
   const handleUpdateVendor = async (data: any) => {
     if (!selectedVendor) return;
     
-    // Log the update details for debugging
-    console.log('Updating vendor:', {
-      id: selectedVendor.id,
-      currentData: selectedVendor,
-      newData: data
-    });
+    // Process data to ensure nulls are handled correctly
+    const processedData = { ...data };
     
-    // Make sure we maintain the original status and ID
-    const vendorData = {
-      ...data,
-      status: selectedVendor.status,
-    };
+    // Handle optional fields that might be empty strings
+    if (processedData.taxNumber === '') processedData.taxNumber = null;
+    if (processedData.registrationNumber === '') processedData.registrationNumber = null;
+    if (processedData.remarks === '') processedData.remarks = null;
+    
+    // Make sure we maintain the original status
+    processedData.status = selectedVendor.status;
     
     // Log the final data being sent
-    console.log('Final vendor data being sent:', vendorData);
+    console.log('Final vendor data being sent:', processedData);
     
-    // Call the mutation directly
-    updateVendorMutation.mutate({
-      id: selectedVendor.id,
-      data: vendorData
-    });
+    try {
+      // Use mutateAsync to properly await the result
+      await updateVendorMutation.mutateAsync({
+        id: selectedVendor.id,
+        data: processedData
+      });
+    } catch (error) {
+      console.error("Error in handleUpdateVendor:", error);
+    }
   };
 
   const handleViewDetails = (vendor: Vendor) => {
