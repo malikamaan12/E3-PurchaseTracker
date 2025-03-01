@@ -41,9 +41,10 @@ import { insertVendorSchema } from "@db/schema";
 interface VendorSelectProps {
   value?: number;
   onChange: (value: number | undefined, vendorName?: string) => void;
+  onVendorCreated?: (vendor: Vendor) => void;
 }
 
-export default function VendorSelect({ value, onChange }: VendorSelectProps) {
+export default function VendorSelect({ value, onChange, onVendorCreated }: VendorSelectProps) {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -84,6 +85,12 @@ export default function VendorSelect({ value, onChange }: VendorSelectProps) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       onChange(data.id, data.companyName);
+      
+      // Call the onVendorCreated callback if provided
+      if (onVendorCreated) {
+        onVendorCreated(data);
+      }
+      
       setDialogOpen(false);
       form.reset();
       toast({

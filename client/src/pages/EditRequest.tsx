@@ -547,9 +547,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
                       Vendor Information
                     </h3>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div>
                       <FormItem>
-                        <FormLabel className="text-[#7058a3]">Vendor</FormLabel>
+                        <FormLabel className="text-[#7058a3]">Vendor Selection</FormLabel>
+                        <p className="text-xs text-gray-500 mb-2">Select a vendor from the list. Vendor details cannot be edited here.</p>
                         <FormControl>
                           <VendorSelect 
                             value={selectedVendor}
@@ -559,60 +560,36 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-
-                      <FormField
-                        control={form.control}
-                        name="contactPerson"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#7058a3]">Contact Person</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter contact person name"
-                                className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="contact_number"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#7058a3]">Contact Number</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="tel"
-                                className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="accountNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#7058a3]">Account Details</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter account number"
-                                className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      
+                      {selectedVendor && (
+                        <div className="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
+                          <h4 className="font-medium text-[#7058a3] mb-2">Vendor Details (Read Only)</h4>
+                          <p className="text-xs text-gray-500 mb-3">These details are displayed for reference only and cannot be modified here.</p>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            {/* Display vendor details if a vendor is selected */}
+                            {request?.vendor && (
+                              <>
+                                <div>
+                                  <p className="font-medium text-slate-700">Company Name:</p>
+                                  <p className="text-slate-600">{request.vendor.companyName || "Not specified"}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-700">Contact Person:</p>
+                                  <p className="text-slate-600">{request.vendor.contactPerson || "Not specified"}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-700">Contact Number:</p>
+                                  <p className="text-slate-600">{request.vendor.contactNumber || "Not specified"}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-700">Email:</p>
+                                  <p className="text-slate-600">{request.vendor.email || "Not specified"}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
