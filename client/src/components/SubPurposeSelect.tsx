@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,17 @@ export default function SubPurposeSelect({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Reset value when purpose type changes
+  // Only reset value when purpose type changes after initial render
+  const firstRenderRef = React.useRef(true);
+  
   useEffect(() => {
+    // Skip the first render to avoid resetting on component mount
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      return;
+    }
+    
+    // Reset value when purpose type changes
     onChange(undefined);
   }, [purposeType, onChange]);
 

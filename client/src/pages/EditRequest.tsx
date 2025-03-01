@@ -383,7 +383,14 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-[#7058a3]">Purpose Type</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select 
+                                onValueChange={(value) => {
+                                  // Reset subPurposeId when purpose type changes
+                                  form.setValue("subPurposeId", null);
+                                  field.onChange(value);
+                                }} 
+                                value={field.value}
+                              >
                                 <FormControl>
                                   <SelectTrigger className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring">
                                     <SelectValue placeholder="Select purpose type" />
