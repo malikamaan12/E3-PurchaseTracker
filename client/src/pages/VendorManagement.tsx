@@ -187,36 +187,20 @@ export default function VendorManagement() {
       newData: data
     });
     
-    try {
-      const updatedVendor = await updateVendorMutation.mutateAsync({
-        id: selectedVendor.id,
-        data: {
-          ...data,
-          status: selectedVendor.status,
-        },
-      });
-      
-      console.log('Update response:', updatedVendor);
-      
-      // Close the edit dialog and reset the edit mode after successful update
-      setIsEditMode(false);
-      setSelectedVendor(null);
-      
-      // Show success toast
-      toast({
-        title: "Success",
-        description: "Vendor updated successfully"
-      });
-    } catch (error) {
-      console.error('Vendor update error:', error);
-      
-      // Show error toast
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update vendor",
-        variant: "destructive"
-      });
-    }
+    // Make sure we maintain the original status and ID
+    const vendorData = {
+      ...data,
+      status: selectedVendor.status,
+    };
+    
+    // Log the final data being sent
+    console.log('Final vendor data being sent:', vendorData);
+    
+    // Call the mutation directly
+    updateVendorMutation.mutate({
+      id: selectedVendor.id,
+      data: vendorData
+    });
   };
 
   const handleViewDetails = (vendor: Vendor) => {

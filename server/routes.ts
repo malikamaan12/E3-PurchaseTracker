@@ -2043,34 +2043,39 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
-      // Process data to ensure nulls are handled correctly
-      const processedData = Object.entries(validationResult.data).reduce((acc: Record<string, any>, [key, value]) => {
-        // Convert empty strings to null for optional fields
-        if (value === '' && 
-            (key === 'taxNumber' || 
-             key === 'registrationNumber' || 
-             key === 'remarks')) {
-          acc[key] = null;
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, any>);
+      // Clone data from validation result
+      const processedData = { ...validationResult.data };
       
+      // Special handling for empty strings that should be null
+      if (processedData.taxNumber === '') processedData.taxNumber = null;
+      if (processedData.registrationNumber === '') processedData.registrationNumber = null;
+      if (processedData.remarks === '') processedData.remarks = null;
+      
+      // Log the data we're about to save
       debug(req, 'Processed vendor data for update:', processedData);
       
-      // Update vendor in database
-      const [updatedVendor] = await db
-        .update(vendors)
-        .set({
-          ...processedData,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, vendorId))
-        .returning();
-
-      debug(req, 'Successfully updated vendor:', updatedVendor);
-      res.json(updatedVendor);
+      try {
+        // Update vendor in database
+        const [updatedVendor] = await db
+          .update(vendors)
+          .set({
+            ...processedData,
+            updatedAt: new Date()
+          })
+          .where(eq(vendors.id, vendorId))
+          .returning();
+          
+        if (!updatedVendor) {
+          throw new Error('Database update successful but no vendor returned');
+        }
+        
+        debug(req, 'Database update successful, returned vendor:', updatedVendor);
+        res.json(updatedVendor);
+        return;
+      } catch (dbError) {
+        debug(req, 'Database error during vendor update:', dbError);
+        throw new DatabaseError(`Failed to update vendor: ${dbError.message}`);
+      }
     } catch (error) {
       debug(req, 'Error updating vendor:', error);
       next(error);
