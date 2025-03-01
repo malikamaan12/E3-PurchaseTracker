@@ -11,17 +11,20 @@ import ApprovalFlow from "@/components/ApprovalFlow";
 import { type RequestData } from "@/types/requests";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from "@/hooks/use-toast";
+import { useRequest } from "@/hooks/use-request";
 import { useEffect } from "react";
 
 export default function ViewRequest() {
   const { id } = useParams();
   const { toast } = useToast();
-  const { requests, isLoading, refetch } = usePurchaseRequests();
   const { user } = useUser();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  
+  // Use the specific request hook instead of the general requests list
+  const { data: request, isLoading, error, refetch } = useRequest(Number(id));
 
-  // Force refetch requests when component loads to ensure we have latest data
+  // Force refetch when component loads to ensure we have latest data
   useEffect(() => {
     if (refetch) {
       refetch();
@@ -31,12 +34,13 @@ export default function ViewRequest() {
 
   // Add debug logs for troubleshooting
   useEffect(() => {
-    if (requests) {
-      console.log("ViewRequest - All requests:", requests);
-      const foundRequest = requests.find((r) => r.id === Number(id));
-      console.log("ViewRequest - Found request:", foundRequest);
+    if (request) {
+      console.log("ViewRequest - Request details:", request);
     }
-  }, [requests, id]);
+    if (error) {
+      console.error("ViewRequest - Error loading request:", error);
+    }
+  }, [request, error]);
 
   if (isLoading) {
     return (
@@ -46,7 +50,7 @@ export default function ViewRequest() {
     );
   }
 
-  const request = requests?.find((r) => r.id === Number(id));
+  // No need to find the request, as useRequest fetches the specific one
 
   if (!request) {
     return (
