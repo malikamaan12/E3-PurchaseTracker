@@ -1063,7 +1063,7 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Request is locked', 403);
       }
 
-      // Enhanced validation for submissions
+      // Enhanced validation for submissions - Only validate required fields when not a draft
       if (updateData.status === 'pending') {
         const validationErrors = [];
 
@@ -1108,6 +1108,9 @@ export function registerRoutes(app: Express): Server {
           throw error;
         }
       }
+      
+      // For draft requests, we shouldn't enforce all validations
+      // Just make sure we have some basic data to save
 
       // Properly handle additionalApprovers in the update
       let finalUpdateData = { ...updateData };
