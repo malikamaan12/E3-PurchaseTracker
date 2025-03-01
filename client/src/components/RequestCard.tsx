@@ -695,24 +695,66 @@ export default function RequestCard({
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description}</p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">Purpose</h4>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="capitalize">
-                        {(request.purposeType || 'general').replace(/_/g, " ")}
-                      </Badge>
-                      {request.subPurpose?.name && (
-                        <Badge variant="outline" className="capitalize">
-                          {request.subPurpose.name}
-                        </Badge>
-                      )}
+                <div className="space-y-6">
+                  {/* Requester Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Requester Information</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Name</p>
+                        <p className="text-sm font-medium">{request.requester?.username || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Department</p>
+                        <p className="text-sm font-medium">{request.requester?.department || 'N/A'}</p>
+                      </div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description || 'No purpose specified'}</p>
+                  
+                  {/* Purpose Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Purpose Information</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Purpose Type</p>
+                        <p className="text-sm font-medium capitalize">{(request.purposeType || 'general').replace(/_/g, " ")}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Sub-Purpose</p>
+                        <p className="text-sm font-medium">{request.subPurpose?.name || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Description</p>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap mt-1 bg-white p-2 rounded border border-gray-100">{request.description || 'No description provided'}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Vendor Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Vendor Information</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Name</p>
+                        <p className="text-sm font-medium">{request.vendor?.name || request.vendor?.vendorName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Category</p>
+                        <p className="text-sm font-medium">{request.vendor?.category || request.vendor?.vendorCategory || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Contact Person</p>
+                        <p className="text-sm font-medium">{request.vendor?.contactPerson || request.vendor?.contact || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="text-sm font-medium">{request.vendor?.email || request.vendor?.contactEmail || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <RequestStatusTimeline request={request} />
                 </div>
-                {vendorSection}
-                <RequestStatusTimeline request={request} />
 
                 {/* Approval Flow is handled in the parent component */}
 
