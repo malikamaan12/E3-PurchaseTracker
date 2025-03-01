@@ -178,34 +178,74 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     try {
       // Different validation based on status
       if (values.status === "pending") {
-        // Validate required fields for formal submission
-        if (items.some(item => !item.name || item.quantity <= 0)) {
-          toast({
-            title: "Validation Error",
-            description: "Please fill all required item fields (name and quantity)",
-            variant: "destructive",
-          });
-          return;
+        // Validate required fields for final submission
+        const validationErrors = [];
+        
+        if (!values.title?.trim()) {
+          validationErrors.push("Please provide a title");
+        }
+        
+        if (!values.description?.trim() || values.description.length < 10) {
+          validationErrors.push("Description must be at least 10 characters");
+        }
+        
+        if (!values.purposeType) {
+          validationErrors.push("Please select a purpose type");
+        }
+        
+        if (!values.subPurposeId) {
+          validationErrors.push("Please select a sub-purpose");
         }
         
         if (!selectedVendor) {
+          validationErrors.push("Please select a vendor");
+        }
+
+        if (items.length === 0) {
+          validationErrors.push("Please add at least one item");
+        } else {
+          // Check each item for validation
+          items.forEach((item, index) => {
+            if (!item.name || !item.name.trim()) {
+              validationErrors.push(`Item ${index + 1} name is required`);
+            }
+            if (!item.quantity || item.quantity <= 0) {
+              validationErrors.push(`Item ${index + 1} quantity must be greater than 0`);
+            }
+            if (typeof item.estimatedCost !== 'number' || item.estimatedCost <= 0) {
+              validationErrors.push(`Item ${index + 1} estimated cost must be greater than 0`);
+            }
+          });
+        }
+        
+        // Display all validation errors
+        if (validationErrors.length > 0) {
+          // Display first error as toast
           toast({
             title: "Validation Error",
-            description: "Please select a vendor",
+            description: validationErrors[0],
             variant: "destructive",
           });
+          
+          // If there are more errors, log them to console
+          if (validationErrors.length > 1) {
+            console.error("Additional validation errors:", validationErrors.slice(1));
+          }
           return;
         }
       } else if (values.status === "draft") {
-        // For drafts, only validate if there are items that they have at least a name
+        // For drafts, minimal validation - just ensure quantities are valid if names are provided
         if (items.length > 0 && items.some(item => item.name && item.quantity <= 0)) {
           toast({
-            title: "Validation Error",
-            description: "Please provide a valid quantity for items with a name",
-            variant: "destructive",
+            title: "Validation Warning",
+            description: "Items with a name should have a quantity greater than 0",
+            variant: "warning",
           });
-          return;
+          // Allow to continue for drafts
         }
+        
+        // No other validations for drafts - we allow incomplete data
+        console.log("Saving as draft - minimal validation applied");
       }
       
       const submissionData = {
@@ -251,17 +291,32 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         // For drafts, we only need the basic information
         const currentValues = form.getValues();
         
-        // Perform minimal validation for drafts
+        // Perform minimal validation for drafts - just make sure at least one field has data
         if (!currentValues.title && !currentValues.description && items.length === 0) {
           toast({
-            title: "Validation Error",
-            description: "Please provide at least a title, description, or one item",
-            variant: "destructive",
-            className: "animate-error",
+            title: "Draft Validation",
+            description: "Please provide at least a title, description, or one item to save as draft",
+            variant: "warning",
+            className: "animate-warning",
           });
           return;
         }
         
+        // Check item quantities if they exist
+        if (items.length > 0) {
+          const invalidItems = items.filter(item => item.name && item.quantity <= 0);
+          if (invalidItems.length > 0) {
+            toast({
+              title: "Draft Warning",
+              description: "Items with names should have valid quantities. These will be saved but can't be submitted until fixed.",
+              variant: "warning",
+              className: "animate-warning",
+            });
+            // Allow to continue for drafts (just a warning)
+          }
+        }
+        
+        console.log("Saving as draft with minimal validation");
         // Continue with draft submission
         await onSubmit({
           ...currentValues,
@@ -270,19 +325,71 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         return;
       }
       
-      // For pending/submission, we need full validation
+      // For pending/submission, we need comprehensive validation
+      // First trigger form validation
       const isValid = await form.trigger();
-      if (!isValid) {
+      
+      // Perform custom validation checks
+      const validationErrors = [];
+      const currentValues = form.getValues();
+      
+      // Required field validation
+      if (!currentValues.title?.trim()) {
+        validationErrors.push("Title is required");
+      }
+      
+      if (!currentValues.description?.trim() || currentValues.description.length < 10) {
+        validationErrors.push("Description must be at least 10 characters");
+      }
+      
+      if (!currentValues.purposeType) {
+        validationErrors.push("Purpose type is required");
+      }
+      
+      if (!currentValues.subPurposeId) {
+        validationErrors.push("Sub-purpose is required");
+      }
+      
+      if (!selectedVendor) {
+        validationErrors.push("Vendor selection is required");
+      }
+
+      // Items validation
+      if (items.length === 0) {
+        validationErrors.push("Please add at least one item");
+      } else {
+        items.forEach((item, index) => {
+          if (!item.name || !item.name.trim()) {
+            validationErrors.push(`Item ${index + 1} name is required`);
+          }
+          if (!item.quantity || item.quantity <= 0) {
+            validationErrors.push(`Item ${index + 1} quantity must be greater than 0`);
+          }
+          if (typeof item.estimatedCost !== 'number' || item.estimatedCost <= 0) {
+            validationErrors.push(`Item ${index + 1} estimated cost must be greater than 0`);
+          }
+        });
+      }
+      
+      // Show validation errors if any
+      if (!isValid || validationErrors.length > 0) {
+        // Show first error
         toast({
           title: "Validation Error",
-          description: "Please check all required fields",
+          description: validationErrors.length > 0 ? validationErrors[0] : "Please check all required fields",
           variant: "destructive",
           className: "animate-error",
         });
+        
+        // If there are multiple errors, log them
+        if (validationErrors.length > 1) {
+          console.error("Additional validation errors:", validationErrors.slice(1));
+        }
         return;
       }
 
-      const currentValues = form.getValues();
+      // All validation passed, proceed with submission
+      console.log("Submitting request for approval with full validation");
       await onSubmit({
         ...currentValues,
         status

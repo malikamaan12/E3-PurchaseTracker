@@ -186,6 +186,7 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
 
 export async function submitRequest(id: number, data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
+    console.log('Validating submission data:', data);
     // Validate required fields for submission
     const validationErrors = [];
 
@@ -200,6 +201,27 @@ export async function submitRequest(id: number, data: Partial<CreateRequestData>
     }
     if (!data.purposeType) {
       validationErrors.push('Purpose type is required');
+    }
+    if (!data.subPurposeId) {
+      validationErrors.push('Sub-purpose is required');
+    }
+    if (!data.vendorId) {
+      validationErrors.push('Vendor selection is required');
+    }
+    
+    // Validate each item
+    if (data.items && data.items.length > 0) {
+      data.items.forEach((item, index) => {
+        if (!item.name || !item.name.trim()) {
+          validationErrors.push(`Item ${index + 1} name is required`);
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          validationErrors.push(`Item ${index + 1} quantity must be greater than 0`);
+        }
+        if (typeof item.estimatedCost !== 'number' || item.estimatedCost <= 0) {
+          validationErrors.push(`Item ${index + 1} estimated cost must be greater than 0`);
+        }
+      });
     }
 
     if (validationErrors.length > 0) {
