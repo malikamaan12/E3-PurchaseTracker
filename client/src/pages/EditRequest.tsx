@@ -75,10 +75,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
     title: "",
     description: "",
     items: [],
-    companyName: "",
-    contactPerson: "",
-    contact_number: "",
-    accountNumber: "",
     purposeType: "E3 EVENT",
     subPurposeId: undefined,
     priority: "medium",
@@ -180,6 +176,25 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Memoize submit handler
   const onSubmit = useCallback(async (values: PurchaseRequest) => {
     try {
+      // Validate required fields
+      if (items.some(item => !item.name || item.quantity <= 0)) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill all required item fields (name and quantity)",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!selectedVendor) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a vendor",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const submissionData = {
         ...values,
         items: items.map(item => ({
@@ -190,7 +205,6 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         })),
         freightAmount: formatDecimal(freightAmount),
         totalEstimatedCost: totalCost,
-        contact_number: values.contact_number?.trim(),
         vendorId: selectedVendor,
       };
 

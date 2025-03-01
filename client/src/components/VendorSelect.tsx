@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { Vendor, NewVendor } from "@db/schema";
+import type { Vendor, InsertVendor } from "@db/schema";
 import {
   Form,
   FormControl,
@@ -50,7 +50,7 @@ export default function VendorSelect({ value, onChange, onVendorCreated }: Vendo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<NewVendor>({
+  const form = useForm<InsertVendor>({
     resolver: zodResolver(insertVendorSchema),
     defaultValues: {
       companyName: "",
