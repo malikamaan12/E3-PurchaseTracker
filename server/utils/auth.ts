@@ -194,8 +194,34 @@ export async function canUserApprove(userId: number, requestId: number): Promise
       return false;
     }
 
+    // Admin or mandatory department approvers can approve all requests
     if (user.role === 'admin' || mandatoryDepartments.includes(user.department)) {
       return true;
+    }
+
+    // Check if user is an additional approver for this request
+    const request = await db.query.purchaseRequests.findFirst({
+      where: eq(purchaseRequests.id, requestId)
+    });
+
+    if (request) {
+      // Check if user's department is in additional approvers
+      // This handles the case where additionalApprovers is stored as a JSON string or as an array
+      try {
+        let additionalApprovers = [];
+        
+        if (typeof request.additionalApprovers === 'string') {
+          additionalApprovers = JSON.parse(request.additionalApprovers || '[]');
+        } else if (Array.isArray(request.additionalApprovers)) {
+          additionalApprovers = request.additionalApprovers;
+        }
+        
+        if (additionalApprovers.includes(user.department)) {
+          return true;
+        }
+      } catch (e) {
+        console.error("Error parsing additionalApprovers:", e);
+      }
     }
 
     return false;
