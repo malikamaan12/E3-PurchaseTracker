@@ -1990,6 +1990,190 @@ export function registerRoutes(app: Express): Server {
       next(error);
     }
   });
+  
+  // Add endpoint for updating vendor details
+  app.patch("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      debug(req, `Updating vendor with ID: ${vendorId}`, req.body);
+
+      if (isNaN(vendorId)) {
+        throw new ValidationError('Invalid vendor ID', { id: 'Must be a number' });
+      }
+
+      // Check if vendor exists
+      const [existingVendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, vendorId))
+        .limit(1);
+
+      if (!existingVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      // Validate update data against schema
+      const validationResult = insertVendorSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        debug(req, 'Vendor update validation failed:', validationResult.error);
+        throw new ValidationError('Invalid vendor data', validationResult.error.format());
+      }
+
+      // Check if company name is being changed and if it's already taken
+      if (req.body.companyName && req.body.companyName !== existingVendor.companyName) {
+        const [nameConflict] = await db
+          .select()
+          .from(vendors)
+          .where(and(
+            eq(vendors.companyName, req.body.companyName),
+            // Exclude current vendor from the check
+            (vendor) => vendor.id !== vendorId
+          ))
+          .limit(1);
+
+        if (nameConflict) {
+          throw new ValidationError('Company name already exists', {
+            companyName: ['This company name is already registered for another vendor']
+          });
+        }
+      }
+
+      // Update vendor in database
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      debug(req, 'Successfully updated vendor:', updatedVendor);
+      res.json(updatedVendor);
+    } catch (error) {
+      debug(req, 'Error updating vendor:', error);
+      next(error);
+    }
+  });
+  
+  // Add endpoint for updating just the vendor status
+  app.patch("/api/vendors/:id/status", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Check admin role for status updates
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Admin access required for vendor status changes', 403);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      debug(req, `Updating vendor status for ID: ${vendorId} to ${status}`);
+
+      if (isNaN(vendorId)) {
+        throw new ValidationError('Invalid vendor ID', { id: 'Must be a number' });
+      }
+      
+      if (!status || !['active', 'blocked', 'frozen'].includes(status)) {
+        throw new ValidationError('Invalid status value', { 
+          status: ['Status must be one of: active, blocked, frozen']
+        });
+      }
+
+      // Check if vendor exists
+      const [existingVendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, vendorId))
+        .limit(1);
+
+      if (!existingVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+
+      // Update just the status
+      const [updatedVendor] = await db
+        .update(vendors)
+        .set({
+          status,
+          updatedAt: new Date()
+        })
+        .where(eq(vendors.id, vendorId))
+        .returning();
+
+      debug(req, 'Successfully updated vendor status:', updatedVendor);
+      res.json(updatedVendor);
+    } catch (error) {
+      debug(req, 'Error updating vendor status:', error);
+      next(error);
+    }
+  });
+  
+  // Add endpoint for deleting a vendor
+  app.delete("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Only admin can delete vendors
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Admin access required for deleting vendors', 403);
+      }
+
+      const vendorId = parseInt(req.params.id);
+      debug(req, `Deleting vendor with ID: ${vendorId}`);
+
+      if (isNaN(vendorId)) {
+        throw new ValidationError('Invalid vendor ID', { id: 'Must be a number' });
+      }
+
+      // Check if vendor exists
+      const [existingVendor] = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, vendorId))
+        .limit(1);
+
+      if (!existingVendor) {
+        throw new AppError('Vendor not found', 404);
+      }
+      
+      // Check if vendor is used in any purchase requests
+      const [requestsUsingVendor] = await db
+        .select({ count: count() })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.vendorId, vendorId));
+        
+      if (requestsUsingVendor && requestsUsingVendor.count > 0) {
+        throw new AppError(
+          `Cannot delete vendor because it is used in ${requestsUsingVendor.count} purchase requests. Consider blocking or freezing the vendor instead.`, 
+          400
+        );
+      }
+
+      // Delete vendor if not used in any requests
+      await db
+        .delete(vendors)
+        .where(eq(vendors.id, vendorId));
+
+      debug(req, 'Successfully deleted vendor');
+      res.json({ 
+        success: true, 
+        message: 'Vendor deleted successfully'
+      });
+    } catch (error) {
+      debug(req, 'Error deleting vendor:', error);
+      next(error);
+    }
+  });
 
   // Add password update endpoint after the account requests management section
   app.post("/api/admin/users/:id/update-password", async (req: Request, res: Response, next: NextFunction) => {
