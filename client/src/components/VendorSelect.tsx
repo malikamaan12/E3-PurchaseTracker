@@ -60,6 +60,15 @@ export default function VendorSelect({ value, onChange, onVendorCreated }: Vendo
       accountNumber: "",
       ibanNumber: "",
       contactPerson: "",
+      address: "",
+      taxNumber: null,
+      bankName: "",
+      contactEmail: "",
+      contactPhone: "",
+      accountName: "",
+      vatNumber: null,
+      category: "",
+      remarks: null
     },
   });
 

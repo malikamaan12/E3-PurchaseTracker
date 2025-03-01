@@ -176,23 +176,36 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   // Memoize submit handler
   const onSubmit = useCallback(async (values: PurchaseRequest) => {
     try {
-      // Validate required fields
-      if (items.some(item => !item.name || item.quantity <= 0)) {
-        toast({
-          title: "Validation Error",
-          description: "Please fill all required item fields (name and quantity)",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (!selectedVendor) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a vendor",
-          variant: "destructive",
-        });
-        return;
+      // Different validation based on status
+      if (values.status === "pending") {
+        // Validate required fields for formal submission
+        if (items.some(item => !item.name || item.quantity <= 0)) {
+          toast({
+            title: "Validation Error",
+            description: "Please fill all required item fields (name and quantity)",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (!selectedVendor) {
+          toast({
+            title: "Validation Error",
+            description: "Please select a vendor",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else if (values.status === "draft") {
+        // For drafts, only validate if there are items that they have at least a name
+        if (items.length > 0 && items.some(item => item.name && item.quantity <= 0)) {
+          toast({
+            title: "Validation Error",
+            description: "Please provide a valid quantity for items with a name",
+            variant: "destructive",
+          });
+          return;
+        }
       }
       
       const submissionData = {
@@ -233,6 +246,31 @@ export default function EditRequest({ params }: { params: { id: string } }) {
 
   const handleSubmit = useCallback(async (status: "draft" | "pending") => {
     try {
+      // For drafts, we'll be more lenient with validation
+      if (status === "draft") {
+        // For drafts, we only need the basic information
+        const currentValues = form.getValues();
+        
+        // Perform minimal validation for drafts
+        if (!currentValues.title && !currentValues.description && items.length === 0) {
+          toast({
+            title: "Validation Error",
+            description: "Please provide at least a title, description, or one item",
+            variant: "destructive",
+            className: "animate-error",
+          });
+          return;
+        }
+        
+        // Continue with draft submission
+        await onSubmit({
+          ...currentValues,
+          status: "draft"
+        });
+        return;
+      }
+      
+      // For pending/submission, we need full validation
       const isValid = await form.trigger();
       if (!isValid) {
         toast({
@@ -258,7 +296,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  }, [form, onSubmit, toast]);
+  }, [form, onSubmit, toast, items]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5 py-8">
