@@ -62,7 +62,13 @@ function addSection(doc: jsPDF, title: string, yPos: number): number {
   return yPos + 8;
 }
 
-export async function generateRequestPDF(request: any) {
+/**
+ * Generates a detailed PDF for a purchase request
+ * @param request The purchase request data
+ * @param type The type of PDF to generate (user, approver, admin)
+ * @returns jsPDF document
+ */
+export async function generateRequestPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user') {
   try {
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -234,9 +240,9 @@ export async function generateRequestPDF(request: any) {
     if (request.attachments?.length > 0) {
       yPos = addSection(doc, "Attached Documents", yPos);
       const attachments = request.attachments.map((file: any) => [
-        file.name || 'N/A',
-        file.type || 'N/A',
-        file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'N/A'
+        file.fileName || file.name || 'N/A',
+        file.fileType || file.type || 'N/A',
+        file.fileSize || file.size ? `${((file.fileSize || file.size) / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       ]);
 
       autoTable(doc, {
@@ -260,6 +266,95 @@ export async function generateRequestPDF(request: any) {
           0: { cellWidth: 'auto' },
           1: { cellWidth: 30 },
           2: { cellWidth: 20 }
+        },
+        margin: { left: margin, right: margin }
+      });
+    }
+    
+    // Add approver-specific information if this is an approver or admin report
+    if (type === 'approver' || type === 'admin') {
+      yPos = (doc as any).lastAutoTable?.finalY + 5 || yPos + 5;
+      
+      // Approvers Section
+      yPos = addSection(doc, "Approval Information", yPos);
+      
+      // Get approvers data
+      const approvals = Array.isArray(request.approvals) ? request.approvals : [];
+      
+      if (approvals.length > 0) {
+        // Format approvals for the table
+        const approvalRows = approvals.map((approval: any) => [
+          approval.approver?.username || 'N/A',
+          approval.department || 'N/A',
+          approval.status?.toUpperCase() || 'PENDING',
+          approval.processedAt ? new Date(approval.processedAt).toLocaleString() : 'Not processed',
+          approval.comments || ''
+        ]);
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Approver', 'Department', 'Status', 'Date', 'Comments']],
+          body: approvalRows,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [247, 248, 250],
+            textColor: [26, 54, 93],
+            fontSize: 9,
+            fontStyle: 'bold',
+            cellPadding: 2
+          },
+          bodyStyles: {
+            fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak'
+          },
+          margin: { left: margin, right: margin }
+        });
+      } else {
+        autoTable(doc, {
+          startY: yPos,
+          body: [['No approval information available']],
+          theme: 'plain',
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 2, 
+            fontStyle: 'italic',
+            textColor: [100, 100, 100],
+            halign: 'center'
+          },
+          margin: { left: margin, right: margin }
+        });
+      }
+    }
+    
+    // Add admin-specific information
+    if (type === 'admin') {
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+      
+      // Audit Information Section
+      yPos = addSection(doc, "Audit Information", yPos);
+      
+      const auditInfo = [
+        ['Created by:', request.requester?.username || 'N/A', 'Created at:', new Date(request.createdAt).toLocaleString()],
+        ['Last updated:', new Date(request.updatedAt).toLocaleString(), 'Request ID:', request.id],
+        ['Process Duration:', request.processedAt && request.createdAt ? 
+          `${Math.floor((new Date(request.processedAt).getTime() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days` : 
+          'Not completed', 
+          'Approval rounds:', approvals?.length || 0]
+      ];
+      
+      autoTable(doc, {
+        startY: yPos,
+        body: auditInfo,
+        theme: 'plain',
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 2,
+          textColor: [80, 80, 80]
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 25 },
+          2: { fontStyle: 'bold', cellWidth: 25 }
         },
         margin: { left: margin, right: margin }
       });

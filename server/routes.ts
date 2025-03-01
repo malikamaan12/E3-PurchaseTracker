@@ -2656,6 +2656,234 @@ export function registerRoutes(app: Express): Server {
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
   
+  // PDF download API endpoint
+  app.get("/api/requests/:id/pdf", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const { type = 'user' } = req.query;
+      
+      // Validate request type
+      if (type && !['user', 'approver', 'admin'].includes(type as string)) {
+        throw new ValidationError("Invalid request type. Must be 'user', 'approver', or 'admin'");
+      }
+      
+      // Only admins can access admin reports
+      if (type === 'admin' && req.user?.role !== 'admin') {
+        throw new AuthorizationError("You do not have permission to access admin reports");
+      }
+      
+      // Only approvers or admins can access approver reports
+      if (type === 'approver' && !['approver', 'admin'].includes(req.user?.role || '')) {
+        throw new AuthorizationError("You do not have permission to access approver reports");
+      }
+      
+      // Fetch the request with all related data
+      const request = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+      
+      if (!request.length) {
+        throw new NotFoundError(`Purchase request with ID ${requestId} not found`);
+      }
+      
+      // Check if user has permission to view this request
+      const canView = 
+        req.user?.role === 'admin' || 
+        request[0].requesterId === req.user?.id || 
+        await canUserApprove(req.user?.id || 0, requestId);
+        
+      if (!canView) {
+        throw new AuthorizationError("You do not have permission to view this request");
+      }
+      
+      // Get all related data
+      const requestWithRelations = await getRequestWithRelations(requestId);
+      
+      // Log the audit event
+      await logAuditEvent(req, {
+        userId: req.user?.id || 0,
+        action: 'pdf_downloaded',
+        resourceId: requestId,
+        resourceType: 'purchase_request',
+        details: { reportType: type }
+      });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Request data for PDF generation',
+        data: requestWithRelations
+      });
+    } catch (error) {
+      debug(req, 'Error generating PDF:', error);
+      next(error);
+    }
+  });
+  
+  // ZIP download API endpoint for a single request with attachments
+  app.get("/api/requests/:id/zip", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const { includeAttachments = 'true', type = 'user' } = req.query;
+      
+      // Validate request type
+      if (type && !['user', 'approver', 'admin'].includes(type as string)) {
+        throw new ValidationError("Invalid request type. Must be 'user', 'approver', or 'admin'");
+      }
+      
+      // Only admins can access admin reports
+      if (type === 'admin' && req.user?.role !== 'admin') {
+        throw new AuthorizationError("You do not have permission to access admin reports");
+      }
+      
+      // Only approvers or admins can access approver reports
+      if (type === 'approver' && !['approver', 'admin'].includes(req.user?.role || '')) {
+        throw new AuthorizationError("You do not have permission to access approver reports");
+      }
+      
+      // Fetch the request with all related data
+      const request = await db
+        .select()
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+      
+      if (!request.length) {
+        throw new NotFoundError(`Purchase request with ID ${requestId} not found`);
+      }
+      
+      // Check if user has permission to view this request
+      const canView = 
+        req.user?.role === 'admin' || 
+        request[0].requesterId === req.user?.id || 
+        await canUserApprove(req.user?.id || 0, requestId);
+        
+      if (!canView) {
+        throw new AuthorizationError("You do not have permission to view this request");
+      }
+      
+      // Get all related data
+      const requestWithRelations = await getRequestWithRelations(requestId);
+      
+      // Include attachments if requested and user has permission
+      let attachmentsData = [];
+      if (includeAttachments === 'true') {
+        const attachments = await db
+          .select()
+          .from(fileAttachments)
+          .where(eq(fileAttachments.requestId, requestId));
+        
+        attachmentsData = attachments.map(attachment => ({
+          ...attachment,
+          fileUrl: `/api/attachments/${attachment.id}`
+        }));
+      }
+      
+      // Log the audit event
+      await logAuditEvent(req, {
+        userId: req.user?.id || 0,
+        action: 'zip_downloaded',
+        resourceId: requestId,
+        resourceType: 'purchase_request',
+        details: { 
+          reportType: type,
+          includeAttachments: includeAttachments === 'true'
+        }
+      });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Request data for ZIP generation',
+        data: {
+          ...requestWithRelations,
+          attachments: attachmentsData
+        }
+      });
+    } catch (error) {
+      debug(req, 'Error generating ZIP:', error);
+      next(error);
+    }
+  });
+  
+  // Bulk export API endpoint for admins
+  app.get("/api/requests/export/bulk", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Only admins can use bulk export
+      if (req.user?.role !== 'admin') {
+        throw new AuthorizationError("Only administrators can perform bulk exports");
+      }
+      
+      const { ids } = req.query;
+      let requestIds: number[] = [];
+      
+      if (ids) {
+        // Parse the IDs from the query string
+        try {
+          requestIds = JSON.parse(ids as string).map((id: any) => parseInt(id));
+        } catch (error) {
+          throw new ValidationError("Invalid request IDs format");
+        }
+      }
+      
+      // Fetch the requests based on provided IDs or use filters
+      let requests;
+      if (requestIds.length > 0) {
+        requests = await db
+          .select()
+          .from(purchaseRequests)
+          .where(inArray(purchaseRequests.id, requestIds));
+      } else {
+        // Use filters similar to the regular listing endpoint but with a reasonable limit
+        const { status, startDate, endDate, department } = req.query;
+        let query = db.select().from(purchaseRequests).limit(100);
+        
+        if (status) {
+          query = query.where(eq(purchaseRequests.status, status as string));
+        }
+        
+        if (startDate) {
+          query = query.where(gte(purchaseRequests.createdAt, new Date(startDate as string)));
+        }
+        
+        if (endDate) {
+          query = query.where(lte(purchaseRequests.createdAt, new Date(endDate as string)));
+        }
+        
+        requests = await query;
+      }
+      
+      if (!requests.length) {
+        throw new NotFoundError("No purchase requests found matching the criteria");
+      }
+      
+      // Get full data for each request
+      const requestsWithRelations = await Promise.all(
+        requests.map(request => getRequestWithRelations(request.id))
+      );
+      
+      // Log the audit event
+      await logAuditEvent(req, {
+        userId: req.user?.id || 0,
+        action: 'bulk_export',
+        resourceType: 'purchase_requests',
+        details: { 
+          count: requestsWithRelations.length,
+          requestIds: requestsWithRelations.map(r => r.id)
+        }
+      });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Request data for bulk export',
+        data: requestsWithRelations
+      });
+    } catch (error) {
+      debug(req, 'Error generating bulk export:', error);
+      next(error);
+    }
+  });
+  
   // Update the GET /api/requests/:id endpoint
   app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
