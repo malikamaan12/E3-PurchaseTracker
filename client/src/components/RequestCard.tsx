@@ -106,7 +106,7 @@ interface PurchaseRequestWithRelations {
   freightAmount: number;
   purposeType: string;
   subPurpose?: { name: string };
-  purpose: string;
+  // purpose field is now represented by description
   isLocked: boolean;
   priorityReason?: string;
   priorityScore?: number;
@@ -709,7 +709,7 @@ export default function RequestCard({
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.purpose || 'No purpose specified'}</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description || 'No purpose specified'}</p>
                 </div>
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
