@@ -9,11 +9,13 @@ import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 import { conversionService } from "./services/ConversionService";
 import { logAuditEvent } from "./utils/audit-logger";
+import { canUserApprove } from "./utils/auth";
 import {
   getNotifications,
   markNotificationAsRead,
   createNotification
 } from "./utils/notifications";
+import { AuthorizationError } from "./utils/errors";
 import {
   users,
   notifications,
