@@ -714,10 +714,7 @@ export default function RequestCard({
                 {vendorSection}
                 <RequestStatusTimeline request={request} />
 
-                {/* Approval Flow - ONLY on details tab */}
-                {(showApproval || request.status !== 'draft') && (
-                  <ApprovalFlow request={request} />
-                )}
+                {/* Approval Flow is handled in the parent component */}
 
                 {analysis.warnings.length > 0 || analysis.suggestions.length > 0 ? (
                   <div className="mt-6">
