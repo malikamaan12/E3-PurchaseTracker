@@ -177,8 +177,25 @@ export default function VendorManagement() {
       });
       
       console.log('Update response:', updatedVendor);
+      
+      // Close the edit dialog and reset the edit mode after successful update
+      setIsEditMode(false);
+      setSelectedVendor(null);
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "Vendor updated successfully"
+      });
     } catch (error) {
       console.error('Vendor update error:', error);
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update vendor",
+        variant: "destructive"
+      });
     }
   };
 
