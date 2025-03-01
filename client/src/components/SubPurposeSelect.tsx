@@ -69,6 +69,7 @@ export default function SubPurposeSelect({
     queryFn: async () => {
       if (!purposeType) return [];
 
+      // Make sure we're properly encoding the purpose type in the URL
       const response = await fetch(`/api/subpurposes?purposeType=${encodeURIComponent(purposeType)}`, {
         credentials: "include",
       });
@@ -80,14 +81,22 @@ export default function SubPurposeSelect({
       }
 
       const data = await response.json();
-      console.log('Fetched sub-purposes:', data);
+      console.log('Fetched sub-purposes for', purposeType, ':', data);
       return data;
     },
     enabled: !!purposeType,
+    // Add refetch on window focus to ensure we have the latest data
+    refetchOnWindowFocus: true,
   });
 
-  // Filter active sub-purposes based on time constraints and frozen status
+  // Filter active sub-purposes based on purpose type, time constraints and frozen status
   const activeSubPurposes = subPurposes.filter(sp => {
+    // First, filter by purpose type
+    if (sp.purpose_type !== purposeType) {
+      return false;
+    }
+    
+    // Then check if it's frozen
     if (sp.is_frozen) return false;
 
     const now = new Date();
@@ -102,6 +111,8 @@ export default function SubPurposeSelect({
 
     return true;
   });
+  
+  console.log('Active sub-purposes for', purposeType, ':', activeSubPurposes);
 
   const createSubPurpose = useMutation({
     mutationFn: async (name: string) => {
