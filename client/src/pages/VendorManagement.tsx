@@ -159,13 +159,27 @@ export default function VendorManagement() {
 
   const handleUpdateVendor = async (data: any) => {
     if (!selectedVendor) return;
-    await updateVendorMutation.mutateAsync({
+    
+    // Log the update details for debugging
+    console.log('Updating vendor:', {
       id: selectedVendor.id,
-      data: {
-        ...data,
-        status: selectedVendor.status,
-      },
+      currentData: selectedVendor,
+      newData: data
     });
+    
+    try {
+      const updatedVendor = await updateVendorMutation.mutateAsync({
+        id: selectedVendor.id,
+        data: {
+          ...data,
+          status: selectedVendor.status,
+        },
+      });
+      
+      console.log('Update response:', updatedVendor);
+    } catch (error) {
+      console.error('Vendor update error:', error);
+    }
   };
 
   const handleViewDetails = (vendor: Vendor) => {

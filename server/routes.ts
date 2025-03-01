@@ -39,7 +39,7 @@ import {
   pdfSettings,
   purchaseApprovers
 } from "@db/schema";
-import { eq, and, desc, gte, lte, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, or, isNull, ne, sql } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
@@ -2030,8 +2030,9 @@ export function registerRoutes(app: Express): Server {
           .from(vendors)
           .where(and(
             eq(vendors.companyName, req.body.companyName),
-            // Exclude current vendor from the check
-            (vendor) => vendor.id !== vendorId
+            // Important: Use proper SQL comparison for IDs to exclude current vendor
+            // Using SQL not equals operator instead of a callback function
+            ne(vendors.id, vendorId)
           ))
           .limit(1);
 
@@ -2147,10 +2148,10 @@ export function registerRoutes(app: Express): Server {
       }
       
       // Check if vendor is used in any purchase requests
-      const [requestsUsingVendor] = await db
-        .select({ count: count() })
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.vendorId, vendorId));
+      const countResult = await db.execute(
+        sql`SELECT COUNT(*) AS count FROM purchase_requests WHERE vendor_id = ${vendorId}`
+      );
+      const requestsUsingVendor = { count: parseInt(countResult.rows[0].count) };
         
       if (requestsUsingVendor && requestsUsingVendor.count > 0) {
         throw new AppError(
