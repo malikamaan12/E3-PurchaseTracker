@@ -2377,23 +2377,31 @@ export function registerRoutes(app: Express): Server {
       // Get vendor details if vendorId exists
       let vendor = null;
       if (request.vendorId) {
+        console.log(`Fetching vendor with ID: ${request.vendorId}`);
         const [vendorData] = await db
           .select()
           .from(vendors)
           .where(eq(vendors.id, request.vendorId))
           .limit(1);
         vendor = vendorData;
+        console.log("Vendor data:", vendor);
+      } else {
+        console.log("No vendorId found in request");
       }
 
       // Get sub-purpose details if subPurposeId exists
       let subPurpose = null;
       if (request.subPurposeId) {
+        console.log(`Fetching sub-purpose with ID: ${request.subPurposeId}`);
         const [subPurposeData] = await db
           .select()
           .from(subPurposes)
           .where(eq(subPurposes.id, request.subPurposeId))
           .limit(1);
         subPurpose = subPurposeData;
+        console.log("Sub-purpose data:", subPurpose);
+      } else {
+        console.log("No subPurposeId found in request");
       }
 
       // Get approvals for this request
