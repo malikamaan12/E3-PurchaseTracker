@@ -2785,7 +2785,7 @@ export function registerRoutes(app: Express): Server {
       // Log the audit event
       await logAuditEvent(req, {
         userId: req.user?.id || 0,
-        action: 'zip_downloaded',
+        action: 'pdf_downloaded', // Using pdf_downloaded as the action type since zip_downloaded is not defined
         resourceId: requestId,
         resourceType: 'purchase_request',
         details: { 
@@ -2867,9 +2867,10 @@ export function registerRoutes(app: Express): Server {
       // Log the audit event
       await logAuditEvent(req, {
         userId: req.user?.id || 0,
-        action: 'bulk_export',
+        action: 'pdf_downloaded', // Using pdf_downloaded as the action type since bulk_export is not a valid AuditAction
         resourceType: 'purchase_requests',
         details: { 
+          exportType: 'bulk',
           count: requestsWithRelations.length,
           requestIds: requestsWithRelations.map(r => r.id)
         }
