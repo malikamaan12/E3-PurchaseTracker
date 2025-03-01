@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
@@ -172,6 +172,10 @@ export default function EditRequest({ params }: { params: { id: string } }) {
       form.setValue('items', items.filter((_, i) => i !== index));
     }
   }, [items, form]);
+  
+  const handleVendorCreated = useCallback((vendor: Vendor) => {
+    setSelectedVendor(vendor.id);
+  }, []);
 
   // Memoize submit handler
   const onSubmit = useCallback(async (values: PurchaseRequest) => {
@@ -544,23 +548,17 @@ export default function EditRequest({ params }: { params: { id: string } }) {
                       Vendor Information
                     </h3>
                     <div className="grid grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="companyName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[#7058a3]">Company Name</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter company name"
-                                className="border-[#7058a3]/20 focus:border-[#7058a3] form-focus-ring"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <FormItem>
+                        <FormLabel className="text-[#7058a3]">Vendor</FormLabel>
+                        <FormControl>
+                          <VendorSelect 
+                            value={selectedVendor}
+                            onChange={(vendorId) => setSelectedVendor(vendorId)}
+                            onVendorCreated={handleVendorCreated}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
 
                       <FormField
                         control={form.control}
