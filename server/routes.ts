@@ -643,7 +643,7 @@ export function registerRoutes(app: Express): Server {
               .where(eq(fileAttachments.requestId, request.id));
             
             // Get approvals with complete details
-            const approvals = await db
+            const approvalsList = await db
               .select({
                 id: approvals.id,
                 requestId: approvals.requestId,
@@ -651,7 +651,7 @@ export function registerRoutes(app: Express): Server {
                 status: approvals.status,
                 comments: approvals.comments,
                 department: approvals.department,
-                createdAt: approvals.createdAt,
+                processedAt: approvals.createdAt,
                 updatedAt: approvals.updatedAt,
               })
               .from(approvals)
@@ -662,9 +662,9 @@ export function registerRoutes(app: Express): Server {
               ...request,
               items: parsedItems,
               attachments,
-              approvals,
+              approvals: approvalsList,
               requester,
-              // Ensure additionalApprovers is always an array
+              // Ensure additionalApprovers is always an array  
               additionalApprovers: request.additionalApprovers || []
             };
           } catch (error) {

@@ -171,8 +171,11 @@ export default function ApprovalFlow({
     }
   };
 
-  // Get approval status for each department
-  const departmentStatuses = allRequiredDepartments.map(dept => {
+  // Create a deduplicated list of departments to prevent duplicates
+  const uniqueDepartments = Array.from(new Set(allRequiredDepartments));
+
+  // Get approval status for each unique department
+  const departmentStatuses = uniqueDepartments.map(dept => {
     const approval = request.approvals?.find(a => a.department === dept);
     return {
       department: dept,

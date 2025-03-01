@@ -1,3 +1,4 @@
+import React from 'react';
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Vendor, SubPurpose } from "@db/schema";
@@ -11,6 +12,9 @@ export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Flag to prevent duplicate toast notifications
+  const hasShownSubmitToast = React.useRef(false);
 
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
@@ -61,6 +65,17 @@ export default function NewPurchaseRequestForm() {
   };
 
   const handleSubmit = (draft?: boolean) => {
+    // Only show the toast notification once, prevent duplicates
+    if (!hasShownSubmitToast.current) {
+      toast({
+        title: "Success",
+        description: draft 
+          ? "Purchase request has been saved as draft" 
+          : "Purchase request has been submitted successfully",
+        variant: "default"
+      });
+      hasShownSubmitToast.current = true;
+    }
     setLocation("/");
   };
 

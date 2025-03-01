@@ -23,7 +23,9 @@ export default function ViewRequest() {
 
   // Force refetch requests when component loads to ensure we have latest data
   useEffect(() => {
-    refetch();
+    if (refetch) {
+      refetch();
+    }
     console.log("ViewRequest - ID from URL:", id);
   }, [id, refetch]);
 
@@ -52,7 +54,7 @@ export default function ViewRequest() {
         <h1 className="text-2xl font-bold mb-4">Request Not Found</h1>
         <p className="text-gray-600 mb-4">The request you're looking for doesn't exist or is still loading.</p>
         <Button onClick={() => {
-          refetch(); // Try to refetch requests on button click
+          if (refetch) refetch(); // Try to refetch requests on button click
         }} className="mb-4">
           Retry Loading
         </Button>
@@ -117,7 +119,7 @@ export default function ViewRequest() {
                   onApprovalUpdate={() => {
                     // Invalidate queries to refresh data
                     queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-                    refetch();
+                    if (refetch) refetch();
 
                     toast({
                       title: "Approval Updated",

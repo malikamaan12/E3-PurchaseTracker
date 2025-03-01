@@ -46,7 +46,7 @@ export function usePurchaseRequests() {
   }, []);
 
   // Fetch all requests
-  const { data: rawRequests = [], isLoading, error } = useQuery({
+  const { data: rawRequests = [], isLoading, error, refetch } = useQuery({
     queryKey: ["/api/requests"],
     queryFn: async () => {
       try {
@@ -171,5 +171,6 @@ export function usePurchaseRequests() {
     isLoading,
     error,
     processApproval: approvalMutation.mutateAsync,
+    refetch, // Expose the refetch function from useQuery
   };
 }
