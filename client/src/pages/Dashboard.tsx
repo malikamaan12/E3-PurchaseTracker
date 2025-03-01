@@ -21,6 +21,8 @@ import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardF
 import { BulkExportButton } from "@/components/BulkExportButton";
 import { isWithinInterval, parseISO, isSameDay } from "date-fns";
 import { type RequestData } from "@/types/requests";
+import { useVendors } from "@/hooks/use-vendors";
+import { useSubPurposes } from "@/hooks/use-sub-purposes";
 
 // Brand colors
 const BRAND = {
