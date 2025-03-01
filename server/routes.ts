@@ -264,7 +264,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       try {
-        // Use a simpler approach - first get the base request
+        // First get the base request
         const requests = await db.query.purchaseRequests.findMany({
           where: eq(purchaseRequests.id, requestId),
           limit: 1
@@ -276,6 +276,37 @@ export function registerRoutes(app: Express): Server {
         
         const request = requests[0];
         debug(req, `Found base request with ID: ${request.id}`);
+        
+        // Check if user has permission to view this request
+        // Admin can see all requests
+        const isAdmin = req.user?.role === 'admin';
+        // User created the request
+        const isRequester = request.requesterId === req.user?.id;
+        
+        // Check if user is an approver
+        const approvalsForUser = await db
+          .select()
+          .from(approvals)
+          .where(and(
+            eq(approvals.requestId, requestId),
+            eq(approvals.department, req.user?.department || ''),
+            eq(approvals.approverId, req.user?.id)
+          ));
+          
+        const isApprover = approvalsForUser.length > 0;
+        
+        // Check if user's department is in additional approvers
+        const additionalApprovers = Array.isArray(request.additionalApprovers) 
+          ? request.additionalApprovers 
+          : [];
+          
+        const isAdditionalApprover = req.user?.department && additionalApprovers.includes(req.user.department);
+        
+        // If user doesn't have permission to view, return 403
+        if (!isAdmin && !isRequester && !isApprover && !isAdditionalApprover) {
+          debug(req, `User ${req.user?.id} does not have permission to view request ${requestId}`);
+          throw new AppError('You do not have permission to view this request', 403);
+        }
         
         // Get attachments
         const attachments = await db.query.fileAttachments.findMany({
@@ -607,17 +638,73 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
       
-      debug(req, 'Fetching all purchase requests');
-      console.log('Fetching all purchase requests for user:', req.user?.id);
+      debug(req, 'Fetching purchase requests with visibility restrictions');
+      console.log('Fetching visible purchase requests for user:', req.user?.id, 'role:', req.user?.role, 'department:', req.user?.department);
       
-      // Simple query to get all purchase requests with minimal filtering
-      // This should avoid the "Cannot convert undefined or null to object" error
-      const requests = await db
-        .select()
-        .from(purchaseRequests)
-        .orderBy(desc(purchaseRequests.updatedAt));
+      // Get all requests first - we'll filter based on visibility permissions
+      let requests = [];
       
-      console.log(`Found ${requests.length} purchase requests`);
+      // Admin can see all requests
+      if (req.user?.role === 'admin') {
+        debug(req, 'User is admin - fetching all requests');
+        requests = await db
+          .select()
+          .from(purchaseRequests)
+          .orderBy(desc(purchaseRequests.updatedAt));
+      } else {
+        // Regular users can only see:
+        // 1. Requests they created
+        // 2. Requests where they are a mandatory approver (by department)
+        // 3. Requests where they are an additional approver (by department)
+        
+        // Get the list of all requests
+        const allRequests = await db
+          .select()
+          .from(purchaseRequests)
+          .orderBy(desc(purchaseRequests.updatedAt));
+          
+        // Get list of requests where user is an approver
+        const approvalsForUser = await db
+          .select({
+            requestId: approvals.requestId
+          })
+          .from(approvals)
+          .where(and(
+            eq(approvals.department, req.user?.department || ''),
+            eq(approvals.approverId, req.user?.id)
+          ));
+          
+        const approvalRequestIds = approvalsForUser.map(a => a.requestId);
+        
+        debug(req, `User is approver for ${approvalRequestIds.length} requests`);
+        
+        // Filter requests based on visibility rules
+        requests = allRequests.filter(request => {
+          // 1. User created the request
+          if (request.requesterId === req.user?.id) {
+            return true;
+          }
+          
+          // 2. User is a mandatory approver (already covered in approvalRequestIds)
+          if (approvalRequestIds.includes(request.id)) {
+            return true;
+          }
+          
+          // 3. User's department is in additionalApprovers for this request
+          const additionalApprovers = Array.isArray(request.additionalApprovers) 
+            ? request.additionalApprovers 
+            : [];
+            
+          if (req.user?.department && additionalApprovers.includes(req.user.department)) {
+            return true;
+          }
+          
+          // Not visible to this user
+          return false;
+        });
+      }
+      
+      console.log(`Found ${requests.length} purchase requests visible to user`);
       
       // Process requests with a simplified approach
       const processedRequests = await Promise.all(
