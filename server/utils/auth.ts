@@ -1,6 +1,6 @@
 import { db } from "@db";
-import { users } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { users, approvals } from "@db/schema";
+import { eq, and } from "drizzle-orm";
 import { compare, hash } from "bcrypt";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
@@ -199,29 +199,29 @@ export async function canUserApprove(userId: number, requestId: number): Promise
       return true;
     }
 
-    // Check if user is an additional approver for this request
-    const request = await db.query.purchaseRequests.findFirst({
-      where: eq(purchaseRequests.id, requestId)
+    // Check if user is assigned as an approver for this request
+    const approval = await db.query.approvals.findFirst({
+      where: and(
+        eq(approvals.requestId, requestId),
+        eq(approvals.approverId, userId)
+      )
     });
 
-    if (request) {
-      // Check if user's department is in additional approvers
-      // This handles the case where additionalApprovers is stored as a JSON string or as an array
-      try {
-        let additionalApprovers = [];
-        
-        if (typeof request.additionalApprovers === 'string') {
-          additionalApprovers = JSON.parse(request.additionalApprovers || '[]');
-        } else if (Array.isArray(request.additionalApprovers)) {
-          additionalApprovers = request.additionalApprovers;
-        }
-        
-        if (additionalApprovers.includes(user.department)) {
-          return true;
-        }
-      } catch (e) {
-        console.error("Error parsing additionalApprovers:", e);
-      }
+    if (approval) {
+      // User is explicitly assigned as an approver
+      return true;
+    }
+    
+    // Check if user's department is assigned to approve this request
+    const departmentApproval = await db.query.approvals.findFirst({
+      where: and(
+        eq(approvals.requestId, requestId),
+        eq(approvals.department, user.department)
+      )
+    });
+    
+    if (departmentApproval) {
+      return true;
     }
 
     return false;
