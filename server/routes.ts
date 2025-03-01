@@ -263,149 +263,116 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
       }
 
-      // Get the purchase request
-      const [purchaseRequest] = await db
-        .select({
-          id: purchaseRequests.id,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          requestNumber: purchaseRequests.requestNumber,
-          status: purchaseRequests.status,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          freightAmount: purchaseRequests.freightAmount,
-          currency: purchaseRequests.currency,
-          items: purchaseRequests.items,
-          requesterId: purchaseRequests.requesterId,
-          vendorId: purchaseRequests.vendorId,
-          purposeType: purchaseRequests.purposeType,
-          subPurposeId: purchaseRequests.subPurposeId,
-          justification: purchaseRequests.justification,
-          priority: purchaseRequests.priority,
-          isLocked: purchaseRequests.isLocked,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          additionalApprovers: purchaseRequests.additionalApprovers, // Include additionalApprovers
-        })
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, requestId))
-        .limit(1);
-
-      if (!purchaseRequest) {
-        throw new AppError('Purchase request not found', 404);
-      }
-
-      // Get attachments
-      const attachmentList = await db
-        .select()
-        .from(fileAttachments)
-        .where(eq(fileAttachments.requestId, requestId));
-
-      // Get approvals
-      const approvalList = await db
-        .select({
-          id: approvals.id,
-          requestId: approvals.requestId,
-          approverId: approvals.approverId,
-          status: approvals.status,
-          comments: approvals.comments,
-          department: approvals.department,
-          createdAt: approvals.createdAt,
-          updatedAt: approvals.updatedAt,
-        })
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId));
-
-      // Parse items JSON safely
-      let parsedItems = [];
       try {
-        // Check if items is already an array or needs to be parsed
-        if (Array.isArray(purchaseRequest.items)) {
-          parsedItems = purchaseRequest.items;
-        } else if (typeof purchaseRequest.items === 'string') {
-          parsedItems = JSON.parse(purchaseRequest.items);
-        } else if (purchaseRequest.items && typeof purchaseRequest.items === 'object') {
-          // Try to handle non-standard format
-          console.log('Items is an object, attempting to convert:', purchaseRequest.items);
-          parsedItems = Object.values(purchaseRequest.items);
+        // Use a simpler approach - first get the base request
+        const requests = await db.query.purchaseRequests.findMany({
+          where: eq(purchaseRequests.id, requestId),
+          limit: 1
+        });
+        
+        if (requests.length === 0) {
+          throw new AppError('Purchase request not found', 404);
         }
-      } catch (e) {
-        console.error('Error parsing items JSON:', e);
-      }
-
-      // Enhance response with requester details
-      const [requester] = purchaseRequest.requesterId
-        ? await db
-            .select({
-              id: users.id,
-              username: users.username,
-              email: users.email,
-              department: users.department,
-              role: users.role,
-            })
-            .from(users)
-            .where(eq(users.id, purchaseRequest.requesterId))
-            .limit(1)
-        : [null];
-
-      // Enhance response with vendor details
-      debug(req, `Fetching vendor with ID: ${purchaseRequest.vendorId}`);
-      let vendor = null;
-      if (purchaseRequest.vendorId) {
-        try {
-          const vendorResults = await db
-            .select()
-            .from(vendors)
-            .where(eq(vendors.id, purchaseRequest.vendorId))
-            .limit(1);
+        
+        const request = requests[0];
+        debug(req, `Found base request with ID: ${request.id}`);
+        
+        // Get attachments
+        const attachments = await db.query.fileAttachments.findMany({
+          where: eq(fileAttachments.requestId, requestId)
+        });
+        debug(req, `Found ${attachments.length} attachments`);
+        
+        // Get approvals
+        const approvalsList = await db.query.approvals.findMany({
+          where: eq(approvals.requestId, requestId),
+          with: {
+            approver: true
+          }
+        });
+        debug(req, `Found ${approvalsList.length} approvals`);
+        
+        // Get requester
+        let requester = null;
+        if (request.requesterId) {
+          const requesterResults = await db.query.users.findMany({
+            where: eq(users.id, request.requesterId),
+            limit: 1
+          });
+          
+          if (requesterResults.length > 0) {
+            requester = requesterResults[0];
+            debug(req, `Found requester: ${requester.username}`);
+          }
+        }
+        
+        // Get vendor
+        let vendor = null;
+        if (request.vendorId) {
+          const vendorResults = await db.query.vendors.findMany({
+            where: eq(vendors.id, request.vendorId),
+            limit: 1
+          });
           
           if (vendorResults.length > 0) {
             vendor = vendorResults[0];
-            debug(req, `Found vendor: ${JSON.stringify(vendor)}`);
+            debug(req, `Found vendor: ${vendor.companyName || vendor.name}`);
           } else {
-            debug(req, `No vendor found with ID: ${purchaseRequest.vendorId}`);
+            debug(req, `No vendor found with ID: ${request.vendorId}`);
           }
-        } catch (error) {
-          console.error("Error fetching vendor:", error);
         }
-      }
-
-      // Get the sub-purpose if specified
-      debug(req, `Fetching sub-purpose with ID: ${purchaseRequest.subPurposeId}`);
-      let subPurpose = null;
-      if (purchaseRequest.subPurposeId) {
-        try {
-          const subPurposeResults = await db
-            .select()
-            .from(subPurposes)
-            .where(eq(subPurposes.id, purchaseRequest.subPurposeId))
-            .limit(1);
+        
+        // Get sub-purpose
+        let subPurpose = null;
+        if (request.subPurposeId) {
+          const subPurposeResults = await db.query.subPurposes.findMany({
+            where: eq(subPurposes.id, request.subPurposeId),
+            limit: 1
+          });
           
           if (subPurposeResults.length > 0) {
             subPurpose = subPurposeResults[0];
-            debug(req, `Found sub-purpose: ${JSON.stringify(subPurpose)}`);
+            debug(req, `Found sub-purpose: ${subPurpose.name}`);
           } else {
-            debug(req, `No sub-purpose found with ID: ${purchaseRequest.subPurposeId}`);
+            debug(req, `No sub-purpose found with ID: ${request.subPurposeId}`);
           }
-        } catch (error) {
-          console.error("Error fetching sub-purpose:", error);
         }
+        
+        // Parse items JSON safely
+        let parsedItems = [];
+        try {
+          if (Array.isArray(request.items)) {
+            parsedItems = request.items;
+          } else if (typeof request.items === 'string' && request.items) {
+            parsedItems = JSON.parse(request.items);
+          } else if (request.items && typeof request.items === 'object') {
+            parsedItems = Object.values(request.items);
+          }
+        } catch (e) {
+          console.error('Error parsing items JSON:', e);
+          // If parsing fails, at least return an empty array
+          parsedItems = [];
+        }
+        
+        // Construct and return the full response
+        const result = {
+          ...request,
+          items: parsedItems,
+          attachments,
+          approvals: approvalsList,
+          requester,
+          vendor,
+          subPurpose,
+          // Default additional approvers to empty array if not present
+          additionalApprovers: request.additionalApprovers || []
+        };
+        
+        debug(req, 'Successfully assembled complete request data');
+        res.json(result);
+      } catch (error) {
+        console.error("[GET /api/requests/:id] Database error:", error);
+        throw new DatabaseError('Failed to fetch request data from database');
       }
-
-      // Prepare the response
-      const enhancedRequest = {
-        ...purchaseRequest,
-        items: parsedItems,
-        attachments: attachmentList,
-        approvals: approvalList,
-        requester,
-        vendor,
-        subPurpose,
-        // Ensure additionalApprovers is included
-        additionalApprovers: purchaseRequest.additionalApprovers || []
-      };
-
-      debug(req, `Successfully fetched request with additionalApprovers: ${JSON.stringify(purchaseRequest.additionalApprovers || [])}`);
-      res.json(enhancedRequest);
     } catch (error) {
       debug(req, 'Error fetching purchase request:', error);
       next(error);
