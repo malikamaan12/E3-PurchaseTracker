@@ -2336,72 +2336,67 @@ export function registerRoutes(app: Express): Server {
   // Remove Redundant Branding Routes
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
+  
   // Update the GET /api/requests/:id endpoint
   app.get("/api/requests/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      debug(req, "[GET /api/requests/:id] Fetching purchase request with ID:", req.params.id);
+      
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
       }
 
       const requestId = parseInt(req.params.id);
-
-      // Get request with all related data
-      const [request] = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          requesterId: purchaseRequests.requesterId,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          items: purchaseRequests.items,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-          purposeType: purchaseRequests.purposeType,
-          priority: purchaseRequests.priority,
-          isLocked: purchaseRequests.isLocked,
-          vendorId: purchaseRequests.vendorId,
-          subPurposeId: purchaseRequests.subPurposeId,
-          freightAmount: purchaseRequests.freightAmount,
-          currency: purchaseRequests.currency
-        })
+      
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+      
+      // First get the request (simpler query)
+      console.log("[GET /api/requests/:id] Executing base request query");
+      const request = await db
+        .select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
-        .limit(1);
+        .limit(1)
+        .then(rows => rows[0]);
 
       if (!request) {
         throw new AppError('Request not found', 404);
       }
+      
+      console.log("[GET /api/requests/:id] Found request:", request.id);
 
       // Get vendor details if vendorId exists
       let vendor = null;
       if (request.vendorId) {
-        console.log(`Fetching vendor with ID: ${request.vendorId}`);
+        console.log(`[GET /api/requests/:id] Fetching vendor with ID: ${request.vendorId}`);
         const [vendorData] = await db
           .select()
           .from(vendors)
           .where(eq(vendors.id, request.vendorId))
           .limit(1);
         vendor = vendorData;
-        console.log("Vendor data:", vendor);
+        console.log("[GET /api/requests/:id] Vendor data found");
       } else {
-        console.log("No vendorId found in request");
+        console.log("[GET /api/requests/:id] No vendorId found in request");
       }
 
       // Get sub-purpose details if subPurposeId exists
       let subPurpose = null;
       if (request.subPurposeId) {
-        console.log(`Fetching sub-purpose with ID: ${request.subPurposeId}`);
-        const [subPurposeData] = await db
+        console.log(`[GET /api/requests/:id] Fetching sub-purpose with ID: ${request.subPurposeId}`);
+        const subPurposeData = await db
           .select()
           .from(subPurposes)
           .where(eq(subPurposes.id, request.subPurposeId))
-          .limit(1);
+          .limit(1)
+          .then(rows => rows[0]);
+          
         subPurpose = subPurposeData;
-        console.log("Sub-purpose data:", subPurpose);
+        console.log("[GET /api/requests/:id] Sub-purpose data found");
       } else {
-        console.log("No subPurposeId found in request");
+        console.log("[GET /api/requests/:id] No subPurposeId found in request");
       }
 
       // Get approvals for this request
