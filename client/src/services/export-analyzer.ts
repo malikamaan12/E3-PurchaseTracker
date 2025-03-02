@@ -1,10 +1,29 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 // Use the Anthropic client for browser environment
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-  dangerouslyAllowBrowser: true
-});
+let anthropic: Anthropic | null = null;
+
+// Lazy initialization of the Anthropic client
+function getAnthropicClient(): Anthropic | null {
+  if (anthropic) return anthropic;
+  
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.warn('Anthropic API key is not set in environment variables');
+    return null;
+  }
+  
+  try {
+    anthropic = new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    });
+    return anthropic;
+  } catch (error) {
+    console.error('Failed to initialize Anthropic client:', error);
+    return null;
+  }
+}
 
 /**
  * Analyzes export functionality issues using Anthropic's Claude AI
@@ -17,18 +36,33 @@ export async function analyzeExportIssue(
   context: Record<string, any> = {}
 ): Promise<ExportAnalysisResult> {
   try {
+    // Get the client (lazy initialization)
+    const client = getAnthropicClient();
+    if (!client) {
+      throw new Error('Anthropic client unavailable - API key might be missing');
+    }
+
     // Format the error for analysis
     const errorInfo = {
       message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+      stack: error instanceof Error ? (error.stack?.split('\n').slice(0, 5).join('\n') || '') : '',
       timestamp: new Date().toISOString(),
       ...context
     };
 
+    console.log('Analyzing export error with Claude:', 
+      JSON.stringify({
+        message: errorInfo.message,
+        operation: context.operation || 'unknown',
+        timestamp: errorInfo.timestamp
+      })
+    );
+
     // Get analysis from Claude
-    const response = await anthropic.messages.create({
+    const response = await client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 2048,
+      temperature: 0.2,
       messages: [{
         role: 'user',
         content: `Analyze this export functionality error in our enterprise vendor management system. 
@@ -37,7 +71,13 @@ export async function analyzeExportIssue(
         Error Details:
         ${JSON.stringify(errorInfo, null, 2)}
 
-        Please provide a detailed analysis in this exact JSON format:
+        Additional Technical Context:
+        - The system uses fetch API to get data from server endpoints
+        - Client uses exportRequestToPDF/exportRequestAsZip for file generation
+        - Server routes: /api/requests/:id/pdf, /api/requests/:id/zip, /api/requests/export/bulk
+        - Common issues include: missing data, incorrect query parameters, missing auth, file format issues
+
+        Please provide a detailed analysis in this exact JSON format (no explanation or additional text):
         {
           "issue": {
             "type": "api" | "permissions" | "data_structure" | "file_generation" | "client_side" | "network" | "other",
@@ -68,6 +108,11 @@ export async function analyzeExportIssue(
     let jsonStr = content.text;
     if (content.text.includes('```json')) {
       jsonStr = content.text.split('```json')[1].split('```')[0].trim();
+    } else if (content.text.includes('```')) {
+      const matches = content.text.match(/```(?:json)?([\s\S]*?)```/);
+      if (matches && matches[1]) {
+        jsonStr = matches[1].trim();
+      }
     } else if (content.text.includes('{') && content.text.includes('}')) {
       const startPos = content.text.indexOf('{');
       const endPos = content.text.lastIndexOf('}') + 1;
@@ -81,30 +126,88 @@ export async function analyzeExportIssue(
       .replace(/,\s*}/g, '}') // Remove trailing commas
       .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
     
-    return JSON.parse(cleanedJsonStr);
+    try {
+      const result = JSON.parse(cleanedJsonStr);
+      console.log('Successfully analyzed export issue with AI');
+      return result;
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      console.log('Raw response:', jsonStr);
+      throw new Error('Invalid response format from AI analysis');
+    }
   } catch (analysisError) {
     console.error('Error analyzing export issue with AI:', analysisError);
-    // Return a fallback analysis
+    
+    // Generate a context-aware fallback analysis
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const operation = context.operation || 'export';
+    
+    // Determine likely issue type based on error message
+    let issueType: 'api' | 'permissions' | 'data_structure' | 'file_generation' | 'client_side' | 'network' | 'other' = 'other';
+    let description = 'Export operation failed';
+    let components = ['exportUtils'];
+    let severity: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+    
+    if (errorMessage.includes('permission') || errorMessage.includes('unauthoriz')) {
+      issueType = 'permissions';
+      description = 'Permission or authorization issue when accessing export endpoint';
+      severity = 'high';
+    } else if (errorMessage.includes('format') || errorMessage.includes('invalid') || errorMessage.includes('data')) {
+      issueType = 'data_structure';
+      description = 'Data format or structure issue in the export process';
+      severity = 'medium';
+    } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('cors')) {
+      issueType = 'network';
+      description = 'Network error when trying to retrieve data for export';
+      severity = 'high';
+    } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+      issueType = 'api';
+      description = 'API endpoint not found or incorrectly specified';
+      severity = 'high';
+    } else if (errorMessage.includes('generate') || errorMessage.includes('pdf') || errorMessage.includes('zip')) {
+      issueType = 'file_generation';
+      description = 'Error generating the export file';
+      severity = 'medium';
+    }
+    
+    // Add component-specific data
+    if (operation === 'pdf_export') {
+      components.push('pdfGenerator');
+    } else if (operation === 'zip_export') {
+      components.push('jszip');
+    } else if (operation === 'bulk_export') {
+      components.push('bulkExportButton');
+    }
+    
+    // Return a tailored fallback analysis
     return {
       issue: {
-        type: 'other',
-        description: 'Error analysis failed - AI service unavailable',
-        severity: 'medium'
+        type: issueType,
+        description: description,
+        severity: severity
       },
       technicalAnalysis: {
-        components: ['exportUtils', 'pdfGenerator', 'anthropic-client'],
-        rootCause: 'Unable to perform AI analysis of the error',
-        affectedFiles: ['client/src/lib/exportUtils.ts', 'client/src/lib/pdfGenerator.ts']
+        components: components,
+        rootCause: `Export error: ${errorMessage}`,
+        affectedFiles: [
+          'client/src/lib/exportUtils.ts', 
+          'client/src/lib/pdfGenerator.ts',
+          'client/src/components/DownloadOptions.tsx',
+          'client/src/components/BulkExportButton.tsx'
+        ]
       },
       fixes: {
         immediate: [
           'Check browser console for detailed error logs',
-          'Verify export-related endpoints on the server',
-          'Check if all required data is being passed correctly'
+          'Verify the export endpoint URL and parameters',
+          'Check if user has correct permissions for export',
+          'Verify the request data format'
         ],
         preventive: [
           'Add better error logging for export functionality',
-          'Create fallback export mechanisms'
+          'Implement fallback export methods',
+          'Add retry mechanism for network failures',
+          'Create more robust parameter validation'
         ]
       },
       codeSnippet: ''

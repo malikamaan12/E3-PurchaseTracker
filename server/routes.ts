@@ -2893,55 +2893,110 @@ export function registerRoutes(app: Express): Server {
   // Bulk export API endpoint for admins
   app.get("/api/requests/export/bulk", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      console.log("[BULK EXPORT] Received request with query params:", req.query);
+      
       // Only admins can use bulk export
       if (req.user?.role !== 'admin') {
         throw new AuthorizationError("Only administrators can perform bulk exports");
       }
       
-      const { ids } = req.query;
+      const { ids, status, startDate, endDate, priority, department, purposeType } = req.query;
       let requestIds: number[] = [];
       
+      // Process the ids parameter if provided
       if (ids) {
-        // Parse the IDs from the query string
         try {
-          requestIds = JSON.parse(ids as string).map((id: any) => parseInt(id));
+          // Handle both JSON array and comma-separated list formats
+          if (typeof ids === 'string' && ids.startsWith('[') && ids.endsWith(']')) {
+            requestIds = JSON.parse(ids).map((id: any) => typeof id === 'number' ? id : parseInt(id));
+          } else if (typeof ids === 'string' && ids.includes(',')) {
+            requestIds = ids.split(',').map(id => parseInt(id.trim()));
+          } else if (typeof ids === 'string') {
+            requestIds = [parseInt(ids)];
+          }
+          
+          console.log("[BULK EXPORT] Parsed request IDs:", requestIds);
         } catch (error) {
-          throw new ValidationError("Invalid request IDs format");
+          console.error("[BULK EXPORT] Error parsing IDs:", error);
+          throw new ValidationError("Invalid request IDs format. Expected a JSON array or comma-separated list of numbers.");
         }
       }
       
       // Fetch the requests based on provided IDs or use filters
       let requests;
+      
       if (requestIds.length > 0) {
+        console.log("[BULK EXPORT] Fetching requests by IDs:", requestIds);
         requests = await db
           .select()
           .from(purchaseRequests)
           .where(inArray(purchaseRequests.id, requestIds));
+          
+        console.log(`[BULK EXPORT] Found ${requests.length} requests by IDs`);
       } else {
-        // Use filters similar to the regular listing endpoint but with a reasonable limit
-        const { status, startDate, endDate, department } = req.query;
-        let query = db.select().from(purchaseRequests).limit(100);
+        // Build a query with all the filters
+        console.log("[BULK EXPORT] Building filtered query with:", { status, startDate, endDate, priority, department, purposeType });
         
-        if (status) {
-          query = query.where(eq(purchaseRequests.status, status as string));
+        let query = db.select().from(purchaseRequests).limit(30); // Limit to a reasonable number
+        
+        // Apply each filter if provided
+        if (status && status !== 'all' && typeof status === 'string') {
+          const statusValues = status.split(',');
+          if (statusValues.length > 1) {
+            query = query.where(inArray(purchaseRequests.status, statusValues));
+          } else {
+            query = query.where(eq(purchaseRequests.status, status));
+          }
         }
         
-        if (startDate) {
-          query = query.where(gte(purchaseRequests.createdAt, new Date(startDate as string)));
+        if (priority && priority !== 'all' && typeof priority === 'string') {
+          const priorityValues = priority.split(',');
+          if (priorityValues.length > 1) {
+            query = query.where(inArray(purchaseRequests.priority, priorityValues));
+          } else {
+            query = query.where(eq(purchaseRequests.priority, priority));
+          }
         }
         
-        if (endDate) {
-          query = query.where(lte(purchaseRequests.createdAt, new Date(endDate as string)));
+        if (purposeType && purposeType !== 'all' && typeof purposeType === 'string') {
+          query = query.where(eq(purchaseRequests.purposeType, purposeType));
         }
         
+        if (startDate && typeof startDate === 'string') {
+          try {
+            const date = new Date(startDate);
+            query = query.where(gte(purchaseRequests.createdAt, date));
+          } catch (e) {
+            console.error("[BULK EXPORT] Invalid start date:", startDate);
+          }
+        }
+        
+        if (endDate && typeof endDate === 'string') {
+          try {
+            const date = new Date(endDate);
+            query = query.where(lte(purchaseRequests.createdAt, date));
+          } catch (e) {
+            console.error("[BULK EXPORT] Invalid end date:", endDate);
+          }
+        }
+        
+        // Execute the query
         requests = await query;
+        console.log(`[BULK EXPORT] Found ${requests.length} requests by filters`);
       }
       
+      // Return an empty array if no requests found (instead of throwing an error)
       if (!requests.length) {
-        throw new NotFoundError("No purchase requests found matching the criteria");
+        console.log("[BULK EXPORT] No purchase requests found matching the criteria");
+        return res.status(200).json({
+          success: true,
+          message: 'No purchase requests found matching the criteria',
+          data: []
+        });
       }
       
-      // Get full data for each request
+      // Get full data for each request (with all relations)
+      console.log("[BULK EXPORT] Getting request details with relations");
       const requestsWithRelations = await Promise.all(
         requests.map(request => getRequestWithRelations(request.id))
       );
@@ -2949,7 +3004,7 @@ export function registerRoutes(app: Express): Server {
       // Log the audit event
       await logAuditEvent(req, {
         userId: req.user?.id || 0,
-        action: 'pdf_downloaded', // Using pdf_downloaded as the action type since bulk_export is not a valid AuditAction
+        action: 'pdf_downloaded', // Using pdf_downloaded as the action type
         resourceType: 'purchase_requests',
         details: { 
           exportType: 'bulk',
@@ -2957,6 +3012,8 @@ export function registerRoutes(app: Express): Server {
           requestIds: requestsWithRelations.map(r => r.id)
         }
       });
+      
+      console.log(`[BULK EXPORT] Successfully prepared ${requestsWithRelations.length} requests for export`);
       
       res.status(200).json({
         success: true,
