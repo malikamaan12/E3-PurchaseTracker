@@ -368,7 +368,13 @@ export async function exportRequestToCSV(
           vendor: request.vendor?.companyName || request.vendor?.name || 'N/A'
         };
         
-        const parser = new Parser();
+        // Create parser with explicit options for maximum compatibility
+        // Create parser with explicit options that are compatible with the API
+        const parser = new Parser({
+          header: true,
+          delimiter: ','
+        });
+        // Parse the data - note it needs to be an array
         const csv = parser.parse([basicData]);
         
         const basicFileName = `${fileName}_basic.csv`;
@@ -400,7 +406,10 @@ export async function exportRequestToCSV(
             description: item?.description || ''
           }));
           
-          const parser = new Parser();
+          const parser = new Parser({
+            header: true,
+            delimiter: ','
+          });
           const csv = parser.parse(items);
           
           const itemsFileName = `${fileName}_items.csv`;
@@ -438,7 +447,10 @@ export async function exportRequestToCSV(
             comments: approval?.comments || ''
           }));
           
-          const parser = new Parser();
+          const parser = new Parser({
+            header: true,
+            delimiter: ','
+          });
           const csv = parser.parse(approvals);
           
           const approvalsFileName = `${fileName}_approvals.csv`;
