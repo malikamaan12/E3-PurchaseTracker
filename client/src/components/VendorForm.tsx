@@ -65,10 +65,27 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
   
   // Direct form handler - simplifying the process
   const handleFormSubmit = async (values: VendorFormValues) => {
-    if (isSubmitting) return; // Prevent double submission
+    console.log('Form submitted with values:', values);
+    console.log('Form state:', form.formState);
+    
+    // Check if the form has validation errors
+    if (Object.keys(form.formState.errors).length > 0) {
+      console.error('Form has validation errors:', form.formState.errors);
+      toast({
+        title: "Validation Error",
+        description: "Please check the form for errors",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isSubmitting) {
+      console.log('Preventing double submission');
+      return;
+    }
     
     setIsSubmitting(true);
-    console.log('Submitting vendor form with values:', values);
+    console.log('Starting vendor form submission with values:', values);
     
     try {
       // Process optional fields that can be null
@@ -83,11 +100,12 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       toast({
         title: "Processing",
         description: "Saving vendor information...",
-        variant: "default",
       });
       
       // Call the parent submission handler
-      await onSubmit(processedData);
+      console.log('Calling parent onSubmit function');
+      const result = await onSubmit(processedData);
+      console.log('Parent onSubmit function returned:', result);
       
       // Show success toast
       toast({

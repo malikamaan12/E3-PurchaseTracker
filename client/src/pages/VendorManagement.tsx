@@ -114,7 +114,17 @@ export default function VendorManagement() {
   };
 
   const handleUpdateVendor = async (data: any) => {
-    if (!selectedVendor) return;
+    console.log('handleUpdateVendor called with data:', data);
+    
+    if (!selectedVendor) {
+      console.error('No vendor selected!');
+      toast({
+        title: "Error",
+        description: "No vendor selected for update",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Process data to ensure nulls are handled correctly
     const processedData = { ...data };
@@ -130,9 +140,17 @@ export default function VendorManagement() {
     // Log the final data being sent
     console.log('Final vendor data being sent:', processedData);
     
+    // Show loading toast
+    toast({
+      title: "Processing",
+      description: "Updating vendor information...",
+    });
+    
     try {
       // Use our updateVendor service function
+      console.log(`Calling updateVendor function with ID: ${selectedVendor.id}`);
       const updatedVendor = await updateVendor(selectedVendor.id, processedData);
+      console.log('Update vendor service returned:', updatedVendor);
       
       // After a successful update, handle UI state
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
