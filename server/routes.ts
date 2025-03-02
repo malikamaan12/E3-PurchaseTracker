@@ -2995,31 +2995,55 @@ export function registerRoutes(app: Express): Server {
         });
       }
       
-      // Get full data for each request (with all relations)
-      console.log("[BULK EXPORT] Getting request details with relations");
-      const requestsWithRelations = await Promise.all(
-        requests.map(request => getRequestWithRelations(request.id))
-      );
-      
-      // Log the audit event
-      await logAuditEvent(req, {
-        userId: req.user?.id || 0,
-        action: 'pdf_downloaded', // Using pdf_downloaded as the action type
-        resourceType: 'purchase_requests',
-        details: { 
-          exportType: 'bulk',
-          count: requestsWithRelations.length,
-          requestIds: requestsWithRelations.map(r => r.id)
+      try {
+        // Get full data for each request (with all relations)
+        console.log("[BULK EXPORT] Getting request details with relations");
+        const requestsWithRelations = await Promise.all(
+          requests.map(async (request) => {
+            try {
+              return await getRequestWithRelations(request.id);
+            } catch (relationError) {
+              console.error(`[BULK EXPORT] Error fetching relations for request ${request.id}:`, relationError);
+              // Return basic request data without relations if there's an error
+              return {
+                ...request,
+                vendor: null,
+                subPurpose: null,
+                approvals: [],
+                attachments: []
+              };
+            }
+          })
+        );
+        
+        // Log the audit event
+        try {
+          await logAuditEvent(req, {
+            userId: req.user?.id || 0,
+            action: 'pdf_downloaded', // Using pdf_downloaded as the action type
+            resourceType: 'purchase_requests',
+            details: { 
+              exportType: 'bulk',
+              count: requestsWithRelations.length,
+              requestIds: requestsWithRelations.map(r => r.id)
+            }
+          });
+        } catch (auditError) {
+          console.error('[BULK EXPORT] Error logging audit event:', auditError);
+          // Continue even if audit logging fails
         }
-      });
-      
-      console.log(`[BULK EXPORT] Successfully prepared ${requestsWithRelations.length} requests for export`);
-      
-      res.status(200).json({
-        success: true,
-        message: 'Request data for bulk export',
-        data: requestsWithRelations
-      });
+        
+        console.log(`[BULK EXPORT] Successfully prepared ${requestsWithRelations.length} requests for export`);
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Request data for bulk export',
+          data: requestsWithRelations
+        });
+      } catch (exportError) {
+        console.error('[BULK EXPORT] Error in final export stage:', exportError);
+        return next(new AppError('Error processing export data: ' + (exportError instanceof Error ? exportError.message : String(exportError)), 500));
+      }
     } catch (error) {
       debug(req, 'Error generating bulk export:', error);
       next(error);
