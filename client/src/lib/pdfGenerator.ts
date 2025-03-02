@@ -17,25 +17,48 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 function addHeader(doc: jsPDF, request: any): number {
-  const pageWidth = doc.internal.pageSize.width;
-  const headerHeight = 35; 
-  const margin = 15;
+  try {
+    const pageWidth = doc.internal.pageSize.width;
+    const headerHeight = 35; 
+    const margin = 15;
 
-  // Add company header
-  doc.setFontSize(14);
-  doc.setTextColor(26, 54, 93);
-  doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", pageWidth/2, 15, { align: 'center' });
+    // Add company header
+    doc.setFontSize(14);
+    doc.setTextColor(26, 54, 93);
+    doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", pageWidth/2, 15, { align: 'center' });
 
-  doc.setFontSize(12);
-  doc.text("PURCHASE REQUEST", pageWidth/2, 22, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text("PURCHASE REQUEST", pageWidth/2, 22, { align: 'center' });
+  } catch (error) {
+    console.error("Error rendering PDF header:", error);
+    // Return a default position to continue rendering
+  }
 
-  // Add request number and date
-  doc.setFontSize(9);
-  doc.setTextColor(90, 90, 90);
-  doc.text(`Request No: ${request.requestNumber}`, margin, 30);
-  doc.text(`Date: ${new Date(request.createdAt).toLocaleDateString()}`, pageWidth - margin, 30, { align: 'right' });
-
-  return headerHeight;
+  // Add request number and date with error handling
+  try {
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 15;
+    const headerHeight = 35;
+    
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Request No: ${request?.requestNumber || 'N/A'}`, margin, 30);
+    
+    let dateText = 'Date: N/A';
+    if (request?.createdAt) {
+      try {
+        dateText = `Date: ${new Date(request.createdAt).toLocaleDateString()}`;
+      } catch (dateError) {
+        console.error('Error formatting date:', dateError);
+      }
+    }
+    
+    doc.text(dateText, pageWidth - margin, 30, { align: 'right' });
+    return headerHeight;
+  } catch (error) {
+    console.error('Error adding request details:', error);
+    return 35; // Return default header height
+  }
 }
 
 function addFooter(doc: jsPDF, currentPage: number, totalPages: number): void {
@@ -146,18 +169,26 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
 
     // Vendor Information Section
     yPos = addSection(doc, "Vendor Information", yPos);
+    
+    // Safely extract vendor information - handle field name differences in data structure
+    const vendor = request.vendor || {};
+    const vendorName = vendor.name || vendor.companyName || 'N/A';
+    const contactPerson = vendor.contactPerson || 'N/A';
+    const vendorEmail = vendor.email || 'N/A';
+    const vendorPhone = vendor.phone || vendor.contactNumber || 'N/A';
+    
     const vendorInfo = [
       [
         { content: 'Vendor Name:', styles: { fontStyle: 'bold', cellWidth: 25 } },
-        { content: request.vendor?.name || 'N/A', cellWidth: 35 },
+        { content: vendorName, cellWidth: 35 },
         { content: 'Contact Person:', styles: { fontStyle: 'bold', cellWidth: 25 } },
-        { content: request.vendor?.contactPerson || 'N/A' }
+        { content: contactPerson }
       ],
       [
         { content: 'Email:', styles: { fontStyle: 'bold', cellWidth: 25 } },
-        { content: request.vendor?.email || 'N/A', cellWidth: 35 },
+        { content: vendorEmail, cellWidth: 35 },
         { content: 'Phone:', styles: { fontStyle: 'bold', cellWidth: 25 } },
-        { content: request.vendor?.phone || 'N/A' }
+        { content: vendorPhone }
       ]
     ];
 
@@ -173,11 +204,26 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
 
     // Items Section
     yPos = addSection(doc, "Items", yPos);
-    const items = Array.isArray(request.items) ? request.items : JSON.parse(request.items || '[]');
+    
+    // Safely parse items with error handling
+    let items = [];
+    try {
+      if (Array.isArray(request.items)) {
+        items = request.items;
+      } else if (typeof request.items === 'string') {
+        items = JSON.parse(request.items || '[]');
+      } else if (request.items) {
+        // If it's an object but not an array, wrap it
+        items = [request.items];
+      }
+    } catch (error) {
+      console.error('Error parsing items:', error);
+      items = []; // Fallback to empty array on error
+    }
 
-    // Calculate totals
+    // Calculate totals with default values
     const itemsTotal = items.reduce((sum: number, item: any) => 
-      sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 0
+      sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)), 0
     );
     const freightAmount = Number(request.freightAmount || 0);
     const totalCost = itemsTotal + freightAmount;
@@ -340,7 +386,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         ['Process Duration:', request.processedAt && request.createdAt ? 
           `${Math.floor((new Date(request.processedAt).getTime() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days` : 
           'Not completed', 
-          'Approval rounds:', approvals?.length || 0]
+          'Approval rounds:', Array.isArray(request.approvals) ? request.approvals.length : 0]
       ];
       
       autoTable(doc, {
