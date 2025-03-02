@@ -3,12 +3,87 @@ import { Button } from "../components/ui/button";
 import { Parser } from '@json2csv/plainjs';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
+import { exportRequestToCSV, exportRequestToExcel, exportRequestAsZip, exportRequestToPDF } from '../lib/exportUtils';
 
 export default function TestExportPage() {
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `${new Date().toISOString().slice(11, 23)} - ${message}`]);
+  };
+  
+  // Mock purchase request for enhanced utility tests
+  const mockPurchaseRequest = {
+    id: 12345,
+    requestNumber: 'REQ-TEST-12345',
+    title: 'Test Purchase Request',
+    description: 'This is a test purchase request for export functionality',
+    status: 'draft',
+    priority: 'high',
+    currency: 'USD',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    requesterId: 1,
+    requester: {
+      id: 1,
+      username: 'Test User',
+      department: 'Testing Department',
+      role: 'tester'
+    },
+    purposeType: 'Software',
+    subPurposeId: 1,
+    subPurpose: { 
+      id: 1, 
+      name: 'Development Tools',
+      purposeType: 'Software'
+    },
+    vendorId: 1,
+    vendor: {
+      id: 1,
+      companyName: 'Test Vendor Inc.',
+      contactPerson: 'John Vendor',
+      email: 'vendor@test.com',
+      contactNumber: '555-1234'
+    },
+    items: [
+      {
+        id: 1,
+        name: 'Test Item 1',
+        quantity: 2,
+        estimatedCost: 500,
+        description: 'This is test item 1'
+      },
+      {
+        id: 2,
+        name: 'Test Item 2',
+        quantity: 1,
+        estimatedCost: 750,
+        description: 'This is test item 2'
+      }
+    ],
+    approvals: [
+      {
+        id: 1,
+        status: 'pending',
+        department: 'Finance',
+        approverId: 2,
+        approver: {
+          id: 2,
+          username: 'Finance Approver',
+          department: 'Finance'
+        },
+        comments: 'Pending review'
+      }
+    ],
+    attachments: [
+      {
+        id: 1,
+        fileName: 'test-attachment.pdf',
+        fileType: 'application/pdf',
+        fileSize: 12345,
+        fileUrl: 'https://example.com/test-attachment.pdf'
+      }
+    ]
   };
 
   // Test data for CSV export
@@ -118,6 +193,59 @@ export default function TestExportPage() {
       console.error('Error during Excel generation:', error);
     }
   };
+  
+  // Test enhanced export utilities
+  const testEnhancedPdfExport = async () => {
+    addLog('Starting enhanced PDF export test...');
+    
+    try {
+      addLog('Using exportRequestToPDF utility...');
+      const fileName = await exportRequestToPDF(mockPurchaseRequest, 'user');
+      addLog(`PDF export successful: ${fileName}`);
+    } catch (error: any) {
+      addLog(`Error during enhanced PDF export: ${error.message || 'Unknown error'}`);
+      console.error('Enhanced PDF export error:', error);
+    }
+  };
+  
+  const testEnhancedExcelExport = async () => {
+    addLog('Starting enhanced Excel export test...');
+    
+    try {
+      addLog('Using exportRequestToExcel utility...');
+      const fileName = await exportRequestToExcel(mockPurchaseRequest, true);
+      addLog(`Excel export successful: ${fileName}`);
+    } catch (error: any) {
+      addLog(`Error during enhanced Excel export: ${error.message || 'Unknown error'}`);
+      console.error('Enhanced Excel export error:', error);
+    }
+  };
+  
+  const testEnhancedCsvExport = async () => {
+    addLog('Starting enhanced CSV export test...');
+    
+    try {
+      addLog('Using exportRequestToCSV utility...');
+      const fileName = await exportRequestToCSV(mockPurchaseRequest, 'all');
+      addLog(`CSV export successful: ${fileName}`);
+    } catch (error: any) {
+      addLog(`Error during enhanced CSV export: ${error.message || 'Unknown error'}`);
+      console.error('Enhanced CSV export error:', error);
+    }
+  };
+  
+  const testEnhancedZipExport = async () => {
+    addLog('Starting enhanced ZIP export test...');
+    
+    try {
+      addLog('Using exportRequestAsZip utility...');
+      const fileName = await exportRequestAsZip(mockPurchaseRequest, true, 'admin');
+      addLog(`ZIP export successful: ${fileName}`);
+    } catch (error: any) {
+      addLog(`Error during enhanced ZIP export: ${error.message || 'Unknown error'}`);
+      console.error('Enhanced ZIP export error:', error);
+    }
+  };
 
   // Clear logs
   const clearLogs = () => setLogs([]);
@@ -126,30 +254,70 @@ export default function TestExportPage() {
     <div className="container py-8">
       <h1 className="text-2xl font-bold mb-6">Export Functionality Test Page</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Button 
-          variant="default" 
-          onClick={testCsvExport}
-          className="w-full"
-        >
-          Test CSV Export (SaveAs)
-        </Button>
-        
-        <Button 
-          variant="default" 
-          onClick={testAlternativeDownload}
-          className="w-full"
-        >
-          Test CSV Export (Alternative)
-        </Button>
-        
-        <Button 
-          variant="default" 
-          onClick={testExcelExport}
-          className="w-full"
-        >
-          Test Excel Export
-        </Button>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3">Basic Export Tests</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <Button 
+            variant="default" 
+            onClick={testCsvExport}
+            className="w-full"
+          >
+            Test CSV Export (SaveAs)
+          </Button>
+          
+          <Button 
+            variant="default" 
+            onClick={testAlternativeDownload}
+            className="w-full"
+          >
+            Test CSV Export (Alternative)
+          </Button>
+          
+          <Button 
+            variant="default" 
+            onClick={testExcelExport}
+            className="w-full"
+          >
+            Test Excel Export
+          </Button>
+        </div>
+      </div>
+      
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3">Enhanced Export Utilities</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={testEnhancedPdfExport}
+            className="w-full"
+          >
+            Test Enhanced PDF Export
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={testEnhancedExcelExport}
+            className="w-full"
+          >
+            Test Enhanced Excel Export
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={testEnhancedCsvExport}
+            className="w-full"
+          >
+            Test Enhanced CSV Export
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={testEnhancedZipExport}
+            className="w-full"
+          >
+            Test Enhanced ZIP Export
+          </Button>
+        </div>
       </div>
       
       <div className="bg-slate-100 dark:bg-slate-900 rounded-md p-4 mb-4">
@@ -177,11 +345,14 @@ export default function TestExportPage() {
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-md p-4">
         <h3 className="font-semibold mb-2">How This Works</h3>
         <p className="text-sm mb-2">
-          This test page implements different methods of generating and downloading CSV and Excel files to help diagnose download issues.
+          This test page implements different methods of generating and downloading export files to help diagnose download issues. 
+          It includes both basic direct implementations and our enhanced export utilities.
         </p>
         <ul className="list-disc list-inside text-sm space-y-1">
-          <li>The CSV tests use the @json2csv/plainjs Parser</li>
-          <li>The Excel test uses the xlsx library</li>
+          <li>The Basic Tests use direct library calls (saveAs, createObjectURL, etc.)</li>
+          <li>The Enhanced Tests use our improved utilities from exportUtils.ts</li>
+          <li>Enhanced utilities feature better error handling, validation, and fallbacks</li>
+          <li>All exports use the same safeDownload method under the hood</li>
           <li>All logs are displayed above for debugging</li>
         </ul>
       </div>
