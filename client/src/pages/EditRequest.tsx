@@ -164,11 +164,17 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   }, []);
 
   const removeItem = useCallback((index: number) => {
-    if (items.length > 1) {
-      setItems(prev => prev.filter((_, i) => i !== index));
-      form.setValue('items', items.filter((_, i) => i !== index));
-    }
-  }, [items, form]);
+    setItems(prev => {
+      // Only remove if we have more than one item
+      if (prev.length > 1) {
+        const newItems = prev.filter((_, i) => i !== index);
+        // Update form value with the new items array
+        form.setValue('items', newItems);
+        return newItems;
+      }
+      return prev;
+    });
+  }, [form]);
   
   const handleVendorCreated = useCallback((vendor: Vendor) => {
     setSelectedVendor(vendor.id);
