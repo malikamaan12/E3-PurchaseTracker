@@ -169,11 +169,13 @@ export default function VendorManagement() {
         console.log(`Calling updateVendor function with ID: ${selectedVendor.id}`);
         
         // Make sure ID is explicitly included both as param and in data
+        // Also ensure rating is properly cast to a number
         const vendorDataWithId = {
           ...processedData,
-          id: selectedVendor.id // Include ID in the data explicitly
+          id: selectedVendor.id, // Include ID in the data explicitly
+          rating: processedData.rating ? Number(processedData.rating) : 0, // Convert rating to a number
         };
-        console.log("Final data with explicit ID:", vendorDataWithId);
+        console.log("Final data with explicit ID and proper types:", vendorDataWithId);
         
         const updatedVendor = await updateVendor(selectedVendor.id, vendorDataWithId);
         console.log('Update vendor service returned:', updatedVendor);

@@ -14,7 +14,11 @@ export const vendorSchema = z.object({
   accountNumber: z.string(),
   ibanNumber: z.string(),
   branchName: z.string(),
+  category: z.string().optional(),
+  payment_currency: z.string().optional(),
+  rating: z.number().optional().nullable().default(0),
   status: z.string(),
+  remarks: z.string().nullable(),
   createdAt: z.date().nullable(),
   updatedAt: z.date().nullable(),
 });

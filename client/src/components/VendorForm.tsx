@@ -10,10 +10,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Star } from "lucide-react";
 
 type VendorFormValues = InsertVendor;
 
@@ -41,7 +43,8 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       remarks: "",
       category: "general",
       payment_currency: "QAR",
-      status: "active"
+      status: "active",
+      rating: 0
     },
   });
   

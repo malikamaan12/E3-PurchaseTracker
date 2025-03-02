@@ -2114,11 +2114,19 @@ export function registerRoutes(app: Express): Server {
       Object.keys(processedData).forEach(key => {
         // Skip the ID field in the update data to avoid accidental ID changes
         if (key !== 'id' && processedData[key] !== undefined) {
-          updateFields[key] = processedData[key];
+          // Special handling for rating field - ensure it's a number
+          if (key === 'rating') {
+            updateFields[key] = typeof processedData[key] === 'string' 
+              ? Number(processedData[key]) || 0 
+              : processedData[key] || 0;
+          } else {
+            updateFields[key] = processedData[key];
+          }
         }
       });
       
       console.log(`[PATCH /api/vendors/:id] Original vendor ID: ${vendorId} will be preserved (not in update fields)`);
+      console.log(`[PATCH /api/vendors/:id] Rating value: ${updateFields.rating}, type: ${typeof updateFields.rating}`);
       
       // Always set updatedAt
       updateFields.updatedAt = new Date();
