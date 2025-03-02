@@ -94,18 +94,25 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       if (processedData.registrationNumber === '') processedData.registrationNumber = null;
       if (processedData.remarks === '') processedData.remarks = null;
       
+      // For updates, make sure to include ID from defaultValues
+      if (defaultValues?.id) {
+        // When updating, we need to send the ID as it's needed by the updateVendor function
+        const vendorId = defaultValues.id;
+        console.log(`Including vendor ID ${vendorId} in update context`);
+      }
+      
       console.log('Processed values for submission:', processedData);
       
       // Show loading toast
+      const isUpdate = !!defaultValues?.id;
       toast({
-        title: "Processing",
-        description: "Saving vendor information...",
+        title: isUpdate ? "Updating" : "Creating",
+        description: `${isUpdate ? 'Updating' : 'Creating'} vendor information...`,
       });
       
       // Call the parent submission handler
       console.log('Calling parent onSubmit function');
-      console.log('Default values:', defaultValues);
-      console.log('Is this an update?', !!defaultValues);
+      console.log('Is this an update?', isUpdate);
       
       try {
         const result = await onSubmit(processedData);
@@ -114,11 +121,11 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
         // Show success toast
         toast({
           title: "Success",
-          description: "Vendor information saved successfully",
+          description: `Vendor ${isUpdate ? 'updated' : 'created'} successfully`,
         });
         
         // Only reset form for new vendor creation
-        if (!defaultValues) {
+        if (!isUpdate) {
           form.reset();
         }
       } catch (submitError) {

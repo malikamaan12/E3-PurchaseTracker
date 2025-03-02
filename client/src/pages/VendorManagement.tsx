@@ -137,8 +137,8 @@ export default function VendorManagement() {
     // Make sure we maintain the original status
     processedData.status = selectedVendor.status;
     
-    // Log the final data being sent
-    console.log('Final vendor data being sent:', processedData);
+    // Log the final data being sent with the required vendorId
+    console.log(`Updating vendor ID: ${selectedVendor.id} with data:`, processedData);
     
     // Show loading toast
     toast({
@@ -147,22 +147,44 @@ export default function VendorManagement() {
     });
     
     try {
-      // Use our updateVendor service function
-      console.log(`Calling updateVendor function with ID: ${selectedVendor.id}`);
-      const updatedVendor = await updateVendor(selectedVendor.id, processedData);
-      console.log('Update vendor service returned:', updatedVendor);
+      // Add debug event listeners to check for network issues
+      const originalFetch = window.fetch;
+      const fetchSpy = async (...args: Parameters<typeof originalFetch>) => {
+        console.log('Network request being made:', args[0]);
+        try {
+          const response = await originalFetch(...args);
+          console.log('Response status:', response.status);
+          return response;
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw fetchError;
+        }
+      };
       
-      // After a successful update, handle UI state
-      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
-      setIsEditMode(false);
-      setSelectedVendor(null);
+      // Replace fetch temporarily
+      window.fetch = fetchSpy;
       
-      toast({
-        title: "Success",
-        description: "Vendor has been updated successfully",
-      });
-      
-      return updatedVendor;
+      try {
+        // Use our updateVendor service function with explicit ID
+        console.log(`Calling updateVendor function with ID: ${selectedVendor.id}`);
+        const updatedVendor = await updateVendor(selectedVendor.id, processedData);
+        console.log('Update vendor service returned:', updatedVendor);
+        
+        // After a successful update, handle UI state
+        queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+        setIsEditMode(false);
+        setSelectedVendor(null);
+        
+        toast({
+          title: "Success",
+          description: "Vendor has been updated successfully",
+        });
+        
+        return updatedVendor;
+      } finally {
+        // Restore original fetch
+        window.fetch = originalFetch;
+      }
     } catch (error) {
       console.error("Error in handleUpdateVendor:", error);
       
