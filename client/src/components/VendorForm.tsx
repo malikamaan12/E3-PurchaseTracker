@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 type VendorFormValues = InsertVendor;
 
 interface VendorFormProps {
-  onSubmit: (data: VendorFormValues) => Promise<void>;
+  onSubmit: (data: VendorFormValues) => Promise<any>;
   defaultValues?: Partial<VendorFormValues>;
 }
 
