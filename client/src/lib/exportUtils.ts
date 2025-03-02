@@ -70,19 +70,36 @@ async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
  * 
  * @param request The purchase request data
  * @param type The type of PDF to generate (user, approver, admin)
+ * @returns The name of the generated file
  */
-export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user') {
+export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     logExport('pdf', `Starting PDF export for request ${request.id || 'unknown'} with type ${type}`);
     
-    const doc = await generateRequestPDF(request, type);
-    const pdfName = `Purchase_Request_${request.requestNumber || request.id}_${type}.pdf`;
-    doc.save(pdfName);
+    // Validate request data
+    if (!request || !request.id) {
+      throw new Error('Invalid request data');
+    }
     
-    logExport('pdf', `PDF generation completed successfully: ${pdfName}`);
+    // Generate the PDF document
+    logExport('pdf', 'Generating PDF content');
+    const doc = await generateRequestPDF(request, type);
+    
+    // Prepare the PDF name
+    const pdfName = `Purchase_Request_${request.requestNumber || request.id}_${type}.pdf`;
+    
+    // Get the PDF as a blob
+    logExport('pdf', 'Converting PDF to blob');
+    const pdfBlob = doc.output('blob');
+    
+    // Use our safer download method
+    logExport('pdf', `Initiating PDF download: ${pdfName} (${pdfBlob.size} bytes)`);
+    await safeDownload(pdfBlob, pdfName);
+    
+    logExport('pdf', `PDF export completed successfully: ${pdfName}`);
     return pdfName;
   } catch (error) {
-    logExport('pdf', `PDF generation failed:`, error);
+    logExport('pdf', `PDF export failed:`, error);
     throw error;
   }
 }
