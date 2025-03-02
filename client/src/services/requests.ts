@@ -171,6 +171,8 @@ export async function updateRequest({
 
 export async function saveDraft(id: number, data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
+    console.log('Saving draft with data:', data);
+    
     // For drafts, we're extremely lenient - allow saving almost anything
     // The only minimal check is to make sure we have at least some data to save
     if (!data) {
@@ -178,12 +180,19 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
     }
 
     // Format data to ensure it's valid even if incomplete
-    const formattedItems = Array.isArray(data.items) ? data.items.map(item => ({
-      name: item.name || "",
-      quantity: typeof item.quantity === 'number' ? item.quantity : 0,
-      estimatedCost: typeof item.estimatedCost === 'number' ? item.estimatedCost : 0,
-      description: item.description || ""
-    })) : [];
+    // Handle potential null or undefined items array
+    const formattedItems = Array.isArray(data.items) 
+      ? data.items.map(item => ({
+          name: item?.name || "",
+          quantity: item?.quantity != null && !isNaN(Number(item.quantity)) 
+            ? Number(item.quantity) 
+            : 0,
+          estimatedCost: item?.estimatedCost != null && !isNaN(Number(item.estimatedCost)) 
+            ? Number(item.estimatedCost) 
+            : 0,
+          description: item?.description || ""
+        })) 
+      : [{ name: "", quantity: 0, estimatedCost: 0, description: "" }]; // Default item if none provided
 
     // Special handling for draft requests - ensure all required fields have valid values
     // even if they're empty defaults
@@ -191,15 +200,18 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
       ...data,
       title: data.title || "",
       description: data.description || "",
-      status: "draft",
+      status: "draft", // Always ensure status is draft
       items: formattedItems,
       purposeType: data.purposeType || "E3 EVENT",
       priority: data.priority || "medium",
       currency: data.currency || "QAR",
-      freightAmount: typeof data.freightAmount === 'number' ? data.freightAmount : 0,
+      freightAmount: data.freightAmount != null && !isNaN(Number(data.freightAmount)) 
+        ? Number(data.freightAmount) 
+        : 0,
       // Allow null values for optional fields in drafts
       vendorId: data.vendorId || null,
       subPurposeId: data.subPurposeId || null,
+      additionalApprovers: Array.isArray(data.additionalApprovers) ? data.additionalApprovers : [],
       isLocked: false,
       updatedAt: new Date().toISOString()
     };
@@ -207,8 +219,41 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
     console.log('Saving draft with formatted data:', {
       title: draftData.title ? 'set' : 'empty',
       itemCount: draftData.items.length,
-      hasVendor: !!draftData.vendorId
+      hasVendor: !!draftData.vendorId,
+      itemsData: draftData.items.map(i => ({ 
+        name: i.name ? (i.name.length > 10 ? i.name.substring(0, 10) + '...' : i.name) : 'empty',
+        qty: i.quantity,
+        cost: i.estimatedCost
+      }))
     });
+
+    // Use AI to analyze and potentially fix draft data before saving
+    try {
+      // Only run analysis if we have the Anthropic API configured
+      if (import.meta.env.VITE_ANTHROPIC_API_KEY) {
+        const { analyzeValidationContext } = await import('./anthropicService');
+        const aiAnalysis = await analyzeValidationContext(
+          draftData,
+          [], // No validation errors for drafts
+          'draft'
+        );
+        
+        if (aiAnalysis.fixedData) {
+          console.log('AI suggested improvements for draft data');
+          // Use the AI-enhanced data if provided
+          return await updateRequest({
+            id,
+            data: {
+              ...aiAnalysis.fixedData,
+              status: "draft" // Ensure status is still draft
+            }
+          });
+        }
+      }
+    } catch (aiError) {
+      // If AI analysis fails, just continue with the original data
+      console.warn('AI analysis for draft failed, continuing with original data:', aiError);
+    }
 
     return await updateRequest({
       id,
@@ -216,6 +261,37 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
     });
   } catch (error) {
     console.error('Error saving draft:', error);
+    
+    // Log the error for debugging
+    try {
+      fetch('/api/error-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: error instanceof Error ? error.message : 'Unknown error saving draft',
+          severity: 'error',
+          path: '/client/src/services/requests.ts:saveDraft',
+          details: JSON.stringify({
+            requestId: id,
+            dataSnapshot: {
+              hasItems: !!data?.items,
+              itemsLength: data?.items?.length || 0,
+              hasTitle: !!data?.title,
+              hasVendor: !!data?.vendorId
+            },
+            error: error instanceof Error ? {
+              message: error.message,
+              stack: error.stack
+            } : 'Unknown error'
+          })
+        })
+      }).catch(logError => {
+        console.error('Failed to log error:', logError);
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+    
     throw error;
   }
 }

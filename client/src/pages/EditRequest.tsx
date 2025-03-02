@@ -30,7 +30,7 @@ import {
   type Vendor
 } from "@db/schema";
 import { updateRequest, saveDraft, submitRequest } from "@/services/requests";
-import { analyzeValidationContext } from "@/services/anthropicService";
+import { analyzeValidationContext, analyzeDraftSubmission } from "@/services/anthropicService";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import VendorSelect from "@/components/VendorSelect";
@@ -317,34 +317,81 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         // For drafts, we only need the basic information
         const currentValues = form.getValues();
         
-        // Perform minimal validation for drafts - just make sure at least one field has data
-        // Actually, for drafts, we don't need any validation at all - just save whatever is there
-        console.log("Saving as draft with no validation", {
+        console.log("Saving as draft with minimal validation", {
           items,
           title: currentValues.title,
           description: currentValues.description,
           status: "draft"
         });
         
+        // Safely calculate total cost to avoid NaN errors
+        const calculatedTotalCost = items.reduce(
+          (acc, item) => acc + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 
+          0
+        ) + Number(freightAmount || 0);
+        
         // Prepare data for draft submission with special handling for empty or partial data
         const draftData = {
           ...currentValues,
           items: items.map(item => ({
             name: item.name || "",
-            quantity: item.quantity || 0,
-            estimatedCost: item.estimatedCost || 0,
+            // Ensure numeric values are properly formatted
+            quantity: item.quantity != null && !isNaN(Number(item.quantity)) 
+              ? Number(item.quantity) 
+              : 0,
+            estimatedCost: item.estimatedCost != null && !isNaN(Number(item.estimatedCost)) 
+              ? Number(item.estimatedCost) 
+              : 0,
             description: item.description || ""
           })),
           status: "draft",
           // For drafts, accept null values for all optional fields
           vendorId: selectedVendor || null,
-          totalEstimatedCost: totalCost || 0,
-          freightAmount: formatDecimal(freightAmount || 0),
+          totalEstimatedCost: calculatedTotalCost,
+          freightAmount: freightAmount != null && !isNaN(Number(freightAmount)) 
+            ? Number(freightAmount) 
+            : 0,
           updatedAt: new Date().toISOString()
         };
         
-        // Continue with draft submission using the specifically formatted data
         try {
+          // Use AI to analyze and potentially enhance the draft before saving
+          if (import.meta.env.VITE_ANTHROPIC_API_KEY) {
+            try {
+              // Only attempt AI enhancement if there's data to work with
+              if (draftData.title || draftData.description || draftData.items.some(i => i.name)) {
+                const result = await analyzeDraftSubmission(
+                  draftData,
+                  [] // No validation errors for drafts
+                );
+                
+                if (result.fixedData) {
+                  console.log("AI enhanced draft data:", result.analysisMessage);
+                  // Keep status as draft and use the enhanced data
+                  const enhancedData = {
+                    ...result.fixedData,
+                    status: "draft" // Ensure status remains draft
+                  };
+                  
+                  await saveDraft(parseInt(params.id), enhancedData);
+                  
+                  toast({
+                    title: "Draft Enhanced & Saved",
+                    description: result.analysisMessage || "Draft saved with AI-suggested improvements",
+                    variant: "default",
+                  });
+                  
+                  setLocation("/");
+                  return;
+                }
+              }
+            } catch (aiError) {
+              // If AI enhancement fails, continue with normal draft saving
+              console.warn("AI draft enhancement failed, continuing with basic save:", aiError);
+            }
+          }
+          
+          // Standard draft saving if AI enhancement wasn't used or failed
           await saveDraft(
             parseInt(params.id),
             draftData
