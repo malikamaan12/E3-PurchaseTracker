@@ -122,17 +122,24 @@ export async function updateRequest({
   try {
     console.log('Updating request:', id, 'with data:', data);
 
+    // Handle draft requests specially
+    const isDraft = data.status === 'draft';
+    
     // Ensure arrays are properly formatted
     const formattedData = {
       ...data,
-      items: data.items || [],
+      // For draft requests, we'll be more lenient with validation
+      items: Array.isArray(data.items) ? data.items : (data.items || []),
       attachments: data.attachments || [],
-      vendorId: data.vendorId || null,
-      subPurposeId: data.subPurposeId || null,
+      // For draft requests, allow null values for optional fields
+      vendorId: isDraft ? (data.vendorId || null) : data.vendorId,
+      subPurposeId: isDraft ? (data.subPurposeId || null) : data.subPurposeId,
       freightAmount: data.freightAmount || 0,
       currency: data.currency || 'QAR',
       additionalApprovers: data.additionalApprovers || [] // Ensure additionalApprovers is included
     };
+    
+    console.log('Formatted draft data for server:', isDraft, formattedData);
 
     const response = await fetch(`/api/requests/${id}`, {
       method: "PUT",

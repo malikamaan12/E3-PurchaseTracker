@@ -177,6 +177,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
   const onSubmit = useCallback(async (values: PurchaseRequest) => {
     try {
       // Different validation based on status
+      const isDraft = values.status === "draft";
+      
       if (values.status === "pending") {
         // Validate required fields for final submission
         const validationErrors = [];
@@ -249,18 +251,30 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         console.log("Saving as draft - minimal validation applied");
       }
       
+      // Special handling for draft requests to ensure data is correctly formatted
+      // even if it's incomplete
+      const formattedItems = items.map(item => ({
+        name: item.name || "",
+        quantity: formatDecimal(item.quantity || 0),
+        estimatedCost: formatDecimal(item.estimatedCost || 0),
+        description: item.description || ""
+      }));
+      
       const submissionData = {
         ...values,
-        items: items.map(item => ({
-          name: item.name,
-          quantity: formatDecimal(item.quantity),
-          estimatedCost: formatDecimal(item.estimatedCost),
-          description: item.description 
-        })),
-        freightAmount: formatDecimal(freightAmount),
+        items: formattedItems,
+        freightAmount: formatDecimal(freightAmount || 0),
         totalEstimatedCost: totalCost,
-        vendorId: selectedVendor,
+        // For drafts, we allow null values for optional fields
+        vendorId: isDraft ? (selectedVendor || null) : selectedVendor,
       };
+      
+      console.log("Submitting request data:", {
+        isDraft,
+        status: values.status,
+        itemCount: formattedItems.length,
+        vendorId: submissionData.vendorId
+      });
 
       await updateRequest({
         id: parseInt(params.id),
@@ -318,12 +332,32 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           }
         }
         
-        console.log("Saving as draft with minimal validation");
-        // Continue with draft submission
-        await onSubmit({
-          ...currentValues,
+        console.log("Saving as draft with minimal validation", {
+          items,
+          title: currentValues.title,
+          description: currentValues.description,
           status: "draft"
         });
+        
+        // Prepare data for draft submission with special handling for empty or partial data
+        const draftData = {
+          ...currentValues,
+          items: items.map(item => ({
+            name: item.name || "",
+            quantity: item.quantity || 0,
+            estimatedCost: item.estimatedCost || 0,
+            description: item.description || ""
+          })),
+          status: "draft",
+          isLocked: false,
+          // For drafts, null values are allowed for optional fields
+          vendorId: selectedVendor,
+          totalEstimatedCost: totalCost,
+          freightAmount: formatDecimal(freightAmount)
+        };
+        
+        // Continue with draft submission using the specifically formatted data
+        await onSubmit(draftData);
         return;
       }
       

@@ -1236,6 +1236,13 @@ export function registerRoutes(app: Express): Server {
       
       // For draft requests, we shouldn't enforce all validations
       // Just make sure we have some basic data to save
+      
+      // Log draft saving attempt for debugging
+      console.log("Processing draft request update:", { 
+        requestId, 
+        status: updateData.status,
+        hasItems: updateData.items && Array.isArray(updateData.items) ? updateData.items.length : 0
+      });
 
       // Properly handle additionalApprovers in the update
       let finalUpdateData = { ...updateData };
@@ -1243,6 +1250,16 @@ export function registerRoutes(app: Express): Server {
       // If there are items, convert to string for storage
       if (updateData.items && Array.isArray(updateData.items)) {
         finalUpdateData.items = JSON.stringify(updateData.items);
+        console.log("Items formatted for database storage");
+      } else if (typeof updateData.items === 'string') {
+        // If items is already a string, keep it as is
+        console.log("Items is already in string format, preserving as-is");
+      } else {
+        // Handle null or undefined items gracefully for drafts
+        finalUpdateData.items = updateData.status === 'draft' 
+          ? JSON.stringify([]) 
+          : existingRequest.items;
+        console.log("No items provided, using defaults for draft");
       }
 
       // Make sure additionalApprovers is an array
