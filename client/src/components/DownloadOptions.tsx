@@ -43,8 +43,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       }
       
       // Fetch request data with full details
+      console.log(`Fetching PDF data for request ${request.id} with type ${type}`);
       const response = await fetch(`/api/requests/${request.id}/pdf?type=${type}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -52,9 +57,17 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         throw new Error(errorData.message || 'Failed to download PDF');
       }
       
-      const { data } = await response.json();
+      const jsonData = await response.json();
+      console.log('PDF API response structure:', Object.keys(jsonData));
+      
+      if (!jsonData || !jsonData.data) {
+        throw new Error('Invalid response format from PDF API');
+      }
+      
+      const { data } = jsonData;
       
       // Generate and download PDF
+      console.log('Generating PDF from data...');
       await exportRequestToPDF(data, type);
       
       toast({
@@ -63,11 +76,32 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      toast({
-        title: "Download failed",
-        description: error instanceof Error ? error.message : "Failed to download PDF",
-        variant: "destructive",
-      });
+      
+      // Use AI to analyze the export error
+      try {
+        const { analyzeExportIssue } = await import('@/services/export-analyzer');
+        const analysis = await analyzeExportIssue(error, {
+          operation: 'pdf_export',
+          requestId: request.id,
+          exportType: type
+        });
+        
+        console.log('PDF export error analysis:', analysis);
+        
+        toast({
+          title: "Download failed",
+          description: analysis.issue.description || 
+            (error instanceof Error ? error.message : "Failed to download PDF"),
+          variant: "destructive",
+        });
+      } catch (analysisError) {
+        // Fallback to simple error message if AI analysis fails
+        toast({
+          title: "Download failed",
+          description: error instanceof Error ? error.message : "Failed to download PDF",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,8 +113,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       setIsLoading(true);
       
       // Fetch request data with attachments
+      console.log(`Fetching ZIP data for request ${request.id} with type ${userType}, includeAttachments: ${includeAttachments}`);
       const response = await fetch(`/api/requests/${request.id}/zip?type=${userType}&includeAttachments=${includeAttachments}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -88,9 +127,17 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         throw new Error(errorData.message || 'Failed to download ZIP');
       }
       
-      const { data } = await response.json();
+      const jsonData = await response.json();
+      console.log('ZIP API response structure:', Object.keys(jsonData));
+      
+      if (!jsonData || !jsonData.data) {
+        throw new Error('Invalid response format from ZIP API');
+      }
+      
+      const { data } = jsonData;
       
       // Generate and download ZIP
+      console.log('Generating ZIP from data...');
       await exportRequestAsZip(data, includeAttachments, userType);
       
       toast({
@@ -99,11 +146,33 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
     } catch (error) {
       console.error('Error downloading ZIP:', error);
-      toast({
-        title: "Download failed",
-        description: error instanceof Error ? error.message : "Failed to download ZIP file",
-        variant: "destructive",
-      });
+      
+      // Use AI to analyze the export error
+      try {
+        const { analyzeExportIssue } = await import('@/services/export-analyzer');
+        const analysis = await analyzeExportIssue(error, {
+          operation: 'zip_export',
+          requestId: request.id,
+          exportType: userType,
+          includeAttachments
+        });
+        
+        console.log('ZIP export error analysis:', analysis);
+        
+        toast({
+          title: "Download failed",
+          description: analysis.issue.description || 
+            (error instanceof Error ? error.message : "Failed to download ZIP file"),
+          variant: "destructive",
+        });
+      } catch (analysisError) {
+        // Fallback to simple error message if AI analysis fails
+        toast({
+          title: "Download failed",
+          description: error instanceof Error ? error.message : "Failed to download ZIP file",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

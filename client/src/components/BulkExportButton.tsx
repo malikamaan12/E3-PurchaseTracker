@@ -4,6 +4,7 @@ import { FileArchive, FileDown, Loader2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { exportMultipleRequestsAsZip } from "@/lib/exportUtils";
+import { analyzeBulkExportIssue } from "@/services/export-analyzer";
 
 interface BulkExportButtonProps {
   selectedRequestIds?: number[];
@@ -55,8 +56,14 @@ export function BulkExportButton({
       
       // Fetch the requests data from the API
       const endpoint = `/api/requests/export/bulk${queryParams ? `?${queryParams}` : ''}`;
+      console.log('Bulk export endpoint:', endpoint);
+
       const response = await fetch(endpoint, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -64,9 +71,17 @@ export function BulkExportButton({
         throw new Error(errorData.message || 'Failed to export requests');
       }
       
-      const { data } = await response.json();
+      const jsonData = await response.json();
+      console.log('Export API response:', jsonData);
       
-      if (!data || !Array.isArray(data) || data.length === 0) {
+      // Make sure we have valid data structure
+      if (!jsonData || !jsonData.data) {
+        throw new Error('Invalid response format from export API');
+      }
+      
+      const { data } = jsonData;
+      
+      if (!Array.isArray(data) || data.length === 0) {
         throw new Error('No requests found matching the criteria');
       }
       
@@ -79,11 +94,31 @@ export function BulkExportButton({
       });
     } catch (error) {
       console.error('Error exporting requests:', error);
-      toast({
-        title: "Export Failed",
-        description: error instanceof Error ? error.message : "Failed to export requests",
-        variant: "destructive",
-      });
+      
+      // Use AI analysis for more helpful error feedback
+      try {
+        const analysis = await analyzeBulkExportIssue(filters, error);
+        console.log('Export error analysis:', analysis);
+        
+        toast({
+          title: "Export Failed",
+          description: analysis.issue.description || 
+            (error instanceof Error ? error.message : "Failed to export requests"),
+          variant: "destructive",
+        });
+        
+        // Log immediate fix suggestions to console for developers
+        if (analysis.fixes.immediate.length > 0) {
+          console.info('Suggested fixes:', analysis.fixes.immediate);
+        }
+      } catch (analysisError) {
+        // Fallback to simple error message if AI analysis fails
+        toast({
+          title: "Export Failed",
+          description: error instanceof Error ? error.message : "Failed to export requests",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
