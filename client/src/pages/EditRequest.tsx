@@ -30,6 +30,7 @@ import {
   type Vendor
 } from "@db/schema";
 import { updateRequest, saveDraft, submitRequest } from "@/services/requests";
+import { analyzeValidationContext } from "@/services/anthropicService";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import VendorSelect from "@/components/VendorSelect";
@@ -408,21 +409,82 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         });
       }
       
-      // Show validation errors if any
       if (!isValid || validationErrors.length > 0) {
-        // Show first error
-        toast({
-          title: "Validation Error",
-          description: validationErrors.length > 0 ? validationErrors[0] : "Please check all required fields",
-          variant: "destructive",
-          className: "animate-error",
-        });
+        console.log("Validation errors detected, checking with AI assistant...");
         
-        // If there are multiple errors, log them
-        if (validationErrors.length > 1) {
-          console.error("Additional validation errors:", validationErrors.slice(1));
+        // Prepare data for AI analysis
+        const formData = {
+          ...currentValues,
+          items,
+          freightAmount,
+          totalEstimatedCost: totalCost,
+          vendorId: selectedVendor || null,
+          updatedAt: new Date().toISOString()
+        };
+        
+        try {
+          // Use Anthropic Claude to analyze the validation context and decide if we can proceed
+          const aiAnalysis = await analyzeValidationContext(
+            formData,
+            validationErrors,
+            'submit'
+          );
+          
+          if (aiAnalysis.shouldProceed) {
+            // AI suggests proceeding despite validation errors
+            console.log("AI recommends proceeding with fixed data:", aiAnalysis.message);
+            
+            // Use the AI-fixed data if provided, otherwise use original
+            const submissionData = aiAnalysis.fixedData || formData;
+            
+            toast({
+              title: "Intelligent Validation",
+              description: aiAnalysis.message,
+              variant: "default",
+            });
+            
+            // Proceed with the submission using AI-enhanced data
+            await submitRequest(parseInt(params.id), submissionData);
+            
+            toast({
+              title: "Success",
+              description: "Request submitted for approval with AI assistance",
+              variant: "default",
+            });
+            
+            setLocation("/");
+            return;
+          } else {
+            // AI recommends not proceeding - show the validation errors
+            toast({
+              title: "Validation Error",
+              description: aiAnalysis.message || (validationErrors.length > 0 ? validationErrors[0] : "Please check all required fields"),
+              variant: "destructive",
+              className: "animate-error",
+            });
+            
+            // If there are multiple errors, log them
+            if (validationErrors.length > 1) {
+              console.error("Additional validation errors:", validationErrors.slice(1));
+            }
+            return;
+          }
+        } catch (error) {
+          console.error("Error analyzing validation context:", error);
+          
+          // Fall back to default validation behavior
+          toast({
+            title: "Validation Error",
+            description: validationErrors.length > 0 ? validationErrors[0] : "Please check all required fields",
+            variant: "destructive",
+            className: "animate-error",
+          });
+          
+          if (validationErrors.length > 1) {
+            console.error("Additional validation errors:", validationErrors.slice(1));
+          }
+          return;
         }
-        return;
       }
 
       // All validation passed, proceed with submission

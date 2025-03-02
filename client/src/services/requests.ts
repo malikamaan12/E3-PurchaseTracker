@@ -171,19 +171,44 @@ export async function updateRequest({
 
 export async function saveDraft(id: number, data: Partial<CreateRequestData>): Promise<PurchaseRequest> {
   try {
-    // Basic validation for draft
-    if (!data.title && !data.description && (!data.items || data.items.length === 0)) {
-      throw new Error('Draft must contain at least one field (title, description, or items)');
+    // For drafts, we're extremely lenient - allow saving almost anything
+    // The only minimal check is to make sure we have at least some data to save
+    if (!data) {
+      throw new Error('Cannot save empty draft');
     }
 
-    // Special handling for draft requests - make sure all required fields are set
-    // even if they're empty or have default values
+    // Format data to ensure it's valid even if incomplete
+    const formattedItems = Array.isArray(data.items) ? data.items.map(item => ({
+      name: item.name || "",
+      quantity: typeof item.quantity === 'number' ? item.quantity : 0,
+      estimatedCost: typeof item.estimatedCost === 'number' ? item.estimatedCost : 0,
+      description: item.description || ""
+    })) : [];
+
+    // Special handling for draft requests - ensure all required fields have valid values
+    // even if they're empty defaults
     const draftData = {
       ...data,
+      title: data.title || "",
+      description: data.description || "",
       status: "draft",
+      items: formattedItems,
+      purposeType: data.purposeType || "E3 EVENT",
+      priority: data.priority || "medium",
+      currency: data.currency || "QAR",
+      freightAmount: typeof data.freightAmount === 'number' ? data.freightAmount : 0,
+      // Allow null values for optional fields in drafts
+      vendorId: data.vendorId || null,
+      subPurposeId: data.subPurposeId || null,
       isLocked: false,
       updatedAt: new Date().toISOString()
     };
+
+    console.log('Saving draft with formatted data:', {
+      title: draftData.title ? 'set' : 'empty',
+      itemCount: draftData.items.length,
+      hasVendor: !!draftData.vendorId
+    });
 
     return await updateRequest({
       id,
@@ -213,8 +238,9 @@ export async function submitRequest(id: number, data: Partial<CreateRequestData>
     if (!data.purposeType) {
       validationErrors.push('Purpose type is required');
     }
-    if (!data.subPurposeId) {
-      validationErrors.push('Sub-purpose is required');
+    // Only require sub-purpose for PROJECT type, based on user needs
+    if (data.purposeType === 'PROJECT' && !data.subPurposeId) {
+      validationErrors.push('Sub-purpose is required for PROJECT type');
     }
     if (!data.vendorId) {
       validationErrors.push('Vendor selection is required');
@@ -236,6 +262,9 @@ export async function submitRequest(id: number, data: Partial<CreateRequestData>
     }
 
     if (validationErrors.length > 0) {
+      // Let the component handle the validation errors and AI integration
+      // This allows the component to use the analyzeValidationContext function
+      // with the specific validation errors
       throw new Error(validationErrors.join(', '));
     }
 
