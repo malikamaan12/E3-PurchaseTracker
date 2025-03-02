@@ -7,8 +7,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { FileDown, FileText, FileArchive, Download, Loader2, AlertTriangle } from "lucide-react";
-import { exportRequestToPDF, exportRequestAsZip } from "@/lib/exportUtils";
+import { 
+  FileDown, 
+  FileText, 
+  FileArchive, 
+  Download, 
+  Loader2, 
+  AlertTriangle, 
+  Table, 
+  FileSpreadsheet 
+} from "lucide-react";
+import { 
+  exportRequestToPDF, 
+  exportRequestAsZip, 
+  exportRequestToExcel,
+  exportRequestToCSV 
+} from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { quickDiagnoseExportError } from "@/services/export-analyzer";
@@ -21,7 +35,7 @@ interface DownloadOptionsProps {
 
 export function DownloadOptions({ request, compact = false }: DownloadOptionsProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'zip' | null>(null);
+  const [exportType, setExportType] = useState<'pdf' | 'zip' | 'excel' | 'csv' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useUser();
@@ -164,6 +178,190 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
     }
   };
   
+  // Handle Excel download
+  const handleExcelDownload = async (includeDetails: boolean = true) => {
+    try {
+      setIsLoading(true);
+      setExportType('excel');
+      setExportError(null);
+      
+      // Show toast for starting the download process
+      toast({
+        title: "Preparing Excel",
+        description: "Getting request data for download...",
+      });
+      
+      // Fetch request data with full details
+      console.log(`Fetching Excel data for request ${request.id}`);
+      const response = await fetch(`/api/requests/${request.id}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to download Excel');
+      }
+      
+      const data = await response.json();
+      console.log('Excel API response structure:', Object.keys(data));
+      
+      if (!data) {
+        throw new Error('Invalid response format from request API');
+      }
+      
+      // Generate and download Excel
+      console.log('Generating Excel from data...');
+      await exportRequestToExcel(data, includeDetails);
+      
+      // Track successful download
+      await trackDownload('excel', true);
+      
+      toast({
+        title: "Success",
+        description: "Excel file downloaded successfully",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      setExportError(error instanceof Error ? error.message : "Failed to download Excel file");
+      
+      // Track failed download
+      await trackDownload('excel', false);
+      
+      // Use quick diagnosis first
+      const quickDiagnosis = quickDiagnoseExportError(error, {
+        operation: 'excel_export',
+        entityType: 'request',
+        dataSize: request.attachments?.length || 0
+      });
+      
+      // Show toast with quick diagnosis
+      toast({
+        title: "Download failed",
+        description: quickDiagnosis.message,
+        variant: "destructive",
+      });
+      
+      // For more detailed analysis, use AI in background
+      try {
+        const { analyzeExportIssue } = await import('@/services/export-analyzer');
+        const analysis = await analyzeExportIssue(error, {
+          operation: 'excel_export',
+          requestId: request.id,
+          includeDetails
+        });
+        
+        console.log('Excel export error analysis:', analysis);
+        
+        // Log the solutions to console for developers
+        if (analysis.fixes?.immediate?.length > 0) {
+          console.info('Suggested fixes for Excel export issue:', analysis.fixes.immediate);
+        }
+      } catch (analysisError) {
+        // AI analysis failed but we already showed quick diagnosis
+        console.error('Error analyzing Excel export error:', analysisError);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handle CSV download
+  const handleCsvDownload = async (exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all') => {
+    try {
+      setIsLoading(true);
+      setExportType('csv');
+      setExportError(null);
+      
+      // Show toast for starting the download process
+      toast({
+        title: "Preparing CSV",
+        description: `Getting ${exportType} data for download...`,
+      });
+      
+      // Fetch request data
+      console.log(`Fetching CSV data for request ${request.id} with type ${exportType}`);
+      const response = await fetch(`/api/requests/${request.id}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to download CSV');
+      }
+      
+      const data = await response.json();
+      console.log('CSV API response structure:', Object.keys(data));
+      
+      if (!data) {
+        throw new Error('Invalid response format from request API');
+      }
+      
+      // Generate and download CSV
+      console.log('Generating CSV from data...');
+      await exportRequestToCSV(data, exportType);
+      
+      // Track successful download
+      await trackDownload('csv', true);
+      
+      toast({
+        title: "Success",
+        description: `CSV file${exportType === 'all' ? 's' : ''} downloaded successfully`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      setExportError(error instanceof Error ? error.message : "Failed to download CSV file");
+      
+      // Track failed download
+      await trackDownload('csv', false);
+      
+      // Use quick diagnosis first
+      const quickDiagnosis = quickDiagnoseExportError(error, {
+        operation: 'csv_export',
+        entityType: 'request',
+        dataSize: request.items?.length || 0
+      });
+      
+      // Show toast with quick diagnosis
+      toast({
+        title: "Download failed",
+        description: quickDiagnosis.message,
+        variant: "destructive",
+      });
+      
+      // For more detailed analysis, use AI in background
+      try {
+        const { analyzeExportIssue } = await import('@/services/export-analyzer');
+        const analysis = await analyzeExportIssue(error, {
+          operation: 'csv_export',
+          requestId: request.id,
+          exportFormat: exportType
+        });
+        
+        console.log('CSV export error analysis:', analysis);
+        
+        // Log the solutions to console for developers
+        if (analysis.fixes?.immediate?.length > 0) {
+          console.info('Suggested fixes for CSV export issue:', analysis.fixes.immediate);
+        }
+      } catch (analysisError) {
+        // AI analysis failed but we already showed quick diagnosis
+        console.error('Error analyzing CSV export error:', analysisError);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle ZIP download
   const handleZipDownload = async (includeAttachments: boolean = true) => {
     try {
@@ -288,6 +486,18 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
             <span>Download as PDF</span>
           </DropdownMenuItem>
           
+          <DropdownMenuItem onClick={() => handleExcelDownload(true)}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            <span>Download as Excel</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleCsvDownload('basic')}>
+            <Table className="mr-2 h-4 w-4" />
+            <span>Download as CSV</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
           <DropdownMenuItem onClick={() => handleZipDownload(true)}>
             <FileArchive className="mr-2 h-4 w-4" />
             <span>Download as ZIP with attachments</span>
@@ -311,10 +521,17 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
           
           {/* Show admin option for admins only */}
           {user?.role === 'admin' && (
-            <DropdownMenuItem onClick={() => handlePdfDownload('admin')}>
-              <FileText className="mr-2 h-4 w-4" />
-              <span>Download Admin PDF</span>
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem onClick={() => handlePdfDownload('admin')}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Download Admin PDF</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleCsvDownload('all')}>
+                <Table className="mr-2 h-4 w-4" />
+                <span>Download All CSV Data</span>
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -323,19 +540,47 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   
   // Full layout with separate buttons
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
+    <div className="flex flex-col gap-2 sm:flex-row flex-wrap">
       <Button 
         variant="outline" 
         size="sm" 
         onClick={() => handlePdfDownload(userType)}
         disabled={isLoading}
       >
-        {isLoading ? (
+        {isLoading && exportType === 'pdf' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
         )}
-        Download PDF
+        PDF
+      </Button>
+      
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => handleExcelDownload(true)}
+        disabled={isLoading}
+      >
+        {isLoading && exportType === 'excel' ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+        )}
+        Excel
+      </Button>
+      
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => handleCsvDownload('basic')}
+        disabled={isLoading}
+      >
+        {isLoading && exportType === 'csv' ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Table className="mr-2 h-4 w-4" />
+        )}
+        CSV
       </Button>
       
       <Button 
@@ -344,12 +589,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         onClick={() => handleZipDownload(true)}
         disabled={isLoading}
       >
-        {isLoading ? (
+        {isLoading && exportType === 'zip' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileArchive className="mr-2 h-4 w-4" />
         )}
-        Download ZIP
+        ZIP
       </Button>
       
       {/* For admin, show a dropdown with all options */}
@@ -383,6 +628,40 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
             <DropdownMenuItem onClick={() => handlePdfDownload('admin')}>
               <FileText className="mr-2 h-4 w-4" />
               <span>Download Admin PDF</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem onClick={() => handleExcelDownload(true)}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              <span>Download Excel (with details)</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={() => handleExcelDownload(false)}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              <span>Download Excel (basic)</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem onClick={() => handleCsvDownload('basic')}>
+              <Table className="mr-2 h-4 w-4" />
+              <span>Download Basic CSV</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={() => handleCsvDownload('items')}>
+              <Table className="mr-2 h-4 w-4" />
+              <span>Download Items CSV</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={() => handleCsvDownload('approvals')}>
+              <Table className="mr-2 h-4 w-4" />
+              <span>Download Approvals CSV</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={() => handleCsvDownload('all')}>
+              <Table className="mr-2 h-4 w-4" />
+              <span>Download All CSV Data</span>
             </DropdownMenuItem>
             
             <DropdownMenuSeparator />

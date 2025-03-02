@@ -1,6 +1,8 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { generateRequestPDF } from './pdfGenerator';
+import * as XLSX from 'xlsx';
+import { Parser } from '@json2csv/plainjs';
 
 /**
  * Exports a purchase request as a PDF document
@@ -36,12 +38,6 @@ export async function downloadAttachment(attachment: any) {
   }
 }
 
-/**
- * Converts the purchase request data to a formatted JSON string
- * 
- * @param request The purchase request data
- * @returns A formatted JSON string
- */
 /**
  * Converts the purchase request data to a formatted JSON string
  * 
@@ -192,13 +188,411 @@ export async function exportRequestAsZip(
 }
 
 /**
- * Exports multiple purchase requests as a ZIP file with advanced error handling
+ * Exports purchase request data to Excel format
  * 
- * @param requests An array of purchase requests
- * @param type The user type (user, approver, admin)
- * @returns The name of the created ZIP file
- * @throws Error if the export process fails
+ * @param request The purchase request data to export
+ * @param includeDetails Whether to include detailed information (approvals, attachments)
+ * @returns The name of the generated file
  */
+export async function exportRequestToExcel(request: any, includeDetails: boolean = true): Promise<string> {
+  try {
+    console.log('Starting Excel export...');
+    
+    // Validate request data
+    if (!request || !request.id) {
+      throw new Error('Invalid request data');
+    }
+    
+    // Create simplified request object for basic information
+    const requestData = {
+      'Request Number': request.requestNumber || `REQ-${request.id}`,
+      'Title': request.title || 'Untitled Request',
+      'Status': request.status || 'draft',
+      'Priority': request.priority || 'medium',
+      'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A',
+      'Requester': request.requester?.username || 'Unknown',
+      'Department': request.requester?.department || 'N/A',
+      'Purpose Type': request.purposeType || 'N/A',
+      'Sub-Purpose': request.subPurpose?.name || 'N/A',
+      'Description': request.description || '',
+      'Total Estimated Cost': calculateTotalCost(request) || 0,
+      'Currency': request.currency || 'USD',
+      'Vendor': request.vendor?.companyName || request.vendor?.name || 'N/A'
+    };
+    
+    // Create workbook and add requests worksheet
+    const wb = XLSX.utils.book_new();
+    const wsRequest = XLSX.utils.json_to_sheet([requestData]);
+    XLSX.utils.book_append_sheet(wb, wsRequest, 'Request Info');
+    
+    // Add items worksheet if there are items
+    if (Array.isArray(request.items) && request.items.length > 0) {
+      try {
+        const items = request.items.map((item: any, index: number) => ({
+          'Item #': index + 1,
+          'Name': item?.name || 'Unnamed Item',
+          'Quantity': item?.quantity || 0,
+          'Estimated Cost': item?.estimatedCost || 0,
+          'Total': (item?.quantity || 0) * (item?.estimatedCost || 0),
+          'Description': item?.description || ''
+        }));
+        
+        const wsItems = XLSX.utils.json_to_sheet(items);
+        XLSX.utils.book_append_sheet(wb, wsItems, 'Items');
+      } catch (itemError) {
+        console.error('Error processing items for Excel export:', itemError);
+        const wsItemsError = XLSX.utils.aoa_to_sheet([['Error processing items']]);
+        XLSX.utils.book_append_sheet(wb, wsItemsError, 'Items (Error)');
+      }
+    }
+    
+    // Add approvals worksheet if includeDetails is true
+    if (includeDetails && Array.isArray(request.approvals) && request.approvals.length > 0) {
+      try {
+        const approvals = request.approvals.map((approval: any, index: number) => ({
+          'Approval #': index + 1,
+          'Department': approval?.department || 'N/A',
+          'Approver': approval?.approver?.username || 'N/A',
+          'Status': approval?.status || 'pending',
+          'Date': approval?.processedAt ? new Date(approval?.processedAt).toLocaleString() : 'N/A',
+          'Comments': approval?.comments || ''
+        }));
+        
+        const wsApprovals = XLSX.utils.json_to_sheet(approvals);
+        XLSX.utils.book_append_sheet(wb, wsApprovals, 'Approvals');
+      } catch (approvalError) {
+        console.error('Error processing approvals for Excel export:', approvalError);
+        const wsApprovalsError = XLSX.utils.aoa_to_sheet([['Error processing approvals']]);
+        XLSX.utils.book_append_sheet(wb, wsApprovalsError, 'Approvals (Error)');
+      }
+    }
+    
+    // Add attachments worksheet if includeDetails is true
+    if (includeDetails && Array.isArray(request.attachments) && request.attachments.length > 0) {
+      try {
+        const attachments = request.attachments.map((attachment: any, index: number) => ({
+          'Attachment #': index + 1,
+          'File Name': attachment?.fileName || attachment?.name || `file_${attachment?.id || index}`,
+          'File Type': attachment?.fileType || attachment?.type || 'Unknown',
+          'File Size (bytes)': attachment?.fileSize || attachment?.size || 0,
+          'Download URL': attachment?.fileUrl || 'N/A'
+        }));
+        
+        const wsAttachments = XLSX.utils.json_to_sheet(attachments);
+        XLSX.utils.book_append_sheet(wb, wsAttachments, 'Attachments');
+      } catch (attachmentError) {
+        console.error('Error processing attachments for Excel export:', attachmentError);
+        const wsAttachmentsError = XLSX.utils.aoa_to_sheet([['Error processing attachments']]);
+        XLSX.utils.book_append_sheet(wb, wsAttachmentsError, 'Attachments (Error)');
+      }
+    }
+    
+    // Generate Excel file and trigger download
+    const fileName = `Purchase_Request_${request.requestNumber || request.id}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    console.log('Excel export complete:', fileName);
+    return fileName;
+  } catch (error) {
+    console.error('Error exporting request to Excel:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate the total cost of a purchase request
+ */
+function calculateTotalCost(request: any): number {
+  if (!request || !Array.isArray(request.items)) {
+    return 0;
+  }
+  
+  let total = 0;
+  
+  try {
+    // Sum up all items cost * quantity
+    total = request.items.reduce((sum: number, item: any) => {
+      const quantity = Number(item?.quantity) || 0;
+      const cost = Number(item?.estimatedCost) || 0;
+      return sum + (quantity * cost);
+    }, 0);
+    
+    // Add freight amount if available
+    if (typeof request.freightAmount === 'number') {
+      total += request.freightAmount;
+    }
+  } catch (error) {
+    console.error('Error calculating total cost:', error);
+  }
+  
+  return total;
+}
+
+/**
+ * Exports purchase request data to CSV format
+ * 
+ * @param request The purchase request data to export
+ * @param exportType What information to include in the CSV
+ * @returns The name of the generated file
+ */
+export async function exportRequestToCSV(
+  request: any, 
+  exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all'
+): Promise<string> {
+  try {
+    console.log('Starting CSV export...');
+    
+    // Validate request data
+    if (!request || !request.id) {
+      throw new Error('Invalid request data');
+    }
+    
+    const fileName = `Purchase_Request_${request.requestNumber || request.id}`;
+    
+    if (exportType === 'basic' || exportType === 'all') {
+      // Export basic request information
+      try {
+        const basicData = {
+          request_number: request.requestNumber || `REQ-${request.id}`,
+          title: request.title || 'Untitled Request',
+          status: request.status || 'draft',
+          priority: request.priority || 'medium',
+          created_date: request.createdAt || new Date().toISOString(),
+          requester: request.requester?.username || 'Unknown',
+          department: request.requester?.department || 'N/A',
+          purpose_type: request.purposeType || 'N/A',
+          sub_purpose: request.subPurpose?.name || 'N/A',
+          description: request.description || '',
+          total_estimated_cost: calculateTotalCost(request) || 0,
+          currency: request.currency || 'USD',
+          vendor: request.vendor?.companyName || request.vendor?.name || 'N/A'
+        };
+        
+        const parser = new Parser();
+        const csv = parser.parse([basicData]);
+        
+        const basicFileName = `${fileName}_basic.csv`;
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, basicFileName);
+        
+        if (exportType === 'basic') {
+          console.log('CSV export complete:', basicFileName);
+          return basicFileName;
+        }
+      } catch (basicError) {
+        console.error('Error exporting basic request data to CSV:', basicError);
+        if (exportType === 'basic') {
+          throw basicError;
+        }
+      }
+    }
+    
+    if (exportType === 'items' || exportType === 'all') {
+      // Export items information
+      if (Array.isArray(request.items) && request.items.length > 0) {
+        try {
+          const items = request.items.map((item: any, index: number) => ({
+            item_number: index + 1,
+            name: item?.name || 'Unnamed Item',
+            quantity: item?.quantity || 0,
+            estimated_cost: item?.estimatedCost || 0,
+            total: (item?.quantity || 0) * (item?.estimatedCost || 0),
+            description: item?.description || ''
+          }));
+          
+          const parser = new Parser();
+          const csv = parser.parse(items);
+          
+          const itemsFileName = `${fileName}_items.csv`;
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          saveAs(blob, itemsFileName);
+          
+          if (exportType === 'items') {
+            console.log('CSV export complete:', itemsFileName);
+            return itemsFileName;
+          }
+        } catch (itemsError) {
+          console.error('Error exporting items to CSV:', itemsError);
+          if (exportType === 'items') {
+            throw itemsError;
+          }
+        }
+      } else if (exportType === 'items') {
+        const noItemsFileName = `${fileName}_no_items.csv`;
+        const blob = new Blob(['No items found'], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, noItemsFileName);
+        return noItemsFileName;
+      }
+    }
+    
+    if (exportType === 'approvals' || exportType === 'all') {
+      // Export approvals information
+      if (Array.isArray(request.approvals) && request.approvals.length > 0) {
+        try {
+          const approvals = request.approvals.map((approval: any, index: number) => ({
+            approval_number: index + 1,
+            department: approval?.department || 'N/A',
+            approver: approval?.approver?.username || 'N/A',
+            status: approval?.status || 'pending',
+            processed_date: approval?.processedAt || '',
+            comments: approval?.comments || ''
+          }));
+          
+          const parser = new Parser();
+          const csv = parser.parse(approvals);
+          
+          const approvalsFileName = `${fileName}_approvals.csv`;
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          saveAs(blob, approvalsFileName);
+          
+          if (exportType === 'approvals') {
+            console.log('CSV export complete:', approvalsFileName);
+            return approvalsFileName;
+          }
+        } catch (approvalsError) {
+          console.error('Error exporting approvals to CSV:', approvalsError);
+          if (exportType === 'approvals') {
+            throw approvalsError;
+          }
+        }
+      } else if (exportType === 'approvals') {
+        const noApprovalsFileName = `${fileName}_no_approvals.csv`;
+        const blob = new Blob(['No approvals found'], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, noApprovalsFileName);
+        return noApprovalsFileName;
+      }
+    }
+    
+    if (exportType === 'all') {
+      console.log('CSV export complete: Multiple files generated');
+      return `${fileName}_all.csv`;
+    }
+    
+    return `${fileName}.csv`;
+  } catch (error) {
+    console.error('Error exporting request to CSV:', error);
+    throw error;
+  }
+}
+
+/**
+ * Exports multiple purchase requests to Excel format
+ * 
+ * @param requests Array of purchase requests to export
+ * @returns The name of the generated Excel file
+ */
+export async function exportMultipleRequestsToExcel(requests: any[]): Promise<string> {
+  try {
+    console.log('Starting bulk Excel export...');
+    
+    // Validate requests data
+    if (!Array.isArray(requests) || requests.length === 0) {
+      throw new Error('No valid requests to export');
+    }
+    
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Create summary sheet
+    const summary = requests.map((req, index) => ({
+      'Request #': index + 1,
+      'Request Number': req.requestNumber || `REQ-${req.id || index}`,
+      'Title': req.title || 'Untitled Request',
+      'Status': req.status || 'draft',
+      'Priority': req.priority || 'medium',
+      'Created Date': req.createdAt ? new Date(req.createdAt).toLocaleString() : 'N/A',
+      'Requester': req.requester?.username || 'Unknown',
+      'Department': req.requester?.department || 'N/A',
+      'Total Cost': calculateTotalCost(req) || 0,
+      'Vendor': req.vendor?.companyName || req.vendor?.name || 'N/A'
+    }));
+    
+    const wsSummary = XLSX.utils.json_to_sheet(summary);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+    
+    // Add individual request sheets for the first 10 requests 
+    // (to avoid extremely large files)
+    const maxDetailedRequests = Math.min(requests.length, 10);
+    
+    for (let i = 0; i < maxDetailedRequests; i++) {
+      try {
+        const request = requests[i];
+        const requestNumber = request.requestNumber || request.id || `Request_${i+1}`;
+        
+        // Prepare request data
+        const requestData = [
+          ['Request Number', requestNumber],
+          ['Title', request.title || 'Untitled Request'],
+          ['Status', request.status || 'draft'],
+          ['Priority', request.priority || 'medium'],
+          ['Created Date', request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'],
+          ['Requester', request.requester?.username || 'Unknown'],
+          ['Department', request.requester?.department || 'N/A'],
+          ['Purpose Type', request.purposeType || 'N/A'],
+          ['Sub-Purpose', request.subPurpose?.name || 'N/A'],
+          ['Description', request.description || ''],
+          ['Total Cost', calculateTotalCost(request) || 0],
+          ['Currency', request.currency || 'USD'],
+          ['Vendor', request.vendor?.companyName || request.vendor?.name || 'N/A']
+        ];
+        
+        // Add items if available
+        if (Array.isArray(request.items) && request.items.length > 0) {
+          requestData.push([]);
+          requestData.push(['Items:']);
+          requestData.push(['Item #', 'Name', 'Quantity', 'Est. Cost', 'Total', 'Description']);
+          
+          request.items.forEach((item: any, index: number) => {
+            const quantity = Number(item?.quantity) || 0;
+            const cost = Number(item?.estimatedCost) || 0;
+            requestData.push([
+              index + 1,
+              item?.name || 'Unnamed Item',
+              quantity,
+              cost,
+              quantity * cost,
+              item?.description || ''
+            ]);
+          });
+        }
+        
+        // Add approvals if available
+        if (Array.isArray(request.approvals) && request.approvals.length > 0) {
+          requestData.push([]);
+          requestData.push(['Approvals:']);
+          requestData.push(['Dept.', 'Approver', 'Status', 'Date', 'Comments']);
+          
+          request.approvals.forEach((approval: any) => {
+            requestData.push([
+              approval?.department || 'N/A',
+              approval?.approver?.username || 'N/A',
+              approval?.status || 'pending',
+              approval?.processedAt ? new Date(approval?.processedAt).toLocaleString() : 'N/A',
+              approval?.comments || ''
+            ]);
+          });
+        }
+        
+        const wsRequest = XLSX.utils.aoa_to_sheet(requestData);
+        XLSX.utils.book_append_sheet(wb, wsRequest, `REQ-${i+1}`);
+      } catch (requestError) {
+        console.error(`Error processing request ${i+1} for Excel export:`, requestError);
+      }
+    }
+    
+    // Generate Excel file and trigger download
+    const timestamp = new Date().toISOString().split('T')[0];
+    const fileName = `Purchase_Requests_Export_${timestamp}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    console.log('Bulk Excel export complete:', fileName);
+    return fileName;
+  } catch (error) {
+    console.error('Error exporting multiple requests to Excel:', error);
+    throw error;
+  }
+}
+
 export async function exportMultipleRequestsAsZip(
   requests: any[], 
   type: 'user' | 'approver' | 'admin' = 'admin'
