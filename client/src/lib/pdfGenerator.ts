@@ -381,8 +381,8 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
       yPos = addSection(doc, "Audit Information", yPos);
       
       const auditInfo = [
-        ['Created by:', request.requester?.username || 'N/A', 'Created at:', new Date(request.createdAt).toLocaleString()],
-        ['Last updated:', new Date(request.updatedAt).toLocaleString(), 'Request ID:', request.id],
+        ['Created by:', request.requester?.username || 'N/A', 'Created at:', request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'],
+        ['Last updated:', request.updatedAt ? new Date(request.updatedAt).toLocaleString() : 'N/A', 'Request ID:', request.id || 'N/A'],
         ['Process Duration:', request.processedAt && request.createdAt ? 
           `${Math.floor((new Date(request.processedAt).getTime() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days` : 
           'Not completed', 

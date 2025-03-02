@@ -42,52 +42,79 @@ export async function downloadAttachment(attachment: any) {
  * @param request The purchase request data
  * @returns A formatted JSON string
  */
+/**
+ * Converts the purchase request data to a formatted JSON string
+ * 
+ * @param request The purchase request data
+ * @returns A formatted JSON string
+ */
 function formatRequestJSON(request: any): string {
-  // Create a simplified version of the request for better readability
-  const simplifiedRequest = {
-    id: request.id,
-    requestNumber: request.requestNumber,
-    title: request.title,
-    description: request.description,
-    status: request.status,
-    priority: request.priority,
-    createdAt: request.createdAt,
-    updatedAt: request.updatedAt,
-    requester: request.requester ? {
-      id: request.requester.id,
-      username: request.requester.username,
-      department: request.requester.department
-    } : null,
-    vendor: request.vendor ? {
-      id: request.vendor.id,
-      name: request.vendor.companyName || request.vendor.name,
-      contactPerson: request.vendor.contactPerson,
-      email: request.vendor.email,
-      phone: request.vendor.contactNumber || request.vendor.phone
-    } : null,
-    purposeType: request.purposeType,
-    subPurpose: request.subPurpose ? {
-      id: request.subPurpose.id,
-      name: request.subPurpose.name
-    } : null,
-    items: Array.isArray(request.items) ? request.items : [],
-    approvals: Array.isArray(request.approvals) ? request.approvals.map(approval => ({
-      id: approval.id,
-      status: approval.status,
-      department: approval.department,
-      approver: approval.approver ? approval.approver.username : null,
-      processedAt: approval.processedAt,
-      comments: approval.comments
-    })) : [],
-    attachments: Array.isArray(request.attachments) ? request.attachments.map(attachment => ({
-      id: attachment.id,
-      fileName: attachment.fileName || attachment.name,
-      fileType: attachment.fileType || attachment.type,
-      fileSize: attachment.fileSize || attachment.size
-    })) : []
-  };
-  
-  return JSON.stringify(simplifiedRequest, null, 2);
+  // Create a simplified version of the request for better readability with null/undefined protection
+  try {
+    // Return empty JSON if request is null or undefined
+    if (!request) {
+      return JSON.stringify({ error: "No request data available" }, null, 2);
+    }
+    
+    const simplifiedRequest = {
+      id: request.id || 0,
+      requestNumber: request.requestNumber || `REQ-${request.id || 'unknown'}`,
+      title: request.title || 'Untitled Request',
+      description: request.description || '',
+      status: request.status || 'draft',
+      priority: request.priority || 'medium',
+      createdAt: request.createdAt || new Date().toISOString(),
+      updatedAt: request.updatedAt || new Date().toISOString(),
+      requester: request.requester ? {
+        id: request.requester.id || 0,
+        username: request.requester.username || 'Unknown User',
+        department: request.requester.department || 'Unknown'
+      } : {
+        id: 0,
+        username: 'Unknown User',
+        department: 'Unknown'
+      },
+      vendor: request.vendor ? {
+        id: request.vendor.id || 0,
+        name: request.vendor.companyName || request.vendor.name || 'Unknown Vendor',
+        contactPerson: request.vendor.contactPerson || 'N/A',
+        email: request.vendor.email || 'N/A',
+        phone: request.vendor.contactNumber || request.vendor.phone || 'N/A'
+      } : null,
+      purposeType: request.purposeType || 'N/A',
+      subPurpose: request.subPurpose ? {
+        id: request.subPurpose.id || 0,
+        name: request.subPurpose.name || 'N/A'
+      } : null,
+      items: Array.isArray(request.items) ? request.items.map((item: any) => ({
+        id: item?.id || 0,
+        name: item?.name || 'Unnamed Item',
+        quantity: typeof item?.quantity === 'number' ? item.quantity : 0,
+        estimatedCost: typeof item?.estimatedCost === 'number' ? item.estimatedCost : 0,
+        description: item?.description || ''
+      })) : [],
+      approvals: Array.isArray(request.approvals) ? request.approvals.map((approval: any) => ({
+        id: approval?.id || 0,
+        status: approval?.status || 'pending',
+        department: approval?.department || 'N/A',
+        approver: approval?.approver?.username || 'N/A',
+        processedAt: approval?.processedAt || null,
+        comments: approval?.comments || ''
+      })) : [],
+      attachments: Array.isArray(request.attachments) ? request.attachments.map((attachment: any) => ({
+        id: attachment?.id || 0,
+        fileName: attachment?.fileName || attachment?.name || 'unnamed-file',
+        fileType: attachment?.fileType || attachment?.type || 'unknown',
+        fileSize: attachment?.fileSize || attachment?.size || 0,
+        fileUrl: attachment?.fileUrl || ''
+      })) : []
+    };
+    
+    return JSON.stringify(simplifiedRequest, null, 2);
+  } catch (error) {
+    console.error('Error formatting request JSON:', error);
+    return JSON.stringify({ error: "Failed to format request data" }, null, 2);
+  }
 }
 
 /**
