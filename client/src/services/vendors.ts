@@ -82,20 +82,25 @@ export async function createVendor(data: CreateVendorInput): Promise<Vendor> {
   };
 }
 
-export async function updateVendor(id: number, data: Partial<CreateVendorInput>): Promise<Vendor> {
+export async function updateVendor(id: number, data: Partial<CreateVendorInput> & { id?: number }): Promise<Vendor> {
   // Make sure we have a valid ID
   if (!id || isNaN(id)) {
     console.error('[updateVendor] Invalid vendor ID:', id);
     throw new Error('Invalid vendor ID');
   }
 
-  // Format data properly for the API and ensure ID exclusion
+  console.log('[updateVendor] Raw input data:', data);
+  console.log('[updateVendor] Vendor ID from parameter:', id);
+  
+  // Format data properly for the API
+  // We'll explicitly include ID in both the URL and the body for extra certainty
   const formattedData = {
     ...data,
+    // Make sure ID is set correctly 
+    id: id,
     // We don't send these values directly
     createdAt: undefined,
-    updatedAt: undefined,
-    id: undefined // Avoid sending ID in the body
+    updatedAt: undefined
   };
 
   console.log(`[updateVendor] Updating vendor ${id} with data:`, formattedData);

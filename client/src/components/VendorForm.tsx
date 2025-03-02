@@ -144,9 +144,12 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
     }
   };
   
+  // We'll just use a manual submit button and avoid the onSubmit handler 
+  // to prevent any confusion with duplicate handlers
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+      <form className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -330,7 +333,16 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button 
+            type="button" 
+            disabled={isSubmitting}
+            onClick={() => {
+              console.log("Save button clicked manually");
+              const formValues = form.getValues();
+              console.log("Current form values:", formValues);
+              handleFormSubmit(formValues);
+            }}
+          >
             {isSubmitting ? (
               <>
                 <svg className="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

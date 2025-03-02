@@ -167,7 +167,15 @@ export default function VendorManagement() {
       try {
         // Use our updateVendor service function with explicit ID
         console.log(`Calling updateVendor function with ID: ${selectedVendor.id}`);
-        const updatedVendor = await updateVendor(selectedVendor.id, processedData);
+        
+        // Make sure ID is explicitly included both as param and in data
+        const vendorDataWithId = {
+          ...processedData,
+          id: selectedVendor.id // Include ID in the data explicitly
+        };
+        console.log("Final data with explicit ID:", vendorDataWithId);
+        
+        const updatedVendor = await updateVendor(selectedVendor.id, vendorDataWithId);
         console.log('Update vendor service returned:', updatedVendor);
         
         // After a successful update, handle UI state

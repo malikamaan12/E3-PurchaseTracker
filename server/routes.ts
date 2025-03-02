@@ -2109,13 +2109,16 @@ export function registerRoutes(app: Express): Server {
       if (processedData.registrationNumber === '') processedData.registrationNumber = null;
       if (processedData.remarks === '') processedData.remarks = null;
       
-      // Only update fields that were actually provided
+      // Only update fields that were actually provided (and skip the id field)
       const updateFields: any = {};
       Object.keys(processedData).forEach(key => {
-        if (processedData[key] !== undefined) {
+        // Skip the ID field in the update data to avoid accidental ID changes
+        if (key !== 'id' && processedData[key] !== undefined) {
           updateFields[key] = processedData[key];
         }
       });
+      
+      console.log(`[PATCH /api/vendors/:id] Original vendor ID: ${vendorId} will be preserved (not in update fields)`);
       
       // Always set updatedAt
       updateFields.updatedAt = new Date();
