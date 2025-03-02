@@ -29,7 +29,7 @@ import {
   type PurchaseRequest,
   type Vendor
 } from "@db/schema";
-import { updateRequest } from "@/services/requests";
+import { updateRequest, saveDraft, submitRequest } from "@/services/requests";
 import DepartmentSelect from "@/components/DepartmentSelect";
 import SubPurposeSelect from "@/components/SubPurposeSelect";
 import VendorSelect from "@/components/VendorSelect";
@@ -242,7 +242,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           toast({
             title: "Validation Warning",
             description: "Items with a name should have a quantity greater than 0",
-            variant: "warning",
+            variant: "default"
           });
           // Allow to continue for drafts
         }
@@ -329,18 +329,16 @@ export default function EditRequest({ params }: { params: { id: string } }) {
           // For drafts, accept null values for all optional fields
           vendorId: selectedVendor || null,
           totalEstimatedCost: totalCost || 0,
-          freightAmount: formatDecimal(freightAmount || 0)
+          freightAmount: formatDecimal(freightAmount || 0),
+          updatedAt: new Date().toISOString()
         };
         
         // Continue with draft submission using the specifically formatted data
         try {
-          await updateRequest({
-            id: parseInt(params.id),
-            data: {
-              ...draftData,
-              status: "draft"
-            },
-          });
+          await saveDraft(
+            parseInt(params.id),
+            draftData
+          );
           
           toast({
             title: "Success",

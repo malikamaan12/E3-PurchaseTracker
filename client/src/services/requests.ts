@@ -176,14 +176,18 @@ export async function saveDraft(id: number, data: Partial<CreateRequestData>): P
       throw new Error('Draft must contain at least one field (title, description, or items)');
     }
 
+    // Special handling for draft requests - make sure all required fields are set
+    // even if they're empty or have default values
+    const draftData = {
+      ...data,
+      status: "draft",
+      isLocked: false,
+      updatedAt: new Date().toISOString()
+    };
+
     return await updateRequest({
       id,
-      data: { 
-        ...data, 
-        status: "draft",
-        isLocked: false,
-        updatedAt: new Date().toISOString()
-      },
+      data: draftData
     });
   } catch (error) {
     console.error('Error saving draft:', error);
