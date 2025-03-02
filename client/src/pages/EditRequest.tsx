@@ -267,6 +267,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         totalEstimatedCost: totalCost,
         // For drafts, we allow null values for optional fields
         vendorId: isDraft ? (selectedVendor || null) : selectedVendor,
+        updatedAt: new Date().toISOString()
       };
       
       console.log("Submitting request data:", {
@@ -276,10 +277,12 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         vendorId: submissionData.vendorId
       });
 
-      await updateRequest({
-        id: parseInt(params.id),
-        data: submissionData,
-      });
+      // Use specific service functions based on the request status
+      if (isDraft) {
+        await saveDraft(parseInt(params.id), submissionData);
+      } else {
+        await submitRequest(parseInt(params.id), submissionData);
+      }
 
       toast({
         title: "Success",
