@@ -81,3 +81,36 @@ export async function createVendor(data: CreateVendorInput): Promise<Vendor> {
     updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
   };
 }
+
+export async function updateVendor(id: number, data: Partial<CreateVendorInput>): Promise<Vendor> {
+  // Format dates properly for the API
+  const formattedData = {
+    ...data,
+    // We don't send these values directly
+    createdAt: undefined,
+    updatedAt: undefined
+  };
+
+  const response = await fetch(`/api/vendors/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(formattedData),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const errorMessage = errorData?.message || await response.text() || 'Failed to update vendor';
+    console.error('Vendor update failed:', errorMessage, errorData);
+    throw new Error(errorMessage);
+  }
+
+  const vendor = await response.json();
+  return {
+    ...vendor,
+    createdAt: vendor.createdAt ? new Date(vendor.createdAt) : null,
+    updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
+  };
+}

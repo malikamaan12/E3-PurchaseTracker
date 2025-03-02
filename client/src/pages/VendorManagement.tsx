@@ -30,6 +30,7 @@ import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { VendorForm } from "@/components/VendorForm";
 import { VendorDetails } from "@/components/VendorDetails";
+import { createVendor, updateVendor } from "@/services/vendors";
 
 export default function VendorManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -48,20 +49,8 @@ export default function VendorManagement() {
 
   const addVendorMutation = useMutation({
     mutationFn: async (data: Omit<Vendor, "id" | "createdAt" | "updatedAt" | "rating">) => {
-      const response = await fetch("/api/vendors", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
+      // Use our service function
+      return createVendor(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
@@ -195,13 +184,28 @@ export default function VendorManagement() {
     console.log('Final vendor data being sent:', processedData);
     
     try {
-      // Use mutateAsync to properly await the result
-      await updateVendorMutation.mutateAsync({
-        id: selectedVendor.id,
-        data: processedData
+      // Use our updateVendor service function
+      const updatedVendor = await updateVendor(selectedVendor.id, processedData);
+      
+      // After a successful update, handle UI state
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setIsEditMode(false);
+      setSelectedVendor(null);
+      
+      toast({
+        title: "Success",
+        description: "Vendor has been updated successfully",
       });
+      
+      return updatedVendor;
     } catch (error) {
       console.error("Error in handleUpdateVendor:", error);
+      
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update vendor information",
+        variant: "destructive",
+      });
     }
   };
 
