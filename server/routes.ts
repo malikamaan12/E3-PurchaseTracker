@@ -1268,12 +1268,32 @@ export function registerRoutes(app: Express): Server {
           ? updateData.additionalApprovers 
           : [];
       }
+      
+      // Handle date fields properly by converting string dates to proper Date objects
+      // This fixes the "toISOString is not a function" error
+      if (finalUpdateData.createdAt && typeof finalUpdateData.createdAt === 'string') {
+        finalUpdateData.createdAt = new Date(finalUpdateData.createdAt);
+      }
+      
+      if (finalUpdateData.updatedAt && typeof finalUpdateData.updatedAt === 'string') {
+        finalUpdateData.updatedAt = new Date(finalUpdateData.updatedAt);
+      }
+      
+      if (finalUpdateData.submittedAt && typeof finalUpdateData.submittedAt === 'string') {
+        finalUpdateData.submittedAt = new Date(finalUpdateData.submittedAt);
+      }
+      
+      // Omit any non-database fields from the update to prevent schema errors
+      const {
+        requester, vendor, subPurpose, approvals, attachments, 
+        ...cleanUpdateData
+      } = finalUpdateData;
 
       // Update the request with proper validation
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
-          ...finalUpdateData,
+          ...cleanUpdateData,
           updatedAt: new Date()
         })
         .where(eq(purchaseRequests.id, requestId))
