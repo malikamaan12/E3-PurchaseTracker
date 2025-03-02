@@ -555,7 +555,7 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         className: "animate-error",
       });
     }
-  }, [form, onSubmit, toast, items]);
+  }, [form, onSubmit, toast, items, freightAmount, selectedVendor, totalCost, params.id, setLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7058a3]/5 to-[#3eb6ba]/5 py-8">
