@@ -2033,18 +2033,29 @@ export function registerRoutes(app: Express): Server {
   // Add endpoint for updating vendor details
   app.patch("/api/vendors/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Authentication check
       if (!req.isAuthenticated()) {
+        console.error('[PATCH /api/vendors/:id] User not authenticated');
         throw new AppError('Not authenticated', 401);
       }
 
-      const vendorId = parseInt(req.params.id);
+      // Parse and validate vendor ID
+      const vendorIdParam = req.params.id;
+      const vendorId = parseInt(vendorIdParam);
+      
+      console.log(`[PATCH /api/vendors/:id] Updating vendor with ID: ${vendorId}`, { 
+        userId: req.user?.id, 
+        bodyKeys: Object.keys(req.body)
+      });
       debug(req, `Updating vendor with ID: ${vendorId}`, req.body);
 
       if (isNaN(vendorId)) {
+        console.error(`[PATCH /api/vendors/:id] Invalid vendor ID: ${vendorIdParam}`);
         throw new ValidationError('Invalid vendor ID', { id: 'Must be a number' });
       }
 
       // Check if vendor exists
+      console.log(`[PATCH /api/vendors/:id] Checking if vendor ${vendorId} exists`);
       const [existingVendor] = await db
         .select()
         .from(vendors)
@@ -2052,12 +2063,18 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!existingVendor) {
+        console.error(`[PATCH /api/vendors/:id] Vendor with ID ${vendorId} not found`);
         throw new AppError('Vendor not found', 404);
       }
 
+      console.log(`[PATCH /api/vendors/:id] Found existing vendor with ID: ${existingVendor.id}`);
+
       // Validate update data against schema
+      console.log(`[PATCH /api/vendors/:id] Validating update data for vendor ID: ${vendorId}`);
       const validationResult = insertVendorSchema.partial().safeParse(req.body);
+      
       if (!validationResult.success) {
+        console.error('[PATCH /api/vendors/:id] Vendor update validation failed:', validationResult.error);
         debug(req, 'Vendor update validation failed:', validationResult.error);
         throw new ValidationError('Invalid vendor data', validationResult.error.format());
       }

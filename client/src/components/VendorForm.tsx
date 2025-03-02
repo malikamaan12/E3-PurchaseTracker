@@ -104,18 +104,26 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       
       // Call the parent submission handler
       console.log('Calling parent onSubmit function');
-      const result = await onSubmit(processedData);
-      console.log('Parent onSubmit function returned:', result);
+      console.log('Default values:', defaultValues);
+      console.log('Is this an update?', !!defaultValues);
       
-      // Show success toast
-      toast({
-        title: "Success",
-        description: "Vendor information saved successfully",
-      });
-      
-      // Only reset form for new vendor creation
-      if (!defaultValues) {
-        form.reset();
+      try {
+        const result = await onSubmit(processedData);
+        console.log('Parent onSubmit function returned:', result);
+        
+        // Show success toast
+        toast({
+          title: "Success",
+          description: "Vendor information saved successfully",
+        });
+        
+        // Only reset form for new vendor creation
+        if (!defaultValues) {
+          form.reset();
+        }
+      } catch (submitError) {
+        console.error("Submit function error:", submitError);
+        throw submitError;
       }
     } catch (error) {
       console.error("Form submission error:", error);

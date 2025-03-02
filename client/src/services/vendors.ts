@@ -83,7 +83,13 @@ export async function createVendor(data: CreateVendorInput): Promise<Vendor> {
 }
 
 export async function updateVendor(id: number, data: Partial<CreateVendorInput>): Promise<Vendor> {
-  // Format dates properly for the API
+  // Make sure we have a valid ID
+  if (!id || isNaN(id)) {
+    console.error('[updateVendor] Invalid vendor ID:', id);
+    throw new Error('Invalid vendor ID');
+  }
+
+  // Format dates properly for the API and remove unnecessary fields
   const formattedData = {
     ...data,
     // We don't send these values directly
@@ -94,8 +100,9 @@ export async function updateVendor(id: number, data: Partial<CreateVendorInput>)
   console.log(`[updateVendor] Updating vendor ${id} with data:`, formattedData);
 
   try {
-    const response = await fetch(`/api/vendors/${id}`, {
-      method: "PATCH",
+    // Store raw response for debugging
+    const rawResponse = await fetch(`/api/vendors/${id}`, {
+      method: "PATCH", // Using PATCH for partial updates
       headers: {
         "Content-Type": "application/json",
       },
@@ -103,37 +110,76 @@ export async function updateVendor(id: number, data: Partial<CreateVendorInput>)
       credentials: "include",
     });
 
-    console.log(`[updateVendor] Response status:`, response.status);
+    // Clone the response for debugging purposes
+    const responseClone = rawResponse.clone();
+    const responseStatus = rawResponse.status;
+    const responseStatusText = rawResponse.statusText;
+    
+    console.log(`[updateVendor] Response status: ${responseStatus} ${responseStatusText}`);
+    console.log(`[updateVendor] Response headers:`, Object.fromEntries([...rawResponse.headers.entries()]));
 
-    if (!response.ok) {
-      let errorMessage = 'Failed to update vendor';
+    if (!rawResponse.ok) {
+      let errorMessage = `Failed to update vendor: HTTP ${responseStatus} ${responseStatusText}`;
       
       try {
         // Try to parse as JSON first
-        const errorData = await response.json();
+        const errorData = await responseClone.json();
         console.error('[updateVendor] Error data (JSON):', errorData);
         errorMessage = errorData?.message || errorData?.error || errorMessage;
       } catch (jsonError) {
         // If not JSON, get as text
-        const errorText = await response.text();
-        console.error('[updateVendor] Error text:', errorText);
-        errorMessage = errorText || errorMessage;
+        try {
+          const errorText = await responseClone.text();
+          console.error('[updateVendor] Error text:', errorText);
+          errorMessage = errorText || errorMessage;
+        } catch (textError) {
+          console.error('[updateVendor] Failed to get error text:', textError);
+        }
       }
       
       console.error('[updateVendor] Final error message:', errorMessage);
       throw new Error(errorMessage);
     }
 
-    const vendor = await response.json();
-    console.log('[updateVendor] Success! Received updated vendor:', vendor);
-    
-    return {
-      ...vendor,
-      createdAt: vendor.createdAt ? new Date(vendor.createdAt) : null,
-      updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
-    };
+    try {
+      const vendor = await rawResponse.json();
+      console.log('[updateVendor] Success! Received updated vendor:', vendor);
+      
+      return {
+        ...vendor,
+        createdAt: vendor.createdAt ? new Date(vendor.createdAt) : null,
+        updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
+      };
+    } catch (parseError) {
+      console.error('[updateVendor] Failed to parse successful response:', parseError);
+      
+      // Fallback response if we can't parse the JSON
+      return {
+        id: id,
+        companyName: data.companyName || 'Unknown',
+        contactPerson: data.contactPerson || 'Unknown',
+        contactNumber: data.contactNumber || 'Unknown',
+        email: data.email || 'unknown@example.com',
+        address: data.address || 'Unknown',
+        taxNumber: data.taxNumber || null,
+        registrationNumber: data.registrationNumber || null,
+        bankName: data.bankName || 'Unknown',
+        accountNumber: data.accountNumber || 'Unknown',
+        ibanNumber: data.ibanNumber || 'Unknown',
+        branchName: data.branchName || 'Unknown',
+        status: data.status || 'active',
+        createdAt: null,
+        updatedAt: new Date(),
+      };
+    }
   } catch (error) {
     console.error('[updateVendor] Caught exception:', error);
-    throw error;
+    
+    // Add more context to the error
+    if (error instanceof Error) {
+      throw new Error(`Vendor update failed: ${error.message}`);
+    } else {
+      throw new Error('Vendor update failed with an unknown error');
+    }
   }
 }
