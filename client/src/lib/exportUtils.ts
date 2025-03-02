@@ -5,6 +5,67 @@ import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 
 /**
+ * Enhanced logging function for export operations
+ * Helps with debugging and tracking export progress
+ * 
+ * @param type The type of export operation
+ * @param message The log message
+ * @param error Optional error object
+ */
+const logExport = (type: string, message: string, error?: any) => {
+  const timestamp = new Date().toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
+  const prefix = `[EXPORT:${type.toUpperCase()}] [${timestamp}]`;
+  
+  if (error) {
+    console.error(`${prefix} ERROR: ${message}`, error);
+  } else {
+    console.log(`${prefix} ${message}`);
+  }
+};
+
+/**
+ * Safely triggers a file download using FileSaver and provides a fallback mechanism
+ * 
+ * @param blob The blob to download
+ * @param fileName The name of the file to save
+ * @returns Promise that resolves when download is initiated
+ */
+async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
+  try {
+    logExport('download', `Initiating download for ${fileName} (${blob.size} bytes)...`);
+    
+    // Try FileSaver first
+    try {
+      saveAs(blob, fileName);
+      logExport('download', `Primary download method (saveAs) completed`);
+      return true;
+    } catch (saveError) {
+      logExport('download', `Primary download method failed, using fallback`, saveError);
+      
+      // Fallback using URL.createObjectURL and link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      logExport('download', `Fallback download method completed`);
+      return true;
+    }
+  } catch (error) {
+    logExport('download', `All download methods failed`, error);
+    throw error;
+  }
+}
+
+/**
  * Exports a purchase request as a PDF document
  * 
  * @param request The purchase request data
@@ -12,12 +73,16 @@ import { Parser } from '@json2csv/plainjs';
  */
 export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user') {
   try {
+    logExport('pdf', `Starting PDF export for request ${request.id || 'unknown'} with type ${type}`);
+    
     const doc = await generateRequestPDF(request, type);
     const pdfName = `Purchase_Request_${request.requestNumber || request.id}_${type}.pdf`;
     doc.save(pdfName);
+    
+    logExport('pdf', `PDF generation completed successfully: ${pdfName}`);
     return pdfName;
   } catch (error) {
-    console.error('Error exporting request to PDF:', error);
+    logExport('pdf', `PDF generation failed:`, error);
     throw error;
   }
 }
@@ -29,11 +94,35 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
  */
 export async function downloadAttachment(attachment: any) {
   try {
+    logExport('attachment', `Starting download for attachment: ${attachment?.fileName || 'unknown'}`);
+    
+    // Validate attachment data
+    if (!attachment || !attachment.fileUrl) {
+      throw new Error('Invalid attachment data');
+    }
+    
+    // Fetch the file
+    logExport('attachment', `Fetching file from ${attachment.fileUrl}`);
     const response = await fetch(attachment.fileUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get the blob data
     const blob = await response.blob();
-    saveAs(blob, attachment.fileName);
+    
+    // Prepare the file name
+    const fileName = attachment.fileName || attachment.name || `file_${attachment.id || 'unknown'}`;
+    
+    // Use our safer download method
+    logExport('attachment', `Downloading attachment: ${fileName} (${blob.size} bytes)`);
+    await safeDownload(blob, fileName);
+    
+    logExport('attachment', 'Attachment download completed successfully');
+    return fileName;
   } catch (error) {
-    console.error('Error downloading attachment:', error);
+    logExport('attachment', 'Attachment download failed:', error);
     throw error;
   }
 }
@@ -119,15 +208,24 @@ function formatRequestJSON(request: any): string {
  * @param request The purchase request data
  * @param includeAttachments Whether to include the attachments in the ZIP
  * @param type The user type (user, approver, admin) - affects what data is included
+ * @returns The name of the generated file
  */
 export async function exportRequestAsZip(
   request: any, 
   includeAttachments: boolean = true, 
   type: 'user' | 'approver' | 'admin' = 'user'
-) {
+): Promise<string> {
   try {
+    logExport('zip', `Starting ZIP export for request ${request.id || 'unknown'}`);
+    
+    // Validate request data
+    if (!request || !request.id) {
+      throw new Error('Invalid request data');
+    }
+    
     const zip = new JSZip();
     const folderName = `request_${request.requestNumber || request.id}`;
+    logExport('zip', `Creating folder: ${folderName}`);
     const folder = zip.folder(folderName);
     
     if (!folder) {
@@ -135,15 +233,18 @@ export async function exportRequestAsZip(
     }
     
     // Add purchase request data as JSON
+    logExport('zip', 'Adding request data as JSON');
     folder.file('request-data.json', formatRequestJSON(request));
     
     // Add request PDF 
+    logExport('zip', `Generating PDF for ${type} view`);
     const doc = await generateRequestPDF(request, type);
     const pdfData = doc.output('blob');
     folder.file(`Purchase_Request_${request.requestNumber || request.id}.pdf`, pdfData);
     
     // If admin export, include all PDFs
     if (type === 'admin') {
+      logExport('zip', 'Adding user and approver PDFs for admin export');
       const userPdf = await generateRequestPDF(request, 'user');
       const approverPdf = await generateRequestPDF(request, 'approver');
       
@@ -153,6 +254,7 @@ export async function exportRequestAsZip(
     
     // Add attachments if required
     if (includeAttachments && request.attachments?.length > 0) {
+      logExport('zip', `Adding ${request.attachments.length} attachments`);
       const attachmentsFolder = folder.folder('attachments');
       
       if (!attachmentsFolder) {
@@ -162,27 +264,45 @@ export async function exportRequestAsZip(
       // Process each attachment
       const attachmentPromises = request.attachments.map(async (attachment: any) => {
         try {
+          logExport('zip', `Fetching attachment: ${attachment.fileName || attachment.name || attachment.id}`);
           const response = await fetch(attachment.fileUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
+          }
+          
           const blob = await response.blob();
           const fileName = attachment.fileName || attachment.name || `file_${attachment.id}`;
           attachmentsFolder.file(fileName, blob);
         } catch (error) {
-          console.error(`Error processing attachment ${attachment.id}:`, error);
+          logExport('zip', `Error processing attachment ${attachment.id}:`, error);
           // Continue with other attachments even if one fails
         }
       });
       
       // Wait for all attachments to be processed
+      logExport('zip', 'Waiting for all attachments to be processed');
       await Promise.all(attachmentPromises);
     }
     
     // Generate the zip file and trigger download
-    const content = await zip.generateAsync({ type: 'blob' });
-    saveAs(content, `${folderName}.zip`);
+    logExport('zip', 'Generating compressed ZIP file');
+    const content = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
     
-    return `${folderName}.zip`;
+    const zipFileName = `${folderName}.zip`;
+    
+    // Use our safer download method
+    logExport('zip', `Initiating ZIP download: ${zipFileName} (${content.size} bytes)`);
+    await safeDownload(content, zipFileName);
+    
+    logExport('zip', 'ZIP export completed successfully');
+    return zipFileName;
   } catch (error) {
-    console.error('Error exporting request as ZIP:', error);
+    logExport('zip', 'ZIP export failed:', error);
     throw error;
   }
 }
@@ -196,7 +316,7 @@ export async function exportRequestAsZip(
  */
 export async function exportRequestToExcel(request: any, includeDetails: boolean = true): Promise<string> {
   try {
-    console.log('Starting Excel export...');
+    logExport('excel', `Starting Excel export for request ${request.id || 'unknown'}`);
     
     // Validate request data
     if (!request || !request.id) {
@@ -204,6 +324,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     }
     
     // Create simplified request object for basic information
+    logExport('excel', 'Creating basic request information sheet');
     const requestData = {
       'Request Number': request.requestNumber || `REQ-${request.id}`,
       'Title': request.title || 'Untitled Request',
@@ -228,6 +349,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     // Add items worksheet if there are items
     if (Array.isArray(request.items) && request.items.length > 0) {
       try {
+        logExport('excel', `Adding ${request.items.length} items to Excel workbook`);
         const items = request.items.map((item: any, index: number) => ({
           'Item #': index + 1,
           'Name': item?.name || 'Unnamed Item',
@@ -240,7 +362,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         const wsItems = XLSX.utils.json_to_sheet(items);
         XLSX.utils.book_append_sheet(wb, wsItems, 'Items');
       } catch (itemError) {
-        console.error('Error processing items for Excel export:', itemError);
+        logExport('excel', 'Error processing items for Excel export:', itemError);
         const wsItemsError = XLSX.utils.aoa_to_sheet([['Error processing items']]);
         XLSX.utils.book_append_sheet(wb, wsItemsError, 'Items (Error)');
       }
@@ -249,6 +371,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     // Add approvals worksheet if includeDetails is true
     if (includeDetails && Array.isArray(request.approvals) && request.approvals.length > 0) {
       try {
+        logExport('excel', `Adding ${request.approvals.length} approvals to Excel workbook`);
         const approvals = request.approvals.map((approval: any, index: number) => ({
           'Approval #': index + 1,
           'Department': approval?.department || 'N/A',
@@ -261,7 +384,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         const wsApprovals = XLSX.utils.json_to_sheet(approvals);
         XLSX.utils.book_append_sheet(wb, wsApprovals, 'Approvals');
       } catch (approvalError) {
-        console.error('Error processing approvals for Excel export:', approvalError);
+        logExport('excel', 'Error processing approvals for Excel export:', approvalError);
         const wsApprovalsError = XLSX.utils.aoa_to_sheet([['Error processing approvals']]);
         XLSX.utils.book_append_sheet(wb, wsApprovalsError, 'Approvals (Error)');
       }
@@ -270,6 +393,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     // Add attachments worksheet if includeDetails is true
     if (includeDetails && Array.isArray(request.attachments) && request.attachments.length > 0) {
       try {
+        logExport('excel', `Adding ${request.attachments.length} attachments to Excel workbook`);
         const attachments = request.attachments.map((attachment: any, index: number) => ({
           'Attachment #': index + 1,
           'File Name': attachment?.fileName || attachment?.name || `file_${attachment?.id || index}`,
@@ -281,7 +405,7 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         const wsAttachments = XLSX.utils.json_to_sheet(attachments);
         XLSX.utils.book_append_sheet(wb, wsAttachments, 'Attachments');
       } catch (attachmentError) {
-        console.error('Error processing attachments for Excel export:', attachmentError);
+        logExport('excel', 'Error processing attachments for Excel export:', attachmentError);
         const wsAttachmentsError = XLSX.utils.aoa_to_sheet([['Error processing attachments']]);
         XLSX.utils.book_append_sheet(wb, wsAttachmentsError, 'Attachments (Error)');
       }
@@ -289,12 +413,20 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     
     // Generate Excel file and trigger download
     const fileName = `Purchase_Request_${request.requestNumber || request.id}.xlsx`;
-    XLSX.writeFile(wb, fileName);
     
-    console.log('Excel export complete:', fileName);
+    // Create a blob from the workbook
+    logExport('excel', 'Converting Excel workbook to binary data');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Use our safer download method
+    logExport('excel', `Initiating Excel download: ${fileName}`);
+    await safeDownload(blob, fileName);
+    
+    logExport('excel', 'Excel export completed successfully');
     return fileName;
   } catch (error) {
-    console.error('Error exporting request to Excel:', error);
+    logExport('excel', 'Excel export failed:', error);
     throw error;
   }
 }
@@ -340,7 +472,7 @@ export async function exportRequestToCSV(
   exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all'
 ): Promise<string> {
   try {
-    console.log('Starting CSV export...');
+    logExport('csv', `Starting CSV export for request ${request.id || 'unknown'} with type ${exportType}`);
     
     // Validate request data
     if (!request || !request.id) {
@@ -368,25 +500,29 @@ export async function exportRequestToCSV(
           vendor: request.vendor?.companyName || request.vendor?.name || 'N/A'
         };
         
-        // Create parser with explicit options for maximum compatibility
-        // Create parser with explicit options that are compatible with the API
+        logExport('csv', `Creating parser for basic CSV data`);
+        // Simplified parser configuration
         const parser = new Parser({
           header: true,
           delimiter: ','
         });
-        // Parse the data - note it needs to be an array
+        
+        // Parse the data - it needs to be an array
+        logExport('csv', `Parsing basic data into CSV`);
         const csv = parser.parse([basicData]);
         
         const basicFileName = `${fileName}_basic.csv`;
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, basicFileName);
+        
+        // Use our safer download method
+        await safeDownload(blob, basicFileName);
         
         if (exportType === 'basic') {
-          console.log('CSV export complete:', basicFileName);
+          logExport('csv', `Basic CSV export complete: ${basicFileName}`);
           return basicFileName;
         }
       } catch (basicError) {
-        console.error('Error exporting basic request data to CSV:', basicError);
+        logExport('csv', `Error exporting basic data to CSV:`, basicError);
         if (exportType === 'basic') {
           throw basicError;
         }
@@ -397,6 +533,7 @@ export async function exportRequestToCSV(
       // Export items information
       if (Array.isArray(request.items) && request.items.length > 0) {
         try {
+          logExport('csv', `Preparing items data for CSV export (${request.items.length} items)`);
           const items = request.items.map((item: any, index: number) => ({
             item_number: index + 1,
             name: item?.name || 'Unnamed Item',
@@ -410,26 +547,31 @@ export async function exportRequestToCSV(
             header: true,
             delimiter: ','
           });
+          
+          logExport('csv', `Parsing items data into CSV`);
           const csv = parser.parse(items);
           
           const itemsFileName = `${fileName}_items.csv`;
           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-          saveAs(blob, itemsFileName);
+          
+          // Use our safer download method
+          await safeDownload(blob, itemsFileName);
           
           if (exportType === 'items') {
-            console.log('CSV export complete:', itemsFileName);
+            logExport('csv', `Items CSV export complete: ${itemsFileName}`);
             return itemsFileName;
           }
         } catch (itemsError) {
-          console.error('Error exporting items to CSV:', itemsError);
+          logExport('csv', `Error exporting items to CSV:`, itemsError);
           if (exportType === 'items') {
             throw itemsError;
           }
         }
       } else if (exportType === 'items') {
+        logExport('csv', `No items found, creating empty CSV`);
         const noItemsFileName = `${fileName}_no_items.csv`;
         const blob = new Blob(['No items found'], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, noItemsFileName);
+        await safeDownload(blob, noItemsFileName);
         return noItemsFileName;
       }
     }
@@ -438,6 +580,7 @@ export async function exportRequestToCSV(
       // Export approvals information
       if (Array.isArray(request.approvals) && request.approvals.length > 0) {
         try {
+          logExport('csv', `Preparing approvals data for CSV export (${request.approvals.length} approvals)`);
           const approvals = request.approvals.map((approval: any, index: number) => ({
             approval_number: index + 1,
             department: approval?.department || 'N/A',
@@ -451,38 +594,43 @@ export async function exportRequestToCSV(
             header: true,
             delimiter: ','
           });
+          
+          logExport('csv', `Parsing approvals data into CSV`);
           const csv = parser.parse(approvals);
           
           const approvalsFileName = `${fileName}_approvals.csv`;
           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-          saveAs(blob, approvalsFileName);
+          
+          // Use our safer download method
+          await safeDownload(blob, approvalsFileName);
           
           if (exportType === 'approvals') {
-            console.log('CSV export complete:', approvalsFileName);
+            logExport('csv', `Approvals CSV export complete: ${approvalsFileName}`);
             return approvalsFileName;
           }
         } catch (approvalsError) {
-          console.error('Error exporting approvals to CSV:', approvalsError);
+          logExport('csv', `Error exporting approvals to CSV:`, approvalsError);
           if (exportType === 'approvals') {
             throw approvalsError;
           }
         }
       } else if (exportType === 'approvals') {
+        logExport('csv', `No approvals found, creating empty CSV`);
         const noApprovalsFileName = `${fileName}_no_approvals.csv`;
         const blob = new Blob(['No approvals found'], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, noApprovalsFileName);
+        await safeDownload(blob, noApprovalsFileName);
         return noApprovalsFileName;
       }
     }
     
     if (exportType === 'all') {
-      console.log('CSV export complete: Multiple files generated');
+      logExport('csv', `All CSV exports completed successfully`);
       return `${fileName}_all.csv`;
     }
     
     return `${fileName}.csv`;
   } catch (error) {
-    console.error('Error exporting request to CSV:', error);
+    logExport('csv', `CSV export failed:`, error);
     throw error;
   }
 }
@@ -495,7 +643,7 @@ export async function exportRequestToCSV(
  */
 export async function exportMultipleRequestsToExcel(requests: any[]): Promise<string> {
   try {
-    console.log('Starting bulk Excel export...');
+    logExport('bulkExcel', `Starting bulk Excel export for ${requests?.length || 0} requests`);
     
     // Validate requests data
     if (!Array.isArray(requests) || requests.length === 0) {
@@ -506,6 +654,7 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     const wb = XLSX.utils.book_new();
     
     // Create summary sheet
+    logExport('bulkExcel', 'Creating summary sheet');
     const summary = requests.map((req, index) => ({
       'Request #': index + 1,
       'Request Number': req.requestNumber || `REQ-${req.id || index}`,
@@ -525,11 +674,13 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     // Add individual request sheets for the first 10 requests 
     // (to avoid extremely large files)
     const maxDetailedRequests = Math.min(requests.length, 10);
+    logExport('bulkExcel', `Adding detailed sheets for ${maxDetailedRequests} requests`);
     
     for (let i = 0; i < maxDetailedRequests; i++) {
       try {
         const request = requests[i];
         const requestNumber = request.requestNumber || request.id || `Request_${i+1}`;
+        logExport('bulkExcel', `Processing request ${i+1}/${maxDetailedRequests}: ${requestNumber}`);
         
         // Prepare request data
         const requestData = [
@@ -550,6 +701,7 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
         
         // Add items if available
         if (Array.isArray(request.items) && request.items.length > 0) {
+          logExport('bulkExcel', `Adding ${request.items.length} items for request ${requestNumber}`);
           requestData.push([]);
           requestData.push(['Items:']);
           requestData.push(['Item #', 'Name', 'Quantity', 'Est. Cost', 'Total', 'Description']);
@@ -570,6 +722,7 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
         
         // Add approvals if available
         if (Array.isArray(request.approvals) && request.approvals.length > 0) {
+          logExport('bulkExcel', `Adding ${request.approvals.length} approvals for request ${requestNumber}`);
           requestData.push([]);
           requestData.push(['Approvals:']);
           requestData.push(['Dept.', 'Approver', 'Status', 'Date', 'Comments']);
@@ -588,29 +741,44 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
         const wsRequest = XLSX.utils.aoa_to_sheet(requestData);
         XLSX.utils.book_append_sheet(wb, wsRequest, `REQ-${i+1}`);
       } catch (requestError) {
-        console.error(`Error processing request ${i+1} for Excel export:`, requestError);
+        logExport('bulkExcel', `Error processing request ${i+1}:`, requestError);
       }
     }
     
     // Generate Excel file and trigger download
     const timestamp = new Date().toISOString().split('T')[0];
     const fileName = `Purchase_Requests_Export_${timestamp}.xlsx`;
-    XLSX.writeFile(wb, fileName);
     
-    console.log('Bulk Excel export complete:', fileName);
+    // Create a blob from the workbook
+    logExport('bulkExcel', 'Converting Excel workbook to binary data');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Use our safer download method
+    logExport('bulkExcel', `Initiating bulk Excel download: ${fileName}`);
+    await safeDownload(blob, fileName);
+    
+    logExport('bulkExcel', 'Bulk Excel export completed successfully');
     return fileName;
   } catch (error) {
-    console.error('Error exporting multiple requests to Excel:', error);
+    logExport('bulkExcel', 'Bulk Excel export failed:', error);
     throw error;
   }
 }
 
+/**
+ * Exports multiple purchase requests as a ZIP file
+ * 
+ * @param requests Array of purchase requests to export
+ * @param type The user type (user, approver, admin) - affects what data is included
+ * @returns The name of the generated ZIP file
+ */
 export async function exportMultipleRequestsAsZip(
   requests: any[], 
   type: 'user' | 'approver' | 'admin' = 'admin'
-) {
+): Promise<string> {
   try {
-    console.log(`Starting bulk export of ${requests?.length || 0} requests`);
+    logExport('bulkZip', `Starting bulk ZIP export for ${requests?.length || 0} requests`);
     
     // Validate requests array
     if (!Array.isArray(requests)) {
@@ -631,6 +799,7 @@ export async function exportMultipleRequestsAsZip(
     }
     
     // Add index file with summary
+    logExport('bulkZip', 'Creating summary index file');
     const summary = {
       exportDate: new Date().toISOString(),
       totalRequests: requests.length,
@@ -646,7 +815,7 @@ export async function exportMultipleRequestsAsZip(
     mainFolder.file('export-summary.json', JSON.stringify(summary, null, 2));
     
     // Process each request with error handling
-    console.log('Processing requests one by one...');
+    logExport('bulkZip', 'Processing requests one by one...');
     let successCount = 0;
     let failureCount = 0;
     const errors: Record<string, string> = {};
@@ -655,7 +824,7 @@ export async function exportMultipleRequestsAsZip(
       try {
         // Validate request object
         if (!request || !request.id) {
-          console.warn(`Skipping invalid request at index ${index}`);
+          logExport('bulkZip', `Skipping invalid request at index ${index}`);
           failureCount++;
           errors[`request_${index}`] = 'Invalid request data';
           return;
@@ -666,7 +835,7 @@ export async function exportMultipleRequestsAsZip(
         const folder = mainFolder.folder(folderName);
         
         if (!folder) {
-          console.warn(`Failed to create folder for request ${requestNumber}`);
+          logExport('bulkZip', `Failed to create folder for request ${requestNumber}`);
           failureCount++;
           errors[`request_${requestNumber}`] = 'Failed to create folder';
           return;
@@ -674,19 +843,21 @@ export async function exportMultipleRequestsAsZip(
         
         // Add request data as JSON
         try {
+          logExport('bulkZip', `Adding JSON data for request ${requestNumber}`);
           folder.file('request-data.json', formatRequestJSON(request));
         } catch (jsonError: any) {
-          console.error(`Error creating JSON for request ${requestNumber}:`, jsonError);
+          logExport('bulkZip', `Error creating JSON for request ${requestNumber}:`, jsonError);
           folder.file('json-error.txt', `Failed to format JSON: ${jsonError.message || 'Unknown error'}`);
         }
         
         // Add PDF file
         try {
+          logExport('bulkZip', `Generating PDF for request ${requestNumber}`);
           const doc = await generateRequestPDF(request, type);
           const pdfData = doc.output('blob');
           folder.file(`Purchase_Request_${requestNumber}.pdf`, pdfData);
         } catch (pdfError: any) {
-          console.error(`Error generating PDF for request ${requestNumber}:`, pdfError);
+          logExport('bulkZip', `Error generating PDF for request ${requestNumber}:`, pdfError);
           folder.file('pdf-error.txt', `Failed to generate PDF: ${pdfError.message || 'Unknown error'}`);
           errors[`request_${requestNumber}_pdf`] = pdfError.message || 'Unknown PDF generation error';
         }
@@ -694,10 +865,11 @@ export async function exportMultipleRequestsAsZip(
         // Add attachments information if available
         if (request.attachments && Array.isArray(request.attachments) && request.attachments.length > 0) {
           try {
+            logExport('bulkZip', `Processing ${request.attachments.length} attachments for request ${requestNumber}`);
             const attachmentsFolder = folder.folder('attachments');
             
             if (!attachmentsFolder) {
-              console.warn(`Failed to create attachments folder for request ${requestNumber}`);
+              logExport('bulkZip', `Failed to create attachments folder for request ${requestNumber}`);
             } else {
               // Only include metadata about attachments
               const attachmentsData = request.attachments.map((a: any) => ({
@@ -710,24 +882,26 @@ export async function exportMultipleRequestsAsZip(
               attachmentsFolder.file('attachments-metadata.json', JSON.stringify(attachmentsData, null, 2));
             }
           } catch (attachmentError: any) {
-            console.error(`Error processing attachments for request ${requestNumber}:`, attachmentError);
+            logExport('bulkZip', `Error processing attachments for request ${requestNumber}:`, attachmentError);
             errors[`request_${requestNumber}_attachments`] = attachmentError.message || 'Error processing attachments';
           }
         }
         
         successCount++;
-        console.log(`Processed request ${index + 1}/${requests.length}: ${requestNumber}`);
+        logExport('bulkZip', `Processed request ${index + 1}/${requests.length}: ${requestNumber}`);
       } catch (requestError: any) {
-        console.error(`Error processing request ${index + 1}/${requests.length}:`, requestError);
+        logExport('bulkZip', `Error processing request ${index + 1}/${requests.length}:`, requestError);
         failureCount++;
         errors[`request_${index + 1}`] = requestError.message || 'Unknown error';
       }
     });
     
     // Wait for all requests to be processed
+    logExport('bulkZip', 'Waiting for all request processing to complete...');
     await Promise.all(requestPromises);
     
     // Add processing summary and error log
+    logExport('bulkZip', `Processing complete. Success: ${successCount}, Failures: ${failureCount}`);
     mainFolder.file('processing-log.txt', 
       `Export completed at: ${new Date().toISOString()}\n` +
       `Total requests: ${requests.length}\n` +
@@ -738,10 +912,8 @@ export async function exportMultipleRequestsAsZip(
         'No errors encountered during processing.')
     );
     
-    console.log(`Export processing complete. Success: ${successCount}, Failures: ${failureCount}`);
-    
     // Generate and download the ZIP file
-    console.log('Generating ZIP file...');
+    logExport('bulkZip', 'Generating compressed ZIP file...');
     const content = await zip.generateAsync({ 
       type: 'blob',
       compression: 'DEFLATE',
@@ -749,12 +921,15 @@ export async function exportMultipleRequestsAsZip(
     });
     
     const filename = `purchase_requests_export_${new Date().toISOString().split('T')[0]}.zip`;
-    saveAs(content, filename);
     
-    console.log(`ZIP file '${filename}' created and download initiated`);
+    // Use our safer download method
+    logExport('bulkZip', `Initiating ZIP download: ${filename} (${content.size} bytes)`);
+    await safeDownload(content, filename);
+    
+    logExport('bulkZip', 'Bulk ZIP export completed successfully');
     return filename;
   } catch (error: any) {
-    console.error('Error exporting multiple requests as ZIP:', error);
+    logExport('bulkZip', 'Bulk ZIP export failed:', error);
     throw new Error(`Bulk export failed: ${error.message || 'Unknown error'}`);
   }
 }
