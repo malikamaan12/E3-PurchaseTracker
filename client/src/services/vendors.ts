@@ -91,26 +91,49 @@ export async function updateVendor(id: number, data: Partial<CreateVendorInput>)
     updatedAt: undefined
   };
 
-  const response = await fetch(`/api/vendors/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(formattedData),
-    credentials: "include",
-  });
+  console.log(`[updateVendor] Updating vendor ${id} with data:`, formattedData);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    const errorMessage = errorData?.message || await response.text() || 'Failed to update vendor';
-    console.error('Vendor update failed:', errorMessage, errorData);
-    throw new Error(errorMessage);
+  try {
+    const response = await fetch(`/api/vendors/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formattedData),
+      credentials: "include",
+    });
+
+    console.log(`[updateVendor] Response status:`, response.status);
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to update vendor';
+      
+      try {
+        // Try to parse as JSON first
+        const errorData = await response.json();
+        console.error('[updateVendor] Error data (JSON):', errorData);
+        errorMessage = errorData?.message || errorData?.error || errorMessage;
+      } catch (jsonError) {
+        // If not JSON, get as text
+        const errorText = await response.text();
+        console.error('[updateVendor] Error text:', errorText);
+        errorMessage = errorText || errorMessage;
+      }
+      
+      console.error('[updateVendor] Final error message:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const vendor = await response.json();
+    console.log('[updateVendor] Success! Received updated vendor:', vendor);
+    
+    return {
+      ...vendor,
+      createdAt: vendor.createdAt ? new Date(vendor.createdAt) : null,
+      updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
+    };
+  } catch (error) {
+    console.error('[updateVendor] Caught exception:', error);
+    throw error;
   }
-
-  const vendor = await response.json();
-  return {
-    ...vendor,
-    createdAt: vendor.createdAt ? new Date(vendor.createdAt) : null,
-    updatedAt: vendor.updatedAt ? new Date(vendor.updatedAt) : null,
-  };
 }
