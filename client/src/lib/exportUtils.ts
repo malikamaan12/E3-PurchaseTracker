@@ -165,82 +165,163 @@ export async function exportRequestAsZip(
 }
 
 /**
- * Exports multiple purchase requests as a ZIP file
+ * Exports multiple purchase requests as a ZIP file with advanced error handling
  * 
  * @param requests An array of purchase requests
  * @param type The user type (user, approver, admin)
+ * @returns The name of the created ZIP file
+ * @throws Error if the export process fails
  */
 export async function exportMultipleRequestsAsZip(
   requests: any[], 
   type: 'user' | 'approver' | 'admin' = 'admin'
 ) {
   try {
+    console.log(`Starting bulk export of ${requests?.length || 0} requests`);
+    
+    // Validate requests array
+    if (!Array.isArray(requests)) {
+      throw new Error('Invalid requests data: Expected an array');
+    }
+    
+    if (requests.length === 0) {
+      throw new Error('No requests to export');
+    }
+    
+    // Create the ZIP file
     const zip = new JSZip();
-    const mainFolder = zip.folder('purchase_requests_export');
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+    const mainFolder = zip.folder(`purchase_requests_export_${timestamp}`);
     
     if (!mainFolder) {
       throw new Error('Failed to create main ZIP folder');
     }
     
-    // Process each request
+    // Add index file with summary
+    const summary = {
+      exportDate: new Date().toISOString(),
+      totalRequests: requests.length,
+      exportType: type,
+      requests: requests.map(req => ({
+        id: req.id,
+        requestNumber: req.requestNumber,
+        title: req.title,
+        status: req.status,
+        createdAt: req.createdAt
+      }))
+    };
+    mainFolder.file('export-summary.json', JSON.stringify(summary, null, 2));
+    
+    // Process each request with error handling
+    console.log('Processing requests one by one...');
+    let successCount = 0;
+    let failureCount = 0;
+    const errors: Record<string, string> = {};
+    
     const requestPromises = requests.map(async (request, index) => {
       try {
+        // Validate request object
+        if (!request || !request.id) {
+          console.warn(`Skipping invalid request at index ${index}`);
+          failureCount++;
+          errors[`request_${index}`] = 'Invalid request data';
+          return;
+        }
+        
         const requestNumber = request.requestNumber || request.id;
         const folderName = `request_${requestNumber}`;
         const folder = mainFolder.folder(folderName);
         
         if (!folder) {
-          throw new Error(`Failed to create folder for request ${requestNumber}`);
+          console.warn(`Failed to create folder for request ${requestNumber}`);
+          failureCount++;
+          errors[`request_${requestNumber}`] = 'Failed to create folder';
+          return;
         }
         
         // Add request data as JSON
-        folder.file('request-data.json', formatRequestJSON(request));
+        try {
+          folder.file('request-data.json', formatRequestJSON(request));
+        } catch (jsonError: any) {
+          console.error(`Error creating JSON for request ${requestNumber}:`, jsonError);
+          folder.file('json-error.txt', `Failed to format JSON: ${jsonError.message || 'Unknown error'}`);
+        }
         
         // Add PDF file
-        const doc = await generateRequestPDF(request, type);
-        folder.file(`Purchase_Request_${requestNumber}.pdf`, doc.output('blob'));
-        
-        // Include basic information about attachments
-        if (request.attachments?.length > 0) {
-          folder.file('attachments-info.json', JSON.stringify(
-            request.attachments.map((attachment: any) => ({
-              id: attachment.id,
-              fileName: attachment.fileName || attachment.name,
-              fileType: attachment.fileType || attachment.type,
-              fileSize: attachment.fileSize || attachment.size,
-              url: attachment.fileUrl
-            })), 
-            null, 
-            2
-          ));
+        try {
+          const doc = await generateRequestPDF(request, type);
+          const pdfData = doc.output('blob');
+          folder.file(`Purchase_Request_${requestNumber}.pdf`, pdfData);
+        } catch (pdfError: any) {
+          console.error(`Error generating PDF for request ${requestNumber}:`, pdfError);
+          folder.file('pdf-error.txt', `Failed to generate PDF: ${pdfError.message || 'Unknown error'}`);
+          errors[`request_${requestNumber}_pdf`] = pdfError.message || 'Unknown PDF generation error';
         }
-      } catch (error) {
-        console.error(`Error processing request ${request.id}:`, error);
-        // Continue with other requests even if one fails
+        
+        // Add attachments information if available
+        if (request.attachments && Array.isArray(request.attachments) && request.attachments.length > 0) {
+          try {
+            const attachmentsFolder = folder.folder('attachments');
+            
+            if (!attachmentsFolder) {
+              console.warn(`Failed to create attachments folder for request ${requestNumber}`);
+            } else {
+              // Only include metadata about attachments
+              const attachmentsData = request.attachments.map((a: any) => ({
+                fileName: a.fileName || a.name || `file_${a.id}`,
+                fileType: a.fileType || a.type || 'application/octet-stream',
+                fileSize: a.fileSize || a.size || 0,
+                downloadUrl: a.fileUrl
+              }));
+              
+              attachmentsFolder.file('attachments-metadata.json', JSON.stringify(attachmentsData, null, 2));
+            }
+          } catch (attachmentError: any) {
+            console.error(`Error processing attachments for request ${requestNumber}:`, attachmentError);
+            errors[`request_${requestNumber}_attachments`] = attachmentError.message || 'Error processing attachments';
+          }
+        }
+        
+        successCount++;
+        console.log(`Processed request ${index + 1}/${requests.length}: ${requestNumber}`);
+      } catch (requestError: any) {
+        console.error(`Error processing request ${index + 1}/${requests.length}:`, requestError);
+        failureCount++;
+        errors[`request_${index + 1}`] = requestError.message || 'Unknown error';
       }
     });
     
     // Wait for all requests to be processed
     await Promise.all(requestPromises);
     
-    // Create a summary file
-    const summary = {
-      exportDate: new Date().toISOString(),
-      totalRequests: requests.length,
-      exportType: type,
-      requestIds: requests.map(r => r.id)
-    };
+    // Add processing summary and error log
+    mainFolder.file('processing-log.txt', 
+      `Export completed at: ${new Date().toISOString()}\n` +
+      `Total requests: ${requests.length}\n` +
+      `Successfully processed: ${successCount}\n` +
+      `Failed to process: ${failureCount}\n\n` +
+      (Object.keys(errors).length > 0 ? 
+        `Errors encountered:\n${Object.entries(errors).map(([key, msg]) => `- ${key}: ${msg}`).join('\n')}` : 
+        'No errors encountered during processing.')
+    );
     
-    mainFolder.file('export-summary.json', JSON.stringify(summary, null, 2));
+    console.log(`Export processing complete. Success: ${successCount}, Failures: ${failureCount}`);
     
-    // Generate the zip file and trigger download
-    const content = await zip.generateAsync({ type: 'blob' });
-    const exportName = `purchase_requests_export_${new Date().toISOString().split('T')[0]}.zip`;
-    saveAs(content, exportName);
+    // Generate and download the ZIP file
+    console.log('Generating ZIP file...');
+    const content = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
     
-    return exportName;
-  } catch (error) {
+    const filename = `purchase_requests_export_${new Date().toISOString().split('T')[0]}.zip`;
+    saveAs(content, filename);
+    
+    console.log(`ZIP file '${filename}' created and download initiated`);
+    return filename;
+  } catch (error: any) {
     console.error('Error exporting multiple requests as ZIP:', error);
-    throw error;
+    throw new Error(`Bulk export failed: ${error.message || 'Unknown error'}`);
   }
 }

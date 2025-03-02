@@ -7,10 +7,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { FileDown, FileText, FileArchive, Download, Loader2 } from "lucide-react";
+import { FileDown, FileText, FileArchive, Download, Loader2, AlertTriangle } from "lucide-react";
 import { exportRequestToPDF, exportRequestAsZip } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
+import { quickDiagnoseExportError } from "@/services/export-analyzer";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DownloadOptionsProps {
   request: any;
@@ -19,6 +21,8 @@ interface DownloadOptionsProps {
 
 export function DownloadOptions({ request, compact = false }: DownloadOptionsProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [exportType, setExportType] = useState<'pdf' | 'zip' | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useUser();
   
@@ -27,10 +31,37 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
     ? 'admin' 
     : (user?.role === 'approver' ? 'approver' : 'user');
   
+  // Track analytics for download
+  const trackDownload = async (fileType: string, success: boolean) => {
+    try {
+      // Log audit for tracking download activity
+      await fetch('/api/pdf/audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: `pdf_${success ? 'downloaded' : 'failed'}`,
+          requestId: request.id,
+          details: {
+            fileType,
+            userType,
+            timestamp: new Date().toISOString()
+          }
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to track download event:', error);
+      // Non-critical error, don't display to user
+    }
+  };
+  
   // Handle PDF download
   const handlePdfDownload = async (type: 'user' | 'approver' | 'admin' = 'user') => {
     try {
       setIsLoading(true);
+      setExportType('pdf');
+      setExportError(null);
       
       // Only allow admin to download admin PDF
       if (type === 'admin' && user?.role !== 'admin') {
@@ -41,6 +72,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       if (type === 'approver' && !['approver', 'admin'].includes(user?.role || '')) {
         throw new Error('You do not have permission to download this report');
       }
+      
+      // Show toast for starting the download process
+      toast({
+        title: "Preparing PDF",
+        description: "Getting request data for download...",
+      });
       
       // Fetch request data with full details
       console.log(`Fetching PDF data for request ${request.id} with type ${type}`);
@@ -70,14 +107,36 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       console.log('Generating PDF from data...');
       await exportRequestToPDF(data, type);
       
+      // Track successful download
+      await trackDownload('pdf', true);
+      
       toast({
         title: "Success",
         description: "PDF downloaded successfully",
+        variant: "success",
       });
     } catch (error) {
       console.error('Error downloading PDF:', error);
+      setExportError(error instanceof Error ? error.message : "Failed to download PDF");
       
-      // Use AI to analyze the export error
+      // Track failed download
+      await trackDownload('pdf', false);
+      
+      // First try quick diagnosis which doesn't require API call
+      const quickDiagnosis = quickDiagnoseExportError(error, {
+        operation: 'pdf_export',
+        entityType: 'request',
+        dataSize: request.attachments?.length || 0
+      });
+      
+      // Show toast with quick diagnosis
+      toast({
+        title: "Download failed",
+        description: quickDiagnosis.message,
+        variant: "destructive",
+      });
+      
+      // For deeper analysis, use AI in background
       try {
         const { analyzeExportIssue } = await import('@/services/export-analyzer');
         const analysis = await analyzeExportIssue(error, {
@@ -88,19 +147,17 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         
         console.log('PDF export error analysis:', analysis);
         
-        toast({
-          title: "Download failed",
-          description: analysis.issue.description || 
-            (error instanceof Error ? error.message : "Failed to download PDF"),
-          variant: "destructive",
-        });
+        // If the analysis offers more insight than quick diagnosis, show it
+        if (analysis.issue.description !== quickDiagnosis.message) {
+          toast({
+            title: "Export Error Analysis",
+            description: analysis.issue.description,
+            variant: "destructive",
+          });
+        }
       } catch (analysisError) {
-        // Fallback to simple error message if AI analysis fails
-        toast({
-          title: "Download failed",
-          description: error instanceof Error ? error.message : "Failed to download PDF",
-          variant: "destructive",
-        });
+        // AI analysis failed, but we already showed quick diagnosis, so no need for another toast
+        console.error('Error analyzing PDF export error:', analysisError);
       }
     } finally {
       setIsLoading(false);
@@ -111,6 +168,14 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleZipDownload = async (includeAttachments: boolean = true) => {
     try {
       setIsLoading(true);
+      setExportType('zip');
+      setExportError(null);
+      
+      // Show toast for starting the download process
+      toast({
+        title: "Preparing ZIP",
+        description: `Getting request data${includeAttachments ? ' and attachments' : ''}...`,
+      });
       
       // Fetch request data with attachments
       console.log(`Fetching ZIP data for request ${request.id} with type ${userType}, includeAttachments: ${includeAttachments}`);
@@ -140,14 +205,36 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       console.log('Generating ZIP from data...');
       await exportRequestAsZip(data, includeAttachments, userType);
       
+      // Track successful download
+      await trackDownload('zip', true);
+      
       toast({
         title: "Success",
         description: `ZIP file ${includeAttachments ? 'with attachments ' : ''}downloaded successfully`,
+        variant: "success",
       });
     } catch (error) {
       console.error('Error downloading ZIP:', error);
+      setExportError(error instanceof Error ? error.message : "Failed to download ZIP file");
       
-      // Use AI to analyze the export error
+      // Track failed download
+      await trackDownload('zip', false);
+      
+      // Use quick diagnosis first
+      const quickDiagnosis = quickDiagnoseExportError(error, {
+        operation: 'zip_export',
+        entityType: 'request',
+        dataSize: request.attachments?.length || 0
+      });
+      
+      // Show toast with quick diagnosis
+      toast({
+        title: "Download failed",
+        description: quickDiagnosis.message,
+        variant: "destructive",
+      });
+      
+      // For more detailed analysis, use AI in background
       try {
         const { analyzeExportIssue } = await import('@/services/export-analyzer');
         const analysis = await analyzeExportIssue(error, {
@@ -159,19 +246,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         
         console.log('ZIP export error analysis:', analysis);
         
-        toast({
-          title: "Download failed",
-          description: analysis.issue.description || 
-            (error instanceof Error ? error.message : "Failed to download ZIP file"),
-          variant: "destructive",
-        });
+        // Log the solutions to console for developers
+        if (analysis.fixes?.immediate?.length > 0) {
+          console.info('Suggested fixes for ZIP export issue:', analysis.fixes.immediate);
+        }
       } catch (analysisError) {
-        // Fallback to simple error message if AI analysis fails
-        toast({
-          title: "Download failed",
-          description: error instanceof Error ? error.message : "Failed to download ZIP file",
-          variant: "destructive",
-        });
+        // AI analysis failed but we already showed quick diagnosis
+        console.error('Error analyzing ZIP export error:', analysisError);
       }
     } finally {
       setIsLoading(false);

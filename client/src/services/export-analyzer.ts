@@ -234,6 +234,197 @@ export async function analyzeBulkExportIssue(
 }
 
 /**
+ * Analyzes vendor-related export functionality issues
+ * @param vendor The vendor data that was being exported
+ * @param exportType The type of export being performed (pdf, zip, etc)
+ * @param error The error that occurred
+ * @returns Analysis with possible fixes
+ */
+export async function analyzeVendorExportIssue(
+  vendor: Record<string, any>,
+  exportType: 'pdf' | 'zip' | 'csv' | 'json',
+  error: Error | unknown
+): Promise<ExportAnalysisResult> {
+  // Extract key vendor details for the analysis
+  const vendorContext = {
+    id: vendor.id,
+    name: vendor.companyName || vendor.name,
+    hasAttachments: Boolean(vendor.attachments?.length),
+    dataFields: Object.keys(vendor).length,
+    hasNullFields: Object.values(vendor).some(val => val === null),
+    exportType
+  };
+  
+  // Call the main analyzer with vendor export specific context
+  return analyzeExportIssue(error, {
+    operation: 'vendor_export',
+    vendor: vendorContext,
+    component: 'VendorExport',
+    exportType
+  });
+}
+
+/**
+ * Diagnoses common export errors without calling AI API
+ * Use this for faster, less-detailed diagnostics when AI analysis isn't required
+ * 
+ * @param error The error that occurred
+ * @param context Optional context about the export operation
+ * @returns A simple diagnostic result
+ */
+export function quickDiagnoseExportError(
+  error: Error | unknown,
+  context: {
+    operation?: string;
+    component?: string;
+    entityType?: 'request' | 'vendor' | 'user' | 'report';
+    dataSize?: number;
+  } = {}
+): {
+  message: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  possibleFixes: string[];
+} {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const operation = context.operation || 'export';
+  const component = context.component || 'unknown';
+  
+  // Default response
+  let result = {
+    message: `Failed to ${operation} data`,
+    severity: 'medium' as const,
+    possibleFixes: [
+      'Try again later',
+      'Check your network connection',
+      'Verify that you have permission to export this data'
+    ]
+  };
+  
+  // Network errors
+  if (
+    errorMessage.includes('network') || 
+    errorMessage.includes('connection') ||
+    errorMessage.includes('offline') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('CORS')
+  ) {
+    result = {
+      message: 'Network error while preparing export data',
+      severity: 'medium',
+      possibleFixes: [
+        'Check your internet connection',
+        'Try again in a few moments',
+        'Contact IT if the problem persists'
+      ]
+    };
+  }
+  
+  // Authentication/permission errors
+  else if (
+    errorMessage.includes('authentication') ||
+    errorMessage.includes('unauthorized') ||
+    errorMessage.includes('forbidden') ||
+    errorMessage.includes('permission') ||
+    errorMessage.includes('401') ||
+    errorMessage.includes('403')
+  ) {
+    result = {
+      message: 'You don\'t have permission to export this data',
+      severity: 'high',
+      possibleFixes: [
+        'Log out and log back in',
+        'Contact your administrator for appropriate permissions',
+        'Try exporting a smaller dataset if applicable'
+      ]
+    };
+  }
+  
+  // Data format errors
+  else if (
+    errorMessage.includes('format') ||
+    errorMessage.includes('invalid') ||
+    errorMessage.includes('malformed') ||
+    errorMessage.includes('parse') ||
+    errorMessage.includes('schema')
+  ) {
+    result = {
+      message: 'The data format is invalid or incompatible with the export format',
+      severity: 'medium',
+      possibleFixes: [
+        'Try exporting in a different format',
+        'Check if the data contains special characters or invalid values',
+        'Contact support if the issue persists'
+      ]
+    };
+  }
+  
+  // Size/resource errors
+  else if (
+    errorMessage.includes('size') ||
+    errorMessage.includes('memory') ||
+    errorMessage.includes('large') ||
+    errorMessage.includes('quota') ||
+    errorMessage.includes('exceeded')
+  ) {
+    result = {
+      message: 'The export data is too large to process',
+      severity: 'high',
+      possibleFixes: [
+        'Try exporting a smaller subset of data',
+        'Use filters to reduce the dataset size',
+        'Try a different export format (CSV instead of PDF)'
+      ]
+    };
+  }
+  
+  // Not found errors
+  else if (
+    errorMessage.includes('not found') ||
+    errorMessage.includes('404') ||
+    errorMessage.includes('missing')
+  ) {
+    result = {
+      message: 'The requested data could not be found',
+      severity: 'medium',
+      possibleFixes: [
+        'Check if the data has been deleted or moved',
+        'Refresh the page to update the data',
+        'Try navigating back to the main page and try again'
+      ]
+    };
+  }
+  
+  // File generation errors
+  else if (
+    errorMessage.includes('generate') ||
+    errorMessage.includes('creation') ||
+    errorMessage.includes('render') ||
+    errorMessage.includes('write')
+  ) {
+    result = {
+      message: 'Failed to generate the export file',
+      severity: 'medium',
+      possibleFixes: [
+        'Try a different export format',
+        'Check if your browser allows file downloads',
+        'Try using a different browser'
+      ]
+    };
+  }
+
+  // Add context-specific suggestions
+  if (context.dataSize && context.dataSize > 100) {
+    result.possibleFixes.push('Try exporting smaller batches of data');
+  }
+  
+  if (context.entityType === 'vendor') {
+    result.possibleFixes.push('Verify that the vendor data is complete');
+  }
+  
+  return result;
+}
+
+/**
  * Result of export functionality analysis
  */
 export interface ExportAnalysisResult {
