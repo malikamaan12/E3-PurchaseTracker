@@ -13,6 +13,7 @@ import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import { NotFound } from "@/components/NotFound";
 import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
+import TestExportPage from "./pages/TestExportPage";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -40,6 +41,7 @@ function App() {
       <Route path="/requests/:id/edit" component={EditRequest} />
       <Route path="/department-dashboard" component={DepartmentDashboard} />
       <Route path="/error-predictions" component={ErrorPredictionDashboard} />
+      <Route path="/test-export" component={TestExportPage} />
 
       {/* Add admin routes with proper access control */}
       {user.role === "admin" && (
