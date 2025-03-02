@@ -48,9 +48,15 @@ export default function VendorManagement() {
   });
 
   const addVendorMutation = useMutation({
-    mutationFn: async (data: Omit<Vendor, "id" | "createdAt" | "updatedAt" | "rating">) => {
+    mutationFn: async (data: Omit<Vendor, "id" | "createdAt" | "updatedAt">) => {
       // Use our service function
-      return createVendor(data);
+      // Ensure rating is a number
+      const formattedData = {
+        ...data,
+        rating: typeof data.rating === 'string' ? Number(data.rating) || 0 : data.rating || 0
+      };
+      console.log("Create vendor data with formatted rating:", formattedData);
+      return createVendor(formattedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });

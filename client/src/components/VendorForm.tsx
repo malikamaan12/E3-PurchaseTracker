@@ -91,11 +91,20 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
     console.log('Starting vendor form submission with values:', values);
     
     try {
-      // Process optional fields that can be null
+      // Process optional fields that can be null and convert types
       const processedData = { ...values };
+      
+      // Handle optional text fields
       if (processedData.taxNumber === '') processedData.taxNumber = null;
       if (processedData.registrationNumber === '') processedData.registrationNumber = null;
       if (processedData.remarks === '') processedData.remarks = null;
+      
+      // Ensure rating is properly typed as a number
+      processedData.rating = typeof processedData.rating === 'string' 
+        ? Number(processedData.rating) || 0
+        : processedData.rating || 0;
+      
+      console.log('Ensuring rating is a number:', processedData.rating, typeof processedData.rating);
       
       // For updates, make sure to include ID from defaultValues
       if (defaultValues?.id) {
@@ -311,6 +320,44 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
                 <FormControl>
                   <Input {...field} placeholder="Enter branch name" />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="rating"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vendor Rating</FormLabel>
+                <FormControl>
+                  <div className="flex items-center space-x-2">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        className="focus:outline-none"
+                        onClick={() => {
+                          console.log(`Setting rating to ${rating}`);
+                          field.onChange(rating);
+                        }}
+                      >
+                        <Star
+                          className={`h-5 w-5 ${
+                            Number(field.value) >= rating
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">
+                      {field.value ? `${field.value}/5` : "Not rated"}
+                    </span>
+                  </div>
+                </FormControl>
+                <FormDescription>Rate this vendor from 1 to 5 stars</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
