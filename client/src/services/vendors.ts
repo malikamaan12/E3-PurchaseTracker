@@ -89,22 +89,30 @@ export async function updateVendor(id: number, data: Partial<CreateVendorInput>)
     throw new Error('Invalid vendor ID');
   }
 
-  // Format dates properly for the API and remove unnecessary fields
+  // Format data properly for the API and ensure ID exclusion
   const formattedData = {
     ...data,
     // We don't send these values directly
     createdAt: undefined,
-    updatedAt: undefined
+    updatedAt: undefined,
+    id: undefined // Avoid sending ID in the body
   };
 
   console.log(`[updateVendor] Updating vendor ${id} with data:`, formattedData);
 
   try {
+    // Add timestamp to URL to prevent caching issues
+    const timestamp = new Date().getTime();
+    const url = `/api/vendors/${id}?_t=${timestamp}`;
+    
     // Store raw response for debugging
-    const rawResponse = await fetch(`/api/vendors/${id}`, {
+    const rawResponse = await fetch(url, {
       method: "PATCH", // Using PATCH for partial updates
       headers: {
         "Content-Type": "application/json",
+        // Add cache control headers
+        "Cache-Control": "no-cache, no-store",
+        "Pragma": "no-cache"
       },
       body: JSON.stringify(formattedData),
       credentials: "include",
@@ -115,6 +123,7 @@ export async function updateVendor(id: number, data: Partial<CreateVendorInput>)
     const responseStatus = rawResponse.status;
     const responseStatusText = rawResponse.statusText;
     
+    console.log(`[updateVendor] PATCH request to ${url}`);
     console.log(`[updateVendor] Response status: ${responseStatus} ${responseStatusText}`);
     console.log(`[updateVendor] Response headers:`, Object.fromEntries([...rawResponse.headers.entries()]));
 

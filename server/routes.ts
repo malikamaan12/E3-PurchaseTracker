@@ -2045,7 +2045,8 @@ export function registerRoutes(app: Express): Server {
       
       console.log(`[PATCH /api/vendors/:id] Updating vendor with ID: ${vendorId}`, { 
         userId: req.user?.id, 
-        bodyKeys: Object.keys(req.body)
+        bodyKeys: Object.keys(req.body),
+        body: JSON.stringify(req.body)
       });
       debug(req, `Updating vendor with ID: ${vendorId}`, req.body);
 
@@ -2093,6 +2094,7 @@ export function registerRoutes(app: Express): Server {
           .limit(1);
 
         if (nameConflict) {
+          console.error(`[PATCH /api/vendors/:id] Vendor with name "${req.body.companyName}" already exists`);
           throw new ValidationError('Company name already exists', {
             companyName: ['This company name is already registered for another vendor']
           });
@@ -2107,32 +2109,47 @@ export function registerRoutes(app: Express): Server {
       if (processedData.registrationNumber === '') processedData.registrationNumber = null;
       if (processedData.remarks === '') processedData.remarks = null;
       
+      // Only update fields that were actually provided
+      const updateFields: any = {};
+      Object.keys(processedData).forEach(key => {
+        if (processedData[key] !== undefined) {
+          updateFields[key] = processedData[key];
+        }
+      });
+      
+      // Always set updatedAt
+      updateFields.updatedAt = new Date();
+      
       // Log the data we're about to save
-      debug(req, 'Processed vendor data for update:', processedData);
+      console.log('[PATCH /api/vendors/:id] Fields being updated:', Object.keys(updateFields));
+      console.log('[PATCH /api/vendors/:id] Processed vendor data for update:', updateFields);
+      debug(req, 'Processed vendor data for update:', updateFields);
       
       try {
+        console.log(`[PATCH /api/vendors/:id] Executing database update for vendor ID: ${vendorId}`);
         // Update vendor in database
         const [updatedVendor] = await db
           .update(vendors)
-          .set({
-            ...processedData,
-            updatedAt: new Date()
-          })
+          .set(updateFields)
           .where(eq(vendors.id, vendorId))
           .returning();
           
         if (!updatedVendor) {
+          console.error('[PATCH /api/vendors/:id] Database update successful but no vendor returned');
           throw new Error('Database update successful but no vendor returned');
         }
         
+        console.log('[PATCH /api/vendors/:id] Database update successful, returned vendor:', updatedVendor);
         debug(req, 'Database update successful, returned vendor:', updatedVendor);
-        res.json(updatedVendor);
-        return;
-      } catch (dbError) {
+        res.status(200).json(updatedVendor);
+      } catch (dbError: any) {
+        console.error('[PATCH /api/vendors/:id] Database error during vendor update:', dbError);
         debug(req, 'Database error during vendor update:', dbError);
-        throw new DatabaseError(`Failed to update vendor: ${dbError.message}`);
+        const errorMessage = dbError.message || 'Unknown database error';
+        throw new DatabaseError(`Failed to update vendor: ${errorMessage}`);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[PATCH /api/vendors/:id] Error updating vendor:', error);
       debug(req, 'Error updating vendor:', error);
       next(error);
     }
