@@ -308,31 +308,8 @@ export default function EditRequest({ params }: { params: { id: string } }) {
         const currentValues = form.getValues();
         
         // Perform minimal validation for drafts - just make sure at least one field has data
-        if (!currentValues.title && !currentValues.description && items.length === 0) {
-          toast({
-            title: "Draft Validation",
-            description: "Please provide at least a title, description, or one item to save as draft",
-            variant: "default",
-            className: "bg-yellow-50 text-yellow-900 animate-warning",
-          });
-          return;
-        }
-        
-        // Check item quantities if they exist
-        if (items.length > 0) {
-          const invalidItems = items.filter(item => item.name && item.quantity <= 0);
-          if (invalidItems.length > 0) {
-            toast({
-              title: "Draft Warning",
-              description: "Items with names should have valid quantities. These will be saved but can't be submitted until fixed.",
-              variant: "default",
-              className: "bg-yellow-50 text-yellow-900 animate-warning",
-            });
-            // Allow to continue for drafts (just a warning)
-          }
-        }
-        
-        console.log("Saving as draft with minimal validation", {
+        // Actually, for drafts, we don't need any validation at all - just save whatever is there
+        console.log("Saving as draft with no validation", {
           items,
           title: currentValues.title,
           description: currentValues.description,
@@ -349,15 +326,37 @@ export default function EditRequest({ params }: { params: { id: string } }) {
             description: item.description || ""
           })),
           status: "draft",
-          isLocked: false,
-          // For drafts, null values are allowed for optional fields
-          vendorId: selectedVendor,
-          totalEstimatedCost: totalCost,
-          freightAmount: formatDecimal(freightAmount)
+          // For drafts, accept null values for all optional fields
+          vendorId: selectedVendor || null,
+          totalEstimatedCost: totalCost || 0,
+          freightAmount: formatDecimal(freightAmount || 0)
         };
         
         // Continue with draft submission using the specifically formatted data
-        await onSubmit(draftData);
+        try {
+          await updateRequest({
+            id: parseInt(params.id),
+            data: {
+              ...draftData,
+              status: "draft"
+            },
+          });
+          
+          toast({
+            title: "Success",
+            description: "Draft saved successfully",
+            variant: "default",
+          });
+          
+          setLocation("/");
+        } catch (error: any) {
+          console.error("Draft save error:", error);
+          toast({
+            title: "Error",
+            description: error.message || "Failed to save draft",
+            variant: "destructive",
+          });
+        }
         return;
       }
       

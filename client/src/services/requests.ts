@@ -240,7 +240,6 @@ export async function submitRequest(id: number, data: Partial<CreateRequestData>
       data: { 
         ...data, 
         status: "pending",
-        isLocked: true,
         submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       },
@@ -352,9 +351,9 @@ interface CreateRequestData {
     description?: string;
     estimatedCost: number;
   }>;
-  vendorId?: number;
+  vendorId?: number | null;
   purposeType: string;
-  subPurposeId?: number;
+  subPurposeId?: number | null;
   priority: string;
   freightAmount?: number;
   currency?: string;
@@ -366,4 +365,8 @@ interface CreateRequestData {
     fileType: string;
     fileUrl: string;
   }>;
+  isLocked?: boolean; // Add isLocked to the type to fix LSP issues
+  totalEstimatedCost?: number;
+  updatedAt?: string; // Add updatedAt to the type to fix LSP issues
+  submittedAt?: string; // Add submittedAt to the type to fix LSP issues
 }
