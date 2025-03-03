@@ -164,8 +164,7 @@ export function ExportDropdown({
 
       toast({
         title: "Export Successful",
-        description: `Successfully exported ${requests.length} requests to ${fileName}`,
-        variant: "success"
+        description: `Successfully exported ${requests.length} requests to ${fileName}`
       });
     } catch (error) {
       console.error(`Error exporting multiple to ${format}:`, error);

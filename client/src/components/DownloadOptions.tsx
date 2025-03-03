@@ -126,8 +126,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       toast({
         title: "Success",
-        description: "PDF downloaded successfully",
-        variant: "success",
+        description: "PDF downloaded successfully"
       });
     } catch (error) {
       console.error('Error downloading PDF:', error);

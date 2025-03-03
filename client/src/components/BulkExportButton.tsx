@@ -234,8 +234,7 @@ export function BulkExportButton({
       
       toast({
         title: "Bulk Export Complete",
-        description: `Successfully exported ${data.length} purchase requests.`,
-        variant: "success",
+        description: `Successfully exported ${data.length} purchase requests.`
       });
     } catch (error) {
       console.error('Error exporting requests:', error);
