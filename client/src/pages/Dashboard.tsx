@@ -588,7 +588,7 @@ export default function Dashboard() {
                 </TabsTrigger>
                 <TabsTrigger value="export" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
                   Export
-                  <FileDown className="ml-2 h-4 w-4" />
+                  <Download className="ml-2 h-4 w-4" />
                 </TabsTrigger>
               </>
             )}
