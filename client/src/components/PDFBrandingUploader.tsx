@@ -52,6 +52,7 @@ export default function PDFBrandingUploader() {
   const [imageRendering, setImageRendering] = useState<Record<string, 'loading' | 'success' | 'error'>>({});
   const [showHeaderSection, setShowHeaderSection] = useState(true);
   const [showFooterSection, setShowFooterSection] = useState(true);
+  const [analysisResults, setAnalysisResults] = useState<Record<string, any>>({});
 
   // Fetch current settings if they exist
   const { data: settings, isLoading: isLoadingSettings } = useQuery<PDFBrandingSettings>({
@@ -571,26 +572,111 @@ export default function PDFBrandingUploader() {
           </TabsContent>
         </CardContent>
         
-        <CardFooter className="flex justify-end space-x-2 px-6 pb-6">
-          {activeTab === "upload" && (
-            <Button 
-              onClick={handleSave}
-              disabled={!headerFile && !footerFile && !logoFile || isPending}
-              className="flex items-center gap-2"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Upload Images
-                </>
-              )}
-            </Button>
+        <CardFooter className="flex flex-col space-y-4 px-6 pb-6">
+          {/* Show alerts for image rendering issues if they exist */}
+          {Object.entries(imageRendering).some(([_, status]) => status === 'error') && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Image Rendering Issues</AlertTitle>
+              <AlertDescription>
+                Some images may not render properly in the PDF. Please check the analysis for details.
+              </AlertDescription>
+            </Alert>
           )}
+          
+          {/* Preview tab controls */}
+          {activeTab === 'preview' && (
+            <div className="flex flex-wrap gap-4 w-full">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="show-header">Show Header</Label>
+                      <Switch 
+                        id="show-header"
+                        checked={showHeaderSection}
+                        onCheckedChange={setShowHeaderSection}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle header visibility in PDF preview</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="show-footer">Show Footer</Label>
+                      <Switch 
+                        id="show-footer"
+                        checked={showFooterSection}
+                        onCheckedChange={setShowFooterSection}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle footer visibility in PDF preview</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
+          
+          {/* Action buttons */}
+          <div className="flex justify-between w-full">
+            {activeTab === 'upload' ? (
+              <div className="ml-auto">
+                <Button 
+                  onClick={handleSave}
+                  disabled={!headerFile && !footerFile && !logoFile || isPending}
+                  className="flex items-center gap-2"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload Images
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={analyzeAndOptimizeImages}
+                  disabled={isAnalyzing || !settings}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      AI Analysis
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  onClick={generateSamplePdf}
+                  disabled={!settings}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Generate PDF
+                </Button>
+              </div>
+            )}
+          </div>
         </CardFooter>
       </Tabs>
       
