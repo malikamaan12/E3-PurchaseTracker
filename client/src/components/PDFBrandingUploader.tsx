@@ -251,7 +251,7 @@ export default function PDFBrandingUploader() {
       // Show recommendations as toasts
       if (recommendations.length > 0) {
         // Show unique recommendations
-        const uniqueRecommendations = [...new Set(recommendations)];
+        const uniqueRecommendations = Array.from(new Set(recommendations));
         
         toast({
           title: "Image Analysis Recommendations",
