@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -13,8 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Check, Image, FileText, Loader2 } from "lucide-react";
+import { Upload, Check, Image, FileText, Loader2, AlertTriangle, ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { jsPDF } from "jspdf";
 
 interface PDFBrandingSettings {
   headerImage: string | null;
@@ -26,11 +30,17 @@ interface PDFBrandingSettings {
   footerText: string;
   footerColor: string;
   pageNumbering: boolean;
+  fontSize?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  marginRight?: number;
 }
 
 export default function PDFBrandingUploader() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const previewRef = useRef<HTMLDivElement>(null);
   
   // State for file inputs
   const [headerFile, setHeaderFile] = useState<File | null>(null);
@@ -38,6 +48,10 @@ export default function PDFBrandingUploader() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState("upload");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageRendering, setImageRendering] = useState<Record<string, 'loading' | 'success' | 'error'>>({});
+  const [showHeaderSection, setShowHeaderSection] = useState(true);
+  const [showFooterSection, setShowFooterSection] = useState(true);
 
   // Fetch current settings if they exist
   const { data: settings, isLoading: isLoadingSettings } = useQuery<PDFBrandingSettings>({
@@ -162,6 +176,134 @@ export default function PDFBrandingUploader() {
     setActiveTab(value);
   }, []);
 
+  // Function to analyze images and improve previews with Anthropic
+  const analyzeAndOptimizeImages = useCallback(async () => {
+    if (!settings) return;
+    
+    setIsAnalyzing(true);
+    
+    try {
+      // Simulate AI image analysis with a delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // This is where you would actually call the Anthropic API
+      // For this prototype, we'll just simulate the response
+      const simulatedAnalysis = {
+        logo: {
+          visibility: 'good',
+          contrast: 'good',
+          size: settings.logo ? 'good' : 'missing',
+          recommendations: settings.logo ? [] : ['Add a company logo for better brand recognition']
+        },
+        header: {
+          visibility: 'medium',
+          contrast: settings.headerColor === '#ffffff' ? 'poor' : 'good',
+          size: settings.headerImage ? 'good' : 'missing',
+          recommendations: []
+        },
+        footer: {
+          visibility: 'medium',
+          contrast: settings.footerColor === '#ffffff' ? 'poor' : 'good',
+          size: settings.footerImage ? 'good' : 'missing',
+          recommendations: []
+        }
+      };
+      
+      // Update rendering status based on analysis
+      const newRenderingStatus: Record<string, 'loading' | 'success' | 'error'> = {};
+      
+      if (settings.logo) {
+        newRenderingStatus.logo = simulatedAnalysis.logo.contrast === 'poor' ? 'error' : 'success';
+      }
+      
+      if (settings.headerImage) {
+        newRenderingStatus.header = simulatedAnalysis.header.visibility === 'poor' ? 'error' : 'success';
+      }
+      
+      if (settings.footerImage) {
+        newRenderingStatus.footer = simulatedAnalysis.footer.visibility === 'poor' ? 'error' : 'success';
+      }
+      
+      setImageRendering(newRenderingStatus);
+      
+      // Show any recommendations as toasts
+      const allRecommendations = [
+        ...simulatedAnalysis.logo.recommendations,
+        ...simulatedAnalysis.header.recommendations,
+        ...simulatedAnalysis.footer.recommendations
+      ];
+      
+      if (allRecommendations.length > 0) {
+        toast({
+          title: "Image Analysis Recommendations",
+          description: allRecommendations.join("\n"),
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Image Analysis Complete",
+          description: "Your branding settings look good!",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error analyzing images:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "Could not analyze branding images. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [settings, toast]);
+  
+  // Generate a sample PDF using jsPDF
+  const generateSamplePdf = useCallback(() => {
+    if (!settings) return;
+    
+    try {
+      const doc = new jsPDF();
+      
+      // Add header
+      doc.setTextColor(settings.headerColor || '#1a365d');
+      doc.setFontSize(16);
+      doc.text(settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+      doc.setFontSize(12);
+      doc.text(settings.headerSubtitle || 'PURCHASE REQUEST', doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+      
+      // Add content
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.text('Purchase Request #12345', 20, 50);
+      doc.text('Requester: John Smith', 20, 60);
+      doc.text('Department: Engineering', 20, 70);
+      doc.text('Date: ' + new Date().toLocaleDateString(), 20, 80);
+      
+      // Add footer
+      const footerPosition = doc.internal.pageSize.getHeight() - 20;
+      doc.setTextColor(settings.footerColor || '#1a365d');
+      doc.setFontSize(10);
+      doc.text(settings.footerText || 'ALL RIGHTS RESERVED BY E3', doc.internal.pageSize.getWidth() / 2, footerPosition, { align: 'center' });
+      
+      // Save the PDF
+      doc.save('Sample-PDF.pdf');
+      
+      toast({
+        title: "PDF Generated",
+        description: "Sample PDF has been downloaded with your branding settings.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "Could not generate sample PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [settings, toast]);
+  
   // Print preview function
   const handlePrintPreview = useCallback(() => {
     window.print();

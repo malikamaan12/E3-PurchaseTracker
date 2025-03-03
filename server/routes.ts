@@ -3549,6 +3549,60 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
+  // Get PDF settings endpoint
+  app.get("/api/pdf/print-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Query the database for PDF settings
+      const settings = await db.execute(sql`
+        SELECT * FROM pdf_settings ORDER BY updated_at DESC LIMIT 1
+      `);
+      
+      // If no settings found, return default values
+      if (!settings.length) {
+        return res.json({
+          headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerSubtitle: "PURCHASE REQUEST",
+          headerColor: "#1a365d",
+          footerText: "ALL RIGHTS RESERVED BY E3",
+          footerColor: "#1a365d",
+          pageNumbering: true,
+          fontSize: 11,
+          marginTop: 20,
+          marginBottom: 20,
+          marginLeft: 25,
+          marginRight: 25,
+          headerImage: null,
+          footerImage: null,
+          logo: null
+        });
+      }
+      
+      // Return the settings
+      res.json({
+        headerTitle: settings[0].header_title,
+        headerSubtitle: settings[0].header_subtitle,
+        headerColor: settings[0].header_color,
+        footerText: settings[0].footer_text,
+        footerColor: settings[0].footer_color,
+        pageNumbering: settings[0].page_numbering,
+        fontSize: settings[0].font_size,
+        marginTop: settings[0].margin_top,
+        marginBottom: settings[0].margin_bottom,
+        marginLeft: settings[0].margin_left,
+        marginRight: settings[0].margin_right,
+        headerImage: settings[0].header_image,
+        footerImage: settings[0].footer_image,
+        logo: settings[0].logo
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Add endpoint for saving PDF settings
   app.post("/api/pdf/settings", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -3580,27 +3634,156 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Required fields are missing', 400);
       }
       
-      // Delete existing settings (we only keep the latest one)
-      await db.delete(pdfSettings);
+      // Insert new settings using raw SQL since we're having issues with the schema
+      const result = await db.execute(sql`
+        INSERT INTO pdf_settings (
+          header_title, header_subtitle, header_color, 
+          footer_text, footer_color, page_numbering,
+          font_size, margin_top, margin_bottom, margin_left, margin_right,
+          user_id, created_at, updated_at
+        ) VALUES (
+          ${headerTitle}, 
+          ${headerSubtitle || 'PURCHASE REQUEST'}, 
+          ${headerColor}, 
+          ${footerText || 'ALL RIGHTS RESERVED BY E3'}, 
+          ${footerColor}, 
+          ${Boolean(pageNumbering)}, 
+          ${Number(fontSize || 11)}, 
+          ${Number(marginTop || 20)}, 
+          ${Number(marginBottom || 20)}, 
+          ${Number(marginLeft || 25)}, 
+          ${Number(marginRight || 25)},
+          ${req.user!.id},
+          NOW(),
+          NOW()
+        ) RETURNING *
+      `);
       
-      // Insert new settings
-      const newSettings = await db.insert(pdfSettings).values({
-        headerTitle,
-        headerSubtitle: headerSubtitle || null,
-        headerColor,
-        footerText: footerText || null,
-        footerColor,
-        pageNumbering: Boolean(pageNumbering),
-        fontSize: Number(fontSize || 11),
-        marginTop: Number(marginTop || 20),
-        marginBottom: Number(marginBottom || 20),
-        marginLeft: Number(marginLeft || 25),
-        marginRight: Number(marginRight || 25),
-        updatedAt: new Date(),
-        updatedBy: req.user.id
-      }).returning();
+      // Format the response to match the frontend expectations
+      const settings = result[0];
+      res.status(201).json({
+        headerTitle: settings.header_title,
+        headerSubtitle: settings.header_subtitle,
+        headerColor: settings.header_color,
+        footerText: settings.footer_text,
+        footerColor: settings.footer_color,
+        pageNumbering: settings.page_numbering,
+        fontSize: settings.font_size,
+        marginTop: settings.margin_top,
+        marginBottom: settings.margin_bottom,
+        marginLeft: settings.margin_left,
+        marginRight: settings.margin_right,
+        headerImage: settings.header_image,
+        footerImage: settings.footer_image,
+        logo: settings.logo
+      });
+    } catch (error) {
+      const analysis = await analyzeError(error as Error, {
+        component: 'PDF Settings',
+        request: req.body,
+        operation: 'save',
+        user: req.user?.id
+      });
       
-      res.status(201).json(newSettings[0]);
+      console.error('PDF Settings Error Analysis:', analysis);
+      next(error);
+    }
+  });
+  
+  // Add file upload endpoint for PDF branding
+  app.post("/api/pdf/upload-images", upload.fields([
+    { name: 'headerImage', maxCount: 1 },
+    { name: 'footerImage', maxCount: 1 },
+    { name: 'logo', maxCount: 1 }
+  ]), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Check if user is admin
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Only administrators can upload branding images', 403);
+      }
+      
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const uploadResults: Record<string, string> = {};
+      
+      // Process each file field if it exists
+      for (const fieldName of ['headerImage', 'footerImage', 'logo']) {
+        if (files[fieldName] && files[fieldName].length > 0) {
+          const file = files[fieldName][0];
+          // Store the URL with proper timestamp to ensure uniqueness
+          const fileUrl = `/uploads/logos/${fieldName}-${Date.now()}-${Math.floor(Math.random() * 1000000000)}.${file.originalname.split('.').pop()}`;
+          uploadResults[fieldName] = fileUrl;
+          
+          // Create directory if it doesn't exist
+          const uploadDir = path.join(process.cwd(), 'uploads/logos');
+          try {
+            await fs.mkdir(uploadDir, { recursive: true });
+          } catch (err) {
+            console.error('Error creating uploads directory:', err);
+          }
+          
+          // Save the file using fs
+          const filePath = path.join(process.cwd(), fileUrl.substring(1)); // Remove leading slash
+          await fs.writeFile(filePath, file.buffer);
+        }
+      }
+      
+      // Update the PDF settings in the database with the new image URLs
+      // but only update fields that were provided in this request
+      const updateFields: Record<string, string> = {};
+      if (uploadResults.headerImage) updateFields.header_image = uploadResults.headerImage;
+      if (uploadResults.footerImage) updateFields.footer_image = uploadResults.footerImage;
+      if (uploadResults.logo) updateFields.logo = uploadResults.logo;
+      
+      // Only update if there are fields to update
+      if (Object.keys(updateFields).length > 0) {
+        const settings = await db.execute(sql`
+          SELECT * FROM pdf_settings ORDER BY updated_at DESC LIMIT 1
+        `);
+        
+        if (settings.length > 0) {
+          // Update existing settings
+          await db.execute(sql`
+            UPDATE pdf_settings 
+            SET ${sql.join(
+              Object.entries(updateFields).map(
+                ([key, value]) => sql`${sql.identifier(key)} = ${value}`
+              ),
+              sql`, `
+            )}, 
+            updated_at = NOW() 
+            WHERE id = ${settings[0].id}
+          `);
+        } else {
+          // Create new settings with default values and new image URLs
+          await db.execute(sql`
+            INSERT INTO pdf_settings (
+              header_title, header_subtitle, header_color,
+              footer_text, footer_color, page_numbering,
+              font_size, margin_top, margin_bottom, margin_left, margin_right,
+              ${sql.join(Object.keys(updateFields).map(key => sql.identifier(key)), sql`, `)},
+              user_id, created_at, updated_at
+            ) VALUES (
+              'EVENTS & ENTERTAINMENT ENTERPRISES',
+              'PURCHASE REQUEST',
+              '#1a365d',
+              'ALL RIGHTS RESERVED BY E3',
+              '#1a365d',
+              TRUE,
+              11, 20, 20, 25, 25,
+              ${sql.join(Object.values(updateFields).map(value => sql`${value}`), sql`, `)},
+              ${req.user!.id},
+              NOW(),
+              NOW()
+            )
+          `);
+        }
+      }
+      
+      res.status(201).json({ success: true, files: uploadResults });
     } catch (error) {
       next(error);
     }
