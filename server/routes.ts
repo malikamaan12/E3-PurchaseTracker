@@ -3549,6 +3549,63 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
+  // Add endpoint for saving PDF settings
+  app.post("/api/pdf/settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Check if user is admin
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Only administrators can update PDF settings', 403);
+      }
+      
+      const { 
+        headerTitle, 
+        headerSubtitle, 
+        headerColor, 
+        footerText, 
+        footerColor, 
+        pageNumbering,
+        fontSize,
+        marginTop,
+        marginBottom,
+        marginLeft,
+        marginRight
+      } = req.body;
+      
+      // Validate required fields
+      if (!headerTitle || !headerColor || !footerColor) {
+        throw new AppError('Required fields are missing', 400);
+      }
+      
+      // Delete existing settings (we only keep the latest one)
+      await db.delete(pdfSettings);
+      
+      // Insert new settings
+      const newSettings = await db.insert(pdfSettings).values({
+        headerTitle,
+        headerSubtitle: headerSubtitle || null,
+        headerColor,
+        footerText: footerText || null,
+        footerColor,
+        pageNumbering: Boolean(pageNumbering),
+        fontSize: Number(fontSize || 11),
+        marginTop: Number(marginTop || 20),
+        marginBottom: Number(marginBottom || 20),
+        marginLeft: Number(marginLeft || 25),
+        marginRight: Number(marginRight || 25),
+        updatedAt: new Date(),
+        updatedBy: req.user.id
+      }).returning();
+      
+      res.status(201).json(newSettings[0]);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
