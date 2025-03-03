@@ -754,9 +754,11 @@ export async function exportRequestToCSV(
 export async function exportMultipleRequestsToExcel(requests: any[]): Promise<string> {
   try {
     logExport('bulkExcel', `Starting bulk Excel export for ${requests?.length || 0} requests`);
+    console.log('Exporting data:', requests);
     
     // Validate requests data
     if (!Array.isArray(requests) || requests.length === 0) {
+      console.error('Error exporting data:', requests);
       throw new Error('No valid requests to export');
     }
     

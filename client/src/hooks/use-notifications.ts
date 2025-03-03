@@ -20,8 +20,8 @@ export function useNotifications() {
       NOTIFICATION_CONFIG.MIN_RETRY_DELAY * Math.pow(2, attemptIndex),
       NOTIFICATION_CONFIG.MAX_RETRY_DELAY
     ),
-    // Increase polling frequency for real-time updates
-    refetchInterval: 10000, // Poll every 10 seconds for real-time updates
+    // Removed redundant refetchInterval to prevent duplicate polling that was causing
+    // Maximum update depth exceeded errors. This is now handled manually in the NotificationsDropdown
     refetchOnWindowFocus: true,
     staleTime: 5000, // Consider data stale after 5 seconds
     gcTime: 300000, // Keep in cache for 5 minutes

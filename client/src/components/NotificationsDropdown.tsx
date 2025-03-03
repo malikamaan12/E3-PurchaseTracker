@@ -46,15 +46,8 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       }
     };
   }, [open, refetch]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollTimerRef.current) {
-        window.clearInterval(pollTimerRef.current);
-      }
-    };
-  }, []);
+  
+  // Removed duplicate cleanup effect that was causing potential memory issues
 
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {

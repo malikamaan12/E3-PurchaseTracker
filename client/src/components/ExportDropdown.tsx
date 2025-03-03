@@ -124,12 +124,21 @@ export function ExportDropdown({
           }, {} as Record<string, string>)).toString()}`
         : `/api/requests/export/bulk?ids=${requestIds.join(',')}`;
       
+      console.log('Fetching requests from endpoint:', endpoint);
+      
       // Fetch data for multiple requests
       let requests = [];
       try {
         const response = await fetch(endpoint);
         if (!response.ok) throw new Error('Failed to fetch requests data');
-        requests = await response.json();
+        const responseData = await response.json();
+        console.log('Received data from server:', responseData);
+        
+        // Handle different response formats - some endpoints return {data: [...]} structure
+        requests = Array.isArray(responseData) ? responseData : 
+                  (responseData.data && Array.isArray(responseData.data)) ? responseData.data : [];
+                  
+        console.log('Processing requests for export:', requests.length, 'items');
       } catch (error) {
         console.error('Error fetching requests data:', error);
         toast({
