@@ -3556,13 +3556,14 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
       
-      // Query the database for PDF settings
-      const settings = await db.execute(sql`
-        SELECT * FROM pdf_settings ORDER BY updated_at DESC LIMIT 1
-      `);
+      // Query the database for PDF settings using Drizzle ORM
+      const settings = await db.query.pdfSettings.findMany({
+        orderBy: [desc(pdfSettings.updatedAt)],
+        limit: 1
+      });
       
       // If no settings found, return default values
-      if (!settings.length) {
+      if (!settings || settings.length === 0) {
         return res.json({
           headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
           headerSubtitle: "PURCHASE REQUEST",
@@ -3582,21 +3583,22 @@ export function registerRoutes(app: Express): Server {
       }
       
       // Return the settings
+      const setting = settings[0];
       res.json({
-        headerTitle: settings[0].header_title,
-        headerSubtitle: settings[0].header_subtitle,
-        headerColor: settings[0].header_color,
-        footerText: settings[0].footer_text,
-        footerColor: settings[0].footer_color,
-        pageNumbering: settings[0].page_numbering,
-        fontSize: settings[0].font_size,
-        marginTop: settings[0].margin_top,
-        marginBottom: settings[0].margin_bottom,
-        marginLeft: settings[0].margin_left,
-        marginRight: settings[0].margin_right,
-        headerImage: settings[0].header_image,
-        footerImage: settings[0].footer_image,
-        logo: settings[0].logo
+        headerTitle: setting.headerTitle,
+        headerSubtitle: setting.headerSubtitle,
+        headerColor: setting.headerColor,
+        footerText: setting.footerText,
+        footerColor: setting.footerColor,
+        pageNumbering: setting.pageNumbering,
+        fontSize: setting.fontSize,
+        marginTop: setting.marginTop,
+        marginBottom: setting.marginBottom,
+        marginLeft: setting.marginLeft,
+        marginRight: setting.marginRight,
+        headerImage: setting.headerImage,
+        footerImage: setting.footerImage,
+        logo: setting.logo
       });
     } catch (error) {
       next(error);
@@ -3626,7 +3628,10 @@ export function registerRoutes(app: Express): Server {
         marginTop,
         marginBottom,
         marginLeft,
-        marginRight
+        marginRight,
+        headerImage,
+        footerImage,
+        logo
       } = req.body;
       
       // Validate required fields
@@ -3634,48 +3639,44 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Required fields are missing', 400);
       }
       
-      // Insert new settings using raw SQL since we're having issues with the schema
-      const result = await db.execute(sql`
-        INSERT INTO pdf_settings (
-          header_title, header_subtitle, header_color, 
-          footer_text, footer_color, page_numbering,
-          font_size, margin_top, margin_bottom, margin_left, margin_right,
-          user_id, created_at, updated_at
-        ) VALUES (
-          ${headerTitle}, 
-          ${headerSubtitle || 'PURCHASE REQUEST'}, 
-          ${headerColor}, 
-          ${footerText || 'ALL RIGHTS RESERVED BY E3'}, 
-          ${footerColor}, 
-          ${Boolean(pageNumbering)}, 
-          ${Number(fontSize || 11)}, 
-          ${Number(marginTop || 20)}, 
-          ${Number(marginBottom || 20)}, 
-          ${Number(marginLeft || 25)}, 
-          ${Number(marginRight || 25)},
-          ${req.user!.id},
-          NOW(),
-          NOW()
-        ) RETURNING *
-      `);
+      // Insert new settings using Drizzle ORM
+      const newSettings = await db.insert(pdfSettings).values({
+        headerTitle,
+        headerSubtitle: headerSubtitle || 'PURCHASE REQUEST',
+        headerColor,
+        footerText: footerText || 'ALL RIGHTS RESERVED BY E3',
+        footerColor,
+        pageNumbering: Boolean(pageNumbering),
+        fontSize: Number(fontSize || 11),
+        marginTop: Number(marginTop || 20),
+        marginBottom: Number(marginBottom || 20),
+        marginLeft: Number(marginLeft || 25),
+        marginRight: Number(marginRight || 25),
+        headerImage: headerImage || null,
+        footerImage: footerImage || null,
+        logo: logo || null,
+        userId: req.user!.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
       
-      // Format the response to match the frontend expectations
-      const settings = result[0];
+      // Return the created settings
+      const setting = newSettings[0];
       res.status(201).json({
-        headerTitle: settings.header_title,
-        headerSubtitle: settings.header_subtitle,
-        headerColor: settings.header_color,
-        footerText: settings.footer_text,
-        footerColor: settings.footer_color,
-        pageNumbering: settings.page_numbering,
-        fontSize: settings.font_size,
-        marginTop: settings.margin_top,
-        marginBottom: settings.margin_bottom,
-        marginLeft: settings.margin_left,
-        marginRight: settings.margin_right,
-        headerImage: settings.header_image,
-        footerImage: settings.footer_image,
-        logo: settings.logo
+        headerTitle: setting.headerTitle,
+        headerSubtitle: setting.headerSubtitle,
+        headerColor: setting.headerColor,
+        footerText: setting.footerText,
+        footerColor: setting.footerColor,
+        pageNumbering: setting.pageNumbering,
+        fontSize: setting.fontSize,
+        marginTop: setting.marginTop,
+        marginBottom: setting.marginBottom,
+        marginLeft: setting.marginLeft,
+        marginRight: setting.marginRight,
+        headerImage: setting.headerImage,
+        footerImage: setting.footerImage,
+        logo: setting.logo
       });
     } catch (error) {
       const analysis = await analyzeError(error as Error, {

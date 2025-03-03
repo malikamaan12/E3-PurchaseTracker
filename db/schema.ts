@@ -716,8 +716,12 @@ export const pdfSettings = pgTable("pdf_settings", {
   marginLeft: integer("margin_left").notNull().default(25),
   marginRight: integer("margin_right").notNull().default(25),
   fontSize: integer("font_size").notNull().default(11),
+  headerImage: text("header_image"),
+  footerImage: text("footer_image"),
+  logo: text("logo"),
+  userId: integer("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-  updatedBy: integer("updated_by").references(() => users.id),
 });
 
 // Add schema validation
@@ -734,12 +738,16 @@ export const insertPdfSettingsSchema = createInsertSchema(pdfSettings, {
   marginLeft: z.number().min(15).max(50).default(25),
   marginRight: z.number().min(15).max(50).default(25),
   fontSize: z.number().min(8).max(16).default(11),
+  headerImage: z.string().optional().nullable(),
+  footerImage: z.string().optional().nullable(),
+  logo: z.string().optional().nullable(),
+  userId: z.number().optional(),
 });
 
 // Add relations
 export const pdfSettingsRelations = relations(pdfSettings, ({ one }) => ({
-  updatedByUser: one(users, {
-    fields: [pdfSettings.updatedBy],
+  user: one(users, {
+    fields: [pdfSettings.userId],
     references: [users.id],
   }),
 }));
