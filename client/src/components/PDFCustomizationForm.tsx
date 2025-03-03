@@ -1,48 +1,66 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  FormMessage
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ImageUpload } from "@/components/ui/image-upload";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { SketchPicker } from "react-color";
+import { Loader2, Save } from "lucide-react";
 
+// Define schema for PDF settings
 const pdfSettingsSchema = z.object({
   headerTitle: z.string().min(1, "Header title is required"),
-  headerSubtitle: z.string().optional(),
-  headerColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
+  headerSubtitle: z.string().min(1, "Header subtitle is required"),
+  headerColor: z.string().regex(/^#([0-9A-Fa-f]{6})$/, "Must be a valid hex color"),
   footerText: z.string().min(1, "Footer text is required"),
-  footerColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Invalid color format"),
-  companyLogo: z.string().optional(),
-  pageNumbering: z.boolean().default(true),
-  watermarkText: z.string().optional(),
-  watermarkOpacity: z.number().min(0).max(1).default(0.1),
-  marginTop: z.number().min(0).default(20),
-  marginBottom: z.number().min(0).default(20),
-  marginLeft: z.number().min(0).default(25),
-  marginRight: z.number().min(0).default(25),
-  fontSize: z.number().min(8).max(16).default(11),
+  footerColor: z.string().regex(/^#([0-9A-Fa-f]{6})$/, "Must be a valid hex color"),
+  pageNumbering: z.boolean(),
+  fontSize: z.number().min(8).max(16),
+  marginTop: z.number().min(10).max(40),
+  marginBottom: z.number().min(10).max(40),
+  marginLeft: z.number().min(10).max(40),
+  marginRight: z.number().min(10).max(40)
 });
 
 type PDFSettings = z.infer<typeof pdfSettingsSchema>;
 
 export function PDFCustomizationForm() {
   const { toast } = useToast();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
+  const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
+  
+  // Fetch current settings
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["/api/pdf/print-settings"],
+    queryFn: async () => {
+      const response = await fetch("/api/pdf/print-settings");
+      if (!response.ok) {
+        throw new Error("Failed to fetch PDF settings");
+      }
+      return response.json();
+    }
+  });
+  
+  // Set up form with default values
   const form = useForm<PDFSettings>({
     resolver: zodResolver(pdfSettingsSchema),
     defaultValues: {
@@ -52,265 +70,355 @@ export function PDFCustomizationForm() {
       footerText: "ALL RIGHTS RESERVED BY E3",
       footerColor: "#1a365d",
       pageNumbering: true,
-      watermarkOpacity: 0.1,
+      fontSize: 11,
       marginTop: 20,
       marginBottom: 20,
       marginLeft: 25,
-      marginRight: 25,
-      fontSize: 11,
-    },
+      marginRight: 25
+    }
   });
-
-  const { data: currentSettings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ["/api/pdf-settings"],
-  });
-
-  const { mutate: savePDFSettings, isLoading } = useMutation({
-    mutationFn: async (data: PDFSettings) => {
-      const response = await fetch("/api/pdf-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+  
+  // Update form when settings are loaded
+  useEffect(() => {
+    if (settings) {
+      form.reset({
+        headerTitle: settings.headerTitle,
+        headerSubtitle: settings.headerSubtitle,
+        headerColor: settings.headerColor,
+        footerText: settings.footerText,
+        footerColor: settings.footerColor,
+        pageNumbering: settings.pageNumbering,
+        fontSize: settings.fontSize || 11,
+        marginTop: settings.marginTop || 20,
+        marginBottom: settings.marginBottom || 20,
+        marginLeft: settings.marginLeft || 25,
+        marginRight: settings.marginRight || 25
       });
-
+    }
+  }, [settings, form]);
+  
+  // Mutation for saving settings
+  const { mutate: saveSettings, isPending } = useMutation({
+    mutationFn: async (data: PDFSettings) => {
+      const response = await fetch("/api/pdf/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+      
       if (!response.ok) {
         throw new Error("Failed to save PDF settings");
       }
-
+      
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "PDF settings saved successfully",
+        title: "Settings saved",
+        description: "PDF appearance settings have been updated successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: `Failed to save settings: ${error.message}`,
         variant: "destructive",
       });
-    },
-  });
-
-  const onSubmit = async (data: PDFSettings) => {
-    try {
-      // Use Deepseek API to validate and enhance the settings
-      const enhancedSettings = await fetch('/api/enhance-pdf-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(res => res.json());
-
-      savePDFSettings(enhancedSettings);
-    } catch (error) {
-      console.error('Error enhancing settings:', error);
-      // Fallback to original settings if enhancement fails
-      savePDFSettings(data);
     }
+  });
+  
+  const onSubmit = async (data: PDFSettings) => {
+    saveSettings(data);
   };
-
+  
   if (isLoadingSettings) {
-    return <div>Loading settings...</div>;
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
-
+  
   return (
-    <Card className="max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>PDF Template Settings</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="basic">
-          <TabsList>
-            <TabsTrigger value="basic">Basic Settings</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced Settings</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-          </TabsList>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <TabsContent value="basic">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="headerTitle"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Header Title</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="headerSubtitle"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Header Subtitle</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="headerColor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Header Color</FormLabel>
-                          <FormControl>
-                            <Input type="color" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="footerText"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Footer Text</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="footerColor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Footer Color</FormLabel>
-                          <FormControl>
-                            <Input type="color" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="advanced">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="companyLogo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Logo</FormLabel>
-                          <FormControl>
-                            <ImageUpload
-                              value={field.value}
-                              onChange={(url) => field.onChange(url)}
-                              onRemove={() => field.onChange("")}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="watermarkText"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Watermark Text</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="watermarkOpacity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Watermark Opacity</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="pageNumbering"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Show Page Numbers</FormLabel>
-                          <FormControl>
-                            <input
-                              type="checkbox"
-                              checked={field.value}
-                              onChange={(e) => field.onChange(e.target.checked)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Alert>
-                      <AlertDescription>
-                        Advanced settings allow you to customize the appearance of your PDF documents.
-                        Changes will apply to all newly generated PDFs.
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="preview">
-                <div className="border rounded-lg p-4">
-                  <div className="aspect-[1/1.4142] bg-white shadow-lg relative">
-                    {/* Preview content will be rendered here */}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <div className="flex justify-end mt-6">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Save PDF Settings"}
-                </Button>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium">Header Settings</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+              <FormField
+                control={form.control}
+                name="headerTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Header Title</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="headerSubtitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Header Subtitle</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="headerColor"
+                render={({ field }) => (
+                  <FormItem className="relative">
+                    <FormLabel>Header Color</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className="w-10 h-10 rounded border cursor-pointer"
+                          style={{ backgroundColor: field.value }}
+                          onClick={() => setColorPickerOpen(colorPickerOpen === "header" ? null : "header")}
+                        />
+                        <Input {...field} />
+                      </div>
+                    </FormControl>
+                    {colorPickerOpen === "header" && (
+                      <Card className="absolute z-10 mt-1">
+                        <CardContent className="p-2">
+                          <SketchPicker
+                            color={field.value}
+                            onChange={(color: any) => {
+                              field.onChange(color.hex);
+                            }}
+                            onChangeComplete={() => {
+                              setColorPickerOpen(null);
+                            }}
+                          />
+                        </CardContent>
+                      </Card>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium">Footer Settings</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+              <FormField
+                control={form.control}
+                name="footerText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Footer Text</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="footerColor"
+                render={({ field }) => (
+                  <FormItem className="relative">
+                    <FormLabel>Footer Color</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className="w-10 h-10 rounded border cursor-pointer"
+                          style={{ backgroundColor: field.value }}
+                          onClick={() => setColorPickerOpen(colorPickerOpen === "footer" ? null : "footer")}
+                        />
+                        <Input {...field} />
+                      </div>
+                    </FormControl>
+                    {colorPickerOpen === "footer" && (
+                      <Card className="absolute z-10 mt-1">
+                        <CardContent className="p-2">
+                          <SketchPicker
+                            color={field.value}
+                            onChange={(color: any) => {
+                              field.onChange(color.hex);
+                            }}
+                            onChangeComplete={() => {
+                              setColorPickerOpen(null);
+                            }}
+                          />
+                        </CardContent>
+                      </Card>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="pageNumbering"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between">
+                    <FormLabel>Show Page Numbers</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium">Page Layout</h3>
+            <div className="space-y-6 mt-3">
+              <FormField
+                control={form.control}
+                name="fontSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex justify-between">
+                      <FormLabel>Font Size: {field.value}pt</FormLabel>
+                    </div>
+                    <FormControl>
+                      <Slider
+                        min={8}
+                        max={16}
+                        step={1}
+                        defaultValue={[field.value]}
+                        onValueChange={(vals) => field.onChange(vals[0])}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="marginTop"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between">
+                        <FormLabel>Top Margin: {field.value}mm</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Slider
+                          min={10}
+                          max={40}
+                          step={1}
+                          defaultValue={[field.value]}
+                          onValueChange={(vals) => field.onChange(vals[0])}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="marginBottom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between">
+                        <FormLabel>Bottom Margin: {field.value}mm</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Slider
+                          min={10}
+                          max={40}
+                          step={1}
+                          defaultValue={[field.value]}
+                          onValueChange={(vals) => field.onChange(vals[0])}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="marginLeft"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between">
+                        <FormLabel>Left Margin: {field.value}mm</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Slider
+                          min={10}
+                          max={40}
+                          step={1}
+                          defaultValue={[field.value]}
+                          onValueChange={(vals) => field.onChange(vals[0])}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="marginRight"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between">
+                        <FormLabel>Right Margin: {field.value}mm</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Slider
+                          min={10}
+                          max={40}
+                          step={1}
+                          defaultValue={[field.value]}
+                          onValueChange={(vals) => field.onChange(vals[0])}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </form>
-          </Form>
-        </Tabs>
-      </CardContent>
-    </Card>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-end">
+          <Button 
+            type="submit" 
+            disabled={isPending}
+            className="flex items-center gap-2"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save Settings
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }

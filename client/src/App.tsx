@@ -11,6 +11,7 @@ import ErrorDashboard from "./pages/ErrorDashboard";
 import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
+import PDFConfiguration from "./pages/PDFConfiguration";
 import { NotFound } from "@/components/NotFound";
 import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
 import TestExportPage from "./pages/TestExportPage";
@@ -52,6 +53,7 @@ function App() {
           <Route path="/admin/error-analytics" component={ErrorDashboard} />
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
           <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
+          <Route path="/admin/pdf-configuration" component={PDFConfiguration} />
         </>
       )}
 

@@ -10,6 +10,7 @@ import { debug } from "./utils/debug";
 import { conversionService } from "./services/ConversionService";
 import { logAuditEvent } from "./utils/audit-logger";
 import { canUserApprove } from "./utils/auth";
+import multer from "multer";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -108,6 +109,28 @@ export function registerRoutes(app: Express): Server {
   }
 
   // Serve uploaded files with proper content types
+  // Initialize multer for logo/image uploads
+  const logoUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, logoDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+        cb(null, `${file.fieldname}-${uniqueSuffix}-${encodeURIComponent(file.originalname)}`);
+      }
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
+        return cb(new Error('Only JPEG and PNG images are allowed'));
+      }
+      cb(null, true);
+    },
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+  });
+
   app.use('/uploads', (req, res, next) => {
     // Set cache control headers for better performance
     res.set({
@@ -3421,6 +3444,111 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add PDF audit endpoint inside registerRoutes
+  // Add endpoint for PDF print settings
+  app.get("/api/pdf/print-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Look for existing settings in the database - in uploads/logos folder
+      const headerImagesDir = path.join(process.cwd(), 'uploads/logos');
+      let headerFiles: string[] = [];
+      let footerFiles: string[] = [];
+      let logoFiles: string[] = [];
+      
+      try {
+        headerFiles = fsSync.readdirSync(headerImagesDir)
+          .filter(file => file.startsWith('headerImage-'))
+          .sort((a, b) => {
+            // Get the timestamps from the filenames (assuming timestamp is part of the name)
+            const timeA = parseInt(a.split('-')[1]) || 0;
+            const timeB = parseInt(b.split('-')[1]) || 0;
+            return timeB - timeA; // Sort descending, newest first
+          });
+          
+        footerFiles = fsSync.readdirSync(headerImagesDir)
+          .filter(file => file.startsWith('footerImage-'))
+          .sort((a, b) => {
+            const timeA = parseInt(a.split('-')[1]) || 0;
+            const timeB = parseInt(b.split('-')[1]) || 0;
+            return timeB - timeA;
+          });
+          
+        logoFiles = fsSync.readdirSync(headerImagesDir)
+          .filter(file => file.startsWith('logo-'))
+          .sort((a, b) => {
+            const timeA = parseInt(a.split('-')[1]) || 0;
+            const timeB = parseInt(b.split('-')[1]) || 0;
+            return timeB - timeA;
+          });
+      } catch (err) {
+        console.error('Error reading logo directory:', err);
+        // Continue with default settings if directory can't be read
+      }
+        
+      // Return settings with image URLs if they exist
+      const settings = {
+        headerImage: headerFiles.length > 0 ? `/uploads/logos/${headerFiles[0]}` : null,
+        footerImage: footerFiles.length > 0 ? `/uploads/logos/${footerFiles[0]}` : null,
+        logo: logoFiles.length > 0 ? `/uploads/logos/${logoFiles[0]}` : null,
+        headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+        headerSubtitle: "PURCHASE REQUEST",
+        headerColor: "#1a365d",
+        footerText: "ALL RIGHTS RESERVED BY E3",
+        footerColor: "#1a365d",
+        pageNumbering: true,
+        marginTop: 20,
+        marginBottom: 20,
+        marginLeft: 25,
+        marginRight: 25,
+        fontSize: 11
+      };
+      
+      res.json(settings);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Add endpoint for uploading PDF branding images (header, footer, logo)
+  app.post("/api/pdf/upload-images", upload.fields([
+    { name: 'headerImage', maxCount: 1 },
+    { name: 'footerImage', maxCount: 1 },
+    { name: 'logo', maxCount: 1 }
+  ]), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+      
+      // Check if user is admin
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Only administrators can update PDF settings', 403);
+      }
+      
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const uploadedFiles: Record<string, string> = {};
+      
+      // Process each uploaded file
+      Object.entries(files).forEach(([fieldName, fieldFiles]) => {
+        if (fieldFiles && fieldFiles.length > 0) {
+          const file = fieldFiles[0];
+          uploadedFiles[fieldName] = `/uploads/logos/${file.filename}`;
+        }
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: 'PDF branding images uploaded successfully',
+        files: uploadedFiles
+      });
+    } catch (error) {
+      debug(req, 'Error uploading PDF branding images:', error);
+      next(error);
+    }
+  });
+  
   app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
