@@ -12,7 +12,7 @@ import { Parser } from '@json2csv/plainjs';
  * @param message The log message
  * @param error Optional error object
  */
-const logExport = (type: string, message: string, error?: any) => {
+export const logExport = (type: string, message: string, error?: any) => {
   const timestamp = new Date().toISOString().split('T')[1].split('.')[0]; // HH:MM:SS format
   const prefix = `[EXPORT:${type.toUpperCase()}] [${timestamp}]`;
   
