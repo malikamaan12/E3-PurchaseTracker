@@ -376,25 +376,128 @@ export default function TestExportPage() {
         </div>
       </div>
       
-      <div className="bg-slate-100 dark:bg-slate-900 rounded-md p-4 mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-semibold">Logs</h2>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={clearLogs}
-          >
-            Clear Logs
-          </Button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="col-span-2 bg-slate-100 dark:bg-slate-900 rounded-md p-4">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold">Logs</h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={clearLogs}
+            >
+              Clear Logs
+            </Button>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-3 rounded-md max-h-96 overflow-y-auto font-mono text-sm">
+            {logs.length > 0 ? logs.map((log, i) => (
+              <div key={i} className="border-b border-slate-100 dark:border-slate-700 py-1">
+                {log}
+              </div>
+            )) : (
+              <div className="text-slate-500">No logs yet. Click a test button to begin.</div>
+            )}
+          </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-md max-h-96 overflow-y-auto font-mono text-sm">
-          {logs.length > 0 ? logs.map((log, i) => (
-            <div key={i} className="border-b border-slate-100 dark:border-slate-700 py-1">
-              {log}
+        
+        <div className="bg-slate-100 dark:bg-slate-900 rounded-md p-4">
+          <h2 className="font-semibold mb-2">Test Results</h2>
+          <div className="space-y-2">
+            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
+              <h3 className="text-sm font-medium mb-2">Basic Export Tests</h3>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">CSV Export (SaveAs)</span>
+                  <Badge variant={
+                    testResults['basic-csv'] === 'success' ? 'success' : 
+                    testResults['basic-csv'] === 'pending' ? 'outline' :
+                    testResults['basic-csv'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['basic-csv'] === 'not-run' ? 'Not Run' : 
+                     testResults['basic-csv'] === 'pending' ? 'Running...' :
+                     testResults['basic-csv'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">CSV Export (Alternative)</span>
+                  <Badge variant={
+                    testResults['basic-alternative'] === 'success' ? 'success' : 
+                    testResults['basic-alternative'] === 'pending' ? 'outline' :
+                    testResults['basic-alternative'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['basic-alternative'] === 'not-run' ? 'Not Run' : 
+                     testResults['basic-alternative'] === 'pending' ? 'Running...' :
+                     testResults['basic-alternative'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">Excel Export</span>
+                  <Badge variant={
+                    testResults['basic-excel'] === 'success' ? 'success' : 
+                    testResults['basic-excel'] === 'pending' ? 'outline' :
+                    testResults['basic-excel'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['basic-excel'] === 'not-run' ? 'Not Run' : 
+                     testResults['basic-excel'] === 'pending' ? 'Running...' :
+                     testResults['basic-excel'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+              </div>
             </div>
-          )) : (
-            <div className="text-slate-500">No logs yet. Click a test button to begin.</div>
-          )}
+            
+            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
+              <h3 className="text-sm font-medium mb-2">Enhanced Export Tests</h3>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">PDF Export</span>
+                  <Badge variant={
+                    testResults['enhanced-pdf'] === 'success' ? 'success' : 
+                    testResults['enhanced-pdf'] === 'pending' ? 'outline' :
+                    testResults['enhanced-pdf'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['enhanced-pdf'] === 'not-run' ? 'Not Run' : 
+                     testResults['enhanced-pdf'] === 'pending' ? 'Running...' :
+                     testResults['enhanced-pdf'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">Excel Export</span>
+                  <Badge variant={
+                    testResults['enhanced-excel'] === 'success' ? 'success' : 
+                    testResults['enhanced-excel'] === 'pending' ? 'outline' :
+                    testResults['enhanced-excel'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['enhanced-excel'] === 'not-run' ? 'Not Run' : 
+                     testResults['enhanced-excel'] === 'pending' ? 'Running...' :
+                     testResults['enhanced-excel'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">CSV Export</span>
+                  <Badge variant={
+                    testResults['enhanced-csv'] === 'success' ? 'success' : 
+                    testResults['enhanced-csv'] === 'pending' ? 'outline' :
+                    testResults['enhanced-csv'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['enhanced-csv'] === 'not-run' ? 'Not Run' : 
+                     testResults['enhanced-csv'] === 'pending' ? 'Running...' :
+                     testResults['enhanced-csv'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">ZIP Export</span>
+                  <Badge variant={
+                    testResults['enhanced-zip'] === 'success' ? 'success' : 
+                    testResults['enhanced-zip'] === 'pending' ? 'outline' :
+                    testResults['enhanced-zip'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['enhanced-zip'] === 'not-run' ? 'Not Run' : 
+                     testResults['enhanced-zip'] === 'pending' ? 'Running...' :
+                     testResults['enhanced-zip'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
