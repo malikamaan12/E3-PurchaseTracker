@@ -453,8 +453,8 @@ export default function PDFBrandingUploader() {
       </Tabs>
       
       {/* Print styles (hidden in normal view) */}
-      <style jsx>
-        {`
+      <style dangerouslySetInnerHTML={{
+        __html: `
           @media print {
             body * {
               visibility: hidden;
@@ -473,8 +473,8 @@ export default function PDFBrandingUploader() {
               border: none;
             }
           }
-        `}
-      </style>
+        `
+      }} />
     </Card>
   );
 }

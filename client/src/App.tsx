@@ -54,6 +54,7 @@ function App() {
           <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
           <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
           <Route path="/admin/pdf-configuration" component={PDFConfiguration} />
+          <Route path="/pdf-config" component={PDFConfiguration} />
         </>
       )}
 
