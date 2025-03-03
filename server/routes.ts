@@ -3734,53 +3734,47 @@ export function registerRoutes(app: Express): Server {
       
       // Update the PDF settings in the database with the new image URLs
       // but only update fields that were provided in this request
-      const updateFields: Record<string, string> = {};
-      if (uploadResults.headerImage) updateFields.header_image = uploadResults.headerImage;
-      if (uploadResults.footerImage) updateFields.footer_image = uploadResults.footerImage;
-      if (uploadResults.logo) updateFields.logo = uploadResults.logo;
+      const updateData: Partial<typeof pdfSettings.$inferInsert> = {};
+      if (uploadResults.headerImage) updateData.headerImage = uploadResults.headerImage;
+      if (uploadResults.footerImage) updateData.footerImage = uploadResults.footerImage;
+      if (uploadResults.logo) updateData.logo = uploadResults.logo;
       
       // Only update if there are fields to update
-      if (Object.keys(updateFields).length > 0) {
-        const settings = await db.execute(sql`
-          SELECT * FROM pdf_settings ORDER BY updated_at DESC LIMIT 1
-        `);
+      if (Object.keys(updateData).length > 0) {
+        // First check if we have any settings
+        const existingSettings = await db.query.pdfSettings.findMany({
+          orderBy: [desc(pdfSettings.updatedAt)],
+          limit: 1
+        });
         
-        if (settings.length > 0) {
+        if (existingSettings.length > 0) {
           // Update existing settings
-          await db.execute(sql`
-            UPDATE pdf_settings 
-            SET ${sql.join(
-              Object.entries(updateFields).map(
-                ([key, value]) => sql`${sql.identifier(key)} = ${value}`
-              ),
-              sql`, `
-            )}, 
-            updated_at = NOW() 
-            WHERE id = ${settings[0].id}
-          `);
+          const settingId = existingSettings[0].id;
+          await db.update(pdfSettings)
+            .set({
+              ...updateData,
+              updatedAt: new Date()
+            })
+            .where(eq(pdfSettings.id, settingId));
         } else {
           // Create new settings with default values and new image URLs
-          await db.execute(sql`
-            INSERT INTO pdf_settings (
-              header_title, header_subtitle, header_color,
-              footer_text, footer_color, page_numbering,
-              font_size, margin_top, margin_bottom, margin_left, margin_right,
-              ${sql.join(Object.keys(updateFields).map(key => sql.identifier(key)), sql`, `)},
-              user_id, created_at, updated_at
-            ) VALUES (
-              'EVENTS & ENTERTAINMENT ENTERPRISES',
-              'PURCHASE REQUEST',
-              '#1a365d',
-              'ALL RIGHTS RESERVED BY E3',
-              '#1a365d',
-              TRUE,
-              11, 20, 20, 25, 25,
-              ${sql.join(Object.values(updateFields).map(value => sql`${value}`), sql`, `)},
-              ${req.user!.id},
-              NOW(),
-              NOW()
-            )
-          `);
+          await db.insert(pdfSettings).values({
+            headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
+            headerSubtitle: 'PURCHASE REQUEST',
+            headerColor: '#1a365d',
+            footerText: 'ALL RIGHTS RESERVED BY E3',
+            footerColor: '#1a365d',
+            pageNumbering: true,
+            fontSize: 11,
+            marginTop: 20,
+            marginBottom: 20,
+            marginLeft: 25,
+            marginRight: 25,
+            ...updateData,
+            userId: req.user!.id,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
         }
       }
       

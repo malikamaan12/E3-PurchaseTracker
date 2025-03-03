@@ -203,7 +203,7 @@ export default function PDFBrandingUploader() {
         toast({
           title: "No Images to Analyze",
           description: "Please upload at least one branding image first.",
-          variant: "warning",
+          variant: "destructive",
         });
         return;
       }
