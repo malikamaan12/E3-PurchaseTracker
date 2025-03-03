@@ -1,7 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Notification } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { NOTIFICATION_CONFIG, API_ROUTES, ERROR_MESSAGES } from "../../../server/utils/config";
+
+// Define our own notification type since importing from schema causes TS errors
+interface Notification {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  type: string;
+  priority?: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface NotificationError extends Error {
   status?: number;
@@ -26,7 +39,7 @@ export function useNotifications() {
     staleTime: 5000, // Consider data stale after 5 seconds
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchOnReconnect: true,
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Failed to fetch notifications:", error);
       toast({
         title: "Error Loading Notifications",
@@ -44,8 +57,10 @@ export function useNotifications() {
         if (a.isRead && !b.isRead) return 1;
 
         // Then by priority
-        const priorityOrder = { high: 0, normal: 1, low: 2 };
-        const priorityDiff = priorityOrder[a.priority || 'normal'] - priorityOrder[b.priority || 'normal'];
+        const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+        const aPriority = (a.priority || 'normal') as string;
+        const bPriority = (b.priority || 'normal') as string;
+        const priorityDiff = (priorityOrder[aPriority] || 1) - (priorityOrder[bPriority] || 1);
         if (priorityDiff !== 0) return priorityDiff;
 
         // Finally by date
@@ -98,8 +113,10 @@ export function useNotifications() {
     retry: NOTIFICATION_CONFIG.MAX_RETRIES
   });
 
-  const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
-  const highPriorityCount = (notifications || []).filter((n) => !n.isRead && n.priority === 'high').length;
+  // Safely calculate unread and high priority counts to avoid type errors
+  const notificationArray = Array.isArray(notifications) ? notifications : [];
+  const unreadCount = notificationArray.filter((n: any) => !n.isRead).length;
+  const highPriorityCount = notificationArray.filter((n: any) => !n.isRead && n.priority === 'high').length;
 
   return {
     notifications,

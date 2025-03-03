@@ -51,7 +51,12 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
 
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
-      if (!notifications.find(n => n.id === notification.id)?.isRead) {
+      // Check if the notification exists and is not read yet
+      // Using proper type checking to avoid TypeScript errors
+      const notificationsList = Array.isArray(notifications) ? notifications : [];
+      const notificationToMark = notificationsList.find((n: any) => n && n.id === notification.id);
+      
+      if (notificationToMark && !notificationToMark.isRead) {
         await markAsRead(notification.id);
       }
 
@@ -129,13 +134,13 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                 </div>
               ))}
             </div>
-          ) : notifications.length === 0 ? (
+          ) : (!Array.isArray(notifications) || notifications.length === 0) ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
               No notifications
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {(notifications as any[]).map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(
