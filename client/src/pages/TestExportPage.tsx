@@ -266,6 +266,7 @@ export default function TestExportPage() {
   
   const testEnhancedCsvExport = async () => {
     addLog('Starting enhanced CSV export test...');
+    updateTestResult('enhanced-csv', 'pending');
     
     try {
       addLog('Using exportRequestToCSV utility...');
@@ -273,6 +274,7 @@ export default function TestExportPage() {
       
       const fileName = await exportRequestToCSV(mockPurchaseRequest, 'all');
       addLog(`CSV export successful: ${fileName}`);
+      updateTestResult('enhanced-csv', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced CSV export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced CSV export error:', error);
@@ -281,19 +283,23 @@ export default function TestExportPage() {
       if (error.stack) {
         addLog(`Error stack: ${error.stack.split('\n')[0]}`);
       }
+      updateTestResult('enhanced-csv', 'failed');
     }
   };
   
   const testEnhancedZipExport = async () => {
     addLog('Starting enhanced ZIP export test...');
+    updateTestResult('enhanced-zip', 'pending');
     
     try {
       addLog('Using exportRequestAsZip utility...');
       const fileName = await exportRequestAsZip(mockPurchaseRequest, true, 'admin');
       addLog(`ZIP export successful: ${fileName}`);
+      updateTestResult('enhanced-zip', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced ZIP export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced ZIP export error:', error);
+      updateTestResult('enhanced-zip', 'failed');
     }
   };
 

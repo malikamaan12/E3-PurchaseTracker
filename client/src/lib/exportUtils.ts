@@ -94,19 +94,33 @@ async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
             // Convert blob to data URL if it's not too large
             if (blob.size < 5 * 1024 * 1024) { // 5MB limit for data URLs
               const reader = new FileReader();
-              reader.onload = (event) => {
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = event.target?.result as string;
-                document.body.appendChild(iframe);
+              
+              // Create a promise to handle async FileReader
+              return new Promise((resolve, reject) => {
+                reader.onload = (event) => {
+                  try {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = event.target?.result as string;
+                    document.body.appendChild(iframe);
+                    
+                    setTimeout(() => {
+                      document.body.removeChild(iframe);
+                    }, 100);
+                    
+                    logExport('download', `Fallback 3 download method completed`);
+                    resolve(true);
+                  } catch (iframeError) {
+                    reject(iframeError);
+                  }
+                };
                 
-                setTimeout(() => {
-                  document.body.removeChild(iframe);
-                }, 100);
-              };
-              reader.readAsDataURL(blob);
-              logExport('download', `Fallback 3 download method completed`);
-              return true;
+                reader.onerror = () => {
+                  reject(new Error('Failed to read file data'));
+                };
+                
+                reader.readAsDataURL(blob);
+              });
             } else {
               logExport('download', 'File too large for data URL method');
               throw new Error('File too large for data URL method');
@@ -118,6 +132,9 @@ async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
         }
       }
     }
+    
+    // If all fallbacks fail but don't throw, return false
+    return false;
   } catch (error) {
     logExport('download', `All download methods failed`, error);
     throw new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
