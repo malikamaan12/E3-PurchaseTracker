@@ -24,7 +24,8 @@ const logExport = (type: string, message: string, error?: any) => {
 };
 
 /**
- * Safely triggers a file download using FileSaver and provides a fallback mechanism
+ * Safely triggers a file download using multiple methods with fallbacks
+ * to ensure maximum browser compatibility
  * 
  * @param blob The blob to download
  * @param fileName The name of the file to save
@@ -34,34 +35,92 @@ async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
   try {
     logExport('download', `Initiating download for ${fileName} (${blob.size} bytes)...`);
     
-    // Try FileSaver first
+    // Try FileSaver first - it has good cross-browser support
     try {
       saveAs(blob, fileName);
       logExport('download', `Primary download method (saveAs) completed`);
       return true;
     } catch (saveError) {
-      logExport('download', `Primary download method failed, using fallback`, saveError);
+      logExport('download', `Primary download method failed, using fallback 1`, saveError);
       
-      // Fallback using URL.createObjectURL and link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      logExport('download', `Fallback download method completed`);
-      return true;
+      // Fallback 1: Using URL.createObjectURL and link
+      try {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        
+        // Use both click and dispatchEvent for better compatibility
+        link.click();
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(clickEvent);
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        logExport('download', `Fallback 1 download method completed`);
+        return true;
+      } catch (fallback1Error) {
+        logExport('download', `Fallback 1 method failed, using fallback 2`, fallback1Error);
+        
+        // Fallback 2: Using Blob URL directly in a new window
+        try {
+          const url = URL.createObjectURL(blob);
+          const newWindow = window.open(url, '_blank');
+          
+          if (!newWindow) {
+            logExport('download', 'Popup blocked or new window failed to open');
+            // Continue to next fallback
+          } else {
+            // Add a timer to revoke the URL
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            logExport('download', `Fallback 2 download method completed`);
+            return true;
+          }
+        } catch (fallback2Error) {
+          logExport('download', `Fallback 2 method failed, using fallback 3`, fallback2Error);
+          
+          // Fallback 3: Using data URL and iframe
+          try {
+            // Convert blob to data URL if it's not too large
+            if (blob.size < 5 * 1024 * 1024) { // 5MB limit for data URLs
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = event.target?.result as string;
+                document.body.appendChild(iframe);
+                
+                setTimeout(() => {
+                  document.body.removeChild(iframe);
+                }, 100);
+              };
+              reader.readAsDataURL(blob);
+              logExport('download', `Fallback 3 download method completed`);
+              return true;
+            } else {
+              logExport('download', 'File too large for data URL method');
+              throw new Error('File too large for data URL method');
+            }
+          } catch (fallback3Error) {
+            logExport('download', `All fallback methods failed`, fallback3Error);
+            throw fallback3Error;
+          }
+        }
+      }
     }
   } catch (error) {
     logExport('download', `All download methods failed`, error);
-    throw error;
+    throw new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

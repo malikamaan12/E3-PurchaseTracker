@@ -1,15 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "../components/ui/button";
 import { Parser } from '@json2csv/plainjs';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { exportRequestToCSV, exportRequestToExcel, exportRequestAsZip, exportRequestToPDF } from '../lib/exportUtils';
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Separator } from "../components/ui/separator";
 
 export default function TestExportPage() {
   const [logs, setLogs] = useState<string[]>([]);
+  const [testResults, setTestResults] = useState<{[key: string]: 'success' | 'pending' | 'failed' | 'not-run'}>({
+    'basic-csv': 'not-run',
+    'basic-excel': 'not-run',
+    'basic-alternative': 'not-run',
+    'enhanced-pdf': 'not-run',
+    'enhanced-excel': 'not-run',
+    'enhanced-csv': 'not-run',
+    'enhanced-zip': 'not-run'
+  });
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `${new Date().toISOString().slice(11, 23)} - ${message}`]);
+  };
+  
+  const updateTestResult = (testId: string, status: 'success' | 'pending' | 'failed' | 'not-run') => {
+    setTestResults(prev => ({
+      ...prev,
+      [testId]: status
+    }));
   };
   
   // Mock purchase request for enhanced utility tests
@@ -106,6 +125,7 @@ export default function TestExportPage() {
   // Test function for CSV export
   const testCsvExport = () => {
     addLog('Starting CSV export test...');
+    updateTestResult('basic-csv', 'pending');
     
     try {
       // Create CSV with basic configuration
@@ -125,19 +145,23 @@ export default function TestExportPage() {
       try {
         saveAs(blob, 'test-export.csv');
         addLog('SaveAs called successfully');
+        updateTestResult('basic-csv', 'success');
       } catch (saveError: any) {
         addLog(`Error in saveAs function: ${saveError.message || 'Unknown error'}`);
         console.error('Error in saveAs function:', saveError);
+        updateTestResult('basic-csv', 'failed');
       }
     } catch (error: any) {
       addLog(`Error during CSV generation: ${error.message || 'Unknown error'}`);
       console.error('Error during CSV generation:', error);
+      updateTestResult('basic-csv', 'failed');
     }
   };
 
   // Test function for alternative download method
   const testAlternativeDownload = () => {
     addLog('Starting alternative download test...');
+    updateTestResult('basic-alternative', 'pending');
     
     try {
       // Create CSV with basic configuration
@@ -159,15 +183,18 @@ export default function TestExportPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       addLog('Alternative download method executed');
+      updateTestResult('basic-alternative', 'success');
     } catch (error: any) {
       addLog(`Error in alternative download method: ${error.message || 'Unknown error'}`);
       console.error('Error in alternative download method:', error);
+      updateTestResult('basic-alternative', 'failed');
     }
   };
 
   // Test function for Excel export
   const testExcelExport = () => {
     addLog('Starting Excel export test...');
+    updateTestResult('basic-excel', 'pending');
     
     try {
       // Create a simple workbook
@@ -184,32 +211,39 @@ export default function TestExportPage() {
         const fileName = 'test-excel-export.xlsx';
         XLSX.writeFile(wb, fileName);
         addLog('Excel file generated and download initiated');
+        updateTestResult('basic-excel', 'success');
       } catch (saveError: any) {
         addLog(`Error saving Excel file: ${saveError.message || 'Unknown error'}`);
         console.error('Error saving Excel file:', saveError);
+        updateTestResult('basic-excel', 'failed');
       }
     } catch (error: any) {
       addLog(`Error during Excel generation: ${error.message || 'Unknown error'}`);
       console.error('Error during Excel generation:', error);
+      updateTestResult('basic-excel', 'failed');
     }
   };
   
   // Test enhanced export utilities
   const testEnhancedPdfExport = async () => {
     addLog('Starting enhanced PDF export test...');
+    updateTestResult('enhanced-pdf', 'pending');
     
     try {
       addLog('Using exportRequestToPDF utility...');
       const fileName = await exportRequestToPDF(mockPurchaseRequest, 'user');
       addLog(`PDF export successful: ${fileName}`);
+      updateTestResult('enhanced-pdf', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced PDF export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced PDF export error:', error);
+      updateTestResult('enhanced-pdf', 'failed');
     }
   };
   
   const testEnhancedExcelExport = async () => {
     addLog('Starting enhanced Excel export test...');
+    updateTestResult('enhanced-excel', 'pending');
     
     try {
       addLog('Using exportRequestToExcel utility...');
@@ -217,6 +251,7 @@ export default function TestExportPage() {
       
       const fileName = await exportRequestToExcel(mockPurchaseRequest, true);
       addLog(`Excel export successful: ${fileName}`);
+      updateTestResult('enhanced-excel', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced Excel export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced Excel export error:', error);
@@ -225,6 +260,7 @@ export default function TestExportPage() {
       if (error.stack) {
         addLog(`Error stack: ${error.stack.split('\n')[0]}`);
       }
+      updateTestResult('enhanced-excel', 'failed');
     }
   };
   
