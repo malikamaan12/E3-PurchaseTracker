@@ -253,14 +253,17 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
         )}
       </div>
       
-      <style jsx global>{`
+      {/* Print styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media print {
           .pdf-container iframe {
             height: 100%;
             width: 100%;
           }
         }
-      `}</style>
+        `
+      }} />
     </div>
   );
 }

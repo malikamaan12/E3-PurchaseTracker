@@ -46,6 +46,24 @@ export default function PDFConfiguration() {
   const [templateMode, setTemplateMode] = useState('standard');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [forceUpdateKey, setForceUpdateKey] = useState(0); // To force re-render for panel state
+  
+  // References to manage UI elements programmatically
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  
+  // Force a re-render when panel collapse state changes to ensure proper UI updates
+  useEffect(() => {
+    setForceUpdateKey(prev => prev + 1);
+    
+    // Programmatically update panel state
+    if (leftPanelRef.current) {
+      if (isPanelCollapsed) {
+        // Add any needed logic to manually collapse the panel if needed
+      } else {
+        // Add any needed logic to manually expand the panel if needed
+      }
+    }
+  }, [isPanelCollapsed]);
   
   // Fetch current settings
   const { data: pdfSettings, isLoading: isLoadingSettings, refetch } = useQuery({
@@ -155,18 +173,20 @@ export default function PDFConfiguration() {
       <ResizablePanelGroup 
         direction="horizontal" 
         className="min-h-[700px] border rounded-lg bg-background"
+        key={forceUpdateKey} // Add key to force re-render on collapse state change
       >
-        <ResizablePanel
-          defaultSize={40}
-          minSize={30}
-          maxSize={70}
-          collapsible={true}
-          collapsedSize={0}
-          collapsed={isPanelCollapsed}
-          onCollapse={() => setIsPanelCollapsed(true)}
-          onExpand={() => setIsPanelCollapsed(false)}
-          className="p-0"
-        >
+        <div ref={leftPanelRef}>
+          <ResizablePanel
+            defaultSize={40}
+            minSize={30}
+            maxSize={70}
+            collapsible={true}
+            collapsedSize={0}
+            // We'll manually handle the panel states
+            onCollapse={() => setIsPanelCollapsed(true)}
+            onExpand={() => setIsPanelCollapsed(false)}
+            className="p-0"
+          >
           <Card className="border-0 rounded-none h-full flex flex-col">
             <CardHeader>
               <CardTitle>PDF Generation Settings</CardTitle>
