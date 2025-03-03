@@ -101,6 +101,12 @@ export function registerRoutes(app: Express): Server {
     fsSync.mkdirSync(uploadsDir, { recursive: true });
   }
 
+  // Create uploads/logos directory if it doesn't exist
+  const logoDir = path.join(process.cwd(), 'uploads/logos');
+  if (!fsSync.existsSync(logoDir)) {
+    fsSync.mkdirSync(logoDir, { recursive: true });
+  }
+
   // Serve uploaded files with proper content types
   app.use('/uploads', (req, res, next) => {
     // Set cache control headers for better performance
