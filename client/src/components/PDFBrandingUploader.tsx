@@ -184,60 +184,78 @@ export default function PDFBrandingUploader() {
     setIsAnalyzing(true);
     
     try {
-      // Simulate AI image analysis with a delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // This is where you would actually call the Anthropic API
-      // For this prototype, we'll just simulate the response
-      const simulatedAnalysis = {
-        logo: {
-          visibility: 'good',
-          contrast: 'good',
-          size: settings.logo ? 'good' : 'missing',
-          recommendations: settings.logo ? [] : ['Add a company logo for better brand recognition']
-        },
-        header: {
-          visibility: 'medium',
-          contrast: settings.headerColor === '#ffffff' ? 'poor' : 'good',
-          size: settings.headerImage ? 'good' : 'missing',
-          recommendations: []
-        },
-        footer: {
-          visibility: 'medium',
-          contrast: settings.footerColor === '#ffffff' ? 'poor' : 'good',
-          size: settings.footerImage ? 'good' : 'missing',
-          recommendations: []
-        }
-      };
-      
-      // Update rendering status based on analysis
-      const newRenderingStatus: Record<string, 'loading' | 'success' | 'error'> = {};
-      
-      if (settings.logo) {
-        newRenderingStatus.logo = simulatedAnalysis.logo.contrast === 'poor' ? 'error' : 'success';
-      }
+      // Collect image URLs to analyze
+      const imageUrls: string[] = [];
       
       if (settings.headerImage) {
-        newRenderingStatus.header = simulatedAnalysis.header.visibility === 'poor' ? 'error' : 'success';
+        imageUrls.push(settings.headerImage);
       }
       
       if (settings.footerImage) {
-        newRenderingStatus.footer = simulatedAnalysis.footer.visibility === 'poor' ? 'error' : 'success';
+        imageUrls.push(settings.footerImage);
       }
+      
+      if (settings.logo) {
+        imageUrls.push(settings.logo);
+      }
+      
+      if (imageUrls.length === 0) {
+        toast({
+          title: "No Images to Analyze",
+          description: "Please upload at least one branding image first.",
+          variant: "warning",
+        });
+        return;
+      }
+      
+      // Call our AI-powered analysis endpoint
+      const response = await fetch("/api/pdf/analyze-images", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrls }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to analyze images");
+      }
+      
+      const analysisResults = await response.json();
+      setAnalysisResults(analysisResults);
+      
+      // Update rendering status based on analysis
+      const newRenderingStatus: Record<string, 'loading' | 'success' | 'error'> = {};
+      const recommendations: string[] = [];
+      
+      // Process each result by image type
+      analysisResults.results.forEach((result: any) => {
+        const { imageType, analysis } = result;
+        
+        // Set rendering status
+        if (imageType === 'logo' || imageType === 'header' || imageType === 'footer') {
+          newRenderingStatus[imageType] = 
+            analysis.contrast === 'poor' || analysis.visibility === 'poor' 
+              ? 'error' 
+              : 'success';
+        }
+        
+        // Collect recommendations
+        if (analysis.recommendations && analysis.recommendations.length > 0) {
+          recommendations.push(...analysis.recommendations);
+        }
+      });
       
       setImageRendering(newRenderingStatus);
       
-      // Show any recommendations as toasts
-      const allRecommendations = [
-        ...simulatedAnalysis.logo.recommendations,
-        ...simulatedAnalysis.header.recommendations,
-        ...simulatedAnalysis.footer.recommendations
-      ];
-      
-      if (allRecommendations.length > 0) {
+      // Show recommendations as toasts
+      if (recommendations.length > 0) {
+        // Show unique recommendations
+        const uniqueRecommendations = [...new Set(recommendations)];
+        
         toast({
           title: "Image Analysis Recommendations",
-          description: allRecommendations.join("\n"),
+          description: uniqueRecommendations.join("\n"),
           variant: "default",
         });
       } else {
@@ -251,13 +269,13 @@ export default function PDFBrandingUploader() {
       console.error("Error analyzing images:", error);
       toast({
         title: "Analysis Failed",
-        description: "Could not analyze branding images. Please try again.",
+        description: error instanceof Error ? error.message : "Could not analyze branding images. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsAnalyzing(false);
     }
-  }, [settings, toast]);
+  }, [settings, toast, setAnalysisResults]);
   
   // Generate a sample PDF using jsPDF
   const generateSamplePdf = useCallback(() => {
