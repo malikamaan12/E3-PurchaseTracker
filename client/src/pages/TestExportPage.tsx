@@ -213,11 +213,18 @@ export default function TestExportPage() {
     
     try {
       addLog('Using exportRequestToExcel utility...');
+      console.log('Mock request data:', mockPurchaseRequest);
+      
       const fileName = await exportRequestToExcel(mockPurchaseRequest, true);
       addLog(`Excel export successful: ${fileName}`);
     } catch (error: any) {
       addLog(`Error during enhanced Excel export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced Excel export error:', error);
+      
+      // More detailed error logging
+      if (error.stack) {
+        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
+      }
     }
   };
   
@@ -226,11 +233,18 @@ export default function TestExportPage() {
     
     try {
       addLog('Using exportRequestToCSV utility...');
+      console.log('Mock request data for CSV:', mockPurchaseRequest);
+      
       const fileName = await exportRequestToCSV(mockPurchaseRequest, 'all');
       addLog(`CSV export successful: ${fileName}`);
     } catch (error: any) {
       addLog(`Error during enhanced CSV export: ${error.message || 'Unknown error'}`);
       console.error('Enhanced CSV export error:', error);
+      
+      // More detailed error logging
+      if (error.stack) {
+        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
+      }
     }
   };
   

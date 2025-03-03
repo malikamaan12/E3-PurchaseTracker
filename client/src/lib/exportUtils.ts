@@ -100,6 +100,7 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     return pdfName;
   } catch (error) {
     logExport('pdf', `PDF export failed:`, error);
+    console.error("PDF Export Error:", error);
     throw error;
   }
 }
