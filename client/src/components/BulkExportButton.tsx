@@ -300,10 +300,10 @@ export function BulkExportButton({
           </DialogHeader>
           
           {exportCount && exportCount > 50 && (
-            <Alert variant="warning" className="my-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Large Export</AlertTitle>
-              <AlertDescription>
+            <Alert className="my-4 border-amber-500 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-900/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+              <AlertTitle className="text-amber-800 dark:text-amber-400">Large Export</AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
                 You are exporting a large number of requests ({exportCount}). 
                 This might take some time and could impact browser performance.
               </AlertDescription>

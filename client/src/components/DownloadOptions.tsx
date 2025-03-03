@@ -221,8 +221,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       toast({
         title: "Success",
-        description: "Excel file downloaded successfully",
-        variant: "success",
+        description: "Excel file downloaded successfully"
       });
     } catch (error) {
       console.error('Error downloading Excel:', error);
@@ -313,8 +312,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       toast({
         title: "Success",
-        description: `CSV file${exportType === 'all' ? 's' : ''} downloaded successfully`,
-        variant: "success",
+        description: `CSV file${exportType === 'all' ? 's' : ''} downloaded successfully`
       });
     } catch (error) {
       console.error('Error downloading CSV:', error);
@@ -407,8 +405,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       toast({
         title: "Success",
-        description: `ZIP file ${includeAttachments ? 'with attachments ' : ''}downloaded successfully`,
-        variant: "success",
+        description: `ZIP file ${includeAttachments ? 'with attachments ' : ''}downloaded successfully`
       });
     } catch (error) {
       console.error('Error downloading ZIP:', error);
