@@ -16,60 +16,191 @@ function hexToRgb(hex: string): [number, number, number] {
   }
 }
 
-function addHeader(doc: jsPDF, request: any): number {
+async function addHeader(doc: jsPDF, request: any): Promise<number> {
   try {
     const pageWidth = doc.internal.pageSize.width;
-    const headerHeight = 35; 
+    const headerHeight = 40; 
     const margin = 15;
-
+    
+    // Try to get PDF settings
+    let logoUrl = null;
+    let headerImageUrl = null;
+    
+    try {
+      const response = await fetch('/api/pdf/print-settings');
+      if (response.ok) {
+        const settings = await response.json();
+        logoUrl = settings.logo;
+        headerImageUrl = settings.headerImage;
+      }
+    } catch (settingsError) {
+      console.error('Error fetching PDF settings:', settingsError);
+    }
+    
+    // Add logo if available
+    if (logoUrl) {
+      try {
+        const img = new Image();
+        img.src = logoUrl;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if image fails to load
+        });
+        
+        // Draw the logo on the left side
+        doc.addImage(img, 'PNG', margin, 10, 20, 20);
+      } catch (logoError) {
+        console.error('Error adding logo to PDF:', logoError);
+      }
+    }
+    
     // Add company header
     doc.setFontSize(14);
     doc.setTextColor(26, 54, 93);
-    doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", pageWidth/2, 15, { align: 'center' });
-
+    doc.text("EVENTS & ENTERTAINMENT", pageWidth/2, 15, { align: 'center' });
+    
     doc.setFontSize(12);
-    doc.text("PURCHASE REQUEST", pageWidth/2, 22, { align: 'center' });
+    doc.text("ENTERPRISES", pageWidth/2, 22, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text("PURCHASE REQUEST", pageWidth/2, 29, { align: 'center' });
+    
+    // Try to add header image/banner if available
+    if (headerImageUrl) {
+      try {
+        const img = new Image();
+        img.src = headerImageUrl;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if image fails to load
+        });
+        
+        // Draw the header image below the text
+        doc.addImage(img, 'PNG', margin, 35, pageWidth - (margin * 2), 10);
+        return headerHeight + 10; // Add extra space for the image
+      } catch (headerImgError) {
+        console.error('Error adding header image to PDF:', headerImgError);
+      }
+    }
+    
   } catch (error) {
     console.error("Error rendering PDF header:", error);
-    // Return a default position to continue rendering
+    // Continue rendering
   }
 
   // Add request number and date with error handling
   try {
     const pageWidth = doc.internal.pageSize.width;
     const margin = 15;
-    const headerHeight = 35;
     
+    // Add request info after header
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, 55);
+    
+    // Add requester and date on the next row
     doc.setFontSize(9);
-    doc.setTextColor(90, 90, 90);
-    doc.text(`Request No: ${request?.requestNumber || 'N/A'}`, margin, 30);
+    doc.text(`Requester:`, margin, 62);
+    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, 62);
     
-    let dateText = 'Date: N/A';
+    doc.text(`Department:`, pageWidth / 2, 62);
+    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, 62);
+    
+    doc.text(`Date:`, margin, 69);
+    let dateText = 'N/A';
     if (request?.createdAt) {
       try {
-        dateText = `Date: ${new Date(request.createdAt).toLocaleDateString()}`;
+        dateText = new Date(request.createdAt).toLocaleDateString();
       } catch (dateError) {
         console.error('Error formatting date:', dateError);
       }
     }
+    doc.text(dateText, margin + 30, 69);
     
-    doc.text(dateText, pageWidth - margin, 30, { align: 'right' });
-    return headerHeight;
+    doc.text(`Status:`, pageWidth / 2, 69);
+    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, 69);
+    
+    return 75; // Return position after all header elements
   } catch (error) {
     console.error('Error adding request details:', error);
-    return 35; // Return default header height
+    return 40; // Return default header height
   }
 }
 
-function addFooter(doc: jsPDF, currentPage: number, totalPages: number): void {
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  const margin = 15;
-
-  doc.setFontSize(8);
-  doc.setTextColor(90, 90, 90);
-  doc.text("ALL RIGHTS RESERVED BY E3", margin, pageHeight - 10);
-  doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+async function addFooter(doc: jsPDF, currentPage: number, totalPages: number): Promise<void> {
+  try {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 15;
+    const footerHeight = 15;
+    
+    // Try to get PDF settings for footer image
+    let footerImageUrl = null;
+    let footerColor = [90, 90, 90]; // Default gray color
+    let footerText = "ALL RIGHTS RESERVED BY E3";
+    
+    try {
+      const response = await fetch('/api/pdf/print-settings');
+      if (response.ok) {
+        const settings = await response.json();
+        footerImageUrl = settings.footerImage;
+        if (settings.footerColor) {
+          // Parse color string to RGB
+          try {
+            const hexColor = settings.footerColor?.replace('#', '');
+            if (hexColor && hexColor.length === 6) {
+              footerColor = [
+                parseInt(hexColor.substring(0, 2), 16),
+                parseInt(hexColor.substring(2, 4), 16),
+                parseInt(hexColor.substring(4, 6), 16)
+              ];
+            }
+          } catch (colorError) {
+            console.error('Error parsing footer color:', colorError);
+          }
+        }
+        if (settings.footerText) {
+          footerText = settings.footerText;
+        }
+      }
+    } catch (settingsError) {
+      console.error('Error fetching PDF settings for footer:', settingsError);
+    }
+    
+    // Add footer image if available
+    if (footerImageUrl) {
+      try {
+        const img = new Image();
+        img.src = footerImageUrl;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if image fails to load
+        });
+        
+        // Draw the footer image
+        doc.addImage(img, 'PNG', margin, pageHeight - footerHeight, pageWidth - (margin * 2), 5);
+      } catch (footerImgError) {
+        console.error('Error adding footer image to PDF:', footerImgError);
+      }
+    }
+    
+    // Add footer text
+    doc.setFontSize(8);
+    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
+    doc.text(footerText, margin, pageHeight - 5);
+    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  } catch (error) {
+    console.error('Error rendering PDF footer:', error);
+    // Default footer as fallback
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 15;
+    
+    doc.setFontSize(8);
+    doc.setTextColor(90, 90, 90);
+    doc.text("ALL RIGHTS RESERVED BY E3", margin, pageHeight - 5);
+    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  }
 }
 
 function addSection(doc: jsPDF, title: string, yPos: number): number {
@@ -100,7 +231,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     });
 
     const margin = 15;
-    let yPos = addHeader(doc, request);
+    let yPos = await addHeader(doc, request);
 
     // Basic Information Section
     yPos = addSection(doc, "Basic Information", yPos);
