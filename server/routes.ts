@@ -3511,43 +3511,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-  // Add endpoint for uploading PDF branding images (header, footer, logo)
-  app.post("/api/pdf/upload-images", upload.fields([
-    { name: 'headerImage', maxCount: 1 },
-    { name: 'footerImage', maxCount: 1 },
-    { name: 'logo', maxCount: 1 }
-  ]), async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-      
-      // Check if user is admin
-      if (req.user?.role !== 'admin') {
-        throw new AppError('Only administrators can update PDF settings', 403);
-      }
-      
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const uploadedFiles: Record<string, string> = {};
-      
-      // Process each uploaded file
-      Object.entries(files).forEach(([fieldName, fieldFiles]) => {
-        if (fieldFiles && fieldFiles.length > 0) {
-          const file = fieldFiles[0];
-          uploadedFiles[fieldName] = `/uploads/logos/${file.filename}`;
-        }
-      });
-      
-      res.status(201).json({
-        success: true,
-        message: 'PDF branding images uploaded successfully',
-        files: uploadedFiles
-      });
-    } catch (error) {
-      debug(req, 'Error uploading PDF branding images:', error);
-      next(error);
-    }
-  });
+  // This endpoint is now implemented below with more functionality
   
   // Get PDF settings endpoint
   app.get("/api/pdf/print-settings", async (req: Request, res: Response, next: NextFunction) => {
