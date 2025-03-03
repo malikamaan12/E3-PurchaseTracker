@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -48,13 +48,6 @@ export default function PDFBrandingUploader() {
         throw new Error("Failed to fetch PDF settings");
       }
       return response.json();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to load PDF settings",
-        variant: "destructive",
-      });
     }
   });
 
@@ -94,7 +87,7 @@ export default function PDFBrandingUploader() {
   }, [toast]);
 
   // Handle uploads
-  const { mutate: uploadImages, isLoading: isUploading } = useMutation({
+  const { mutate: uploadImages, isPending } = useMutation({
     mutationFn: async () => {
       const formData = new FormData();
       if (headerFile) formData.append("headerImage", headerFile);
@@ -142,6 +135,14 @@ export default function PDFBrandingUploader() {
     }
   });
 
+  // Clean up preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up any object URLs to prevent memory leaks
+      Object.values(previewUrls).forEach(URL.revokeObjectURL);
+    };
+  }, [previewUrls]);
+
   // Handle save
   const handleSave = useCallback(() => {
     // Only upload if there are files to upload
@@ -156,7 +157,7 @@ export default function PDFBrandingUploader() {
     }
   }, [headerFile, footerFile, logoFile, uploadImages, toast]);
 
-  // Clean up preview URLs on unmount
+  // Handle tab change
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
   }, []);
@@ -203,10 +204,10 @@ export default function PDFBrandingUploader() {
                       Recommended size: 1000 × 150 pixels (PNG or JPEG, max 5MB)
                     </p>
                   </div>
-                  {(previewUrls.header || settings?.headerImage) && (
+                  {(previewUrls.header || (settings && settings.headerImage)) && (
                     <div className="w-24 h-24 border rounded-lg overflow-hidden flex items-center justify-center bg-muted">
                       <img 
-                        src={previewUrls.header || settings?.headerImage || ''} 
+                        src={previewUrls.header || (settings && settings.headerImage) || ''} 
                         alt="Header preview"
                         className="max-w-full max-h-full object-contain"
                       />
@@ -231,10 +232,10 @@ export default function PDFBrandingUploader() {
                       Recommended size: 1000 × 100 pixels (PNG or JPEG, max 5MB)
                     </p>
                   </div>
-                  {(previewUrls.footer || settings?.footerImage) && (
+                  {(previewUrls.footer || (settings && settings.footerImage)) && (
                     <div className="w-24 h-24 border rounded-lg overflow-hidden flex items-center justify-center bg-muted">
                       <img 
-                        src={previewUrls.footer || settings?.footerImage || ''} 
+                        src={previewUrls.footer || (settings && settings.footerImage) || ''} 
                         alt="Footer preview"
                         className="max-w-full max-h-full object-contain"
                       />
@@ -259,10 +260,10 @@ export default function PDFBrandingUploader() {
                       Recommended size: 200 × 200 pixels (PNG or JPEG, max 5MB)
                     </p>
                   </div>
-                  {(previewUrls.logo || settings?.logo) && (
+                  {(previewUrls.logo || (settings && settings.logo)) && (
                     <div className="w-24 h-24 border rounded-lg overflow-hidden flex items-center justify-center bg-muted">
                       <img 
-                        src={previewUrls.logo || settings?.logo || ''} 
+                        src={previewUrls.logo || (settings && settings.logo) || ''} 
                         alt="Logo preview"
                         className="max-w-full max-h-full object-contain"
                       />
@@ -279,7 +280,7 @@ export default function PDFBrandingUploader() {
                 {/* Header */}
                 <div className="pdf-header border-b p-4 bg-gray-50">
                   <div className="flex justify-between items-center">
-                    {settings?.logo && (
+                    {settings && settings.logo && (
                       <div className="logo-container h-16 w-16 overflow-hidden">
                         <img 
                           src={settings.logo} 
@@ -289,15 +290,15 @@ export default function PDFBrandingUploader() {
                       </div>
                     )}
                     <div className="text-center flex-1">
-                      <h1 className="text-lg font-bold" style={{ color: settings?.headerColor || '#1a365d' }}>
-                        {settings?.headerTitle || "EVENTS & ENTERTAINMENT ENTERPRISES"}
+                      <h1 className="text-lg font-bold" style={{ color: settings ? settings.headerColor : '#1a365d' }}>
+                        {settings ? settings.headerTitle : "EVENTS & ENTERTAINMENT ENTERPRISES"}
                       </h1>
                       <h2 className="text-sm font-medium">
-                        {settings?.headerSubtitle || "PURCHASE REQUEST"}
+                        {settings ? settings.headerSubtitle : "PURCHASE REQUEST"}
                       </h2>
                     </div>
                   </div>
-                  {settings?.headerImage && (
+                  {settings && settings.headerImage && (
                     <div className="w-full h-24 mt-2 overflow-hidden flex justify-center items-center">
                       <img 
                         src={settings.headerImage} 
@@ -395,111 +396,85 @@ export default function PDFBrandingUploader() {
                 </div>
                 
                 {/* Footer */}
-                <div className="pdf-footer border-t absolute bottom-0 left-0 right-0 p-4 bg-gray-50">
-                  {settings?.footerImage && (
-                    <div className="w-full h-16 mb-2 overflow-hidden flex justify-center items-center">
-                      <img 
-                        src={settings.footerImage} 
-                        alt="Footer" 
-                        className="max-w-full object-contain"
-                      />
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm" style={{ color: settings?.footerColor || '#1a365d' }}>
-                      {settings?.footerText || "ALL RIGHTS RESERVED BY E3"}
-                    </p>
-                    {settings?.pageNumbering && (
-                      <p className="text-sm">Page 1 of 1</p>
+                <div className="pdf-footer border-t p-4 absolute bottom-0 left-0 right-0 bg-gray-50">
+                  <div className="flex flex-col items-center">
+                    {settings && settings.footerImage && (
+                      <div className="w-full h-12 mb-2 overflow-hidden flex justify-center">
+                        <img 
+                          src={settings.footerImage} 
+                          alt="Footer" 
+                          className="max-h-full object-contain"
+                        />
+                      </div>
                     )}
+                    <div className="w-full flex justify-between items-center">
+                      <p className="text-sm" style={{ color: settings ? settings.footerColor : '#1a365d' }}>
+                        {settings ? settings.footerText : "ALL RIGHTS RESERVED BY E3"}
+                      </p>
+                      {settings && settings.pageNumbering && (
+                        <p className="text-sm">Page 1 of 1</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="flex justify-center">
-              <Button 
-                onClick={handlePrintPreview}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
+            <div className="flex items-center justify-center">
+              <Button variant="outline" onClick={handlePrintPreview} className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
                 Print Preview
               </Button>
             </div>
-            
-            <style jsx global>{`
-              @media print {
-                body * {
-                  visibility: hidden;
-                }
-                .pdf-preview, .pdf-preview * {
-                  visibility: visible;
-                }
-                .pdf-preview {
-                  position: absolute;
-                  left: 0;
-                  top: 0;
-                  width: 100%;
-                  height: 100%;
-                  margin: 0;
-                  padding: 0;
-                  border: none;
-                }
-                /* Hide scrollbars when printing */
-                .pdf-body {
-                  overflow: visible !important;
-                  height: auto !important;
-                }
-                /* Ensure footer is at the bottom of the printed page */
-                .pdf-footer {
-                  position: fixed;
-                  bottom: 0;
-                }
-              }
-            `}</style>
           </TabsContent>
         </CardContent>
         
-        <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={() => {
-              // Clean up preview URLs
-              Object.values(previewUrls).forEach(URL.revokeObjectURL);
-              setPreviewUrls({});
-              
-              // Reset file inputs
-              setHeaderFile(null);
-              setFooterFile(null);
-              setLogoFile(null);
-            }}
-          >
-            Reset
-          </Button>
-          
-          <Button 
-            onClick={handleSave}
-            disabled={isUploading || (!headerFile && !footerFile && !logoFile)}
-            className={cn(
-              "relative",
-              activeTab !== "upload" && "hidden"
-            )}
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Images
-              </>
-            )}
-          </Button>
+        <CardFooter className="flex justify-end space-x-2 px-6 pb-6">
+          {activeTab === "upload" && (
+            <Button 
+              onClick={handleSave}
+              disabled={!headerFile && !footerFile && !logoFile || isPending}
+              className="flex items-center gap-2"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload Images
+                </>
+              )}
+            </Button>
+          )}
         </CardFooter>
       </Tabs>
+      
+      {/* Print styles (hidden in normal view) */}
+      <style jsx>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .pdf-preview, .pdf-preview * {
+              visibility: visible;
+            }
+            .pdf-preview {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              padding: 0;
+              border: none;
+            }
+          }
+        `}
+      </style>
     </Card>
   );
 }

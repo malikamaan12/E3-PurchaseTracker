@@ -44,6 +44,22 @@ const pdfSettingsSchema = z.object({
 
 type PDFSettings = z.infer<typeof pdfSettingsSchema>;
 
+// Preset colors for color pickers
+const presetColors = [
+  '#1a365d', // Default dark blue
+  '#2B6CB0', // Blue
+  '#3182CE', // Medium blue
+  '#4299E1', // Light blue
+  '#63B3ED', // Sky blue
+  '#38A169', // Green
+  '#E53E3E', // Red
+  '#ED8936', // Orange 
+  '#ECC94B', // Yellow
+  '#805AD5', // Purple
+  '#D53F8C', // Pink
+  '#000000'  // Black
+];
+
 export function PDFCustomizationForm() {
   const { toast } = useToast();
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
@@ -96,6 +112,21 @@ export function PDFCustomizationForm() {
       });
     }
   }, [settings, form]);
+  
+  // Handle color picker close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only close if clicking outside of a color picker
+      if (colorPickerOpen && !(event.target as Element).closest('.sketch-picker')) {
+        setColorPickerOpen(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [colorPickerOpen]);
   
   // Mutation for saving settings
   const { mutate: saveSettings, isPending } = useMutation({
@@ -197,12 +228,11 @@ export function PDFCustomizationForm() {
                         <CardContent className="p-2">
                           <SketchPicker
                             color={field.value}
-                            onChange={(color: any) => {
+                            onChange={(color) => {
                               field.onChange(color.hex);
                             }}
-                            onChangeComplete={() => {
-                              setColorPickerOpen(null);
-                            }}
+                            disableAlpha={true}
+                            presetColors={presetColors}
                           />
                         </CardContent>
                       </Card>
@@ -252,12 +282,11 @@ export function PDFCustomizationForm() {
                         <CardContent className="p-2">
                           <SketchPicker
                             color={field.value}
-                            onChange={(color: any) => {
+                            onChange={(color) => {
                               field.onChange(color.hex);
                             }}
-                            onChangeComplete={() => {
-                              setColorPickerOpen(null);
-                            }}
+                            disableAlpha={true}
+                            presetColors={presetColors}
                           />
                         </CardContent>
                       </Card>
