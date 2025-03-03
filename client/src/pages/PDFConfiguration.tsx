@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PDFCustomizationForm } from '@/components/PDFCustomizationForm';
@@ -175,18 +175,18 @@ export default function PDFConfiguration() {
         className="min-h-[700px] border rounded-lg bg-background"
         key={forceUpdateKey} // Add key to force re-render on collapse state change
       >
-        <div ref={leftPanelRef}>
-          <ResizablePanel
-            defaultSize={40}
-            minSize={30}
-            maxSize={70}
-            collapsible={true}
-            collapsedSize={0}
-            // We'll manually handle the panel states
-            onCollapse={() => setIsPanelCollapsed(true)}
-            onExpand={() => setIsPanelCollapsed(false)}
-            className="p-0"
-          >
+        <ResizablePanel
+          ref={leftPanelRef}
+          defaultSize={40}
+          minSize={30}
+          maxSize={70}
+          collapsible={true}
+          collapsedSize={0}
+          // We'll manually handle the panel states
+          onCollapse={() => setIsPanelCollapsed(true)}
+          onExpand={() => setIsPanelCollapsed(false)}
+          className="p-0"
+        >
           <Card className="border-0 rounded-none h-full flex flex-col">
             <CardHeader>
               <CardTitle>PDF Generation Settings</CardTitle>
