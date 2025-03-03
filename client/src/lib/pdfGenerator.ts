@@ -236,15 +236,18 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     // Basic Information Section
     yPos = addSection(doc, "Basic Information", yPos);
 
+    // Type casting for jspdf-autotable styles to avoid TypeScript errors
+    const boldStyle = { fontStyle: 'bold' as 'bold', cellWidth: 25 };
+    
     const basicInfo = [
       [
-        { content: 'Title:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Title:', styles: boldStyle },
         { content: request.title || 'N/A', colSpan: 3 }
       ],
       [
-        { content: 'Status:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Status:', styles: boldStyle },
         { content: request.status?.toUpperCase() || 'N/A', cellWidth: 35 },
-        { content: 'Priority:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Priority:', styles: boldStyle },
         { content: request.priority?.toUpperCase() || 'N/A' }
       ],
     ];
@@ -262,7 +265,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     // Description Section (separate to allow more space)
     const description = [
       [
-        { content: 'Description:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Description:', styles: boldStyle },
         { content: request.description || 'N/A' }
       ]
     ];
@@ -281,9 +284,9 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     yPos = addSection(doc, "Purpose Information", yPos);
     const purposeInfo = [
       [
-        { content: 'Purpose Type:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Purpose Type:', styles: boldStyle },
         { content: request.purposeType || 'N/A', cellWidth: 35 },
-        { content: 'Sub-purpose:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Sub-purpose:', styles: boldStyle },
         { content: request.subPurpose?.name || 'N/A' }
       ]
     ];
@@ -310,15 +313,15 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     
     const vendorInfo = [
       [
-        { content: 'Vendor Name:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Vendor Name:', styles: boldStyle },
         { content: vendorName, cellWidth: 35 },
-        { content: 'Contact Person:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Contact Person:', styles: boldStyle },
         { content: contactPerson }
       ],
       [
-        { content: 'Email:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Email:', styles: boldStyle },
         { content: vendorEmail, cellWidth: 35 },
-        { content: 'Phone:', styles: { fontStyle: 'bold', cellWidth: 25 } },
+        { content: 'Phone:', styles: boldStyle },
         { content: vendorPhone }
       ]
     ];
@@ -541,7 +544,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      addFooter(doc, i, pageCount);
+      await addFooter(doc, i, pageCount);
     }
 
     return doc;
