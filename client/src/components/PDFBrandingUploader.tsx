@@ -573,6 +573,10 @@ export default function PDFBrandingUploader() {
                           src={settings.footerImage} 
                           alt="Footer" 
                           className="max-h-full object-contain"
+                          onError={(e) => {
+                            console.error("Error loading footer image");
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI1MCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBhbGlnbm1lbnQtYmFzZWxpbmU9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmaWxsPSIjOTk5Ij5Gb290ZXIgSW1hZ2U8L3RleHQ+PC9zdmc+';
+                          }}
                         />
                       </div>
                     )}

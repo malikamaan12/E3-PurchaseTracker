@@ -3659,11 +3659,14 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/pdf/upload-images", (req: Request, res: Response, next: NextFunction) => {
     // First set up the upload using disk storage
     const storage = multer.diskStorage({
-      destination: (_, __, cb) => {
+      destination: async (_, __, cb) => {
         // Ensure the logos directory exists
         const uploadDir = path.join(process.cwd(), 'uploads/logos');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
+        try {
+          await fs.mkdir(uploadDir, { recursive: true });
+        } catch (err) {
+          // Directory might already exist, which is fine
+          console.log("Directory creation status:", err);
         }
         cb(null, uploadDir);
       },
