@@ -50,7 +50,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     const accentColor = [31, 211, 219]; // E3 teal #1FD3DB
     
     // First check if settings were passed directly in the request object
-    if (request.pdfSettings) {
+    if (request?.pdfSettings) {
       // Override default settings with settings from request
       settings = {
         ...settings,
@@ -59,9 +59,16 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         headerTitle: request.pdfSettings.headerTitle || settings.headerTitle,
         headerSubtitle: request.pdfSettings.headerSubtitle || settings.headerSubtitle,
         headerColor: request.pdfSettings.headerColor || settings.headerColor,
-        showHeaderText: request.pdfSettings.showHeaderText !== false,
-        showHeaderImage: request.pdfSettings.showHeaderImage !== false,
-        showLogo: request.pdfSettings.showLogo !== false
+        // Fix visibility issues by checking for explicit boolean values
+        showHeaderText: request.pdfSettings.hasOwnProperty('showHeaderText') 
+          ? Boolean(request.pdfSettings.showHeaderText) 
+          : settings.showHeaderText,
+        showHeaderImage: request.pdfSettings.hasOwnProperty('showHeaderImage') 
+          ? Boolean(request.pdfSettings.showHeaderImage) 
+          : settings.showHeaderImage,
+        showLogo: request.pdfSettings.hasOwnProperty('showLogo') 
+          ? Boolean(request.pdfSettings.showLogo) 
+          : settings.showLogo
       };
     } else {
       // Otherwise fetch from API
@@ -76,9 +83,16 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
             headerTitle: apiSettings.headerTitle || settings.headerTitle,
             headerSubtitle: apiSettings.headerSubtitle || settings.headerSubtitle,
             headerColor: apiSettings.headerColor || settings.headerColor,
-            showHeaderText: apiSettings.showHeaderText !== false,
-            showHeaderImage: apiSettings.showHeaderImage !== false,
-            showLogo: apiSettings.showLogo !== false
+            // Fix visibility issues by checking for explicit boolean values
+            showHeaderText: apiSettings.hasOwnProperty('showHeaderText') 
+              ? Boolean(apiSettings.showHeaderText) 
+              : settings.showHeaderText,
+            showHeaderImage: apiSettings.hasOwnProperty('showHeaderImage') 
+              ? Boolean(apiSettings.showHeaderImage) 
+              : settings.showHeaderImage,
+            showLogo: apiSettings.hasOwnProperty('showLogo') 
+              ? Boolean(apiSettings.showLogo) 
+              : settings.showLogo
           };
         }
       } catch (settingsError) {
@@ -96,8 +110,8 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Handle logo if enabled
-    if (settings.showLogo) {
+    // Handle logo if explicitly enabled
+    if (settings.showLogo === true) {
       // E3 Logo on left side
       let e3Logo: string = '/uploads/logos/e3-logo.png'; // Default logo path
       
@@ -126,8 +140,8 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Add header text if enabled
-    if (settings.showHeaderText) {
+    // Add header text if explicitly enabled
+    if (settings.showHeaderText === true) {
       // Add company header with appropriate branding colors
       doc.setFontSize(14);
       doc.setTextColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
@@ -140,7 +154,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       doc.text("PURCHASE REQUEST", pageWidth/2, 29, { align: 'center' });
     }
     
-    // Add the colored gradient bar (matching E3 brand)
+    // Always add the colored gradient bar (matching E3 brand)
     // Create a gradient bar effect manually since PDF doesn't support CSS gradients
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]); // Primary color
     doc.rect(margin, 33, pageWidth / 2 - margin, 3, 'F');
@@ -152,8 +166,8 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     doc.setDrawColor(240, 240, 240);
     doc.line(margin, 38, pageWidth - margin, 38);
     
-    // Add header image if enabled and available
-    if (settings.showHeaderImage && settings.headerImage) {
+    // Add header image if explicitly enabled and available
+    if (settings.showHeaderImage === true && settings.headerImage) {
       try {
         const headerImg = new Image();
         headerImg.src = settings.headerImage;
@@ -288,10 +302,19 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         footerText: request.pdfSettings.footerText || settings.footerText,
         footerColor: request.pdfSettings.footerColor || settings.footerColor,
         footerImage: request.pdfSettings.footerImage,
-        showFooterText: request.pdfSettings.showFooterText !== false,
-        showFooterImage: request.pdfSettings.showFooterImage === true,
-        showContactInfo: request.pdfSettings.showContactInfo !== false,
-        pageNumbering: request.pdfSettings.pageNumbering !== false,
+        // Fix visibility issues by checking for explicit boolean values
+        showFooterText: request.pdfSettings.hasOwnProperty('showFooterText')
+          ? Boolean(request.pdfSettings.showFooterText)
+          : settings.showFooterText,
+        showFooterImage: request.pdfSettings.hasOwnProperty('showFooterImage')
+          ? Boolean(request.pdfSettings.showFooterImage)
+          : settings.showFooterImage,
+        showContactInfo: request.pdfSettings.hasOwnProperty('showContactInfo')
+          ? Boolean(request.pdfSettings.showContactInfo)
+          : settings.showContactInfo,
+        pageNumbering: request.pdfSettings.hasOwnProperty('pageNumbering')
+          ? Boolean(request.pdfSettings.pageNumbering)
+          : settings.pageNumbering,
         contactInfo: { 
           ...settings.contactInfo, 
           ...(request.pdfSettings.contactInfo || {}) 
@@ -308,10 +331,19 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
             footerText: apiSettings.footerText || settings.footerText,
             footerColor: apiSettings.footerColor || settings.footerColor,
             footerImage: apiSettings.footerImage,
-            showFooterText: apiSettings.showFooterText !== false,
-            showFooterImage: apiSettings.showFooterImage === true,
-            showContactInfo: apiSettings.showContactInfo !== false,
-            pageNumbering: apiSettings.pageNumbering !== false,
+            // Fix visibility issues by checking for explicit boolean values
+            showFooterText: apiSettings.hasOwnProperty('showFooterText')
+              ? Boolean(apiSettings.showFooterText)
+              : settings.showFooterText,
+            showFooterImage: apiSettings.hasOwnProperty('showFooterImage')
+              ? Boolean(apiSettings.showFooterImage)
+              : settings.showFooterImage,
+            showContactInfo: apiSettings.hasOwnProperty('showContactInfo')
+              ? Boolean(apiSettings.showContactInfo)
+              : settings.showContactInfo,
+            pageNumbering: apiSettings.hasOwnProperty('pageNumbering')
+              ? Boolean(apiSettings.pageNumbering)
+              : settings.pageNumbering,
             contactInfo: { 
               ...settings.contactInfo, 
               ...(apiSettings.contactInfo || {}) 
@@ -348,8 +380,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
     doc.rect(margin + 2*pageWidth/3, pageHeight - footerHeight + 2, pageWidth/3 - margin, 3, 'F');
     
-    // Add footer image if enabled and available
-    if (settings.showFooterImage && settings.footerImage) {
+    // Add footer image if explicitly enabled and available
+    if (settings.showFooterImage === true && settings.footerImage) {
       try {
         const footerImg = new Image();
         footerImg.src = settings.footerImage;
@@ -391,10 +423,9 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     doc.setFontSize(7);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     
-    // Add icons and contact info - only if showContactInfo is enabled 
-    // Type assertion to avoid TypeScript errors
-    const showContactInfo = 'showContactInfo' in settings ? settings.showContactInfo : true;
-    if (showContactInfo !== false && contactInfo) {
+    // Add icons and contact info - only if showContactInfo is explicitly enabled
+    // Strict boolean check to fix visibility issues
+    if (settings.showContactInfo === true && contactInfo) {
       // Left side - Phone and email
       if (contactInfo.phone) {
         doc.text(`☎ ${contactInfo.phone}`, margin, pageHeight - footerHeight + 10);
@@ -414,15 +445,15 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     }
     
-    // Add footer text if enabled
-    if (settings.showFooterText) {
+    // Add footer text if explicitly enabled
+    if (settings.showFooterText === true) {
       doc.setFontSize(8);
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       doc.text(settings.footerText, margin, pageHeight - 5);
     }
     
-    // Add page numbers if enabled
-    if (settings.pageNumbering) {
+    // Add page numbers if explicitly enabled
+    if (settings.pageNumbering === true) {
       doc.setFontSize(8);
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
@@ -598,7 +629,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     const boldStyle = { fontStyle: 'bold' as 'bold', cellWidth: 25 };
     
     // Basic Information Section
-    if (templateConfig.showBasicInfo !== false) {
+    if (templateConfig.showBasicInfo === true) {
       yPos = addSection(doc, "Basic Information", yPos);
       
       const basicInfo = [
@@ -644,7 +675,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Requester Details Section
-    if (templateConfig.showRequesterDetails !== false) {
+    if (templateConfig.showRequesterDetails === true) {
       yPos = addSection(doc, "Requester Details", yPos);
       
       const requesterInfo = [
@@ -674,7 +705,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Date of Request Section
-    if (templateConfig.showDateOfRequest !== false) {
+    if (templateConfig.showDateOfRequest === true) {
       let createdDate = 'N/A';
       let updatedDate = 'N/A';
       
@@ -708,7 +739,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
 
     // Purpose Information Section
-    if (templateConfig.showPurposeInfo !== false) {
+    if (templateConfig.showPurposeInfo === true) {
       yPos = addSection(doc, "Purpose Information", yPos);
       
       const purposeType = request.purposeType || 'N/A';
