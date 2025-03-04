@@ -51,10 +51,10 @@ export default function PDFConfiguration() {
   // References to manage UI elements programmatically - removed to avoid type errors
   // const leftPanelRef = useRef<HTMLDivElement>(null);
   
-  // Force a re-render when panel collapse state changes to ensure proper UI updates
+  // Force a re-render when panel collapse state changes
   useEffect(() => {
     setForceUpdateKey(prev => prev + 1);
-    // No need to manually manage the panel state - it's handled by the component
+    // Panel state is managed by the ResizablePanel component's built-in functionality
   }, [isPanelCollapsed]);
   
   // Fetch current settings
@@ -173,7 +173,6 @@ export default function PDFConfiguration() {
           maxSize={70}
           collapsible={true}
           collapsedSize={0}
-          // Panel state management
           onCollapse={() => setIsPanelCollapsed(true)}
           onExpand={() => setIsPanelCollapsed(false)}
           className="p-0"
@@ -272,7 +271,6 @@ export default function PDFConfiguration() {
                             <SelectItem value="striped">Striped</SelectItem>
                             <SelectItem value="grid">Grid</SelectItem>
                             <SelectItem value="plain">Plain</SelectItem>
-                            <SelectItem value="minimal">Minimal</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
