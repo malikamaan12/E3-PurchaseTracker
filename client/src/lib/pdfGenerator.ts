@@ -304,10 +304,16 @@ interface TemplateConfig {
   format: 'a4' | 'letter' | 'legal';
   margins: { top: number; right: number; bottom: number; left: number };
   tableStyle: TableStyle;
-  showAttachments: boolean;
-  showApprovals: boolean;
+  showBasicInfo: boolean;
+  showRequesterDetails: boolean;
+  showDateOfRequest: boolean;
+  showPurposeInfo: boolean;
   showVendorDetails: boolean;
+  showItems: boolean;
+  showApprovals: boolean;
+  showAttachments: boolean;
   showAuditInfo: boolean;
+  showSignatures: boolean;
   fontFamily: string;
 }
 
@@ -319,10 +325,16 @@ function getTemplateConfig(templateId: string = 'standard'): TemplateConfig {
     format: 'a4',
     margins: { top: 15, right: 15, bottom: 15, left: 15 },
     tableStyle: 'striped' as 'striped' | 'grid' | 'plain', // Cast to fix LSP errors
-    showAttachments: true,
-    showApprovals: true,
+    showBasicInfo: true,
+    showRequesterDetails: true,
+    showDateOfRequest: true,
+    showPurposeInfo: true,
     showVendorDetails: true,
+    showItems: true,
+    showApprovals: true,
+    showAttachments: true,
     showAuditInfo: true,
+    showSignatures: true,
     fontFamily: 'helvetica'
   };
   
@@ -373,191 +385,263 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     
     let yPos = await addHeader(doc, request);
 
-    // Basic Information Section
-    yPos = addSection(doc, "Basic Information", yPos);
-
     // Type casting for jspdf-autotable styles to avoid TypeScript errors
     const boldStyle = { fontStyle: 'bold' as 'bold', cellWidth: 25 };
     
-    const basicInfo = [
-      [
-        { content: 'Title:', styles: boldStyle },
-        { content: request.title || 'N/A', colSpan: 3 }
-      ],
-      [
-        { content: 'Status:', styles: boldStyle },
-        { content: request.status?.toUpperCase() || 'N/A', cellWidth: 35 },
-        { content: 'Priority:', styles: boldStyle },
-        { content: request.priority?.toUpperCase() || 'N/A' }
-      ],
-    ];
+    // Basic Information Section
+    if (templateConfig.showBasicInfo !== false) {
+      yPos = addSection(doc, "Basic Information", yPos);
+      
+      const basicInfo = [
+        [
+          { content: 'Title:', styles: boldStyle },
+          { content: request.title || 'N/A', colSpan: 3 }
+        ],
+        [
+          { content: 'Status:', styles: boldStyle },
+          { content: request.status?.toUpperCase() || 'N/A', cellWidth: 35 },
+          { content: 'Priority:', styles: boldStyle },
+          { content: request.priority?.toUpperCase() || 'N/A' }
+        ],
+      ];
 
-    autoTable(doc, {
-      startY: yPos,
-      body: basicInfo,
-      theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-      margin: { left: margin, right: margin }
-    });
+      autoTable(doc, {
+        startY: yPos,
+        body: basicInfo,
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        margin: { left: margin, right: margin }
+      });
 
-    yPos = (doc as any).lastAutoTable.finalY + 2;
+      yPos = (doc as any).lastAutoTable.finalY + 2;
 
-    // Description Section (separate to allow more space)
-    const description = [
-      [
-        { content: 'Description:', styles: boldStyle },
-        { content: request.description || 'N/A' }
-      ]
-    ];
+      // Description Section (separate to allow more space)
+      const description = [
+        [
+          { content: 'Description:', styles: boldStyle },
+          { content: request.description || 'N/A' }
+        ]
+      ];
 
-    autoTable(doc, {
-      startY: yPos,
-      body: description,
-      theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', minCellHeight: 10 },
-      margin: { left: margin, right: margin }
-    });
+      autoTable(doc, {
+        startY: yPos,
+        body: description,
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', minCellHeight: 10 },
+        margin: { left: margin, right: margin }
+      });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
-
-    // Purpose Information Section
-    yPos = addSection(doc, "Purpose Information", yPos);
-    const purposeInfo = [
-      [
-        { content: 'Purpose Type:', styles: boldStyle },
-        { content: request.purposeType || 'N/A', cellWidth: 35 },
-        { content: 'Sub-purpose:', styles: boldStyle },
-        { content: request.subPurpose?.name || 'N/A' }
-      ]
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      body: purposeInfo,
-      theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-      margin: { left: margin, right: margin }
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY + 5;
-
-    // Vendor Information Section
-    yPos = addSection(doc, "Vendor Information", yPos);
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+    }
     
-    // Safely extract vendor information - handle field name differences in data structure
-    const vendor = request.vendor || {};
-    const vendorName = vendor.name || vendor.companyName || 'N/A';
-    const contactPerson = vendor.contactPerson || 'N/A';
-    const vendorEmail = vendor.email || 'N/A';
-    const vendorPhone = vendor.phone || vendor.contactNumber || 'N/A';
+    // Requester Details Section
+    if (templateConfig.showRequesterDetails !== false) {
+      yPos = addSection(doc, "Requester Details", yPos);
+      
+      const requesterInfo = [
+        [
+          { content: 'Name:', styles: boldStyle },
+          { content: request.requester?.username || 'N/A', cellWidth: 35 },
+          { content: 'Department:', styles: boldStyle },
+          { content: request.requester?.department || 'N/A' }
+        ],
+        [
+          { content: 'Email:', styles: boldStyle },
+          { content: request.requester?.email || 'N/A', cellWidth: 35 },
+          { content: 'Contact:', styles: boldStyle },
+          { content: request.requester?.contactNumber || 'N/A' }
+        ]
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        body: requesterInfo,
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        margin: { left: margin, right: margin }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+    }
     
-    const vendorInfo = [
-      [
-        { content: 'Vendor Name:', styles: boldStyle },
-        { content: vendorName, cellWidth: 35 },
-        { content: 'Contact Person:', styles: boldStyle },
-        { content: contactPerson }
-      ],
-      [
-        { content: 'Email:', styles: boldStyle },
-        { content: vendorEmail, cellWidth: 35 },
-        { content: 'Phone:', styles: boldStyle },
-        { content: vendorPhone }
-      ]
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      body: vendorInfo,
-      theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-      margin: { left: margin, right: margin }
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY + 5;
-
-    // Items Section
-    yPos = addSection(doc, "Items", yPos);
-    
-    // Safely parse items with error handling
-    let items = [];
-    try {
-      if (Array.isArray(request.items)) {
-        items = request.items;
-      } else if (typeof request.items === 'string') {
-        items = JSON.parse(request.items || '[]');
-      } else if (request.items) {
-        // If it's an object but not an array, wrap it
-        items = [request.items];
+    // Date of Request Section
+    if (templateConfig.showDateOfRequest !== false) {
+      let createdDate = 'N/A';
+      let updatedDate = 'N/A';
+      
+      try {
+        createdDate = request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A';
+        updatedDate = request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : 'N/A';
+      } catch (error) {
+        console.error('Error formatting dates:', error);
+        createdDate = 'Date error';
+        updatedDate = 'Date error';
       }
-    } catch (error) {
-      console.error('Error parsing items:', error);
-      items = []; // Fallback to empty array on error
+      
+      yPos = addSection(doc, "Date Information", yPos);
+      
+      autoTable(doc, {
+        startY: yPos,
+        body: [
+          [
+            { content: 'Created On:', styles: boldStyle },
+            createdDate,
+            { content: 'Last Updated:', styles: boldStyle },
+            updatedDate
+          ]
+        ],
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        margin: { left: margin, right: margin }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 5;
     }
 
-    // Calculate totals with default values
-    const itemsTotal = items.reduce((sum: number, item: any) => 
-      sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)), 0
-    );
-    const freightAmount = Number(request.freightAmount || 0);
-    const totalCost = itemsTotal + freightAmount;
+    // Purpose Information Section
+    if (templateConfig.showPurposeInfo !== false) {
+      yPos = addSection(doc, "Purpose Information", yPos);
+      
+      const purposeType = request.purposeType || 'N/A';
+      const subPurpose = request.subPurpose?.name || 'N/A';
+      
+      autoTable(doc, {
+        startY: yPos,
+        body: [
+          [
+            { content: 'Purpose Type:', styles: boldStyle },
+            purposeType,
+            { content: 'Sub-purpose:', styles: boldStyle },
+            subPurpose
+          ]
+        ],
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        margin: { left: margin, right: margin }
+      });
 
-    const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: request.currency || 'QAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+    }
 
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
-      body: items.map((item: any) => [
-        item.name || 'N/A',
-        item.description || 'N/A',
-        item.quantity?.toString() || '0',
-        formatCurrency(item.estimatedCost || 0),
-        formatCurrency((item.quantity || 0) * (item.estimatedCost || 0))
-      ]),
-      foot: [
-        ['', '', '', 'Items Total:', formatCurrency(itemsTotal)],
-        ['', '', '', 'Freight:', formatCurrency(freightAmount)],
-        ['', '', '', 'Total Cost:', formatCurrency(totalCost)]
-      ],
-      theme: templateConfig.tableStyle,
-      headStyles: {
-        fillColor: [247, 248, 250],
-        textColor: [26, 54, 93],
-        fontSize: 9,
-        fontStyle: 'bold',
-        cellPadding: 2
-      },
-      footStyles: {
-        fillColor: [247, 248, 250],
-        textColor: [26, 54, 93],
-        fontSize: 9,
-        fontStyle: 'bold',
-        cellPadding: 2
-      },
-      bodyStyles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak'
-      },
-      columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 15 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 }
-      },
-      margin: { left: margin, right: margin }
-    });
+    // Vendor Information Section
+    if (templateConfig.showVendorDetails !== false) {
+      yPos = addSection(doc, "Vendor Information", yPos);
+      
+      // Safely extract vendor information - handle field name differences in data structure
+      const vendor = request.vendor || {};
+      const vendorName = vendor.name || vendor.companyName || 'N/A';
+      const contactPerson = vendor.contactPerson || 'N/A';
+      const vendorEmail = vendor.email || 'N/A';
+      const vendorPhone = vendor.phone || vendor.contactNumber || 'N/A';
+      
+      autoTable(doc, {
+        startY: yPos,
+        body: [
+          [
+            { content: 'Vendor Name:', styles: boldStyle },
+            vendorName,
+            { content: 'Contact Person:', styles: boldStyle },
+            contactPerson
+          ],
+          [
+            { content: 'Email:', styles: boldStyle },
+            vendorEmail,
+            { content: 'Phone:', styles: boldStyle },
+            vendorPhone
+          ]
+        ],
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        margin: { left: margin, right: margin }
+      });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+    }
+
+    // Items Section
+    if (templateConfig.showItems !== false) {
+      yPos = addSection(doc, "Items", yPos);
+      
+      // Safely parse items with error handling
+      let items = [];
+      try {
+        if (Array.isArray(request.items)) {
+          items = request.items;
+        } else if (typeof request.items === 'string') {
+          items = JSON.parse(request.items || '[]');
+        } else if (request.items) {
+          // If it's an object but not an array, wrap it
+          items = [request.items];
+        }
+      } catch (error) {
+        console.error('Error parsing items:', error);
+        items = []; // Fallback to empty array on error
+      }
+
+      // Calculate totals with default values
+      const itemsTotal = items.reduce((sum: number, item: any) => 
+        sum + (Number(item?.quantity || 0) * Number(item?.estimatedCost || 0)), 0
+      );
+      const freightAmount = Number(request.freightAmount || 0);
+      const totalCost = itemsTotal + freightAmount;
+
+      const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: request.currency || 'QAR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
+        body: items.map((item: any) => [
+          item.name || 'N/A',
+          item.description || 'N/A',
+          item.quantity?.toString() || '0',
+          formatCurrency(item.estimatedCost || 0),
+          formatCurrency((item.quantity || 0) * (item.estimatedCost || 0))
+        ]),
+        foot: [
+          ['', '', '', 'Items Total:', formatCurrency(itemsTotal)],
+          ['', '', '', 'Freight:', formatCurrency(freightAmount)],
+          ['', '', '', 'Total Cost:', formatCurrency(totalCost)]
+        ],
+        theme: templateConfig.tableStyle,
+        headStyles: {
+          fillColor: [247, 248, 250],
+          textColor: [26, 54, 93],
+          fontSize: 9,
+          fontStyle: 'bold',
+          cellPadding: 2
+        },
+        footStyles: {
+          fillColor: [247, 248, 250],
+          textColor: [26, 54, 93],
+          fontSize: 9,
+          fontStyle: 'bold',
+          cellPadding: 2
+        },
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 15 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 25 }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 5;
+    }
 
     // Attached Documents Section if available
-    if (request.attachments?.length > 0) {
+    if (templateConfig.showAttachments !== false && request.attachments?.length > 0) {
       yPos = addSection(doc, "Attached Documents", yPos);
       const attachments = request.attachments.map((file: any) => [
         file.fileName || file.name || 'N/A',
@@ -589,6 +673,8 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         },
         margin: { left: margin, right: margin }
       });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 5;
     }
     
     // Add approver-specific information if this is an approver or admin report
