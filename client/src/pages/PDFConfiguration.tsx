@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { PDFPreview } from '@/components/PDFPreview';
 import DraggableBrandingForm from '@/components/DraggableBrandingForm';
@@ -821,7 +822,7 @@ export default function PDFConfiguration() {
                             <Textarea 
                               id="contactAddress"
                               value={formData.contactInfo?.address || ''} 
-                              onChange={e => handleContactInfoChange('address', e.target.value)}
+                              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleContactInfoChange('address', e.target.value)}
                               placeholder="Company address"
                               rows={2}
                             />
