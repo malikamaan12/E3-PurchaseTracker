@@ -120,7 +120,7 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     }
   }, [sampleRequest, pdfSettings, pdfUrl, toast]);
   
-  // Generate preview on initial load
+  // Generate preview on initial load or when settings change
   useEffect(() => {
     generatePreviewPDF();
     
@@ -130,7 +130,7 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
         URL.revokeObjectURL(pdfUrl);
       }
     };
-  }, []);
+  }, [pdfSettings, generatePreviewPDF]);
   
   // Handle zoom in and out
   const handleZoomIn = () => {
