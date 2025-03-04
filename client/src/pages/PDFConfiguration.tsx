@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { PDFPreview } from '@/components/PDFPreview';
+import DraggableBrandingForm from '@/components/DraggableBrandingForm';
 import { 
   Settings, 
   Palette, 
@@ -23,7 +25,6 @@ import {
   MoveIcon,
   GripVertical
 } from 'lucide-react';
-import DraggableBrandingForm from '@/components/DraggableBrandingForm';
 import {
   Select,
   SelectContent,
