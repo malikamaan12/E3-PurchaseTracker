@@ -104,10 +104,8 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
       
       setPdfUrl(url);
       
-      toast({
-        title: "Preview Updated",
-        description: "PDF preview has been refreshed with current settings.",
-      });
+      // Silent refresh - no toast notification to avoid spam
+      // Only show toast when manually refreshing
     } catch (error) {
       console.error("Error generating PDF preview:", error);
       toast({
@@ -120,9 +118,13 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     }
   }, [sampleRequest, pdfSettings, pdfUrl, toast]);
   
-  // Generate preview on initial load or when settings change
+  // Generate preview on initial load only
   useEffect(() => {
-    generatePreviewPDF();
+    const initialLoad = async () => {
+      await generatePreviewPDF();
+    };
+    
+    initialLoad();
     
     // Clean up on unmount
     return () => {
@@ -130,7 +132,8 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
         URL.revokeObjectURL(pdfUrl);
       }
     };
-  }, [pdfSettings, generatePreviewPDF]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Handle zoom in and out
   const handleZoomIn = () => {
@@ -165,10 +168,19 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     }
   };
   
-  // Handle refresh
+  // Handle refresh with notification
   const handleRefresh = () => {
-    generatePreviewPDF();
-    if (onRefresh) onRefresh();
+    // Generate the PDF first
+    generatePreviewPDF().then(() => {
+      // Show toast notification only on manual refresh
+      toast({
+        title: "Preview Updated",
+        description: "PDF preview has been refreshed with current settings.",
+      });
+      
+      // Call the onRefresh callback if provided
+      if (onRefresh) onRefresh();
+    });
   };
   
   return (
