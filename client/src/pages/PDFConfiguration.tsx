@@ -34,37 +34,56 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Define the types for our PDF Settings
 interface PDFSettings {
   // Header settings
-  headerTitle: string;
-  headerSubtitle: string;
-  headerColor: string;
-  logo: string | null;
+  headerTitle?: string;
+  headerSubtitle?: string;
+  headerColor?: string;
+  logo?: string | null;
+  headerImage?: string | null;
+  showHeaderText?: boolean;
+  showHeaderImage?: boolean;
+  showLogo?: boolean;
   
   // Footer settings
-  footerText: string;
-  footerColor: string;
-  pageNumbering: boolean;
+  footerText?: string;
+  footerColor?: string;
+  pageNumbering?: boolean;
+  footerImage?: string | null;
+  showFooterText?: boolean;
+  showFooterImage?: boolean;
   
   // Contact info
-  contactInfo: {
-    phone: string;
-    email: string;
-    website: string;
-    address: string;
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+    address?: string;
   };
   
   // Layout settings
-  templateMode: string;
-  orientation: 'portrait' | 'landscape';
-  pageSize: 'a4' | 'letter' | 'legal';
-  fontFamily: string;
-  tableStyle: 'striped' | 'grid' | 'plain';
+  templateMode?: string;
+  orientation?: 'portrait' | 'landscape';
+  pageSize?: 'a4' | 'letter' | 'legal';
+  fontFamily?: string;
+  tableStyle?: 'striped' | 'grid' | 'plain';
+  fontSize?: number;
+  
+  // Margin settings
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
   
   // Section display settings
-  showApprovals: boolean;
-  showAttachments: boolean;
-  showVendorDetails: boolean;
-  showAuditInfo: boolean;
-  showSignatures: boolean;
+  showBasicInfo?: boolean;
+  showRequesterDetails?: boolean;
+  showDateOfRequest?: boolean;
+  showPurposeInfo?: boolean;
+  showVendorDetails?: boolean;
+  showItems?: boolean;
+  showApprovals?: boolean;
+  showAttachments?: boolean;
+  showAuditInfo?: boolean;
+  showSignatures?: boolean;
 }
 
 export default function PDFConfiguration() {
@@ -257,7 +276,6 @@ export default function PDFConfiguration() {
                     <div>
                       <Label htmlFor="pageSize">Page Size</Label>
                       <Select 
-                        id="pageSize"
                         value={formData.pageSize || 'a4'} 
                         onValueChange={value => handleInputChange('pageSize', value)}
                       >
@@ -275,7 +293,6 @@ export default function PDFConfiguration() {
                     <div>
                       <Label htmlFor="orientation">Orientation</Label>
                       <Select 
-                        id="orientation"
                         value={formData.orientation || 'portrait'} 
                         onValueChange={value => handleInputChange('orientation', value as 'portrait' | 'landscape')}
                       >
@@ -292,7 +309,6 @@ export default function PDFConfiguration() {
                     <div>
                       <Label htmlFor="fontFamily">Font Family</Label>
                       <Select 
-                        id="fontFamily"
                         value={formData.fontFamily || 'helvetica'} 
                         onValueChange={value => handleInputChange('fontFamily', value)}
                       >
@@ -311,7 +327,6 @@ export default function PDFConfiguration() {
                     <div>
                       <Label htmlFor="tableStyle">Table Style</Label>
                       <Select 
-                        id="tableStyle"
                         value={formData.tableStyle || 'striped'} 
                         onValueChange={value => handleInputChange('tableStyle', value as 'striped' | 'grid' | 'plain')}
                       >
@@ -334,60 +349,197 @@ export default function PDFConfiguration() {
                     <h3 className="font-medium text-lg">Header Branding</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="headerTitle">Header Title</Label>
-                        <Input 
-                          id="headerTitle"
-                          value={formData.headerTitle || 'EVENTS & ENTERTAINMENT'} 
-                          onChange={e => handleInputChange('headerTitle', e.target.value)}
-                          placeholder="Main header text"
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showHeaderText" 
+                          checked={formData.showHeaderText !== false}
+                          onCheckedChange={value => handleInputChange('showHeaderText', value)}
                         />
+                        <Label htmlFor="showHeaderText">Show Header Text</Label>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="headerSubtitle">Header Subtitle</Label>
-                        <Input 
-                          id="headerSubtitle"
-                          value={formData.headerSubtitle || 'ENTERPRISES'} 
-                          onChange={e => handleInputChange('headerSubtitle', e.target.value)}
-                          placeholder="Subtitle text"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="headerColor">Header Color</Label>
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            id="headerColor"
-                            type="color"
-                            value={formData.headerColor || '#6F2AE6'} 
-                            onChange={e => handleInputChange('headerColor', e.target.value)}
-                            className="w-20 h-10 p-1"
-                          />
-                          <Input 
-                            value={formData.headerColor || '#6F2AE6'} 
-                            onChange={e => handleInputChange('headerColor', e.target.value)}
-                            className="flex-1"
-                            maxLength={7}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="logoUpload">Logo</Label>
-                        <div className="mt-1">
-                          <div className="flex items-center">
-                            <Button variant="outline" type="button" className="w-full">
-                              Upload Logo
-                            </Button>
+                      {formData.showHeaderText !== false && (
+                        <>
+                          <div>
+                            <Label htmlFor="headerTitle">Header Title</Label>
+                            <Input 
+                              id="headerTitle"
+                              value={formData.headerTitle || 'EVENTS & ENTERTAINMENT'} 
+                              onChange={e => handleInputChange('headerTitle', e.target.value)}
+                              placeholder="Main header text"
+                            />
                           </div>
-                          {formData.logo && (
-                            <div className="mt-2">
-                              <p className="text-sm text-muted-foreground">Logo uploaded</p>
+                          
+                          <div>
+                            <Label htmlFor="headerSubtitle">Header Subtitle</Label>
+                            <Input 
+                              id="headerSubtitle"
+                              value={formData.headerSubtitle || 'ENTERPRISES'} 
+                              onChange={e => handleInputChange('headerSubtitle', e.target.value)}
+                              placeholder="Subtitle text"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="headerColor">Header Color</Label>
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                id="headerColor"
+                                type="color"
+                                value={formData.headerColor || '#6F2AE6'} 
+                                onChange={e => handleInputChange('headerColor', e.target.value)}
+                                className="w-20 h-10 p-1"
+                              />
+                              <Input 
+                                value={formData.headerColor || '#6F2AE6'} 
+                                onChange={e => handleInputChange('headerColor', e.target.value)}
+                                className="flex-1"
+                                maxLength={7}
+                              />
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        </>
+                      )}
+                      
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showHeaderImage" 
+                          checked={formData.showHeaderImage !== false}
+                          onCheckedChange={value => handleInputChange('showHeaderImage', value)}
+                        />
+                        <Label htmlFor="showHeaderImage">Show Header Image</Label>
                       </div>
+                      
+                      {formData.showHeaderImage !== false && (
+                        <div className="md:col-span-2">
+                          <Label htmlFor="headerImageUpload">Header Image</Label>
+                          <div className="mt-1">
+                            <div className="flex items-center gap-2">
+                              <form
+                                method="post"
+                                action="/api/pdf/upload-images"
+                                encType="multipart/form-data"
+                                target="upload-target"
+                                className="w-full"
+                              >
+                                <input type="hidden" name="type" value="headerImage" />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="file"
+                                    name="image"
+                                    id="headerImageUpload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files.length > 0) {
+                                        e.target.form?.requestSubmit();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    className="flex-1"
+                                    onClick={() => document.getElementById('headerImageUpload')?.click()}
+                                  >
+                                    Upload Header Image
+                                  </Button>
+                                  {formData.headerImage && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      type="button"
+                                      onClick={() => handleInputChange('headerImage', null)}
+                                    >
+                                      Remove
+                                    </Button>
+                                  )}
+                                </div>
+                              </form>
+                            </div>
+                            {formData.headerImage && (
+                              <div className="mt-2 border rounded-md p-2">
+                                <p className="text-sm text-muted-foreground mb-1">Current Header Image:</p>
+                                <img
+                                  src={formData.headerImage}
+                                  alt="Header"
+                                  className="max-h-20 object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showLogo" 
+                          checked={formData.showLogo !== false}
+                          onCheckedChange={value => handleInputChange('showLogo', value)}
+                        />
+                        <Label htmlFor="showLogo">Show Logo</Label>
+                      </div>
+                      
+                      {formData.showLogo !== false && (
+                        <div className="md:col-span-2">
+                          <Label htmlFor="logoUpload">Logo</Label>
+                          <div className="mt-1">
+                            <div className="flex items-center gap-2">
+                              <form
+                                method="post"
+                                action="/api/pdf/upload-images"
+                                encType="multipart/form-data"
+                                target="upload-target"
+                                className="w-full"
+                              >
+                                <input type="hidden" name="type" value="logo" />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="file"
+                                    name="image"
+                                    id="logoUpload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files.length > 0) {
+                                        e.target.form?.requestSubmit();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    className="flex-1"
+                                    onClick={() => document.getElementById('logoUpload')?.click()}
+                                  >
+                                    Upload Logo
+                                  </Button>
+                                  {formData.logo && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      type="button"
+                                      onClick={() => handleInputChange('logo', null)}
+                                    >
+                                      Remove
+                                    </Button>
+                                  )}
+                                </div>
+                              </form>
+                            </div>
+                            {formData.logo && (
+                              <div className="mt-2 border rounded-md p-2">
+                                <p className="text-sm text-muted-foreground mb-1">Current Logo:</p>
+                                <img
+                                  src={formData.logo}
+                                  alt="Logo"
+                                  className="max-h-16 object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     <Separator className="my-4" />
@@ -395,34 +547,47 @@ export default function PDFConfiguration() {
                     <h3 className="font-medium text-lg">Footer Branding</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <Label htmlFor="footerText">Footer Text</Label>
-                        <Input 
-                          id="footerText"
-                          value={formData.footerText || 'ALL RIGHTS RESERVED BY E3'} 
-                          onChange={e => handleInputChange('footerText', e.target.value)}
-                          placeholder="Footer text"
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showFooterText" 
+                          checked={formData.showFooterText !== false}
+                          onCheckedChange={value => handleInputChange('showFooterText', value)}
                         />
+                        <Label htmlFor="showFooterText">Show Footer Text</Label>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="footerColor">Footer Color</Label>
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            id="footerColor"
-                            type="color"
-                            value={formData.footerColor || '#6F2AE6'} 
-                            onChange={e => handleInputChange('footerColor', e.target.value)}
-                            className="w-20 h-10 p-1"
-                          />
-                          <Input 
-                            value={formData.footerColor || '#6F2AE6'} 
-                            onChange={e => handleInputChange('footerColor', e.target.value)}
-                            className="flex-1"
-                            maxLength={7}
-                          />
-                        </div>
-                      </div>
+                      {formData.showFooterText !== false && (
+                        <>
+                          <div className="md:col-span-2">
+                            <Label htmlFor="footerText">Footer Text</Label>
+                            <Input 
+                              id="footerText"
+                              value={formData.footerText || 'ALL RIGHTS RESERVED BY E3'} 
+                              onChange={e => handleInputChange('footerText', e.target.value)}
+                              placeholder="Footer text"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="footerColor">Footer Color</Label>
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                id="footerColor"
+                                type="color"
+                                value={formData.footerColor || '#6F2AE6'} 
+                                onChange={e => handleInputChange('footerColor', e.target.value)}
+                                className="w-20 h-10 p-1"
+                              />
+                              <Input 
+                                value={formData.footerColor || '#6F2AE6'} 
+                                onChange={e => handleInputChange('footerColor', e.target.value)}
+                                className="flex-1"
+                                maxLength={7}
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
                       
                       <div className="flex items-center space-x-2">
                         <Switch 
@@ -432,6 +597,76 @@ export default function PDFConfiguration() {
                         />
                         <Label htmlFor="pageNumbering">Show Page Numbers</Label>
                       </div>
+                      
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showFooterImage" 
+                          checked={formData.showFooterImage !== false}
+                          onCheckedChange={value => handleInputChange('showFooterImage', value)}
+                        />
+                        <Label htmlFor="showFooterImage">Show Footer Image</Label>
+                      </div>
+                      
+                      {formData.showFooterImage !== false && (
+                        <div className="md:col-span-2">
+                          <Label htmlFor="footerImageUpload">Footer Image</Label>
+                          <div className="mt-1">
+                            <div className="flex items-center gap-2">
+                              <form
+                                method="post"
+                                action="/api/pdf/upload-images"
+                                encType="multipart/form-data"
+                                target="upload-target"
+                                className="w-full"
+                              >
+                                <input type="hidden" name="type" value="footerImage" />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="file"
+                                    name="image"
+                                    id="footerImageUpload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files.length > 0) {
+                                        e.target.form?.requestSubmit();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    className="flex-1"
+                                    onClick={() => document.getElementById('footerImageUpload')?.click()}
+                                  >
+                                    Upload Footer Image
+                                  </Button>
+                                  {formData.footerImage && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      type="button"
+                                      onClick={() => handleInputChange('footerImage', null)}
+                                    >
+                                      Remove
+                                    </Button>
+                                  )}
+                                </div>
+                              </form>
+                            </div>
+                            {formData.footerImage && (
+                              <div className="mt-2 border rounded-md p-2">
+                                <p className="text-sm text-muted-foreground mb-1">Current Footer Image:</p>
+                                <img
+                                  src={formData.footerImage}
+                                  alt="Footer"
+                                  className="max-h-12 object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     <Separator className="my-4" />
@@ -487,96 +722,193 @@ export default function PDFConfiguration() {
                 {/* Layout Tab */}
                 <TabsContent value="layout" className="space-y-4 mt-4">
                   <div className="space-y-4">
-                    <h3 className="font-medium text-lg">Layout Options</h3>
+                    <h3 className="font-medium text-lg">Document Layout Options</h3>
                     <p className="text-sm text-muted-foreground">
-                      These settings control spacing, margins, and the overall layout of your PDF documents.
+                      These settings control the paper size, orientation, and overall layout of your PDF documents.
                     </p>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="margins">Margin Preset</Label>
+                        <Label>Page Size</Label>
                         <Select 
-                          id="margins"
-                          value={'standard'} 
-                          onValueChange={() => {}}
+                          value={formData.pageSize || 'a4'} 
+                          onValueChange={(value) => handleInputChange('pageSize', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select margins" />
+                            <SelectValue placeholder="Select page size" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="narrow">Narrow</SelectItem>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="wide">Wide</SelectItem>
+                            <SelectItem value="a4">A4</SelectItem>
+                            <SelectItem value="letter">US Letter</SelectItem>
+                            <SelectItem value="legal">US Legal</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       
                       <div>
-                        <Label htmlFor="spacing">Content Spacing</Label>
+                        <Label>Page Orientation</Label>
                         <Select 
-                          id="spacing"
-                          value={'standard'} 
-                          onValueChange={() => {}}
+                          value={formData.orientation || 'portrait'} 
+                          onValueChange={(value) => handleInputChange('orientation', value as 'portrait' | 'landscape')}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select spacing" />
+                            <SelectValue placeholder="Select orientation" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="compact">Compact</SelectItem>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="relaxed">Relaxed</SelectItem>
+                            <SelectItem value="portrait">Portrait</SelectItem>
+                            <SelectItem value="landscape">Landscape</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      
+                      <div>
+                        <Label>Font Family</Label>
+                        <Select 
+                          value={formData.fontFamily || 'helvetica'} 
+                          onValueChange={(value) => handleInputChange('fontFamily', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select font family" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="helvetica">Helvetica</SelectItem>
+                            <SelectItem value="times">Times New Roman</SelectItem>
+                            <SelectItem value="courier">Courier</SelectItem>
+                            <SelectItem value="arial">Arial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label>Table Style</Label>
+                        <Select 
+                          value={formData.tableStyle || 'striped'} 
+                          onValueChange={(value) => handleInputChange('tableStyle', value as 'striped' | 'grid' | 'plain')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select table style" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="striped">Striped</SelectItem>
+                            <SelectItem value="grid">Grid</SelectItem>
+                            <SelectItem value="plain">Plain</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="fontSize">Base Font Size</Label>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            id="fontSize"
+                            type="number"
+                            min="8"
+                            max="14"
+                            value={formData.fontSize || 11}
+                            onChange={(e) => handleInputChange('fontSize', parseInt(e.target.value) || 11)}
+                            className="w-20"
+                          />
+                          <span className="text-sm text-muted-foreground">pt</span>
+                        </div>
+                      </div>
                     </div>
                     
+                    <Separator className="my-4" />
+                    
+                    <h3 className="font-medium text-lg">Margin Settings</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust the page margins to control the amount of whitespace around your content.
+                    </p>
+                    
                     <div className="bg-muted p-4 rounded-md">
-                      <h4 className="font-medium mb-2">Custom Margins (mm)</h4>
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <Label htmlFor="topMargin" className="text-xs">Top</Label>
+                          <Label htmlFor="marginTop" className="text-xs">Top Margin (mm)</Label>
                           <Input 
-                            id="topMargin"
+                            id="marginTop"
                             type="number"
-                            min="0"
+                            min="5"
                             max="50"
-                            defaultValue="15"
+                            value={formData.marginTop || 15}
+                            onChange={(e) => handleInputChange('marginTop', parseInt(e.target.value) || 15)}
                             className="h-8"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="rightMargin" className="text-xs">Right</Label>
+                          <Label htmlFor="marginRight" className="text-xs">Right Margin (mm)</Label>
                           <Input 
-                            id="rightMargin"
+                            id="marginRight"
                             type="number"
-                            min="0"
+                            min="5"
                             max="50"
-                            defaultValue="15"
+                            value={formData.marginRight || 15}
+                            onChange={(e) => handleInputChange('marginRight', parseInt(e.target.value) || 15)}
                             className="h-8"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="bottomMargin" className="text-xs">Bottom</Label>
+                          <Label htmlFor="marginBottom" className="text-xs">Bottom Margin (mm)</Label>
                           <Input 
-                            id="bottomMargin"
+                            id="marginBottom"
                             type="number"
-                            min="0"
+                            min="5"
                             max="50"
-                            defaultValue="15"
+                            value={formData.marginBottom || 15}
+                            onChange={(e) => handleInputChange('marginBottom', parseInt(e.target.value) || 15)}
                             className="h-8"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="leftMargin" className="text-xs">Left</Label>
+                          <Label htmlFor="marginLeft" className="text-xs">Left Margin (mm)</Label>
                           <Input 
-                            id="leftMargin"
+                            id="marginLeft"
                             type="number"
-                            min="0"
+                            min="5"
                             max="50"
-                            defaultValue="15"
+                            value={formData.marginLeft || 15}
+                            onChange={(e) => handleInputChange('marginLeft', parseInt(e.target.value) || 15)}
                             className="h-8"
                           />
                         </div>
+                      </div>
+                      
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            handleInputChange('marginTop', 10);
+                            handleInputChange('marginRight', 10);
+                            handleInputChange('marginBottom', 10);
+                            handleInputChange('marginLeft', 10);
+                          }}
+                        >
+                          Narrow (10mm)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            handleInputChange('marginTop', 15);
+                            handleInputChange('marginRight', 15);
+                            handleInputChange('marginBottom', 15);
+                            handleInputChange('marginLeft', 15);
+                          }}
+                        >
+                          Standard (15mm)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            handleInputChange('marginTop', 25);
+                            handleInputChange('marginRight', 25);
+                            handleInputChange('marginBottom', 25);
+                            handleInputChange('marginLeft', 25);
+                          }}
+                        >
+                          Wide (25mm)
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -593,11 +925,65 @@ export default function PDFConfiguration() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex items-center space-x-2">
                         <Switch 
+                          id="showBasicInfo" 
+                          checked={formData.showBasicInfo !== false}
+                          onCheckedChange={value => handleInputChange('showBasicInfo', value)}
+                        />
+                        <Label htmlFor="showBasicInfo">Basic Information</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="showRequesterDetails" 
+                          checked={formData.showRequesterDetails !== false}
+                          onCheckedChange={value => handleInputChange('showRequesterDetails', value)}
+                        />
+                        <Label htmlFor="showRequesterDetails">Requester Details</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="showDateOfRequest" 
+                          checked={formData.showDateOfRequest !== false}
+                          onCheckedChange={value => handleInputChange('showDateOfRequest', value)}
+                        />
+                        <Label htmlFor="showDateOfRequest">Date of Request</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="showPurposeInfo" 
+                          checked={formData.showPurposeInfo !== false}
+                          onCheckedChange={value => handleInputChange('showPurposeInfo', value)}
+                        />
+                        <Label htmlFor="showPurposeInfo">Purpose Information</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="showVendorDetails" 
+                          checked={formData.showVendorDetails !== false}
+                          onCheckedChange={value => handleInputChange('showVendorDetails', value)}
+                        />
+                        <Label htmlFor="showVendorDetails">Vendor Information</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="showItems" 
+                          checked={formData.showItems !== false}
+                          onCheckedChange={value => handleInputChange('showItems', value)}
+                        />
+                        <Label htmlFor="showItems">Items</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch 
                           id="showApprovals" 
                           checked={formData.showApprovals !== false}
                           onCheckedChange={value => handleInputChange('showApprovals', value)}
                         />
-                        <Label htmlFor="showApprovals">Approval History</Label>
+                        <Label htmlFor="showApprovals">Approval Information</Label>
                       </div>
                       
                       <div className="flex items-center space-x-2">
@@ -607,15 +993,6 @@ export default function PDFConfiguration() {
                           onCheckedChange={value => handleInputChange('showAttachments', value)}
                         />
                         <Label htmlFor="showAttachments">Attachments List</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="showVendorDetails" 
-                          checked={formData.showVendorDetails !== false}
-                          onCheckedChange={value => handleInputChange('showVendorDetails', value)}
-                        />
-                        <Label htmlFor="showVendorDetails">Vendor Details</Label>
                       </div>
                       
                       <div className="flex items-center space-x-2">
@@ -642,32 +1019,77 @@ export default function PDFConfiguration() {
                     <div className="space-y-2">
                       <h3 className="font-medium text-lg">Section Order</h3>
                       <p className="text-sm text-muted-foreground">
-                        Drag and drop to change the order of sections in your PDF documents. 
-                        (Coming soon)
+                        Here's the order in which sections will appear in your PDF documents.
                       </p>
                       
                       <div className="bg-muted p-4 rounded-md space-y-2">
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
-                          <span>Basic Information</span>
-                          <span className="text-muted-foreground text-sm">Required</span>
+                          <span className="font-medium">1. Basic Information</span>
+                          {formData.showBasicInfo === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
                         </div>
+                        
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
-                          <span>Items</span>
-                          <span className="text-muted-foreground text-sm">Required</span>
+                          <span className="font-medium">2. Requester Details</span>
+                          {formData.showRequesterDetails === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
                         </div>
+                        
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
-                          <span>Vendor Information</span>
-                          <span className="text-muted-foreground text-sm">Optional</span>
+                          <span className="font-medium">3. Purpose Information</span>
+                          {formData.showPurposeInfo === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
                         </div>
+                        
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
-                          <span>Approvals</span>
-                          <span className="text-muted-foreground text-sm">Optional</span>
+                          <span className="font-medium">4. Vendor Information</span>
+                          {formData.showVendorDetails === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
                         </div>
+                        
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
-                          <span>Attachments</span>
-                          <span className="text-muted-foreground text-sm">Optional</span>
+                          <span className="font-medium">5. Items</span>
+                          {formData.showItems === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
+                        </div>
+                        
+                        <div className="bg-background p-2 rounded border flex justify-between items-center">
+                          <span className="font-medium">6. Approval Information</span>
+                          {formData.showApprovals === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
+                        </div>
+                        
+                        <div className="bg-background p-2 rounded border flex justify-between items-center">
+                          <span className="font-medium">7. Attachments</span>
+                          {formData.showAttachments === false ? (
+                            <span className="text-red-500 text-xs font-medium">Hidden</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Visible</span>
+                          )}
                         </div>
                       </div>
+                      
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Note: Drag-and-drop reordering will be available in a future update.
+                      </p>
                     </div>
                   </div>
                 </TabsContent>
