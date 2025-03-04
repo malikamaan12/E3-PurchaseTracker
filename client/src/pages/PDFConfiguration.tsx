@@ -10,6 +10,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { PDFPreview } from '@/components/PDFPreview';
 import DraggableBrandingForm from '@/components/DraggableBrandingForm';
+
+// Define the PDFBrandingSettings interface matching the DraggableBrandingForm component
+interface PDFBrandingSettings {
+  headerImage: string | null;
+  footerImage: string | null;
+  logo: string | null;
+  headerTitle: string;
+  headerSubtitle: string;
+  headerColor: string;
+  footerText: string;
+  footerColor: string;
+  pageNumbering: boolean;
+  showHeaderText: boolean;
+  showHeaderImage: boolean;
+  showFooterText: boolean;
+  showFooterImage: boolean;
+  showLogo: boolean;
+  showContactInfo: boolean;
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+    address?: string;
+  };
+}
 import { 
   Settings, 
   Palette, 
