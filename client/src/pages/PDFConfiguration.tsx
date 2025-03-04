@@ -608,7 +608,7 @@ export default function PDFConfiguration() {
                         <Label htmlFor="showFooterImage">Show Footer Image</Label>
                       </div>
                       
-                      {formData.showFooterImage !== false && (
+                      {Boolean(formData.showFooterImage) && (
                         <div className="md:col-span-2">
                           <Label htmlFor="footerImageUpload">Footer Image</Label>
                           <div className="mt-1">
@@ -678,13 +678,13 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2 col-span-2">
                         <Switch 
                           id="showContactInfo" 
-                          checked={formData.showContactInfo !== false}
+                          checked={Boolean(formData.showContactInfo)}
                           onCheckedChange={value => handleInputChange('showContactInfo', value)}
                         />
                         <Label htmlFor="showContactInfo">Show Contact Information in Footer</Label>
                       </div>
                       
-                      {formData.showContactInfo !== false && (
+                      {Boolean(formData.showContactInfo) && (
                         <>
                           <div>
                             <Label htmlFor="contactPhone">Phone Number (Optional)</Label>
