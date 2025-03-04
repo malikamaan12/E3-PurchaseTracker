@@ -1094,6 +1094,73 @@ export default function PDFConfiguration() {
                   </Card>
                 </TabsContent>
                 
+                {/* Preview Tab */}
+                <TabsContent value="preview" className="space-y-4 mt-4">
+                  <div className="p-6 border rounded-lg bg-card">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium text-lg">PDF Preview</h3>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleZoomOut}
+                          className="flex items-center gap-1"
+                        >
+                          <ZoomOut className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm">{zoom}%</span>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleZoomIn}
+                          className="flex items-center gap-1"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleRefreshPreview}
+                          className="flex items-center gap-1 ml-2"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Refresh
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 overflow-auto border rounded-md">
+                      <div style={{ zoom: `${zoom}%` }}>
+                        <PDFPreview 
+                          pdfSettings={formData} 
+                          onRefresh={handleRefreshPreview} 
+                          isDesignMode={true} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end mt-4">
+                      <Button variant="outline" onClick={() => setActiveTab('visual-layout')} className="mr-2">
+                        <Layout className="h-4 w-4 mr-2" />
+                        Back to Editor
+                      </Button>
+                      <Button onClick={handleSaveSettings} disabled={isSaving}>
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Settings
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+                
                 {/* Sections Tab */}
                 <TabsContent value="sections" className="space-y-4 mt-4">
                   <div className="space-y-4">
