@@ -285,9 +285,9 @@ export default function DraggableBrandingForm({
 
   // Handle toggle switches
   const handleToggle = (value: boolean, field: keyof PDFBrandingSettings) => {
-    const updatedSettings = { ...settings };
+    const updatedSettings = { ...settings } as Record<keyof PDFBrandingSettings, any>;
     updatedSettings[field] = value;
-    onSettingsChange(updatedSettings);
+    onSettingsChange(updatedSettings as PDFBrandingSettings);
   };
 
   // Generate actual PDF settings from elements positions
@@ -498,21 +498,12 @@ export default function DraggableBrandingForm({
                           <img
                             src={settings.footerImage}
                             alt="Footer"
-                            className="max-h-12 w-full object-contain"
+                            className="max-h-20 w-full object-contain"
                           />
                         </div>
                       )}
                     </div>
                   )}
-                  
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="pageNumbering"
-                      checked={settings.pageNumbering}
-                      onCheckedChange={(value) => handleToggle(Boolean(value), 'pageNumbering')}
-                    />
-                    <Label htmlFor="pageNumbering">Show Page Numbers</Label>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -523,73 +514,45 @@ export default function DraggableBrandingForm({
         <TabsContent value="layout" className="space-y-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium">Visual PDF Layout Editor</h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={updatePDFSettingsFromLayout}>
-                    Save Layout
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                <span>Drag elements to position them. Use the resize handle to adjust size.</span>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Visual Layout Editor</h3>
+                <Button onClick={updatePDFSettingsFromLayout}>Save Layout</Button>
               </div>
               
               <div 
                 ref={canvasRef}
-                className="relative border border-dashed border-gray-300 rounded-md bg-white h-[842px] w-[595px] mx-auto overflow-hidden"
-                style={{ minHeight: '842px' }}
+                className="border rounded-md bg-white h-[842px] w-[595px] mx-auto relative overflow-hidden"
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
               >
-                {/* A4 page template (595 x 842 pixels) */}
-                <div className="absolute inset-0 flex flex-col">
-                  <div className="h-[40px] border-b border-dashed border-gray-200 bg-gray-50 opacity-50" />
-                  <div className="flex-grow" />
-                  <div className="h-[40px] border-t border-dashed border-gray-200 bg-gray-50 opacity-50" />
-                </div>
+                {/* Blank PDF page background */}
+                <img 
+                  src="/blank-pdf-page.svg" 
+                  alt="PDF Page" 
+                  className="w-full h-full object-cover absolute top-0 left-0 pointer-events-none"
+                />
                 
                 {/* Draggable elements */}
-                {visibleElements.map((element) => (
-                  <div
+                {visibleElements.map(element => (
+                  <div 
                     key={element.id}
-                    className="absolute cursor-move border border-transparent hover:border-blue-400 rounded"
-                    style={{
+                    className="absolute border border-blue-500 bg-white/80 cursor-move shadow-sm"
+                    style={{ 
+                      top: `${element.y}px`, 
                       left: `${element.x}px`,
-                      top: `${element.y}px`,
                       width: `${element.width}px`,
                       height: `${element.height}px`,
-                      zIndex: draggedElementId === element.id || resizingElementId === element.id ? 10 : 1
                     }}
                     onMouseDown={(e) => handleMouseDown(e, element.id)}
                   >
-                    {/* Element content based on type */}
+                    {/* Content based on element type */}
                     {element.type === 'logo' && element.src && (
                       <img 
                         src={element.src} 
                         alt="Logo" 
                         className="w-full h-full object-contain"
                       />
-                    )}
-                    
-                    {element.type === 'headerText' && (
-                      <div 
-                        style={{ 
-                          color: element.color, 
-                          fontSize: `${element.fontSize}px`,
-                          fontWeight: 'bold',
-                          whiteSpace: 'pre-wrap'
-                        }}
-                      >
-                        {element.content}
-                        <br />
-                        <span style={{ fontSize: `${(element.fontSize || 0) * 0.8}px` }}>
-                          {settings.headerSubtitle}
-                        </span>
-                      </div>
                     )}
                     
                     {element.type === 'headerImage' && element.src && (
@@ -600,19 +563,6 @@ export default function DraggableBrandingForm({
                       />
                     )}
                     
-                    {element.type === 'footerText' && (
-                      <div 
-                        style={{ 
-                          color: element.color, 
-                          fontSize: `${element.fontSize}px`,
-                          textAlign: 'center',
-                          width: '100%'
-                        }}
-                      >
-                        {element.content}
-                      </div>
-                    )}
-                    
                     {element.type === 'footerImage' && element.src && (
                       <img 
                         src={element.src} 
@@ -620,6 +570,31 @@ export default function DraggableBrandingForm({
                         className="w-full h-full object-cover"
                       />
                     )}
+                    
+                    {element.type === 'headerText' && (
+                      <div 
+                        className="w-full h-full p-2 flex flex-col justify-center"
+                        style={{ color: element.color }}
+                      >
+                        <div className="font-bold text-lg">{settings.headerTitle}</div>
+                        <div className="text-sm">{settings.headerSubtitle}</div>
+                      </div>
+                    )}
+                    
+                    {element.type === 'footerText' && (
+                      <div 
+                        className="w-full h-full p-2 flex items-center justify-center"
+                        style={{ color: element.color }}
+                      >
+                        <div className="text-sm">{settings.footerText}</div>
+                      </div>
+                    )}
+                    
+                    {/* Drag handle */}
+                    <div className="absolute top-0 left-0 bg-blue-500 text-white p-1 text-[10px] flex items-center">
+                      <Move className="h-3 w-3 mr-1" />
+                      {element.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </div>
                     
                     {/* Resize handle */}
                     <div 

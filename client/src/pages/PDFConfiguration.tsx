@@ -236,7 +236,7 @@ export default function PDFConfiguration() {
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="appearance">
                     <Settings className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Appearance</span>
@@ -244,6 +244,10 @@ export default function PDFConfiguration() {
                   <TabsTrigger value="branding">
                     <Palette className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Branding</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="branding-editor">
+                    <GripVertical className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Visual Editor</span>
                   </TabsTrigger>
                   <TabsTrigger value="layout">
                     <Layout className="h-4 w-4 mr-2" />
@@ -350,8 +354,19 @@ export default function PDFConfiguration() {
                 {/* Branding Tab */}
                 <TabsContent value="branding" className="space-y-4 mt-4">
                   <div className="space-y-4">
-                    <h3 className="font-medium text-lg">Header Branding</h3>
-                    
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-lg">Header Branding</h3>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center gap-1"
+                        onClick={() => setActiveTab('branding-editor')}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                        Visual Editor
+                      </Button>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex items-center space-x-2 col-span-2">
                         <Switch 

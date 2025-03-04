@@ -1,20 +1,19 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg width="595" height="100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Gradient background with E3 brand colors -->
-  <defs>
-    <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#6F2AE6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0AD5C1;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  
-  <!-- Background rectangle -->
-  <rect width="595" height="100" fill="url(#headerGradient)" />
-  
-  <!-- Decorative elements -->
-  <circle cx="50" cy="50" r="30" fill="white" fill-opacity="0.1" />
-  <circle cx="545" cy="50" r="30" fill="white" fill-opacity="0.1" />
-  
-  <!-- Optional text placeholder -->
-  <text x="297.5" y="60" font-family="Arial" font-size="12" fill="white" text-anchor="middle">Header Image Placeholder</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="595px" height="100px" viewBox="0 0 595 100" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>E3 Header Placeholder</title>
+    <defs>
+        <linearGradient x1="0%" y1="50%" x2="100%" y2="50%" id="headerGradient">
+            <stop stop-color="#6F2AE6" offset="0%"></stop>
+            <stop stop-color="#15CDD8" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Header" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect fill="url(#headerGradient)" x="0" y="0" width="595" height="100"></rect>
+        <text font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle" x="297.5" y="55">
+            EVENTS & ENTERTAINMENT ENTERPRISES
+        </text>
+        <text font-family="Arial, sans-serif" font-size="10" fill="#FFFFFF" text-anchor="middle" x="297.5" y="75">
+            HEADER PLACEHOLDER - DRAG TO REPOSITION
+        </text>
+    </g>
 </svg>
