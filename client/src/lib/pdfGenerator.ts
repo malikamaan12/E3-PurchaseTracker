@@ -258,6 +258,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       footerImage?: string | null;
       showFooterText: boolean;
       showFooterImage: boolean;
+      showContactInfo?: boolean;
       contactInfo: {
         phone?: string;
         email?: string;
@@ -289,6 +290,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         footerImage: request.pdfSettings.footerImage,
         showFooterText: request.pdfSettings.showFooterText !== false,
         showFooterImage: request.pdfSettings.showFooterImage === true,
+        showContactInfo: request.pdfSettings.showContactInfo !== false,
         pageNumbering: request.pdfSettings.pageNumbering !== false,
         contactInfo: { 
           ...settings.contactInfo, 
@@ -308,6 +310,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
             footerImage: apiSettings.footerImage,
             showFooterText: apiSettings.showFooterText !== false,
             showFooterImage: apiSettings.showFooterImage === true,
+            showContactInfo: apiSettings.showContactInfo !== false,
             pageNumbering: apiSettings.pageNumbering !== false,
             contactInfo: { 
               ...settings.contactInfo, 
@@ -388,8 +391,10 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     doc.setFontSize(7);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     
-    // Add icons and contact info - only if showContactInfo is enabled
-    if (settings.showContactInfo !== false && contactInfo) {
+    // Add icons and contact info - only if showContactInfo is enabled 
+    // Type assertion to avoid TypeScript errors
+    const showContactInfo = 'showContactInfo' in settings ? settings.showContactInfo : true;
+    if (showContactInfo !== false && contactInfo) {
       // Left side - Phone and email
       if (contactInfo.phone) {
         doc.text(`☎ ${contactInfo.phone}`, margin, pageHeight - footerHeight + 10);
