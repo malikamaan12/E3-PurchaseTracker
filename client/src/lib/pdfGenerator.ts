@@ -569,27 +569,27 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     
     // Override template config with settings from request if available
     if (request?.pdfSettings) {
-      // Document section visibility
+      // Document section visibility - use strict boolean checks
       if (request.pdfSettings.hasOwnProperty('showBasicInfo')) 
-        templateConfig.showBasicInfo = request.pdfSettings.showBasicInfo;
+        templateConfig.showBasicInfo = Boolean(request.pdfSettings.showBasicInfo);
       if (request.pdfSettings.hasOwnProperty('showRequesterDetails')) 
-        templateConfig.showRequesterDetails = request.pdfSettings.showRequesterDetails;
+        templateConfig.showRequesterDetails = Boolean(request.pdfSettings.showRequesterDetails);
       if (request.pdfSettings.hasOwnProperty('showDateOfRequest')) 
-        templateConfig.showDateOfRequest = request.pdfSettings.showDateOfRequest;
+        templateConfig.showDateOfRequest = Boolean(request.pdfSettings.showDateOfRequest);
       if (request.pdfSettings.hasOwnProperty('showPurposeInfo')) 
-        templateConfig.showPurposeInfo = request.pdfSettings.showPurposeInfo;
+        templateConfig.showPurposeInfo = Boolean(request.pdfSettings.showPurposeInfo);
       if (request.pdfSettings.hasOwnProperty('showVendorDetails')) 
-        templateConfig.showVendorDetails = request.pdfSettings.showVendorDetails;
+        templateConfig.showVendorDetails = Boolean(request.pdfSettings.showVendorDetails);
       if (request.pdfSettings.hasOwnProperty('showItems')) 
-        templateConfig.showItems = request.pdfSettings.showItems;
+        templateConfig.showItems = Boolean(request.pdfSettings.showItems);
       if (request.pdfSettings.hasOwnProperty('showApprovals')) 
-        templateConfig.showApprovals = request.pdfSettings.showApprovals;
+        templateConfig.showApprovals = Boolean(request.pdfSettings.showApprovals);
       if (request.pdfSettings.hasOwnProperty('showAttachments')) 
-        templateConfig.showAttachments = request.pdfSettings.showAttachments;
+        templateConfig.showAttachments = Boolean(request.pdfSettings.showAttachments);
       if (request.pdfSettings.hasOwnProperty('showAuditInfo')) 
-        templateConfig.showAuditInfo = request.pdfSettings.showAuditInfo;
+        templateConfig.showAuditInfo = Boolean(request.pdfSettings.showAuditInfo);
       if (request.pdfSettings.hasOwnProperty('showSignatures')) 
-        templateConfig.showSignatures = request.pdfSettings.showSignatures;
+        templateConfig.showSignatures = Boolean(request.pdfSettings.showSignatures);
         
       // Document appearance
       if (request.pdfSettings.orientation) 
@@ -764,7 +764,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
 
     // Vendor Information Section
-    if (templateConfig.showVendorDetails !== false) {
+    if (templateConfig.showVendorDetails === true) {
       yPos = addSection(doc, "Vendor Information", yPos);
       
       // Safely extract vendor information - handle field name differences in data structure
@@ -799,7 +799,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
 
     // Items Section
-    if (templateConfig.showItems !== false) {
+    if (templateConfig.showItems === true) {
       yPos = addSection(doc, "Items", yPos);
       
       // Safely parse items with error handling
@@ -881,7 +881,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
 
     // Attached Documents Section if available
-    if (templateConfig.showAttachments !== false && request.attachments?.length > 0) {
+    if (templateConfig.showAttachments === true && request.attachments?.length > 0) {
       yPos = addSection(doc, "Attached Documents", yPos);
       const attachments = request.attachments.map((file: any) => [
         file.fileName || file.name || 'N/A',
@@ -918,7 +918,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Approvals Section
-    if (templateConfig.showApprovals !== false && (type === 'approver' || type === 'admin' || request.approvals?.length > 0)) {
+    if (templateConfig.showApprovals === true && (type === 'approver' || type === 'admin' || request.approvals?.length > 0)) {
       yPos = (doc as any).lastAutoTable?.finalY + 5 || yPos + 5;
       
       // Approvers Section
@@ -976,7 +976,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Audit Information Section
-    if (templateConfig.showAuditInfo !== false && (type === 'admin' || request.pdfSettings?.showAuditInfo)) {
+    if (templateConfig.showAuditInfo === true && (type === 'admin' || request.pdfSettings?.showAuditInfo === true)) {
       yPos = addSection(doc, "Audit Information", yPos);
       
       const auditInfo = [
@@ -1008,7 +1008,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Digital Signatures Section
-    if (templateConfig.showSignatures !== false) {
+    if (templateConfig.showSignatures === true) {
       yPos = addSection(doc, "Digital Signatures", yPos);
       
       // Create signature boxes for key roles
