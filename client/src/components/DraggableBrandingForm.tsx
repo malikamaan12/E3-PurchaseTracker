@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { AlertCircle, Upload, Move, Maximize, ArrowsOutCardinal } from "lucide-react";
+import { AlertCircle, Upload, Move, Maximize, ArrowUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DraggableElement {
@@ -626,7 +626,7 @@ export default function DraggableBrandingForm({
                       className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize flex items-center justify-center rounded-sm"
                       onMouseDown={(e) => handleResizeStart(e, element.id)}
                     >
-                      <ArrowsOutCardinal className="h-3 w-3 text-white" />
+                      <ArrowUpDown className="h-3 w-3 text-white" />
                     </div>
                   </div>
                 ))}

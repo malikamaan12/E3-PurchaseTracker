@@ -19,8 +19,11 @@ import {
   ZoomIn,
   ZoomOut,
   Download,
-  Printer
+  Printer,
+  MoveIcon,
+  GripVertical
 } from 'lucide-react';
+import DraggableBrandingForm from '@/components/DraggableBrandingForm';
 import {
   Select,
   SelectContent,
