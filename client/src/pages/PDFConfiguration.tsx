@@ -593,7 +593,7 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="pageNumbering" 
-                          checked={formData.pageNumbering !== false}
+                          checked={Boolean(formData.pageNumbering)}
                           onCheckedChange={value => handleInputChange('pageNumbering', value)}
                         />
                         <Label htmlFor="pageNumbering">Show Page Numbers</Label>
@@ -602,7 +602,7 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2 col-span-2">
                         <Switch 
                           id="showFooterImage" 
-                          checked={formData.showFooterImage !== false}
+                          checked={Boolean(formData.showFooterImage)}
                           onCheckedChange={value => handleInputChange('showFooterImage', value)}
                         />
                         <Label htmlFor="showFooterImage">Show Footer Image</Label>
@@ -1343,7 +1343,7 @@ export default function PDFConfiguration() {
                       
                       <div className="flex justify-between absolute bottom-1 left-4 right-4 text-xs text-gray-600">
                         <span>{formData.footerText || 'ALL RIGHTS RESERVED BY E3'}</span>
-                        {formData.pageNumbering !== false && (
+                        {Boolean(formData.pageNumbering) && (
                           <span>Page 1 of 1</span>
                         )}
                       </div>
