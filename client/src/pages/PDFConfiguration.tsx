@@ -481,7 +481,7 @@ export default function PDFConfiguration() {
                         <Label htmlFor="showLogo">Show Logo</Label>
                       </div>
                       
-                      {formData.showLogo !== false && (
+                      {Boolean(formData.showLogo) && (
                         <div className="md:col-span-2">
                           <Label htmlFor="logoUpload">Logo</Label>
                           <div className="mt-1">
@@ -557,7 +557,7 @@ export default function PDFConfiguration() {
                         <Label htmlFor="showFooterText">Show Footer Text</Label>
                       </div>
                       
-                      {formData.showFooterText !== false && (
+                      {Boolean(formData.showFooterText) && (
                         <>
                           <div className="md:col-span-2">
                             <Label htmlFor="footerText">Footer Text</Label>
@@ -594,7 +594,7 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="pageNumbering" 
                           checked={Boolean(formData.pageNumbering)}
-                          onCheckedChange={value => handleInputChange('pageNumbering', value)}
+                          onCheckedChange={value => handleInputChange('pageNumbering', Boolean(value))}
                         />
                         <Label htmlFor="pageNumbering">Show Page Numbers</Label>
                       </div>
@@ -603,7 +603,7 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showFooterImage" 
                           checked={Boolean(formData.showFooterImage)}
-                          onCheckedChange={value => handleInputChange('showFooterImage', value)}
+                          onCheckedChange={value => handleInputChange('showFooterImage', Boolean(value))}
                         />
                         <Label htmlFor="showFooterImage">Show Footer Image</Label>
                       </div>
@@ -679,7 +679,7 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showContactInfo" 
                           checked={Boolean(formData.showContactInfo)}
-                          onCheckedChange={value => handleInputChange('showContactInfo', value)}
+                          onCheckedChange={value => handleInputChange('showContactInfo', Boolean(value))}
                         />
                         <Label htmlFor="showContactInfo">Show Contact Information in Footer</Label>
                       </div>
