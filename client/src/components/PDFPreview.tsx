@@ -134,13 +134,13 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     }
   }, [sampleRequest, pdfSettings, pdfUrl, toast]);
   
-  // Generate preview on initial load only
+  // Generate preview on initial load and when pdfSettings change
   useEffect(() => {
-    const initialLoad = async () => {
+    const loadPreview = async () => {
       await generatePreviewPDF();
     };
     
-    initialLoad();
+    loadPreview();
     
     // Clean up on unmount
     return () => {
@@ -149,7 +149,7 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pdfSettings, pdfSettings?.headerImage, pdfSettings?.footerImage, pdfSettings?.logo]);
   
   // Handle zoom in and out
   const handleZoomIn = () => {

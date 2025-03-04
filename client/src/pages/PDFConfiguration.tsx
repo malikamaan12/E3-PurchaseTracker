@@ -58,6 +58,7 @@ interface PDFSettings {
     website?: string;
     address?: string;
   };
+  showContactInfo?: boolean;
   
   // Layout settings
   templateMode?: string;
@@ -674,47 +675,60 @@ export default function PDFConfiguration() {
                     <h3 className="font-medium text-lg">Company Contact Information</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="contactPhone">Phone Number</Label>
-                        <Input 
-                          id="contactPhone"
-                          value={formData.contactInfo?.phone || '+974 44332340 / 55255417'} 
-                          onChange={e => handleContactInfoChange('phone', e.target.value)}
-                          placeholder="Contact phone number"
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="showContactInfo" 
+                          checked={formData.showContactInfo !== false}
+                          onCheckedChange={value => handleInputChange('showContactInfo', value)}
                         />
+                        <Label htmlFor="showContactInfo">Show Contact Information in Footer</Label>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="contactEmail">Email</Label>
-                        <Input 
-                          id="contactEmail"
-                          value={formData.contactInfo?.email || 'info@e3corp.com'} 
-                          onChange={e => handleContactInfoChange('email', e.target.value)}
-                          placeholder="Contact email"
-                          type="email"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="contactWebsite">Website</Label>
-                        <Input 
-                          id="contactWebsite"
-                          value={formData.contactInfo?.website || 'www.e3corp.com'} 
-                          onChange={e => handleContactInfoChange('website', e.target.value)}
-                          placeholder="Company website"
-                        />
-                      </div>
-                      
-                      <div className="md:col-span-2">
-                        <Label htmlFor="contactAddress">Address</Label>
-                        <Textarea 
-                          id="contactAddress"
-                          value={formData.contactInfo?.address || 'Floor 36, Office 3602, Palm Tower B, Marina 41, Port Area, P.O.Box 55821, Doha'} 
-                          onChange={e => handleContactInfoChange('address', e.target.value)}
-                          placeholder="Company address"
-                          rows={2}
-                        />
-                      </div>
+                      {formData.showContactInfo !== false && (
+                        <>
+                          <div>
+                            <Label htmlFor="contactPhone">Phone Number (Optional)</Label>
+                            <Input 
+                              id="contactPhone"
+                              value={formData.contactInfo?.phone || ''} 
+                              onChange={e => handleContactInfoChange('phone', e.target.value)}
+                              placeholder="Contact phone number"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="contactEmail">Email (Optional)</Label>
+                            <Input 
+                              id="contactEmail"
+                              value={formData.contactInfo?.email || ''} 
+                              onChange={e => handleContactInfoChange('email', e.target.value)}
+                              placeholder="Contact email"
+                              type="email"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="contactWebsite">Website (Optional)</Label>
+                            <Input 
+                              id="contactWebsite"
+                              value={formData.contactInfo?.website || ''} 
+                              onChange={e => handleContactInfoChange('website', e.target.value)}
+                              placeholder="Company website"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <Label htmlFor="contactAddress">Address (Optional)</Label>
+                            <Textarea 
+                              id="contactAddress"
+                              value={formData.contactInfo?.address || ''} 
+                              onChange={e => handleContactInfoChange('address', e.target.value)}
+                              placeholder="Company address"
+                              rows={2}
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </TabsContent>

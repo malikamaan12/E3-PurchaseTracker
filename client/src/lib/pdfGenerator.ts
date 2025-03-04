@@ -388,15 +388,25 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     doc.setFontSize(7);
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     
-    // Add icons and contact info
-    if (contactInfo) {
+    // Add icons and contact info - only if showContactInfo is enabled
+    if (settings.showContactInfo !== false && contactInfo) {
       // Left side - Phone and email
-      doc.text(`☎ ${contactInfo.phone || 'N/A'}`, margin, pageHeight - footerHeight + 10);
-      doc.text(`✉ ${contactInfo.email || 'N/A'}`, margin, pageHeight - footerHeight + 14);
-      doc.text(`🌐 ${contactInfo.website || 'N/A'}`, margin, pageHeight - footerHeight + 18);
+      if (contactInfo.phone) {
+        doc.text(`☎ ${contactInfo.phone}`, margin, pageHeight - footerHeight + 10);
+      }
+      
+      if (contactInfo.email) {
+        doc.text(`✉ ${contactInfo.email}`, margin, pageHeight - footerHeight + 14);
+      }
+      
+      if (contactInfo.website) {
+        doc.text(`🌐 ${contactInfo.website}`, margin, pageHeight - footerHeight + 18);
+      }
       
       // Right side - Address
-      doc.text(`📍 ${contactInfo.address || 'N/A'}`, pageWidth / 2, pageHeight - footerHeight + 14);
+      if (contactInfo.address) {
+        doc.text(`📍 ${contactInfo.address}`, pageWidth / 2, pageHeight - footerHeight + 14);
+      }
     }
     
     // Add footer text if enabled
@@ -519,7 +529,50 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
   try {
     // Get template configuration
     const templateId = request?.pdfSettings?.templateMode || 'standard';
-    const templateConfig = getTemplateConfig(templateId);
+    let templateConfig = getTemplateConfig(templateId);
+    
+    // Override template config with settings from request if available
+    if (request?.pdfSettings) {
+      // Document section visibility
+      if (request.pdfSettings.hasOwnProperty('showBasicInfo')) 
+        templateConfig.showBasicInfo = request.pdfSettings.showBasicInfo;
+      if (request.pdfSettings.hasOwnProperty('showRequesterDetails')) 
+        templateConfig.showRequesterDetails = request.pdfSettings.showRequesterDetails;
+      if (request.pdfSettings.hasOwnProperty('showDateOfRequest')) 
+        templateConfig.showDateOfRequest = request.pdfSettings.showDateOfRequest;
+      if (request.pdfSettings.hasOwnProperty('showPurposeInfo')) 
+        templateConfig.showPurposeInfo = request.pdfSettings.showPurposeInfo;
+      if (request.pdfSettings.hasOwnProperty('showVendorDetails')) 
+        templateConfig.showVendorDetails = request.pdfSettings.showVendorDetails;
+      if (request.pdfSettings.hasOwnProperty('showItems')) 
+        templateConfig.showItems = request.pdfSettings.showItems;
+      if (request.pdfSettings.hasOwnProperty('showApprovals')) 
+        templateConfig.showApprovals = request.pdfSettings.showApprovals;
+      if (request.pdfSettings.hasOwnProperty('showAttachments')) 
+        templateConfig.showAttachments = request.pdfSettings.showAttachments;
+      if (request.pdfSettings.hasOwnProperty('showAuditInfo')) 
+        templateConfig.showAuditInfo = request.pdfSettings.showAuditInfo;
+      if (request.pdfSettings.hasOwnProperty('showSignatures')) 
+        templateConfig.showSignatures = request.pdfSettings.showSignatures;
+        
+      // Document appearance
+      if (request.pdfSettings.orientation) 
+        templateConfig.orientation = request.pdfSettings.orientation;
+      if (request.pdfSettings.tableStyle) 
+        templateConfig.tableStyle = request.pdfSettings.tableStyle;
+      if (request.pdfSettings.fontFamily) 
+        templateConfig.fontFamily = request.pdfSettings.fontFamily;
+      
+      // Margins
+      if (request.pdfSettings.marginTop || request.pdfSettings.marginTop === 0)
+        templateConfig.margins.top = request.pdfSettings.marginTop;
+      if (request.pdfSettings.marginRight || request.pdfSettings.marginRight === 0)
+        templateConfig.margins.right = request.pdfSettings.marginRight;
+      if (request.pdfSettings.marginBottom || request.pdfSettings.marginBottom === 0)
+        templateConfig.margins.bottom = request.pdfSettings.marginBottom;
+      if (request.pdfSettings.marginLeft || request.pdfSettings.marginLeft === 0)
+        templateConfig.margins.left = request.pdfSettings.marginLeft;
+    }
     
     // Create PDF with template configuration
     const doc = new jsPDF({
