@@ -84,8 +84,14 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     setIsLoading(true);
     
     try {
-      // If we're using the real PDF generator function
-      const doc = await generateRequestPDF(sampleRequest as any, 'admin');
+      // Apply any PDF settings from props to the sample request
+      const requestWithSettings = {
+        ...sampleRequest,
+        pdfSettings: pdfSettings || {}
+      };
+      
+      // Use the real PDF generator function with our settings
+      const doc = await generateRequestPDF(requestWithSettings as any, 'admin');
       
       // Convert to blob URL
       const pdfBlob = doc.output('blob');
@@ -112,7 +118,7 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [sampleRequest, pdfUrl, toast]);
+  }, [sampleRequest, pdfSettings, pdfUrl, toast]);
   
   // Generate preview on initial load
   useEffect(() => {

@@ -22,19 +22,55 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     const headerHeight = 40; 
     const margin = 15;
     
-    // Try to get PDF settings
+    // Try to get PDF settings - first check if already in request object
     let logoUrl = null;
     let headerImageUrl = null;
+    let headerTitle = "EVENTS & ENTERTAINMENT";
+    let headerSubtitle = "ENTERPRISES";
+    let headerColor = [26, 54, 93]; // Default color in RGB format
     
-    try {
-      const response = await fetch('/api/pdf/print-settings');
-      if (response.ok) {
-        const settings = await response.json();
-        logoUrl = settings.logo;
-        headerImageUrl = settings.headerImage;
+    // First check if settings were passed directly in the request object
+    if (request.pdfSettings) {
+      logoUrl = request.pdfSettings.logo;
+      headerImageUrl = request.pdfSettings.headerImage;
+      
+      if (request.pdfSettings.headerTitle) {
+        headerTitle = request.pdfSettings.headerTitle;
       }
-    } catch (settingsError) {
-      console.error('Error fetching PDF settings:', settingsError);
+      
+      if (request.pdfSettings.headerSubtitle) {
+        headerSubtitle = request.pdfSettings.headerSubtitle;
+      }
+      
+      // Convert hex color to RGB if present
+      if (request.pdfSettings.headerColor) {
+        headerColor = hexToRgb(request.pdfSettings.headerColor);
+      }
+    } else {
+      // Otherwise fetch from API
+      try {
+        const response = await fetch('/api/pdf/print-settings');
+        if (response.ok) {
+          const settings = await response.json();
+          logoUrl = settings.logo;
+          headerImageUrl = settings.headerImage;
+          
+          if (settings.headerTitle) {
+            headerTitle = settings.headerTitle;
+          }
+          
+          if (settings.headerSubtitle) {
+            headerSubtitle = settings.headerSubtitle;
+          }
+          
+          // Convert hex color to RGB if present
+          if (settings.headerColor) {
+            headerColor = hexToRgb(settings.headerColor);
+          }
+        }
+      } catch (settingsError) {
+        console.error('Error fetching PDF settings:', settingsError);
+      }
     }
     
     // Add logo if available
@@ -54,13 +90,13 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Add company header
+    // Add company header with custom text and colors
     doc.setFontSize(14);
-    doc.setTextColor(26, 54, 93);
-    doc.text("EVENTS & ENTERTAINMENT", pageWidth/2, 15, { align: 'center' });
+    doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
+    doc.text(headerTitle, pageWidth/2, 15, { align: 'center' });
     
     doc.setFontSize(12);
-    doc.text("ENTERPRISES", pageWidth/2, 22, { align: 'center' });
+    doc.text(headerSubtitle, pageWidth/2, 22, { align: 'center' });
     
     doc.setFontSize(10);
     doc.text("PURCHASE REQUEST", pageWidth/2, 29, { align: 'center' });
@@ -127,44 +163,65 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
   }
 }
 
-async function addFooter(doc: jsPDF, currentPage: number, totalPages: number): Promise<void> {
+async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, request?: any): Promise<void> {
   try {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const margin = 15;
     const footerHeight = 15;
     
-    // Try to get PDF settings for footer image
+    // Try to get PDF settings for footer
     let footerImageUrl = null;
     let footerColor = [90, 90, 90]; // Default gray color
     let footerText = "ALL RIGHTS RESERVED BY E3";
+    let pageNumbering = true;
     
-    try {
-      const response = await fetch('/api/pdf/print-settings');
-      if (response.ok) {
-        const settings = await response.json();
-        footerImageUrl = settings.footerImage;
-        if (settings.footerColor) {
-          // Parse color string to RGB
-          try {
-            const hexColor = settings.footerColor?.replace('#', '');
-            if (hexColor && hexColor.length === 6) {
-              footerColor = [
-                parseInt(hexColor.substring(0, 2), 16),
-                parseInt(hexColor.substring(2, 4), 16),
-                parseInt(hexColor.substring(4, 6), 16)
-              ];
-            }
-          } catch (colorError) {
-            console.error('Error parsing footer color:', colorError);
-          }
-        }
-        if (settings.footerText) {
-          footerText = settings.footerText;
+    // First check if settings were passed directly in the request object
+    if (request?.pdfSettings) {
+      footerImageUrl = request.pdfSettings.footerImage;
+      
+      if (request.pdfSettings.footerText) {
+        footerText = request.pdfSettings.footerText;
+      }
+      
+      // Convert hex color to RGB if present
+      if (request.pdfSettings.footerColor) {
+        try {
+          footerColor = hexToRgb(request.pdfSettings.footerColor);
+        } catch (colorError) {
+          console.error('Error parsing footer color:', colorError);
         }
       }
-    } catch (settingsError) {
-      console.error('Error fetching PDF settings for footer:', settingsError);
+      
+      // Check page numbering setting
+      if (request.pdfSettings.hasOwnProperty('pageNumbering')) {
+        pageNumbering = request.pdfSettings.pageNumbering;
+      }
+    } else {
+      // Otherwise fetch from API
+      try {
+        const response = await fetch('/api/pdf/print-settings');
+        if (response.ok) {
+          const settings = await response.json();
+          footerImageUrl = settings.footerImage;
+          if (settings.footerColor) {
+            // Parse color string to RGB
+            try {
+              footerColor = hexToRgb(settings.footerColor);
+            } catch (colorError) {
+              console.error('Error parsing footer color:', colorError);
+            }
+          }
+          if (settings.footerText) {
+            footerText = settings.footerText;
+          }
+          if (settings.hasOwnProperty('pageNumbering')) {
+            pageNumbering = settings.pageNumbering;
+          }
+        }
+      } catch (settingsError) {
+        console.error('Error fetching PDF settings for footer:', settingsError);
+      }
     }
     
     // Add footer image if available
@@ -544,7 +601,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      await addFooter(doc, i, pageCount);
+      await addFooter(doc, i, pageCount, request);
     }
 
     return doc;
