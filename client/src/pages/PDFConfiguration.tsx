@@ -1,23 +1,16 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PDFCustomizationForm } from '@/components/PDFCustomizationForm';
 import PDFBrandingUploader from '@/components/PDFBrandingUploader';
 import { PDFPreview } from '@/components/PDFPreview';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  ResizableHandle, 
-  ResizablePanel, 
-  ResizablePanelGroup 
-} from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { 
-  FileText, 
   Settings, 
   Palette, 
   Layout, 
   Loader2, 
-  RotateCcw, 
   RefreshCw, 
   Save 
 } from 'lucide-react';
@@ -41,24 +34,20 @@ import { Badge } from '@/components/ui/badge';
 
 export default function PDFConfiguration() {
   const { toast } = useToast();
+  
+  // State for managing UI
   const [activeTab, setActiveTab] = useState('appearance');
-  const [previewKey, setPreviewKey] = useState(0); // To force preview refresh
+  const [previewKey, setPreviewKey] = useState(0);
   const [templateMode, setTemplateMode] = useState('standard');
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [forceUpdateKey, setForceUpdateKey] = useState(0); // To force re-render for panel state
+  const [showSettings, setShowSettings] = useState(true);
   
-  // References to manage UI elements programmatically - removed to avoid type errors
-  // const leftPanelRef = useRef<HTMLDivElement>(null);
-  
-  // Force a re-render when panel collapse state changes
-  useEffect(() => {
-    setForceUpdateKey(prev => prev + 1);
-    // Panel state is managed by the ResizablePanel component's built-in functionality
-  }, [isPanelCollapsed]);
-  
-  // Fetch current settings
-  const { data: pdfSettings, isLoading: isLoadingSettings, refetch } = useQuery({
+  // Fetch current PDF settings
+  const { 
+    data: pdfSettings, 
+    isLoading: isLoadingSettings, 
+    refetch 
+  } = useQuery({
     queryKey: ["/api/pdf/print-settings"],
     queryFn: async () => {
       const response = await fetch("/api/pdf/print-settings");
@@ -80,7 +69,7 @@ export default function PDFConfiguration() {
     
     try {
       // Here you would save the template settings to an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       toast({
         title: "Template Saved",
@@ -97,7 +86,7 @@ export default function PDFConfiguration() {
     }
   }, [templateMode, toast]);
   
-  // Additional template options that could be implemented
+  // Available template options
   const templates = [
     { id: 'standard', name: 'Standard', description: 'Default E3 document layout' },
     { id: 'compact', name: 'Compact', description: 'Condensed layout with smaller margins' },
@@ -105,19 +94,21 @@ export default function PDFConfiguration() {
     { id: 'minimal', name: 'Minimal', description: 'Clean layout with essential information only' },
   ];
   
-  // Toggle panel collapse
-  const togglePanelCollapse = useCallback(() => {
-    setIsPanelCollapsed(prev => !prev);
+  // Toggle settings panel visibility
+  const toggleSettings = useCallback(() => {
+    setShowSettings(prev => !prev);
   }, []);
   
   return (
     <div className="container mx-auto py-8">
+      {/* Header with title and controls */}
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">PDF Configuration</h1>
           <p className="text-muted-foreground">Customize how your PDF documents look and feel</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Template Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -149,12 +140,16 @@ export default function PDFConfiguration() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Toggle Settings Button */}
           <Button 
             variant="outline" 
-            onClick={togglePanelCollapse}
+            onClick={toggleSettings}
           >
-            {isPanelCollapsed ? 'Show Settings' : 'Hide Settings'}
+            {showSettings ? 'Hide Settings' : 'Show Settings'}
           </Button>
+          
+          {/* Refresh button */}
           <Button onClick={handleRefreshPreview}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh Preview
@@ -162,22 +157,11 @@ export default function PDFConfiguration() {
         </div>
       </div>
 
-      <ResizablePanelGroup 
-        direction="horizontal" 
-        className="min-h-[700px] border rounded-lg bg-background"
-        key={forceUpdateKey} // Add key to force re-render on collapse state change
-      >
-        <ResizablePanel
-          defaultSize={40}
-          minSize={30}
-          maxSize={70}
-          collapsible={true}
-          collapsedSize={0}
-          onCollapse={() => setIsPanelCollapsed(true)}
-          onExpand={() => setIsPanelCollapsed(false)}
-          className="p-0"
-        >
-          <Card className="border-0 rounded-none h-full flex flex-col">
+      {/* Main layout using simple grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[700px]">
+        {/* Left panel: Settings */}
+        {showSettings && (
+          <Card className="h-full flex flex-col overflow-hidden">
             <CardHeader>
               <CardTitle>PDF Generation Settings</CardTitle>
               <CardDescription>
@@ -201,12 +185,18 @@ export default function PDFConfiguration() {
                     Layout
                   </TabsTrigger>
                 </TabsList>
+                
+                {/* Appearance Tab */}
                 <TabsContent value="appearance" className="p-4">
                   <PDFCustomizationForm />
                 </TabsContent>
+                
+                {/* Branding Tab */}
                 <TabsContent value="branding" className="p-4">
                   <PDFBrandingUploader />
                 </TabsContent>
+                
+                {/* Advanced Tab */}
                 <TabsContent value="advanced" className="p-4 space-y-6">
                   <Card>
                     <CardHeader>
@@ -364,38 +354,35 @@ export default function PDFConfiguration() {
               </Tabs>
             </CardContent>
           </Card>
-        </ResizablePanel>
+        )}
         
-        <ResizableHandle />
-        
-        <ResizablePanel defaultSize={60} minSize={30}>
-          <Card className="border-0 rounded-none h-full">
-            <CardHeader>
-              <CardTitle>PDF Preview</CardTitle>
-              <CardDescription>
-                This is a live preview of how your PDF documents will appear with the current settings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 h-[calc(100%-5rem)] overflow-hidden">
-              {isLoadingSettings ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                  <p>Loading PDF settings...</p>
-                </div>
-              ) : (
-                <PDFPreview 
-                  key={previewKey}
-                  pdfSettings={{
-                    ...pdfSettings,
-                    templateMode: templateMode // Pass the template mode to the preview
-                  }} 
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        {/* Right panel: Preview */}
+        <Card className={`h-full overflow-hidden ${!showSettings ? "md:col-span-2" : ""}`}>
+          <CardHeader>
+            <CardTitle>PDF Preview</CardTitle>
+            <CardDescription>
+              This is a live preview of how your PDF documents will appear with the current settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 h-[calc(100%-5rem)] overflow-hidden">
+            {isLoadingSettings ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                <p>Loading PDF settings...</p>
+              </div>
+            ) : (
+              <PDFPreview 
+                key={previewKey}
+                pdfSettings={{
+                  ...pdfSettings,
+                  templateMode: templateMode // Pass the template mode to the preview
+                }} 
+                onRefresh={refetch}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -19,7 +19,7 @@ function hexToRgb(hex: string): [number, number, number] {
 async function addHeader(doc: jsPDF, request: any): Promise<number> {
   try {
     const pageWidth = doc.internal.pageSize.width;
-    const headerHeight = 40; 
+    const headerHeight = 35; 
     const margin = 15;
     
     // Try to get PDF settings - first check if already in request object
@@ -27,7 +27,10 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     let headerImageUrl = null;
     let headerTitle = "EVENTS & ENTERTAINMENT";
     let headerSubtitle = "ENTERPRISES";
-    let headerColor = [26, 54, 93]; // Default color in RGB format
+    
+    // Brand colors for E3 (purple to teal gradient)
+    const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
+    const accentColor = [31, 211, 219]; // E3 teal #1FD3DB
     
     // First check if settings were passed directly in the request object
     if (request.pdfSettings) {
@@ -40,11 +43,6 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       
       if (request.pdfSettings.headerSubtitle) {
         headerSubtitle = request.pdfSettings.headerSubtitle;
-      }
-      
-      // Convert hex color to RGB if present
-      if (request.pdfSettings.headerColor) {
-        headerColor = hexToRgb(request.pdfSettings.headerColor);
       }
     } else {
       // Otherwise fetch from API
@@ -62,37 +60,41 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
           if (settings.headerSubtitle) {
             headerSubtitle = settings.headerSubtitle;
           }
-          
-          // Convert hex color to RGB if present
-          if (settings.headerColor) {
-            headerColor = hexToRgb(settings.headerColor);
-          }
         }
       } catch (settingsError) {
         console.error('Error fetching PDF settings:', settingsError);
       }
     }
     
-    // Add logo if available
-    if (logoUrl) {
-      try {
-        const img = new Image();
-        img.src = logoUrl;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if image fails to load
-        });
-        
-        // Draw the logo on the left side
-        doc.addImage(img, 'PNG', margin, 10, 20, 20);
-      } catch (logoError) {
-        console.error('Error adding logo to PDF:', logoError);
-      }
+    // E3 Logo on left side
+    let e3Logo = logoUrl;
+    if (!e3Logo) {
+      // Fallback to default E3 logo if none is provided
+      e3Logo = '/uploads/logos/e3-logo.png';
     }
     
-    // Add company header with custom text and colors
+    try {
+      const img = new Image();
+      img.src = e3Logo;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve; // Continue even if image fails to load
+      });
+      
+      // Draw the E3 logo on the left side
+      doc.addImage(img, 'PNG', margin, 10, 20, 20);
+    } catch (logoError) {
+      console.error('Error adding E3 logo to PDF:', logoError);
+      
+      // Create a simple text placeholder if logo fails to load
+      doc.setFontSize(16);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text("E3", margin + 5, 20);
+    }
+    
+    // Add company header with E3 branding colors
     doc.setFontSize(14);
-    doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text(headerTitle, pageWidth/2, 15, { align: 'center' });
     
     doc.setFontSize(12);
@@ -101,23 +103,17 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     doc.setFontSize(10);
     doc.text("PURCHASE REQUEST", pageWidth/2, 29, { align: 'center' });
     
-    // Try to add header image/banner if available
-    if (headerImageUrl) {
-      try {
-        const img = new Image();
-        img.src = headerImageUrl;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if image fails to load
-        });
-        
-        // Draw the header image below the text
-        doc.addImage(img, 'PNG', margin, 35, pageWidth - (margin * 2), 10);
-        return headerHeight + 10; // Add extra space for the image
-      } catch (headerImgError) {
-        console.error('Error adding header image to PDF:', headerImgError);
-      }
-    }
+    // Add the colored gradient bar (matching E3 brand)
+    // Create a gradient bar effect manually since PDF doesn't support CSS gradients
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Purple
+    doc.rect(margin, 33, pageWidth / 2 - margin, 3, 'F');
+    
+    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
+    doc.rect(pageWidth / 2, 33, pageWidth / 2 - margin, 3, 'F');
+    
+    // Add subtle border line
+    doc.setDrawColor(240, 240, 240);
+    doc.line(margin, 38, pageWidth - margin, 38);
     
   } catch (error) {
     console.error("Error rendering PDF header:", error);
@@ -132,17 +128,17 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     // Add request info after header
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, 55);
+    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, 45);
     
     // Add requester and date on the next row
     doc.setFontSize(9);
-    doc.text(`Requester:`, margin, 62);
-    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, 62);
+    doc.text(`Requester:`, margin, 52);
+    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, 52);
     
-    doc.text(`Department:`, pageWidth / 2, 62);
-    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, 62);
+    doc.text(`Department:`, pageWidth / 2, 52);
+    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, 52);
     
-    doc.text(`Date:`, margin, 69);
+    doc.text(`Date:`, margin, 59);
     let dateText = 'N/A';
     if (request?.createdAt) {
       try {
@@ -151,12 +147,12 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         console.error('Error formatting date:', dateError);
       }
     }
-    doc.text(dateText, margin + 30, 69);
+    doc.text(dateText, margin + 30, 59);
     
-    doc.text(`Status:`, pageWidth / 2, 69);
-    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, 69);
+    doc.text(`Status:`, pageWidth / 2, 59);
+    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, 59);
     
-    return 75; // Return position after all header elements
+    return 65; // Return position after all header elements
   } catch (error) {
     console.error('Error adding request details:', error);
     return 40; // Return default header height
@@ -168,34 +164,37 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const margin = 15;
-    const footerHeight = 15;
+    const footerHeight = 20;
+    
+    // E3 brand colors (matching header)
+    const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
+    const accentColor = [31, 211, 219]; // E3 teal #1FD3DB
+    const textColor = [50, 50, 50]; // Dark gray for text
     
     // Try to get PDF settings for footer
-    let footerImageUrl = null;
-    let footerColor = [90, 90, 90]; // Default gray color
     let footerText = "ALL RIGHTS RESERVED BY E3";
     let pageNumbering = true;
+    let contactInfo = {
+      phone: "+974 44332340 / 55255417",
+      email: "info@e3corp.com",
+      website: "www.e3corp.com",
+      address: "Floor 36, Office 3602, Palm Tower B, Marina 41, Port Area, P.O.Box 55821, Doha"
+    };
     
     // First check if settings were passed directly in the request object
     if (request?.pdfSettings) {
-      footerImageUrl = request.pdfSettings.footerImage;
-      
       if (request.pdfSettings.footerText) {
         footerText = request.pdfSettings.footerText;
-      }
-      
-      // Convert hex color to RGB if present
-      if (request.pdfSettings.footerColor) {
-        try {
-          footerColor = hexToRgb(request.pdfSettings.footerColor);
-        } catch (colorError) {
-          console.error('Error parsing footer color:', colorError);
-        }
       }
       
       // Check page numbering setting
       if (request.pdfSettings.hasOwnProperty('pageNumbering')) {
         pageNumbering = request.pdfSettings.pageNumbering;
+      }
+      
+      // Check for contact info override
+      if (request.pdfSettings.contactInfo) {
+        contactInfo = { ...contactInfo, ...request.pdfSettings.contactInfo };
       }
     } else {
       // Otherwise fetch from API
@@ -203,20 +202,18 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         const response = await fetch('/api/pdf/print-settings');
         if (response.ok) {
           const settings = await response.json();
-          footerImageUrl = settings.footerImage;
-          if (settings.footerColor) {
-            // Parse color string to RGB
-            try {
-              footerColor = hexToRgb(settings.footerColor);
-            } catch (colorError) {
-              console.error('Error parsing footer color:', colorError);
-            }
-          }
+          
           if (settings.footerText) {
             footerText = settings.footerText;
           }
+          
           if (settings.hasOwnProperty('pageNumbering')) {
             pageNumbering = settings.pageNumbering;
+          }
+          
+          // Check for contact info override
+          if (settings.contactInfo) {
+            contactInfo = { ...contactInfo, ...settings.contactInfo };
           }
         }
       } catch (settingsError) {
@@ -224,28 +221,46 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     }
     
-    // Add footer image if available
-    if (footerImageUrl) {
-      try {
-        const img = new Image();
-        img.src = footerImageUrl;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if image fails to load
-        });
-        
-        // Draw the footer image
-        doc.addImage(img, 'PNG', margin, pageHeight - footerHeight, pageWidth - (margin * 2), 5);
-      } catch (footerImgError) {
-        console.error('Error adding footer image to PDF:', footerImgError);
-      }
-    }
+    // Draw gradient bar at the bottom (similar to header)
+    // Add a line above the footer
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, pageHeight - footerHeight, pageWidth - margin, pageHeight - footerHeight);
     
-    // Add footer text
+    // Add the colored gradient bar
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Purple
+    doc.rect(margin, pageHeight - footerHeight + 2, pageWidth/3, 3, 'F');
+    
+    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
+    doc.rect(margin + pageWidth/3, pageHeight - footerHeight + 2, pageWidth/3, 3, 'F');
+    
+    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
+    doc.rect(margin + 2*pageWidth/3, pageHeight - footerHeight + 2, pageWidth/3 - margin, 3, 'F');
+    
+    // Add contact information in the footer
+    doc.setFontSize(7);
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    
+    // Left side - Phone and email
+    const phoneIcon = "\uf095"; // Font Awesome phone icon code
+    const emailIcon = "\uf0e0"; // Font Awesome email icon
+    const webIcon = "\uf0ac";   // Font Awesome web icon
+    
+    // Use standard text instead of icons for better compatibility
+    doc.text(`☎ ${contactInfo.phone}`, margin, pageHeight - footerHeight + 10);
+    doc.text(`✉ ${contactInfo.email}`, margin, pageHeight - footerHeight + 14);
+    doc.text(`🌐 ${contactInfo.website}`, margin, pageHeight - footerHeight + 18);
+    
+    // Right side - Address
+    doc.text(`📍 ${contactInfo.address}`, pageWidth / 2, pageHeight - footerHeight + 14);
+    
+    // Add footer text and page numbers
     doc.setFontSize(8);
-    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     doc.text(footerText, margin, pageHeight - 5);
-    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+    
+    if (pageNumbering) {
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+    }
   } catch (error) {
     console.error('Error rendering PDF footer:', error);
     // Default footer as fallback
