@@ -946,6 +946,73 @@ export default function PDFConfiguration() {
                   </div>
                 </TabsContent>
                 
+                {/* Branding Editor Tab */}
+                <TabsContent value="branding-editor" className="space-y-4 mt-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-medium">Visual Branding Editor</h3>
+                        <Button 
+                          onClick={() => setActiveTab('branding')}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Back to Settings
+                        </Button>
+                      </div>
+                      
+                      <DraggableBrandingForm 
+                        settings={{
+                          headerImage: formData.headerImage || null,
+                          footerImage: formData.footerImage || null,
+                          logo: formData.logo || null,
+                          headerTitle: formData.headerTitle || 'EVENTS & ENTERTAINMENT',
+                          headerSubtitle: formData.headerSubtitle || 'ENTERPRISES',
+                          headerColor: formData.headerColor || '#6F2AE6',
+                          footerText: formData.footerText || 'ALL RIGHTS RESERVED BY E3',
+                          footerColor: formData.footerColor || '#6F2AE6',
+                          pageNumbering: Boolean(formData.pageNumbering),
+                          showHeaderText: formData.showHeaderText !== false,
+                          showHeaderImage: formData.showHeaderImage !== false,
+                          showFooterText: formData.showFooterText !== false,
+                          showFooterImage: Boolean(formData.showFooterImage),
+                          showLogo: formData.showLogo !== false,
+                          showContactInfo: Boolean(formData.showContactInfo),
+                          contactInfo: formData.contactInfo
+                        }}
+                        onSettingsChange={(updatedSettings) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            headerImage: updatedSettings.headerImage,
+                            footerImage: updatedSettings.footerImage,
+                            logo: updatedSettings.logo,
+                            headerTitle: updatedSettings.headerTitle,
+                            headerSubtitle: updatedSettings.headerSubtitle,
+                            headerColor: updatedSettings.headerColor,
+                            footerText: updatedSettings.footerText,
+                            footerColor: updatedSettings.footerColor,
+                            pageNumbering: updatedSettings.pageNumbering,
+                            showHeaderText: updatedSettings.showHeaderText,
+                            showHeaderImage: updatedSettings.showHeaderImage,
+                            showFooterText: updatedSettings.showFooterText,
+                            showFooterImage: updatedSettings.showFooterImage,
+                            showLogo: updatedSettings.showLogo,
+                            showContactInfo: updatedSettings.showContactInfo,
+                            contactInfo: updatedSettings.contactInfo
+                          }));
+                        }}
+                        onSave={() => {
+                          handleSaveSettings();
+                          toast({
+                            title: "Layout Saved",
+                            description: "Your visual branding layout has been saved successfully."
+                          });
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
                 {/* Sections Tab */}
                 <TabsContent value="sections" className="space-y-4 mt-4">
                   <div className="space-y-4">
