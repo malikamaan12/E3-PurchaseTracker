@@ -376,26 +376,86 @@ export default function PDFConfiguration() {
                 <TabsContent value="visual-layout" className="space-y-4 mt-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-lg">Header Branding</h3>
+                      <h3 className="font-medium text-lg">Visual PDF Editor</h3>
                       <Button 
                         variant="outline" 
                         size="sm" 
+                        onClick={handleRefreshPreview}
                         className="flex items-center gap-1"
-                        onClick={() => setActiveTab('branding-editor')}
                       >
-                        <GripVertical className="h-4 w-4" />
-                        Visual Editor
+                        <RefreshCw className="h-4 w-4" />
+                        Refresh
                       </Button>
                     </div>
+                    
+                    {isLoadingSettings ? (
+                      <div className="flex justify-center items-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <DraggableBrandingForm
+                        settings={formData as PDFBrandingSettings}
+                        onSettingsChange={(settings) => setFormData(settings)}
+                        onSave={handleSaveSettings}
+                      />
+                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2 col-span-2">
-                        <Switch 
-                          id="showHeaderText" 
-                          checked={formData.showHeaderText !== false}
-                          onCheckedChange={value => handleInputChange('showHeaderText', Boolean(value))}
-                        />
-                        <Label htmlFor="showHeaderText">Show Header Text</Label>
+                    <div className="mt-4 bg-muted/30 p-3 rounded-md">
+                      <h4 className="text-sm font-medium mb-2">Element Visibility</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="showHeaderText" 
+                            checked={formData.showHeaderText !== false}
+                            onCheckedChange={value => handleInputChange('showHeaderText', Boolean(value))}
+                          />
+                          <Label htmlFor="showHeaderText">Header Text</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="showHeaderImage" 
+                            checked={formData.showHeaderImage !== false}
+                            onCheckedChange={value => handleInputChange('showHeaderImage', Boolean(value))}
+                          />
+                          <Label htmlFor="showHeaderImage">Header Image</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="showLogo" 
+                            checked={formData.showLogo !== false}
+                            onCheckedChange={value => handleInputChange('showLogo', Boolean(value))}
+                          />
+                          <Label htmlFor="showLogo">Logo</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="showFooterText" 
+                            checked={formData.showFooterText !== false}
+                            onCheckedChange={value => handleInputChange('showFooterText', Boolean(value))}
+                          />
+                          <Label htmlFor="showFooterText">Footer Text</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="showFooterImage" 
+                            checked={formData.showFooterImage !== false}
+                            onCheckedChange={value => handleInputChange('showFooterImage', Boolean(value))}
+                          />
+                          <Label htmlFor="showFooterImage">Footer Image</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="pageNumbering" 
+                            checked={formData.pageNumbering !== false}
+                            onCheckedChange={value => handleInputChange('pageNumbering', Boolean(value))}
+                          />
+                          <Label htmlFor="pageNumbering">Page Numbers</Label>
+                        </div>
                       </div>
                       
                       {Boolean(formData.showHeaderText) && (
