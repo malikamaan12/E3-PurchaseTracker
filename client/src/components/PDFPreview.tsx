@@ -3,20 +3,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { jsPDF } from "jspdf";
-import { FileText, Download, Printer, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
+import { FileText, Download, Printer, RefreshCw, ZoomIn, ZoomOut, Maximize, Scale } from "lucide-react";
 import { generateRequestPDF } from "@/lib/pdfGenerator";
 import { PurchaseRequestWithRelations } from "@/types/requests";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 interface PDFPreviewProps {
   pdfSettings: any;
   onRefresh?: () => void;
+  isDesignMode?: boolean;
 }
 
-export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
+export function PDFPreview({ pdfSettings, onRefresh, isDesignMode = false }: PDFPreviewProps) {
   const { toast } = useToast();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [useBlankTemplate, setUseBlankTemplate] = useState(isDesignMode);
+  const [showGridLines, setShowGridLines] = useState(isDesignMode);
   
   // Sample data to generate the preview
   const sampleRequest: Partial<PurchaseRequestWithRelations> = {
@@ -80,10 +85,137 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     ]
   };
 
+  const generateBlankTemplate = useCallback(() => {
+    setIsLoading(true);
+    
+    try {
+      // Create a blank template for design purposes
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
+      });
+      
+      // Draw a blank page with a grid if showGridLines is enabled
+      doc.setDrawColor(230, 230, 230);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 595, 842, 'F');
+      
+      if (showGridLines) {
+        // Draw grid lines
+        doc.setLineWidth(0.2);
+        
+        // Draw vertical grid lines
+        for (let x = 50; x < 595; x += 50) {
+          doc.line(x, 0, x, 842);
+        }
+        
+        // Draw horizontal grid lines
+        for (let y = 50; y < 842; y += 50) {
+          doc.line(0, y, 595, y);
+        }
+        
+        // Draw content area indicator
+        doc.setLineDashPattern([5, 5], 0);
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(40, 120, 515, 602);
+        doc.setFontSize(12);
+        doc.setTextColor(180, 180, 180);
+        doc.text('DOCUMENT CONTENT AREA', 297.5, 421, { align: 'center' });
+        
+        // Draw header and footer areas
+        doc.rect(0, 0, 595, 100);
+        doc.rect(0, 780, 595, 62);
+      }
+      
+      // Add branding elements from settings
+      if (pdfSettings) {
+        // Add logo if enabled
+        if (pdfSettings.showLogo && pdfSettings.logo) {
+          try {
+            doc.addImage(pdfSettings.logo, 'PNG', 20, 20, 100, 60);
+          } catch (e) {
+            console.error('Failed to add logo', e);
+          }
+        }
+        
+        // Add header image if enabled
+        if (pdfSettings.showHeaderImage && pdfSettings.headerImage) {
+          try {
+            doc.addImage(pdfSettings.headerImage, 'PNG', 0, 0, 595, 100);
+          } catch (e) {
+            console.error('Failed to add header image', e);
+          }
+        }
+        
+        // Add header text if enabled
+        if (pdfSettings.showHeaderText) {
+          doc.setTextColor(pdfSettings.headerColor || '#6F2AE6');
+          doc.setFontSize(20);
+          doc.setFont('helvetica', 'bold');
+          doc.text(pdfSettings.headerTitle || 'EVENTS & ENTERTAINMENT', 140, 40);
+          doc.setFontSize(14);
+          doc.text(pdfSettings.headerSubtitle || 'ENTERPRISES', 140, 60);
+        }
+        
+        // Add footer image if enabled
+        if (pdfSettings.showFooterImage && pdfSettings.footerImage) {
+          try {
+            doc.addImage(pdfSettings.footerImage, 'PNG', 0, 780, 595, 62);
+          } catch (e) {
+            console.error('Failed to add footer image', e);
+          }
+        }
+        
+        // Add footer text if enabled
+        if (pdfSettings.showFooterText) {
+          doc.setTextColor(pdfSettings.footerColor || '#6F2AE6');
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(pdfSettings.footerText || 'ALL RIGHTS RESERVED BY E3', 297.5, 820, { align: 'center' });
+        }
+        
+        // Add page numbers if enabled
+        if (pdfSettings.pageNumbering) {
+          doc.setFontSize(9);
+          doc.setTextColor(100, 100, 100);
+          doc.text('Page 1 of 1', 560, 830, { align: 'right' });
+        }
+      }
+      
+      // Create data URL for preview
+      const pdfBlob = doc.output('blob');
+      const blobWithType = new Blob([pdfBlob], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blobWithType);
+      
+      // Clean up previous URL if it exists
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+      
+      setPdfUrl(url);
+    } catch (error) {
+      console.error("Error generating blank template:", error);
+      toast({
+        title: "Template Generation Failed",
+        description: "Could not generate blank template. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pdfSettings, pdfUrl, showGridLines, toast, useBlankTemplate]);
+
   const generatePreviewPDF = useCallback(async () => {
     setIsLoading(true);
     
     try {
+      // If using blank template in design mode, use that instead of the full PDF
+      if (useBlankTemplate) {
+        generateBlankTemplate();
+        return;
+      }
+      
       // Apply all PDF settings from props to the sample request
       const requestWithSettings = {
         ...sampleRequest,
@@ -132,7 +264,7 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [sampleRequest, pdfSettings, pdfUrl, toast]);
+  }, [sampleRequest, pdfSettings, pdfUrl, toast, useBlankTemplate, generateBlankTemplate]);
   
   // Generate preview on initial load and when pdfSettings change
   useEffect(() => {
@@ -199,6 +331,19 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     });
   };
   
+  // Toggle design mode settings and refresh preview
+  const toggleBlankTemplate = (value: boolean) => {
+    setUseBlankTemplate(value);
+    // Refresh the preview after changing setting
+    setTimeout(() => generatePreviewPDF(), 0);
+  };
+  
+  const toggleGridLines = (value: boolean) => {
+    setShowGridLines(value);
+    // Refresh the preview after changing setting
+    setTimeout(() => generatePreviewPDF(), 0);
+  };
+  
   return (
     <div className="flex flex-col h-full w-full">
       <div className="mb-4 flex flex-wrap gap-2 justify-between items-center">
@@ -257,6 +402,42 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
           </Button>
         </div>
       </div>
+      
+      {/* Design mode controls */}
+      {isDesignMode && (
+        <div className="mb-4 p-3 border rounded-md bg-muted/30 space-y-2">
+          <h3 className="text-sm font-medium mb-2">Design Mode Controls</h3>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="blankTemplate"
+                checked={useBlankTemplate}
+                onCheckedChange={toggleBlankTemplate}
+              />
+              <Label htmlFor="blankTemplate">Blank Template</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="showGridLines"
+                checked={showGridLines}
+                onCheckedChange={toggleGridLines}
+                disabled={!useBlankTemplate}
+              />
+              <Label 
+                htmlFor="showGridLines"
+                className={!useBlankTemplate ? "text-muted-foreground" : ""}
+              >
+                Show Grid Lines
+              </Label>
+            </div>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mt-1">
+            Using a blank template with branding allows you to focus on layout without content.
+          </p>
+        </div>
+      )}
       
       <div className="flex-1 overflow-auto border rounded-lg bg-gray-100">
         {isLoading ? (
