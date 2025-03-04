@@ -251,7 +251,20 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     const textColor = [50, 50, 50]; // Dark gray for text
     
     // Prepare settings with default and override values
-    let settings = {
+    let settings: {
+      footerText: string;
+      footerColor: string;
+      pageNumbering: boolean;
+      footerImage?: string | null;
+      showFooterText: boolean;
+      showFooterImage: boolean;
+      contactInfo: {
+        phone?: string;
+        email?: string;
+        website?: string;
+        address?: string;
+      }
+    } = {
       footerText: "ALL RIGHTS RESERVED BY E3",
       footerColor: "#6F2AE6", // E3 purple
       pageNumbering: true,
