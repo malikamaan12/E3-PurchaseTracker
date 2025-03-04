@@ -940,8 +940,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showBasicInfo" 
-                          checked={formData.showBasicInfo !== false}
-                          onCheckedChange={value => handleInputChange('showBasicInfo', value)}
+                          checked={Boolean(formData.showBasicInfo)}
+                          onCheckedChange={value => handleInputChange('showBasicInfo', Boolean(value))}
                         />
                         <Label htmlFor="showBasicInfo">Basic Information</Label>
                       </div>
@@ -949,8 +949,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showRequesterDetails" 
-                          checked={formData.showRequesterDetails !== false}
-                          onCheckedChange={value => handleInputChange('showRequesterDetails', value)}
+                          checked={Boolean(formData.showRequesterDetails)}
+                          onCheckedChange={value => handleInputChange('showRequesterDetails', Boolean(value))}
                         />
                         <Label htmlFor="showRequesterDetails">Requester Details</Label>
                       </div>
@@ -958,8 +958,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showDateOfRequest" 
-                          checked={formData.showDateOfRequest !== false}
-                          onCheckedChange={value => handleInputChange('showDateOfRequest', value)}
+                          checked={Boolean(formData.showDateOfRequest)}
+                          onCheckedChange={value => handleInputChange('showDateOfRequest', Boolean(value))}
                         />
                         <Label htmlFor="showDateOfRequest">Date of Request</Label>
                       </div>
@@ -967,8 +967,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showPurposeInfo" 
-                          checked={formData.showPurposeInfo !== false}
-                          onCheckedChange={value => handleInputChange('showPurposeInfo', value)}
+                          checked={Boolean(formData.showPurposeInfo)}
+                          onCheckedChange={value => handleInputChange('showPurposeInfo', Boolean(value))}
                         />
                         <Label htmlFor="showPurposeInfo">Purpose Information</Label>
                       </div>
@@ -976,8 +976,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showVendorDetails" 
-                          checked={formData.showVendorDetails !== false}
-                          onCheckedChange={value => handleInputChange('showVendorDetails', value)}
+                          checked={Boolean(formData.showVendorDetails)}
+                          onCheckedChange={value => handleInputChange('showVendorDetails', Boolean(value))}
                         />
                         <Label htmlFor="showVendorDetails">Vendor Information</Label>
                       </div>
@@ -985,8 +985,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showItems" 
-                          checked={formData.showItems !== false}
-                          onCheckedChange={value => handleInputChange('showItems', value)}
+                          checked={Boolean(formData.showItems)}
+                          onCheckedChange={value => handleInputChange('showItems', Boolean(value))}
                         />
                         <Label htmlFor="showItems">Items</Label>
                       </div>
@@ -994,8 +994,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showApprovals" 
-                          checked={formData.showApprovals !== false}
-                          onCheckedChange={value => handleInputChange('showApprovals', value)}
+                          checked={Boolean(formData.showApprovals)}
+                          onCheckedChange={value => handleInputChange('showApprovals', Boolean(value))}
                         />
                         <Label htmlFor="showApprovals">Approval Information</Label>
                       </div>
@@ -1003,8 +1003,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showAttachments" 
-                          checked={formData.showAttachments !== false}
-                          onCheckedChange={value => handleInputChange('showAttachments', value)}
+                          checked={Boolean(formData.showAttachments)}
+                          onCheckedChange={value => handleInputChange('showAttachments', Boolean(value))}
                         />
                         <Label htmlFor="showAttachments">Attachments List</Label>
                       </div>
@@ -1012,8 +1012,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showAuditInfo" 
-                          checked={formData.showAuditInfo !== false}
-                          onCheckedChange={value => handleInputChange('showAuditInfo', value)}
+                          checked={Boolean(formData.showAuditInfo)}
+                          onCheckedChange={value => handleInputChange('showAuditInfo', Boolean(value))}
                         />
                         <Label htmlFor="showAuditInfo">Audit Information</Label>
                       </div>
@@ -1021,8 +1021,8 @@ export default function PDFConfiguration() {
                       <div className="flex items-center space-x-2">
                         <Switch 
                           id="showSignatures" 
-                          checked={formData.showSignatures !== false}
-                          onCheckedChange={value => handleInputChange('showSignatures', value)}
+                          checked={Boolean(formData.showSignatures)}
+                          onCheckedChange={value => handleInputChange('showSignatures', Boolean(value))}
                         />
                         <Label htmlFor="showSignatures">Digital Signatures</Label>
                       </div>
@@ -1039,7 +1039,7 @@ export default function PDFConfiguration() {
                       <div className="bg-muted p-4 rounded-md space-y-2">
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">1. Basic Information</span>
-                          {formData.showBasicInfo === false ? (
+                          {!Boolean(formData.showBasicInfo) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1048,7 +1048,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">2. Requester Details</span>
-                          {formData.showRequesterDetails === false ? (
+                          {!Boolean(formData.showRequesterDetails) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1057,7 +1057,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">3. Purpose Information</span>
-                          {formData.showPurposeInfo === false ? (
+                          {!Boolean(formData.showPurposeInfo) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1066,7 +1066,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">4. Vendor Information</span>
-                          {formData.showVendorDetails === false ? (
+                          {!Boolean(formData.showVendorDetails) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1075,7 +1075,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">5. Items</span>
-                          {formData.showItems === false ? (
+                          {!Boolean(formData.showItems) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1084,7 +1084,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">6. Approval Information</span>
-                          {formData.showApprovals === false ? (
+                          {!Boolean(formData.showApprovals) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1093,7 +1093,7 @@ export default function PDFConfiguration() {
                         
                         <div className="bg-background p-2 rounded border flex justify-between items-center">
                           <span className="font-medium">7. Attachments</span>
-                          {formData.showAttachments === false ? (
+                          {!Boolean(formData.showAttachments) ? (
                             <span className="text-red-500 text-xs font-medium">Hidden</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">Visible</span>
@@ -1292,7 +1292,7 @@ export default function PDFConfiguration() {
                       </table>
                       
                       {/* Approvals Section */}
-                      {formData.showApprovals !== false && (
+                      {Boolean(formData.showApprovals) && (
                         <>
                           <div className="bg-gray-100 px-2 py-1 mb-2">
                             <h3 className="text-xs font-bold text-gray-700">Approvals</h3>
