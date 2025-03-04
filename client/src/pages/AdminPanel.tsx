@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
+import PDFConfiguration from "@/pages/PDFConfiguration";
 import {
   Card,
   CardContent,
@@ -400,11 +401,12 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="requests">Account Requests</TabsTrigger>
           <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
           <TabsTrigger value="sub-purposes">Sub-purposes</TabsTrigger>
+          <TabsTrigger value="pdf-config">PDF Configuration</TabsTrigger>
           <TabsTrigger value="department-analytics">
             <BarChart className="h-4 w-4 mr-2" />
             Department Analytics
@@ -916,6 +918,21 @@ export default function AdminPanel() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* PDF Configuration Tab */}
+        <TabsContent value="pdf-config">
+          <Card>
+            <CardHeader>
+              <CardTitle>PDF Configuration</CardTitle>
+              <CardDescription>
+                Customize PDF document settings and branding
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PDFConfiguration />
             </CardContent>
           </Card>
         </TabsContent>
