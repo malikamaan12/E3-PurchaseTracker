@@ -279,15 +279,83 @@ function addSection(doc: jsPDF, title: string, yPos: number): number {
  * @param type The type of PDF to generate (user, approver, admin)
  * @returns jsPDF document
  */
+// Handle different layout templates
+// Define supported table styles
+type TableStyle = 'striped' | 'grid' | 'plain';
+
+interface TemplateConfig {
+  orientation: 'portrait' | 'landscape';
+  unit: 'mm' | 'pt' | 'in' | 'cm';
+  format: 'a4' | 'letter' | 'legal';
+  margins: { top: number; right: number; bottom: number; left: number };
+  tableStyle: TableStyle;
+  showAttachments: boolean;
+  showApprovals: boolean;
+  showVendorDetails: boolean;
+  showAuditInfo: boolean;
+  fontFamily: string;
+}
+
+function getTemplateConfig(templateId: string = 'standard'): TemplateConfig {
+  // Default configuration
+  const defaultConfig: TemplateConfig = {
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    margins: { top: 15, right: 15, bottom: 15, left: 15 },
+    tableStyle: 'striped' as 'striped' | 'grid' | 'plain', // Cast to fix LSP errors
+    showAttachments: true,
+    showApprovals: true,
+    showVendorDetails: true,
+    showAuditInfo: true,
+    fontFamily: 'helvetica'
+  };
+  
+  // Template-specific configurations
+  switch (templateId) {
+    case 'compact':
+      return {
+        ...defaultConfig,
+        margins: { top: 10, right: 10, bottom: 10, left: 10 },
+        tableStyle: 'plain' // Changed from 'minimal' to valid 'plain'
+      };
+    case 'detailed':
+      return {
+        ...defaultConfig,
+        margins: { top: 20, right: 20, bottom: 20, left: 20 },
+        tableStyle: 'grid'
+      };
+    case 'minimal':
+      return {
+        ...defaultConfig,
+        margins: { top: 15, right: 15, bottom: 15, left: 15 },
+        tableStyle: 'plain',
+        showAuditInfo: false
+      };
+    default:
+      return defaultConfig;
+  }
+}
+
 export async function generateRequestPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user') {
   try {
+    // Get template configuration
+    const templateId = request?.pdfSettings?.templateMode || 'standard';
+    const templateConfig = getTemplateConfig(templateId);
+    
+    // Create PDF with template configuration
     const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
+      orientation: templateConfig.orientation,
+      unit: templateConfig.unit,
+      format: templateConfig.format,
     });
 
-    const margin = 15;
+    // Use margins from template configuration
+    const margin = templateConfig.margins.left;
+    
+    // Set font family from template configuration
+    doc.setFont(templateConfig.fontFamily);
+    
     let yPos = await addHeader(doc, request);
 
     // Basic Information Section
@@ -441,7 +509,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         ['', '', '', 'Freight:', formatCurrency(freightAmount)],
         ['', '', '', 'Total Cost:', formatCurrency(totalCost)]
       ],
-      theme: 'striped',
+      theme: templateConfig.tableStyle,
       headStyles: {
         fillColor: [247, 248, 250],
         textColor: [26, 54, 93],

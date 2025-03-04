@@ -48,21 +48,13 @@ export default function PDFConfiguration() {
   const [isSaving, setIsSaving] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0); // To force re-render for panel state
   
-  // References to manage UI elements programmatically
-  const leftPanelRef = useRef<HTMLDivElement>(null);
+  // References to manage UI elements programmatically - removed to avoid type errors
+  // const leftPanelRef = useRef<HTMLDivElement>(null);
   
   // Force a re-render when panel collapse state changes to ensure proper UI updates
   useEffect(() => {
     setForceUpdateKey(prev => prev + 1);
-    
-    // Programmatically update panel state
-    if (leftPanelRef.current) {
-      if (isPanelCollapsed) {
-        // Add any needed logic to manually collapse the panel if needed
-      } else {
-        // Add any needed logic to manually expand the panel if needed
-      }
-    }
+    // No need to manually manage the panel state - it's handled by the component
   }, [isPanelCollapsed]);
   
   // Fetch current settings
@@ -176,13 +168,12 @@ export default function PDFConfiguration() {
         key={forceUpdateKey} // Add key to force re-render on collapse state change
       >
         <ResizablePanel
-          ref={leftPanelRef}
           defaultSize={40}
           minSize={30}
           maxSize={70}
           collapsible={true}
           collapsedSize={0}
-          // We'll manually handle the panel states
+          // Panel state management
           onCollapse={() => setIsPanelCollapsed(true)}
           onExpand={() => setIsPanelCollapsed(false)}
           className="p-0"
@@ -396,7 +387,10 @@ export default function PDFConfiguration() {
               ) : (
                 <PDFPreview 
                   key={previewKey}
-                  pdfSettings={pdfSettings} 
+                  pdfSettings={{
+                    ...pdfSettings,
+                    templateMode: templateMode // Pass the template mode to the preview
+                  }} 
                   onRefresh={refetch}
                 />
               )}

@@ -84,25 +84,41 @@ export function PDFPreview({ pdfSettings, onRefresh }: PDFPreviewProps) {
     setIsLoading(true);
     
     try {
-      // Apply any PDF settings from props to the sample request
+      // Apply all PDF settings from props to the sample request
       const requestWithSettings = {
         ...sampleRequest,
-        pdfSettings: pdfSettings || {}
+        pdfSettings: {
+          ...pdfSettings,
+          // Ensure the template mode is passed to the PDF generator
+          templateMode: pdfSettings?.templateMode || 'standard'
+        }
       };
       
       // Use the real PDF generator function with our settings
       const doc = await generateRequestPDF(requestWithSettings as any, 'admin');
       
-      // Convert to blob URL
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      
-      // Clean up previous URL if it exists
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
+      try {
+        // Convert to blob URL
+        const pdfBlob = doc.output('blob');
+        
+        // Add proper content type to avoid Chrome blocking
+        const blobWithType = new Blob([pdfBlob], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blobWithType);
+        
+        // Clean up previous URL if it exists
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+        }
+        
+        setPdfUrl(url);
+      } catch (blobError) {
+        console.error("Error creating PDF blob:", blobError);
+        toast({
+          title: "PDF Rendering Error",
+          description: "Could not create PDF preview. Browser security settings may be blocking the preview.",
+          variant: "destructive",
+        });
       }
-      
-      setPdfUrl(url);
       
       // Silent refresh - no toast notification to avoid spam
       // Only show toast when manually refreshing
