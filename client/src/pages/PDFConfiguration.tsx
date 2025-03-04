@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { PDFPreview } from '@/components/PDFPreview';
 import DraggableBrandingForm from '@/components/DraggableBrandingForm';
@@ -120,10 +119,16 @@ export default function PDFConfiguration() {
   const { toast } = useToast();
   
   // State for managing the component
-  const [activeTab, setActiveTab] = useState('appearance');
+  const [activeTab, setActiveTab] = useState('visual-layout');
   const [previewKey, setPreviewKey] = useState(0);
   const [formData, setFormData] = useState<Partial<PDFSettings>>({});
   const [zoom, setZoom] = useState(100);
+  
+  // Set initial tab effect
+  useEffect(() => {
+    // Focus on the visual layout by default
+    setActiveTab('visual-layout');
+  }, []);
   
   // Fetch current PDF settings
   const { 
@@ -262,123 +267,113 @@ export default function PDFConfiguration() {
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="appearance">
-                    <Settings className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Appearance</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="branding">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="design-elements">
                     <Palette className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Branding</span>
+                    <span className="hidden sm:inline">Design Elements</span>
                   </TabsTrigger>
-                  <TabsTrigger value="branding-editor">
+                  <TabsTrigger value="visual-layout">
                     <GripVertical className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Visual Editor</span>
+                    <span className="hidden sm:inline">Visual Layout</span>
                   </TabsTrigger>
-                  <TabsTrigger value="layout">
-                    <Layout className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Layout</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="sections">
+                  <TabsTrigger value="preview">
                     <FileText className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Sections</span>
+                    <span className="hidden sm:inline">Preview</span>
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Appearance Tab */}
-                <TabsContent value="appearance" className="space-y-4 mt-4">
-                  <Select 
-                    value={formData.templateMode || 'standard'} 
-                    onValueChange={value => handleInputChange('templateMode', value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates.map(template => (
-                        <SelectItem key={template.id} value={template.id}>
-                          <div>
-                            <span className="font-medium">{template.name}</span>
-                            <p className="text-xs text-muted-foreground">{template.description}</p>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="pageSize">Page Size</Label>
-                      <Select 
-                        value={formData.pageSize || 'a4'} 
-                        onValueChange={value => handleInputChange('pageSize', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select page size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="a4">A4</SelectItem>
-                          <SelectItem value="letter">US Letter</SelectItem>
-                          <SelectItem value="legal">US Legal</SelectItem>
-                        </SelectContent>
-                      </Select>
+                {/* Design Elements Tab */}
+                <TabsContent value="design-elements" className="space-y-4 mt-4">
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-lg">Logo & Header</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="headerTitle">Header Title</Label>
+                        <Input 
+                          id="headerTitle"
+                          value={formData.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES'} 
+                          onChange={e => handleInputChange('headerTitle', e.target.value)}
+                          placeholder="Main header text"
+                        />
+                      </div>
+                        
+                      <div>
+                        <Label htmlFor="headerSubtitle">Header Subtitle</Label>
+                        <Input 
+                          id="headerSubtitle"
+                          value={formData.headerSubtitle || 'PURCHASE REQUEST'} 
+                          onChange={e => handleInputChange('headerSubtitle', e.target.value)}
+                          placeholder="Subtitle text"
+                        />
+                      </div>
+                        
+                      <div>
+                        <Label htmlFor="headerColor">Header Color</Label>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            id="headerColor"
+                            type="color"
+                            value={formData.headerColor || '#6F2AE6'} 
+                            onChange={e => handleInputChange('headerColor', e.target.value)}
+                            className="w-20 h-10 p-1"
+                          />
+                          <Input 
+                            value={formData.headerColor || '#6F2AE6'} 
+                            onChange={e => handleInputChange('headerColor', e.target.value)}
+                            className="flex-1"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
                     </div>
                     
-                    <div>
-                      <Label htmlFor="orientation">Orientation</Label>
-                      <Select 
-                        value={formData.orientation || 'portrait'} 
-                        onValueChange={value => handleInputChange('orientation', value as 'portrait' | 'landscape')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select orientation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="portrait">Portrait</SelectItem>
-                          <SelectItem value="landscape">Landscape</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Separator className="my-4" />
                     
-                    <div>
-                      <Label htmlFor="fontFamily">Font Family</Label>
-                      <Select 
-                        value={formData.fontFamily || 'helvetica'} 
-                        onValueChange={value => handleInputChange('fontFamily', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select font family" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="helvetica">Helvetica</SelectItem>
-                          <SelectItem value="times">Times New Roman</SelectItem>
-                          <SelectItem value="courier">Courier</SelectItem>
-                          <SelectItem value="arial">Arial</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="tableStyle">Table Style</Label>
-                      <Select 
-                        value={formData.tableStyle || 'striped'} 
-                        onValueChange={value => handleInputChange('tableStyle', value as 'striped' | 'grid' | 'plain')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select table style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="striped">Striped</SelectItem>
-                          <SelectItem value="grid">Grid</SelectItem>
-                          <SelectItem value="plain">Plain</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <h3 className="font-medium text-lg">Footer & Page Numbering</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="footerText">Footer Text</Label>
+                        <Input 
+                          id="footerText"
+                          value={formData.footerText || 'ALL RIGHTS RESERVED BY E3'} 
+                          onChange={e => handleInputChange('footerText', e.target.value)}
+                          placeholder="Footer text"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="footerColor">Footer Color</Label>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            id="footerColor"
+                            type="color"
+                            value={formData.footerColor || '#6F2AE6'} 
+                            onChange={e => handleInputChange('footerColor', e.target.value)}
+                            className="w-20 h-10 p-1"
+                          />
+                          <Input 
+                            value={formData.footerColor || '#6F2AE6'} 
+                            onChange={e => handleInputChange('footerColor', e.target.value)}
+                            className="flex-1"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 col-span-2">
+                        <Switch 
+                          id="pageNumbering" 
+                          checked={formData.pageNumbering !== false}
+                          onCheckedChange={value => handleInputChange('pageNumbering', Boolean(value))}
+                        />
+                        <Label htmlFor="pageNumbering">Show Page Numbers</Label>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
                 
-                {/* Branding Tab */}
-                <TabsContent value="branding" className="space-y-4 mt-4">
+                {/* Visual Layout Tab */}
+                <TabsContent value="visual-layout" className="space-y-4 mt-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium text-lg">Header Branding</h3>
