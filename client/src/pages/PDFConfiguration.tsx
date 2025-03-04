@@ -354,12 +354,12 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showHeaderText" 
                           checked={formData.showHeaderText !== false}
-                          onCheckedChange={value => handleInputChange('showHeaderText', value)}
+                          onCheckedChange={value => handleInputChange('showHeaderText', Boolean(value))}
                         />
                         <Label htmlFor="showHeaderText">Show Header Text</Label>
                       </div>
                       
-                      {formData.showHeaderText !== false && (
+                      {Boolean(formData.showHeaderText) && (
                         <>
                           <div>
                             <Label htmlFor="headerTitle">Header Title</Label>
@@ -406,12 +406,12 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showHeaderImage" 
                           checked={formData.showHeaderImage !== false}
-                          onCheckedChange={value => handleInputChange('showHeaderImage', value)}
+                          onCheckedChange={value => handleInputChange('showHeaderImage', Boolean(value))}
                         />
                         <Label htmlFor="showHeaderImage">Show Header Image</Label>
                       </div>
                       
-                      {formData.showHeaderImage !== false && (
+                      {Boolean(formData.showHeaderImage) && (
                         <div className="md:col-span-2">
                           <Label htmlFor="headerImageUpload">Header Image</Label>
                           <div className="mt-1">
@@ -476,7 +476,7 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showLogo" 
                           checked={formData.showLogo !== false}
-                          onCheckedChange={value => handleInputChange('showLogo', value)}
+                          onCheckedChange={value => handleInputChange('showLogo', Boolean(value))}
                         />
                         <Label htmlFor="showLogo">Show Logo</Label>
                       </div>
@@ -552,7 +552,7 @@ export default function PDFConfiguration() {
                         <Switch 
                           id="showFooterText" 
                           checked={formData.showFooterText !== false}
-                          onCheckedChange={value => handleInputChange('showFooterText', value)}
+                          onCheckedChange={value => handleInputChange('showFooterText', Boolean(value))}
                         />
                         <Label htmlFor="showFooterText">Show Footer Text</Label>
                       </div>
