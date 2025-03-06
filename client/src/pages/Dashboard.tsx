@@ -70,6 +70,7 @@ export default function Dashboard() {
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(preferences?.defaultView || "my-requests");
 
   // Role-based access control
   const isAdmin = useMemo(() => user?.role === "admin", [user?.role]);
@@ -641,7 +642,7 @@ export default function Dashboard() {
           isLoading={isFilterLoading}
         />
 
-        <Tabs defaultValue={(preferences?.defaultView || "my-requests")} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="my-requests" className="space-y-6">
           {/* Tabs navigation - desktop and mobile */}
           <div className="pb-4">
             {/* Desktop view - standard row */}
@@ -734,68 +735,88 @@ export default function Dashboard() {
               </TabsList>
             </div>
             
-            {/* Mobile view - scrollable tab grid */}
+            {/* Mobile view - card-style grid similar to screenshot */}
             <div className="sm:hidden mb-4">
+              <TabsList className="hidden">
+                {/* Hidden TabsList to satisfy the Tabs component structure */}
+                <TabsTrigger value="placeholder" />
+              </TabsList>
+              
               <div className="grid grid-cols-5 gap-4">
                 <div className="col-span-5">
                   <div className="grid grid-cols-5 gap-x-2 mb-4">
                     {/* First Row - Main tabs */}
-                    <TabsTrigger 
-                      value="my-requests" 
-                      className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                    <Button 
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setActiveTab("my-requests")}
+                      className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                        ${activeTab === "my-requests" ? "bg-[#7156a2] text-white" : ""}`}
                     >
                       <FileText className="h-6 w-6 mb-1" />
                       <div className="text-center">My</div>
                       <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                         {requestCounts.myRequests}
                       </Badge>
-                    </TabsTrigger>
+                    </Button>
                     
-                    <TabsTrigger 
-                      value="drafts-to-submit" 
-                      className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                    <Button 
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setActiveTab("drafts-to-submit")}
+                      className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                        ${activeTab === "drafts-to-submit" ? "bg-[#7156a2] text-white" : ""}`}
                     >
                       <FileEdit className="h-6 w-6 mb-1" />
                       <div className="text-center">Drafts</div>
                       <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                         {requestCounts.draftsToSubmit}
                       </Badge>
-                    </TabsTrigger>
+                    </Button>
                     
                     {(isAdmin || isSpecialRole) && (
-                      <TabsTrigger 
-                        value="all-requests" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("all-requests")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "all-requests" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <Files className="h-6 w-6 mb-1" />
                         <div className="text-center">All</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.allRequests}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                     )}
                     
                     {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                      <TabsTrigger 
-                        value="approvals" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("approvals")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "approvals" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <CircleCheck className="h-6 w-6 mb-1" />
                         <div className="text-center">Approvals</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.approvals}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                     )}
                     
                     {(isAdmin || isSpecialRole) && (
-                      <TabsTrigger 
-                        value="export" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("export")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "export" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <Download className="h-6 w-6 mb-1" />
                         <div className="text-center">Export</div>
-                      </TabsTrigger>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -804,49 +825,61 @@ export default function Dashboard() {
                 {(isAdmin || isSpecialRole) && (
                   <div className="col-span-5">
                     <div className="grid grid-cols-4 gap-x-2 mb-4">
-                      <TabsTrigger 
-                        value="pending" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("pending")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "pending" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <Clock className="h-6 w-6 mb-1" />
                         <div className="text-center">Pending</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.pending}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                       
-                      <TabsTrigger 
-                        value="approved" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("approved")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "approved" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <CheckCircle className="h-6 w-6 mb-1" />
                         <div className="text-center">Approved</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.approved}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                       
-                      <TabsTrigger 
-                        value="rejected" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("rejected")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "rejected" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <XCircle className="h-6 w-6 mb-1" />
                         <div className="text-center">Rejected</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.rejected}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                       
-                      <TabsTrigger 
-                        value="changes" 
-                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      <Button 
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveTab("changes")}
+                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
+                          ${activeTab === "changes" ? "bg-[#7156a2] text-white" : ""}`}
                       >
                         <PencilRuler className="h-6 w-6 mb-1" />
                         <div className="text-center">Changes</div>
                         <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
                           {requestCounts.changes}
                         </Badge>
-                      </TabsTrigger>
+                      </Button>
                     </div>
                   </div>
                 )}
