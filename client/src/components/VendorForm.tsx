@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type InsertVendor, vendorFormSchema } from "@db/schema";
@@ -24,6 +24,7 @@ interface VendorFormProps {
   defaultValues?: Partial<VendorFormValues>;
 }
 
+// Simplified form component with optimized performance
 export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
   const { toast } = useToast();
   const form = useForm<VendorFormValues>({
@@ -66,14 +67,12 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
   // Enhanced form submission with better handling of loading states
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Direct form handler - simplifying the process
-  const handleFormSubmit = async (values: VendorFormValues) => {
-    console.log('Form submitted with values:', values);
-    console.log('Form state:', form.formState);
+  // Direct form handler with useCallback for better performance
+  const handleFormSubmit = useCallback(async (values: VendorFormValues) => {
+    // Avoid excessive logging which may cause performance issues on mobile
     
     // Check if the form has validation errors
     if (Object.keys(form.formState.errors).length > 0) {
-      console.error('Form has validation errors:', form.formState.errors);
       toast({
         title: "Validation Error",
         description: "Please check the form for errors",
@@ -82,13 +81,10 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       return;
     }
     
-    if (isSubmitting) {
-      console.log('Preventing double submission');
-      return;
-    }
+    // Prevent double submission
+    if (isSubmitting) return;
     
     setIsSubmitting(true);
-    console.log('Starting vendor form submission with values:', values);
     
     try {
       // Process optional fields that can be null and convert types
@@ -104,16 +100,10 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
         ? Number(processedData.rating) || 0
         : processedData.rating || 0;
       
-      console.log('Ensuring rating is a number:', processedData.rating, typeof processedData.rating);
-      
-      // For updates, make sure to include ID from defaultValues
+      // For updates, make sure the ID is included
       if (defaultValues?.id) {
-        // When updating, we need to send the ID as it's needed by the updateVendor function
-        const vendorId = defaultValues.id;
-        console.log(`Including vendor ID ${vendorId} in update context`);
+        processedData.id = defaultValues.id;
       }
-      
-      console.log('Processed values for submission:', processedData);
       
       // Show loading toast
       const isUpdate = !!defaultValues?.id;
@@ -123,29 +113,19 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
       });
       
       // Call the parent submission handler
-      console.log('Calling parent onSubmit function');
-      console.log('Is this an update?', isUpdate);
+      const result = await onSubmit(processedData);
       
-      try {
-        const result = await onSubmit(processedData);
-        console.log('Parent onSubmit function returned:', result);
-        
-        // Show success toast
-        toast({
-          title: "Success",
-          description: `Vendor ${isUpdate ? 'updated' : 'created'} successfully`,
-        });
-        
-        // Only reset form for new vendor creation
-        if (!isUpdate) {
-          form.reset();
-        }
-      } catch (submitError) {
-        console.error("Submit function error:", submitError);
-        throw submitError;
+      // Show success toast
+      toast({
+        title: "Success",
+        description: `Vendor ${isUpdate ? 'updated' : 'created'} successfully`,
+      });
+      
+      // Only reset form for new vendor creation
+      if (!isUpdate) {
+        form.reset();
       }
     } catch (error) {
-      console.error("Form submission error:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save vendor",
@@ -154,10 +134,13 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [form, toast, isSubmitting, setIsSubmitting, defaultValues, onSubmit]);
   
-  // We'll just use a manual submit button and avoid the onSubmit handler 
-  // to prevent any confusion with duplicate handlers
+  // Use another useCallback for the button click handler
+  const handleButtonClick = useCallback(() => {
+    const formValues = form.getValues();
+    handleFormSubmit(formValues);
+  }, [form, handleFormSubmit]);
 
   return (
     <Form {...form}>
@@ -386,12 +369,8 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
           <Button 
             type="button" 
             disabled={isSubmitting}
-            onClick={() => {
-              console.log("Save button clicked manually");
-              const formValues = form.getValues();
-              console.log("Current form values:", formValues);
-              handleFormSubmit(formValues);
-            }}
+            className="w-full sm:w-auto"
+            onClick={handleButtonClick}
           >
             {isSubmitting ? (
               <>
