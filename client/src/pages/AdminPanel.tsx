@@ -18,9 +18,23 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Plus, BarChart } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Check, 
+  X, 
+  Plus, 
+  BarChart, 
+  Users, 
+  ClipboardList, 
+  Building2, 
+  ListTree,
+  Pencil,
+  Trash2,
+  Loader2 
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Table,
   TableBody,
@@ -60,7 +74,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSubPurposeSchema } from "@db/schema";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +84,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from "lucide-react";
 
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
@@ -82,6 +94,7 @@ export default function AdminPanel() {
   const [selectedSubPurpose, setSelectedSubPurpose] = useState<SubPurpose | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Fetch account requests
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
@@ -401,13 +414,55 @@ export default function AdminPanel() {
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="requests">Account Requests</TabsTrigger>
-          <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
-          <TabsTrigger value="sub-purposes">Sub-purposes</TabsTrigger>
+          <TabsTrigger value="users">
+            {isMobile ? (
+              <Users className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <Users className="h-4 w-4 mr-2" />
+                <span>Users</span>
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="requests">
+            {isMobile ? (
+              <ClipboardList className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                <span>Requests</span>
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="vendors">
+            {isMobile ? (
+              <Building2 className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <Building2 className="h-4 w-4 mr-2" />
+                <span>Vendors</span>
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="sub-purposes">
+            {isMobile ? (
+              <ListTree className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <ListTree className="h-4 w-4 mr-2" />
+                <span>Sub-purposes</span>
+              </div>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="department-analytics">
-            <BarChart className="h-4 w-4 mr-2" />
-            Department Analytics
+            {isMobile ? (
+              <BarChart className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <BarChart className="h-4 w-4 mr-2" />
+                <span>Analytics</span>
+              </div>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -578,7 +633,7 @@ export default function AdminPanel() {
                   className="flex items-center"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add New Sub-purpose
+                  {isMobile ? "Add New" : "Add New Sub-purpose"}
                 </Button>
               </div>
 
@@ -624,7 +679,7 @@ export default function AdminPanel() {
                           <div className="flex gap-2">
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size={isMobile ? "icon" : "sm"}
                               onClick={() =>
                                 toggleSubPurposeFreeze.mutate({
                                   id: subPurpose.id,
@@ -637,22 +692,33 @@ export default function AdminPanel() {
                                   ? "text-green-500 hover:text-green-700"
                                   : "text-red-500 hover:text-red-700"
                               )}
+                              title={subPurpose.is_frozen ? "Unfreeze" : "Freeze"}
                             >
-                              {subPurpose.is_frozen ? "Unfreeze" : "Freeze"}
+                              {isMobile ? (
+                                subPurpose.is_frozen ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <X className="h-4 w-4" />
+                                )
+                              ) : (
+                                <span>{subPurpose.is_frozen ? "Unfreeze" : "Freeze"}</span>
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => handleEditClick(subPurpose)}
                               className="text-blue-500 hover:text-blue-700"
+                              title="Edit"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => handleDeleteClick(subPurpose)}
                               className="text-red-500 hover:text-red-700"
+                              title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
