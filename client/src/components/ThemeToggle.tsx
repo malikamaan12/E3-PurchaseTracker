@@ -13,22 +13,19 @@ type Theme = "light" | "dark" | "system";
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("system");
   
+  // Initialize theme once on mount
   useEffect(() => {
     const currentTheme = localStorage.getItem("theme") as Theme || "system";
     setTheme(currentTheme);
     
-    if (currentTheme === "dark" || (currentTheme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
-  
-  useEffect(() => {
+    // Initial application of theme
+    applyTheme(currentTheme);
+    
+    // Setup system theme change listener
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     
     const handleChange = () => {
-      if (theme === "system") {
+      if (currentTheme === "system") {
         if (mediaQuery.matches) {
           document.documentElement.classList.add("dark");
         } else {
@@ -39,17 +36,23 @@ export function ThemeToggle() {
     
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+  }, []);
   
-  function setThemeMode(newTheme: Theme) {
-    localStorage.setItem("theme", newTheme);
-    setTheme(newTheme);
-    
-    if (newTheme === "dark" || (newTheme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+  // Function to apply theme without state changes
+  const applyTheme = (selectedTheme: Theme) => {
+    if (selectedTheme === "dark" || 
+        (selectedTheme === "system" && 
+         window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+  };
+  
+  function setThemeMode(newTheme: Theme) {
+    localStorage.setItem("theme", newTheme);
+    setTheme(newTheme);
+    applyTheme(newTheme);
   }
   
   return (

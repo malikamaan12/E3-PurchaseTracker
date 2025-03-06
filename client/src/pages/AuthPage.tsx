@@ -64,11 +64,11 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
-        <Card className="border-[#35bbba]/20 shadow-lg">
-          <CardHeader className="border-b border-[#35bbba]/20 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5">
-            <CardTitle className="text-2xl font-bold text-center text-[#191160]">
+        <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg">
+          <CardHeader className="border-b border-[#35bbba]/20 dark:border-[#35bbba]/40 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/10 dark:to-[#35bbba]/10">
+            <CardTitle className="text-2xl font-bold text-center text-gray-900 dark:text-white">
               Purchase Management System
             </CardTitle>
           </CardHeader>
@@ -97,7 +97,7 @@ export default function AuthPage() {
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Username</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-200">Username</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -115,7 +115,7 @@ export default function AuthPage() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[#191160]">Password</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-200">Password</FormLabel>
                           <FormControl>
                             <Input
                               type="password"
