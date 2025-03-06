@@ -229,8 +229,8 @@ export default function VendorManagement() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Vendor Management</CardTitle>
           <Button onClick={() => setIsAddVendorOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add New Vendor
+            <Plus className="h-4 w-4 sm:mr-2" />
+            {!isMobile && <span>Add New Vendor</span>}
           </Button>
         </CardHeader>
         <CardContent>

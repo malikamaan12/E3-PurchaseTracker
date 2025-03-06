@@ -25,6 +25,7 @@ import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download, 
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import * as XLSX from 'xlsx';
 
 const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#6366F1'];
@@ -34,6 +35,7 @@ export default function DepartmentDashboard() {
   const [selectedPurpose, setSelectedPurpose] = useState<string>("all");
   const [selectedSubPurpose, setSelectedSubPurpose] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
+  const isMobile = useIsMobile();
   const { toast } = useToast();
 
   const { requests, isLoading } = usePurchaseRequests();
@@ -245,42 +247,42 @@ export default function DepartmentDashboard() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Department Dashboard</h1>
-        <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Department Dashboard</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
           <Button 
             variant="outline" 
             onClick={exportToExcel}
             disabled={isExporting}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-1 sm:flex-auto justify-center"
           >
             {isExporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Download className="h-4 w-4" />
             )}
-            Export Excel
+            {!isMobile && <span>Export Excel</span>}
           </Button>
           <Button 
             variant="outline" 
             onClick={exportToCSV}
             disabled={isExporting}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-1 sm:flex-auto justify-center"
           >
             {isExporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Download className="h-4 w-4" />
             )}
-            Export CSV
+            {!isMobile && <span>Export CSV</span>}
           </Button>
           <Button
             variant="outline"
             onClick={shareInsights}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-1 sm:flex-auto justify-center"
           >
             <Share2 className="h-4 w-4" />
-            Share
+            {!isMobile && <span>Share</span>}
           </Button>
         </div>
       </div>
