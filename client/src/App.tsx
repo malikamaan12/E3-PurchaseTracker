@@ -1,7 +1,6 @@
 import { Switch, Route } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { useEffect } from "react";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import NewPurchaseRequestForm from "./pages/NewPurchaseRequestForm";
@@ -15,63 +14,61 @@ import DepartmentDashboard from "./pages/DepartmentDashboard";
 import { NotFound } from "@/components/NotFound";
 import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
 import TestExportPage from "./pages/TestExportPage";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 function App() {
   const { user, isLoading } = useUser();
-  
-  // Initialize theme from localStorage or system preference on app startup
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") || "system";
-    
-    if (storedTheme === "dark" || 
-        (storedTheme === "system" && 
-         window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+
+  // Create content based on auth state
+  const renderContent = () => {
+    // Show loading spinner while checking auth status
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
     }
-  }, []);
 
-  // Show loading spinner while checking auth status
-  if (isLoading) {
+    // Show auth page if not logged in
+    if (!user) {
+      return <AuthPage />;
+    }
+
+    // Show main app routes if logged in
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/new-request" component={NewPurchaseRequestForm} />
+        <Route path="/requests/:id" component={ViewRequest} />
+        <Route path="/requests/:id/edit" component={EditRequest} />
+        <Route path="/department-dashboard" component={DepartmentDashboard} />
+        <Route path="/error-predictions" component={ErrorPredictionDashboard} />
+        <Route path="/test-export" component={TestExportPage} />
+
+        {/* Add admin routes with proper access control */}
+        {user.role === "admin" && (
+          <>
+            <Route path="/admin" component={AdminPanel} />
+            <Route path="/admin/vendors" component={VendorManagement} />
+            <Route path="/admin/account-requests" component={AdminPanel} />
+            <Route path="/admin/error-analytics" component={ErrorDashboard} />
+            <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
+            <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
+          </>
+        )}
+
+        {/* 404 route handler */}
+        <Route component={NotFound} />
+      </Switch>
     );
-  }
+  };
 
-  // Show auth page if not logged in
-  if (!user) {
-    return <AuthPage />;
-  }
-
-  // Show main app routes if logged in
+  // Wrap all content with ThemeProvider
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/new-request" component={NewPurchaseRequestForm} />
-      <Route path="/requests/:id" component={ViewRequest} />
-      <Route path="/requests/:id/edit" component={EditRequest} />
-      <Route path="/department-dashboard" component={DepartmentDashboard} />
-      <Route path="/error-predictions" component={ErrorPredictionDashboard} />
-      <Route path="/test-export" component={TestExportPage} />
-
-      {/* Add admin routes with proper access control */}
-      {user.role === "admin" && (
-        <>
-          <Route path="/admin" component={AdminPanel} />
-          <Route path="/admin/vendors" component={VendorManagement} />
-          <Route path="/admin/account-requests" component={AdminPanel} />
-          <Route path="/admin/error-analytics" component={ErrorDashboard} />
-          <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
-          <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
-        </>
-      )}
-
-      {/* 404 route handler */}
-      <Route component={NotFound} />
-    </Switch>
+    <ThemeProvider>
+      {renderContent()}
+    </ThemeProvider>
   );
 }
 

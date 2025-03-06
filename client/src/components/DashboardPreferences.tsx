@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Settings, Sun, Moon, Grid, List } from "lucide-react";
+import { Settings, Sun, Moon, Grid, List, Monitor } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DashboardPreferences {
   theme: "light" | "dark" | "system";
@@ -42,6 +43,7 @@ export default function DashboardPreferences({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
+  const { theme, setTheme } = useTheme();
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -63,22 +65,13 @@ export default function DashboardPreferences({
               <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
-                  value={preferences.theme}
+                  value={theme}
                   onValueChange={(value) => {
                     // Update preferences
                     onUpdate({ theme: value as "light" | "dark" | "system" });
                     
-                    // Also update theme class on document
-                    const themeValue = value as "light" | "dark" | "system";
-                    localStorage.setItem("theme", themeValue);
-                    
-                    if (themeValue === "dark" || 
-                        (themeValue === "system" && 
-                        window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-                      document.documentElement.classList.add("dark");
-                    } else {
-                      document.documentElement.classList.remove("dark");
-                    }
+                    // Update theme using ThemeContext
+                    setTheme(value as "light" | "dark" | "system");
                   }}
                 >
                   <SelectTrigger>
@@ -98,7 +91,10 @@ export default function DashboardPreferences({
                       </div>
                     </SelectItem>
                     <SelectItem value="system">
-                      <span>System</span>
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4" />
+                        <span>System</span>
+                      </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
