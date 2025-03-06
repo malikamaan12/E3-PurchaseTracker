@@ -4483,7 +4483,7 @@ async function analyzeError(error: Error, context: any) {
 }
 
 async function getRequestWithRelations(requestId: number) {
-  debug(null, "[getRequestWithRelations] Fetching purchase request with ID:", requestId);
+  console.log("[getRequestWithRelations] Fetching purchase request with ID:", requestId);
   
   // Get the base request data
   const requests = await db.query.purchaseRequests.findMany({
