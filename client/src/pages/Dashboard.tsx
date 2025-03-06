@@ -441,31 +441,33 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20">
+      <header className="bg-white dark:bg-gray-900 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 Purchase Management System
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Welcome, {user?.username} ({user?.department})
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Admin Panel
+                  <Button variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-sm">
+                    <Settings className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Admin Panel</span>
+                    <span className="sm:hidden">Admin</span>
                   </Button>
                 </Link>
               )}
               <Link href="/new-request">
-                <Button className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Request
+                <Button className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white text-sm">
+                  <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">New Request</span>
+                  <span className="sm:hidden">New</span>
                 </Button>
               </Link>
               <NotificationsDropdown onNotificationClick={handleNotificationClick} />
@@ -475,11 +477,12 @@ export default function Dashboard() {
               />
               <Button
                 variant="outline"
-                className="border-[#7156a2]/20 hover:bg-[#7156a2]/10"
+                className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-sm"
                 onClick={() => logout()}
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                <LogOut className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Logout</span>
+                <span className="sm:hidden">Log out</span>
               </Button>
             </div>
           </div>

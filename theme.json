@@ -1,7 +1,7 @@
 {
   "variant": "professional",
   "primary": "hsl(263 31% 48%)", 
-  "appearance": "light",
+  "appearance": "system",
   "radius": 0.5,
   "accent": "hsl(179 56% 47%)", 
   "foreground": "hsl(241 68% 23%)", 
@@ -12,5 +12,21 @@
   "secondary": {
     "DEFAULT": "hsl(179 56% 47%)",
     "foreground": "hsl(0 0% 100%)"
+  },
+  "dark": {
+    "primary": "hsl(263 31% 58%)",
+    "accent": "hsl(179 56% 52%)",
+    "foreground": "hsl(0 0% 98%)",
+    "muted": {
+      "DEFAULT": "hsl(263 31% 15%)",
+      "foreground": "hsl(263 31% 85%)"
+    },
+    "secondary": {
+      "DEFAULT": "hsl(179 56% 52%)",
+      "foreground": "hsl(0 0% 100%)"
+    },
+    "background": "hsl(240 10% 10%)",
+    "card": "hsl(240 10% 13%)",
+    "border": "hsl(240 10% 20%)"
   }
 }
