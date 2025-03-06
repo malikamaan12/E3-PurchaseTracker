@@ -33,25 +33,30 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
 
     // Initial fetch when dropdown opens
     if (open) {
-      // Only fetch if we're not already loading
-      if (!isLoading) {
-        pollNotifications();
-      }
-      
       // Start polling only if we don't have an active timer
       if (!pollTimerRef.current) {
+        // Initial fetch, but only if we're not already loading
+        if (!isLoading) {
+          pollNotifications();
+        }
         pollTimerRef.current = window.setInterval(pollNotifications, 30000); // Poll every 30 seconds
+      }
+    } else {
+      // Clear polling when dropdown closes
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
     }
 
     // Cleanup function
     return () => {
-      if (pollTimerRef.current && !open) {
+      if (pollTimerRef.current) {
         window.clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
     };
-  }, [open, refetch, isLoading]);
+  }, [open, refetch]);
   
   // Removed duplicate cleanup effect that was causing potential memory issues
 
@@ -62,7 +67,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       const notificationsList = Array.isArray(notifications) ? notifications : [];
       const notificationToMark = notificationsList.find((n: any) => n && n.id === notification.id);
       
-      if (notificationToMark && !notificationToMark.isRead) {
+      if (notificationToMark && typeof notificationToMark === 'object' && 'isRead' in notificationToMark && !notificationToMark.isRead) {
         await markAsRead(notification.id);
       }
 
@@ -151,7 +156,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                   key={notification.id}
                   className={cn(
                     "w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors group relative",
-                    !notification.isRead && "bg-muted/20"
+                    notification.isRead === false && "bg-muted/20"
                   )}
                 >
                   <button
@@ -185,7 +190,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                       {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                     </p>
                   </button>
-                  {!notification.isRead && (
+                  {notification.isRead === false && (
                     <div className={cn(
                       "absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full",
                       getPriorityStyles(notification.priority)
