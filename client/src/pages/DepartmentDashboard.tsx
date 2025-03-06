@@ -28,6 +28,27 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import * as XLSX from 'xlsx';
 
+interface PurchaseRequest {
+  id: number;
+  title: string;
+  status: string;
+  purposeType: string;
+  totalEstimatedCost: number;
+  createdAt: string;
+  vendorId?: number;
+  subPurposeId?: number;
+}
+
+interface Vendor {
+  id: number;
+  name: string;
+}
+
+interface SubPurpose {
+  id: number;
+  name: string;
+}
+
 const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#6366F1'];
 
 export default function DepartmentDashboard() {
@@ -68,7 +89,7 @@ export default function DepartmentDashboard() {
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
 
-    return requests.filter((request) => {
+    return requests.filter((request: PurchaseRequest) => {
       const vendorMatch = selectedVendor === "all" || request.vendorId?.toString() === selectedVendor;
       const purposeMatch = selectedPurpose === "all" || request.purposeType === selectedPurpose;
       const subPurposeMatch = selectedSubPurpose === "all" || request.subPurposeId?.toString() === selectedSubPurpose;
@@ -80,13 +101,13 @@ export default function DepartmentDashboard() {
   // Calculate statistics
   const stats = useMemo(() => {
     const total = filteredRequests.length;
-    const approved = filteredRequests.filter((r) => r.status === "approved").length;
-    const rejected = filteredRequests.filter((r) => r.status === "rejected").length;
-    const pending = filteredRequests.filter((r) => r.status === "pending").length;
-    const draft = filteredRequests.filter((r) => r.status === "draft").length;
+    const approved = filteredRequests.filter((r: PurchaseRequest) => r.status === "approved").length;
+    const rejected = filteredRequests.filter((r: PurchaseRequest) => r.status === "rejected").length;
+    const pending = filteredRequests.filter((r: PurchaseRequest) => r.status === "pending").length;
+    const draft = filteredRequests.filter((r: PurchaseRequest) => r.status === "draft").length;
 
     const totalAmount = filteredRequests.reduce(
-      (sum, request) => sum + (request.totalEstimatedCost || 0),
+      (sum: number, request: PurchaseRequest) => sum + (request.totalEstimatedCost || 0),
       0
     );
 
@@ -103,7 +124,7 @@ export default function DepartmentDashboard() {
 
   const purposeData = useMemo(() => {
     const data: Record<string, number> = {};
-    filteredRequests.forEach((request) => {
+    filteredRequests.forEach((request: PurchaseRequest) => {
       data[request.purposeType] = (data[request.purposeType] || 0) + 1;
     });
     return Object.entries(data).map(([name, value]) => ({ name, value }));
@@ -111,15 +132,15 @@ export default function DepartmentDashboard() {
 
   // Export functions
   const prepareExportData = () => {
-    return filteredRequests.map(request => ({
+    return filteredRequests.map((request: PurchaseRequest) => ({
       'Request ID': request.id,
       'Title': request.title,
       'Status': request.status,
       'Purpose': request.purposeType,
       'Total Amount': request.totalEstimatedCost,
       'Created At': new Date(request.createdAt).toLocaleDateString(),
-      'Vendor': vendors.find(v => v.id === request.vendorId)?.name || 'N/A',
-      'Sub Purpose': subPurposes.find(sp => sp.id === request.subPurposeId)?.name || 'N/A'
+      'Vendor': vendors.find((v: Vendor) => v.id === request.vendorId)?.name || 'N/A',
+      'Sub Purpose': subPurposes.find((sp: SubPurpose) => sp.id === request.subPurposeId)?.name || 'N/A'
     }));
   };
 
@@ -172,7 +193,7 @@ export default function DepartmentDashboard() {
       const exportData = prepareExportData();
       const csv = [
         Object.keys(exportData[0]).join(','), // Header
-        ...exportData.map(row => Object.values(row).join(',')) // Data rows
+        ...exportData.map((row: Record<string, any>) => Object.values(row).join(',')) // Data rows
       ].join('\n');
 
       // Create blob and download
@@ -295,7 +316,7 @@ export default function DepartmentDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Vendors</SelectItem>
-            {vendors.map((vendor: any) => (
+            {vendors.map((vendor: Vendor) => (
               <SelectItem key={vendor.id} value={vendor.id.toString()}>
                 {vendor.name}
               </SelectItem>
@@ -322,7 +343,7 @@ export default function DepartmentDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sub-Purposes</SelectItem>
-            {subPurposes.map((purpose: any) => (
+            {subPurposes.map((purpose: SubPurpose) => (
               <SelectItem key={purpose.id} value={purpose.id.toString()}>
                 {purpose.name}
               </SelectItem>
