@@ -12,6 +12,20 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
+// Import Notification interface from use-notifications.ts
+interface Notification {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  type: string;
+  priority?: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface NotificationsDropdownProps {
   onNotificationClick: (notification: { id: number; link: string | null }) => void;
 }
@@ -63,11 +77,11 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
     try {
       // Check if the notification exists and is not read yet
-      // Using proper type checking to avoid TypeScript errors
-      const notificationsList = Array.isArray(notifications) ? notifications : [];
-      const notificationToMark = notificationsList.find((n: any) => n && n.id === notification.id);
+      // Use proper typing with our interface
+      const notificationsList = Array.isArray(notifications) ? notifications as Notification[] : [];
+      const notificationToMark = notificationsList.find(n => n && n.id === notification.id);
       
-      if (notificationToMark && typeof notificationToMark === 'object' && 'isRead' in notificationToMark && !notificationToMark.isRead) {
+      if (notificationToMark && !notificationToMark.isRead) {
         await markAsRead(notification.id);
       }
 
@@ -151,7 +165,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
             </div>
           ) : (
             <div className="divide-y">
-              {(notifications as any[]).map((notification) => (
+              {(notifications as Notification[]).map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(

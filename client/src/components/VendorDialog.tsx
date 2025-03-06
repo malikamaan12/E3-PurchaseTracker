@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
     },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = useCallback(async (data: any) => {
     try {
       setIsSubmitting(true);
       ToastService.loading("Creating Vendor", "Please wait while we create the vendor...");
@@ -87,7 +87,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [form, onClose, onVendorCreated]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
