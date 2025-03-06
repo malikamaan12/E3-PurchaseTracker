@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { db } from '@db';
 import { auditLogs, type AuditAction } from '@db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte, lte } from 'drizzle-orm';
 
 export interface AuditLogEntry {
   userId: number;
@@ -22,7 +22,7 @@ export async function logAuditEvent(req: Request, entry: Omit<AuditLogEntry, 'ip
       ...entry,
       ipAddress,
       userAgent,
-      timestamp: new Date().toISOString()
+      timestamp: new Date()
     });
   } catch (error) {
     console.error('Failed to log audit event:', error);
@@ -51,8 +51,8 @@ export async function getAuditLogs(filters: {
   if (filters.startDate && filters.endDate) {
     query = query.where(
       and(
-        eq(auditLogs.timestamp, '>=', filters.startDate.toISOString()),
-        eq(auditLogs.timestamp, '<=', filters.endDate.toISOString())
+        gte(auditLogs.timestamp, filters.startDate),
+        lte(auditLogs.timestamp, filters.endDate)
       )
     );
   }
