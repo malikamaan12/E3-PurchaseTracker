@@ -333,108 +333,201 @@ export default function Dashboard() {
 
     if (requests.length === 0) {
       return (
-        <div className="py-8 text-center text-muted-foreground">
+        <div className="py-8 text-center text-muted-foreground dark:text-gray-400">
           No requests found matching your filters
         </div>
       );
     }
 
+    // Responsive design - Show cards on mobile, table on larger screens
     return (
-      <div className="rounded-lg border border-[#35bbba]/20 overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-[#7156a2]/20 bg-[#7156a2]/5">
-              <TableHead className="font-semibold">Request #</TableHead>
-              <TableHead className="font-semibold">Title</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Priority</TableHead>
-              <TableHead className="font-semibold">Department</TableHead>
-              <TableHead className="font-semibold">Created</TableHead>
-              <TableHead className="font-semibold">Total Cost</TableHead>
-              <TableHead className="w-[200px] font-semibold">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {requests.map((request) => (
-              <TableRow key={request.id} className="hover:bg-[#35bbba]/5 transition-colors">
-                <TableCell className="font-medium">
-                  {request.requestNumber}
-                </TableCell>
-                <TableCell>{request.title}</TableCell>
-                <TableCell>
-                  <Badge
-                    className={cn(
-                      "transition-colors",
-                      request.status === "approved"
-                        ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20"
-                        : request.status === "rejected"
-                        ? "bg-red-100 text-red-800 border-red-200"
-                        : request.status === "changes_requested"
-                        ? "bg-orange-100 text-orange-800 border-orange-200"
-                        : request.status === "pending"
-                        ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20"
-                        : "bg-gray-100 text-gray-800 border-gray-200"
-                    )}
-                  >
-                    {request.status.toUpperCase().replace("_", " ")}
-                  </Badge>
-                </TableCell>
-                <TableCell className="capitalize">
-                  {request.priority}
-                </TableCell>
-                <TableCell>{request.requester?.department}</TableCell>
-                <TableCell>
-                  {request.createdAt && format(new Date(request.createdAt), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(request.totalEstimatedCost || 0)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setLocation(`/requests/${request.id}`)}
-                      className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors"
-                    >
-                      View
-                    </Button>
-                    {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                        className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10"
-                      >
-                        Edit
-                      </Button>
-                    )}
-                    {showApproval && request.status === "pending" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/requests/${request.id}`)}
-                        className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10"
-                      >
-                        Review
-                      </Button>
-                    )}
+      <>
+        {/* Mobile view - Cards */}
+        <div className="md:hidden space-y-4">
+          {requests.map((request) => (
+            <div 
+              key={request.id} 
+              className="bg-white dark:bg-gray-800 border border-[#35bbba]/20 dark:border-[#35bbba]/40 rounded-lg p-4 shadow-sm"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                    {request.requestNumber}
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  <h3 className="font-semibold text-base mt-1">{request.title}</h3>
+                </div>
+                <Badge
+                  className={cn(
+                    "transition-colors",
+                    request.status === "approved"
+                      ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
+                      : request.status === "rejected"
+                      ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
+                      : request.status === "changes_requested"
+                      ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
+                      : request.status === "pending"
+                      ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
+                      : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+                  )}
+                >
+                  {request.status.toUpperCase().replace("_", " ")}
+                </Badge>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Priority:</span>{" "}
+                  <span className="font-medium capitalize">{request.priority}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Department:</span>{" "}
+                  <span className="font-medium">{request.requester?.department}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Created:</span>{" "}
+                  <span className="font-medium">
+                    {request.createdAt && format(new Date(request.createdAt), "MMM d, yyyy")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Total:</span>{" "}
+                  <span className="font-medium">{formatCurrency(request.totalEstimatedCost || 0)}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLocation(`/requests/${request.id}`)}
+                  className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
+                >
+                  View
+                </Button>
+                {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                  >
+                    Edit
+                  </Button>
+                )}
+                {showApproval && request.status === "pending" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLocation(`/requests/${request.id}`)}
+                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                  >
+                    Review
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop view - Table */}
+        <div className="hidden md:block rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-[#7156a2]/20 dark:border-[#7156a2]/40 bg-[#7156a2]/5 dark:bg-[#7156a2]/10">
+                  <TableHead className="font-semibold">Request #</TableHead>
+                  <TableHead className="font-semibold">Title</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Priority</TableHead>
+                  <TableHead className="font-semibold">Department</TableHead>
+                  <TableHead className="font-semibold">Created</TableHead>
+                  <TableHead className="font-semibold">Total Cost</TableHead>
+                  <TableHead className="w-[200px] font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id} className="hover:bg-[#35bbba]/5 dark:hover:bg-[#35bbba]/10 transition-colors">
+                    <TableCell className="font-medium">
+                      {request.requestNumber}
+                    </TableCell>
+                    <TableCell>{request.title}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={cn(
+                          "transition-colors",
+                          request.status === "approved"
+                            ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
+                            : request.status === "rejected"
+                            ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
+                            : request.status === "changes_requested"
+                            ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
+                            : request.status === "pending"
+                            ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
+                            : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+                        )}
+                      >
+                        {request.status.toUpperCase().replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {request.priority}
+                    </TableCell>
+                    <TableCell>{request.requester?.department}</TableCell>
+                    <TableCell>
+                      {request.createdAt && format(new Date(request.createdAt), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(request.totalEstimatedCost || 0)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/requests/${request.id}`)}
+                          className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
+                        >
+                          View
+                        </Button>
+                        {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLocation(`/requests/${request.id}/edit`)}
+                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {showApproval && request.status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLocation(`/requests/${request.id}`)}
+                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                          >
+                            Review
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </>
     );
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7156a2] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7156a2] dark:border-[#7156a2]/70 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -489,11 +582,11 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="mb-6 border-[#35bbba]/20 shadow-sm">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <Card className="mb-6 border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
           <CardContent className="pt-6">
-            <div className="flex justify-between gap-4">
-              <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div className="relative flex-1 mb-3 sm:mb-0">
                 <Input
                   placeholder="Search requests..."
                   value={activeFilters.searchQuery}
@@ -501,16 +594,17 @@ export default function Dashboard() {
                     ...activeFilters,
                     searchQuery: e.target.value,
                   })}
-                  className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50"
+                  className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70"
                 />
-                <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400" />
+                <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba]">
+                    <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
                       <Download className="h-4 w-4 mr-2" />
-                      Export
+                      <span className="hidden xs:inline">Export</span>
+                      <span className="xs:hidden">Exp</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -544,68 +638,79 @@ export default function Dashboard() {
         />
 
         <Tabs defaultValue={(preferences?.defaultView || "my-requests")} className="space-y-6">
-          <TabsList className="mb-8 bg-white border border-[#7156a2]/20 p-1">
-            <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-              My Requests
-              <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                {requestCounts.myRequests}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-              Ready to Submit
-              <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                {requestCounts.draftsToSubmit}
-              </Badge>
-            </TabsTrigger>
-            {(isAdmin || isSpecialRole) && (
-              <>
-                <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  All Requests
-                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                    {requestCounts.allRequests}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  Pending
-                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                    {requestCounts.pending}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  Approved
-                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                    {requestCounts.approved}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  Rejected
-                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                    {requestCounts.rejected}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  Changes Requested
-                  <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                    {requestCounts.changes}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="export" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                  Export
-                  <Download className="ml-2 h-4 w-4" />
-                </TabsTrigger>
-              </>
-            )}
-            {!isAdmin && !isSpecialRole && showApprovalsTab && (
-              <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white">
-                Pending Approvals
-                <Badge variant="outline" className="ml-2.5 min-w-[2rem] px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 border-white/20 transition-colors">
-                  {requestCounts.approvals}
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="mb-6 sm:mb-8 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-max min-w-full">
+              <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                <span className="hidden sm:inline">My Requests</span>
+                <span className="sm:hidden">My</span>
+                <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                  {requestCounts.myRequests}
                 </Badge>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                <span className="hidden sm:inline">Ready to Submit</span>
+                <span className="sm:hidden">Drafts</span>
+                <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                  {requestCounts.draftsToSubmit}
+                </Badge>
+              </TabsTrigger>
+              {(isAdmin || isSpecialRole) && (
+                <>
+                  <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">All Requests</span>
+                    <span className="sm:hidden">All</span>
+                    <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                      {requestCounts.allRequests}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Pending</span>
+                    <span className="sm:hidden">Pend</span>
+                    <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                      {requestCounts.pending}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Approved</span>
+                    <span className="sm:hidden">Appr</span>
+                    <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                      {requestCounts.approved}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Rejected</span>
+                    <span className="sm:hidden">Rej</span>
+                    <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                      {requestCounts.rejected}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Changes Requested</span>
+                    <span className="sm:hidden">Changes</span>
+                    <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                      {requestCounts.changes}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="export" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Export</span>
+                    <span className="sm:hidden">Exp</span>
+                    <Download className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </TabsTrigger>
+                </>
+              )}
+              {!isAdmin && !isSpecialRole && showApprovalsTab && (
+                <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs sm:text-sm">
+                  <span className="hidden sm:inline">Pending Approvals</span>
+                  <span className="sm:hidden">Approvals</span>
+                  <Badge variant="outline" className="ml-1 sm:ml-2.5 min-w-[1.5rem] sm:min-w-[2rem] px-1 sm:px-2 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
+                    {requestCounts.approvals}
+                  </Badge>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
-          <div className="bg-white rounded-lg border border-[#35bbba]/20 shadow-lg p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg p-4 sm:p-6">
             <TabsContent value="my-requests">
               {renderRequestsTable(categorizedRequests.myRequests)}
             </TabsContent>
