@@ -642,11 +642,11 @@ export default function Dashboard() {
         />
 
         <Tabs defaultValue={(preferences?.defaultView || "my-requests")} className="space-y-6">
-          {/* Two row tabs for mobile, single row for desktop */}
-          <div className="pb-2">
-            {/* Desktop view - standard single row */}
+          {/* Tabs navigation - desktop and mobile */}
+          <div className="pb-4">
+            {/* Desktop view - standard row */}
             <div className="hidden sm:block overflow-x-auto">
-              <TabsList className="mb-6 sm:mb-8 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-max min-w-full">
+              <TabsList className="mb-6 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-max min-w-full">
                 <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                   <span className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
@@ -734,100 +734,123 @@ export default function Dashboard() {
               </TabsList>
             </div>
             
-            {/* Mobile view - two rows grid */}
-            <div className="sm:hidden mb-6">
-              <TabsList className="grid grid-cols-4 gap-1 mb-2 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-full">
-                <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                  <div className="flex flex-col items-center">
-                    <FileText className="h-4 w-4 mb-1" />
-                    <span>My</span>
-                  </div>
-                  <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                    {requestCounts.myRequests}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                  <div className="flex flex-col items-center">
-                    <FileEdit className="h-4 w-4 mb-1" />
-                    <span>Drafts</span>
-                  </div>
-                  <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                    {requestCounts.draftsToSubmit}
-                  </Badge>
-                </TabsTrigger>
-                {(isAdmin || isSpecialRole) && (
-                  <>
-                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                      <div className="flex flex-col items-center">
-                        <Files className="h-4 w-4 mb-1" />
-                        <span>All</span>
-                      </div>
-                      <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                        {requestCounts.allRequests}
+            {/* Mobile view - scrollable tab grid */}
+            <div className="sm:hidden mb-4">
+              <div className="grid grid-cols-5 gap-4">
+                <div className="col-span-5">
+                  <div className="grid grid-cols-5 gap-x-2 mb-4">
+                    {/* First Row - Main tabs */}
+                    <TabsTrigger 
+                      value="my-requests" 
+                      className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                    >
+                      <FileText className="h-6 w-6 mb-1" />
+                      <div className="text-center">My</div>
+                      <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                        {requestCounts.myRequests}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="export" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                      <div className="flex flex-col items-center">
-                        <Download className="h-4 w-4 mb-1" />
-                        <span>Export</span>
-                      </div>
+                    
+                    <TabsTrigger 
+                      value="drafts-to-submit" 
+                      className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                    >
+                      <FileEdit className="h-6 w-6 mb-1" />
+                      <div className="text-center">Drafts</div>
+                      <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                        {requestCounts.draftsToSubmit}
+                      </Badge>
                     </TabsTrigger>
-                  </>
+                    
+                    {(isAdmin || isSpecialRole) && (
+                      <TabsTrigger 
+                        value="all-requests" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <Files className="h-6 w-6 mb-1" />
+                        <div className="text-center">All</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.allRequests}
+                        </Badge>
+                      </TabsTrigger>
+                    )}
+                    
+                    {!isAdmin && !isSpecialRole && showApprovalsTab && (
+                      <TabsTrigger 
+                        value="approvals" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <CircleCheck className="h-6 w-6 mb-1" />
+                        <div className="text-center">Approvals</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.approvals}
+                        </Badge>
+                      </TabsTrigger>
+                    )}
+                    
+                    {(isAdmin || isSpecialRole) && (
+                      <TabsTrigger 
+                        value="export" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <Download className="h-6 w-6 mb-1" />
+                        <div className="text-center">Export</div>
+                      </TabsTrigger>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Second row for mobile (status tabs) */}
+                {(isAdmin || isSpecialRole) && (
+                  <div className="col-span-5">
+                    <div className="grid grid-cols-4 gap-x-2 mb-4">
+                      <TabsTrigger 
+                        value="pending" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <Clock className="h-6 w-6 mb-1" />
+                        <div className="text-center">Pending</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.pending}
+                        </Badge>
+                      </TabsTrigger>
+                      
+                      <TabsTrigger 
+                        value="approved" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <CheckCircle className="h-6 w-6 mb-1" />
+                        <div className="text-center">Approved</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.approved}
+                        </Badge>
+                      </TabsTrigger>
+                      
+                      <TabsTrigger 
+                        value="rejected" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <XCircle className="h-6 w-6 mb-1" />
+                        <div className="text-center">Rejected</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.rejected}
+                        </Badge>
+                      </TabsTrigger>
+                      
+                      <TabsTrigger 
+                        value="changes" 
+                        className="flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs border-0"
+                      >
+                        <PencilRuler className="h-6 w-6 mb-1" />
+                        <div className="text-center">Changes</div>
+                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
+                          {requestCounts.changes}
+                        </Badge>
+                      </TabsTrigger>
+                    </div>
+                  </div>
                 )}
-                {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                  <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                    <div className="flex flex-col items-center">
-                      <CircleCheck className="h-4 w-4 mb-1" />
-                      <span>Approvals</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                      {requestCounts.approvals}
-                    </Badge>
-                  </TabsTrigger>
-                )}
-              </TabsList>
-              
-              {/* Second row for mobile (status tabs) */}
-              {(isAdmin || isSpecialRole) && (
-                <TabsList className="grid grid-cols-4 gap-1 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-full">
-                  <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                    <div className="flex flex-col items-center">
-                      <Clock className="h-4 w-4 mb-1" />
-                      <span>Pending</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                      {requestCounts.pending}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                    <div className="flex flex-col items-center">
-                      <CheckCircle className="h-4 w-4 mb-1" />
-                      <span>Approved</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                      {requestCounts.approved}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                    <div className="flex flex-col items-center">
-                      <XCircle className="h-4 w-4 mb-1" />
-                      <span>Rejected</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                      {requestCounts.rejected}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-xs flex flex-col items-center py-2">
-                    <div className="flex flex-col items-center">
-                      <PencilRuler className="h-4 w-4 mb-1" />
-                      <span>Changes</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1 min-w-[1.5rem] px-1 py-0.5 rounded-full font-semibold text-xs bg-white/10 dark:bg-white/5 border-white/20 transition-colors">
-                      {requestCounts.changes}
-                    </Badge>
-                  </TabsTrigger>
-                </TabsList>
-              )}
+              </div>
             </div>
           </div>
 
