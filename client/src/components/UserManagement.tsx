@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import {
   Table,
@@ -44,6 +45,7 @@ import type { User } from "@db/schema";
 export default function UserManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -182,105 +184,111 @@ export default function UserManagement() {
 
   return (
     <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Username</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.username}</TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{user.department}</TableCell>
-              <TableCell>
-                <Badge className={cn(
-                  "bg-slate-100 text-slate-800",
-                  {
-                    "bg-blue-100 text-blue-800": user.role === "admin",
-                    "bg-purple-100 text-purple-800": user.role === "approver",
-                    "bg-green-100 text-green-800": user.role === "user",
-                  }
-                )}>
-                  {user.role}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge className={cn(
-                  user.isActive 
-                    ? "bg-green-100 text-green-800 hover:bg-green-200" 
-                    : "bg-red-100 text-red-800 hover:bg-red-200"
-                )}>
-                  {user.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsRoleDialogOpen(true);
-                    }}
-                    className="flex items-center"
-                  >
-                    <Shield className="h-4 w-4 mr-1" />
-                    Role
-                  </Button>
-
-                  <ChangePasswordDialog
-                    userId={user.id}
-                    username={user.username}
-                    onPasswordChange={handlePasswordChangeSuccess}
-                  />
-
-                  <Button
-                    size="sm"
-                    variant={user.isActive ? "outline" : "default"}
-                    onClick={() => {
-                      toggleActivationMutation.mutate({
-                        userId: user.id,
-                        isActive: !user.isActive
-                      });
-                    }}
-                    disabled={toggleActivationMutation.isPending}
-                    className={cn(
-                      "flex items-center",
-                      user.isActive ? "hover:bg-red-100 hover:text-red-800" : "hover:bg-green-100 hover:text-green-800"
-                    )}
-                  >
-                    {toggleActivationMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : (
-                      <Power className="h-4 w-4 mr-1" />
-                    )}
-                    {user.isActive ? "Deactivate" : "Activate"}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      setUserToDelete(user);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    className="flex items-center"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Username</TableHead>
+              {!isMobile && <TableHead>Email</TableHead>}
+              {!isMobile && <TableHead>Department</TableHead>}
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="font-medium">{user.username}</TableCell>
+                {!isMobile && <TableCell>{user.email}</TableCell>}
+                {!isMobile && <TableCell>{user.department}</TableCell>}
+                <TableCell>
+                  <Badge className={cn(
+                    "bg-slate-100 text-slate-800",
+                    {
+                      "bg-blue-100 text-blue-800": user.role === "admin",
+                      "bg-purple-100 text-purple-800": user.role === "approver",
+                      "bg-green-100 text-green-800": user.role === "user",
+                    }
+                  )}>
+                    {user.role}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge className={cn(
+                    user.isActive 
+                      ? "bg-green-100 text-green-800 hover:bg-green-200" 
+                      : "bg-red-100 text-red-800 hover:bg-red-200"
+                  )}>
+                    {user.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      size={isMobile ? "icon" : "sm"}
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsRoleDialogOpen(true);
+                      }}
+                      className="flex items-center"
+                      title="Change role"
+                    >
+                      <Shield className="h-4 w-4" />
+                      {!isMobile && <span className="ml-1">Role</span>}
+                    </Button>
+
+                    <ChangePasswordDialog
+                      userId={user.id}
+                      username={user.username}
+                      onPasswordChange={handlePasswordChangeSuccess}
+                    />
+
+                    <Button
+                      size={isMobile ? "icon" : "sm"}
+                      variant={user.isActive ? "outline" : "default"}
+                      onClick={() => {
+                        toggleActivationMutation.mutate({
+                          userId: user.id,
+                          isActive: !user.isActive
+                        });
+                      }}
+                      disabled={toggleActivationMutation.isPending}
+                      className={cn(
+                        "flex items-center",
+                        user.isActive ? "hover:bg-red-100 hover:text-red-800" : "hover:bg-green-100 hover:text-green-800"
+                      )}
+                      title={user.isActive ? "Deactivate user" : "Activate user"}
+                    >
+                      {toggleActivationMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Power className="h-4 w-4" />
+                      )}
+                      {!isMobile && <span className="ml-1">{user.isActive ? "Deactivate" : "Activate"}</span>}
+                    </Button>
+
+                    <Button
+                      size={isMobile ? "icon" : "sm"}
+                      variant="destructive"
+                      onClick={() => {
+                        setUserToDelete(user);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      className="flex items-center"
+                      title="Delete user"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {!isMobile && <span className="ml-1">Delete</span>}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Role Change Dialog */}
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
