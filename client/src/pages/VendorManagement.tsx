@@ -354,7 +354,7 @@ export default function VendorManagement() {
 
       {selectedVendor && isEditMode && (
         <Dialog open={isEditMode} onOpenChange={(open) => !open && setIsEditMode(false)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Vendor</DialogTitle>
             </DialogHeader>
