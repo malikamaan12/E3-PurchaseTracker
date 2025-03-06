@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { 
   Plus, LogOut, Search, Download, Settings, FileArchive, FileSpreadsheet, Table as TableIcon,
-  FileText, FileEdit, Files, Clock, CheckCircle, XCircle, PencilRuler, CircleCheck 
+  FileText, FileEdit, Files, Clock, CheckCircle, XCircle, PencilRuler, CircleCheck, ArrowDownToLine
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -735,151 +735,138 @@ export default function Dashboard() {
               </TabsList>
             </div>
             
-            {/* Mobile view - card-style grid similar to screenshot */}
+            {/* Mobile view - matching the screenshot layout */}
             <div className="sm:hidden mb-4">
               <TabsList className="hidden">
                 {/* Hidden TabsList to satisfy the Tabs component structure */}
                 <TabsTrigger value="placeholder" />
               </TabsList>
               
-              <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-5">
-                  <div className="grid grid-cols-5 gap-x-2 mb-4">
-                    {/* First Row - Main tabs */}
-                    <Button 
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setActiveTab("my-requests")}
-                      className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                        ${activeTab === "my-requests" ? "bg-[#7156a2] text-white" : ""}`}
-                    >
-                      <FileText className="h-6 w-6 mb-1" />
-                      <div className="text-center">My</div>
-                      <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                        {requestCounts.myRequests}
-                      </Badge>
-                    </Button>
-                    
-                    <Button 
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setActiveTab("drafts-to-submit")}
-                      className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                        ${activeTab === "drafts-to-submit" ? "bg-[#7156a2] text-white" : ""}`}
-                    >
-                      <FileEdit className="h-6 w-6 mb-1" />
-                      <div className="text-center">Drafts</div>
-                      <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                        {requestCounts.draftsToSubmit}
-                      </Badge>
-                    </Button>
-                    
-                    {(isAdmin || isSpecialRole) && (
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("all-requests")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "all-requests" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <Files className="h-6 w-6 mb-1" />
-                        <div className="text-center">All</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.allRequests}
-                        </Badge>
-                      </Button>
-                    )}
-                    
-                    {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("approvals")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "approvals" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <CircleCheck className="h-6 w-6 mb-1" />
-                        <div className="text-center">Approvals</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.approvals}
-                        </Badge>
-                      </Button>
-                    )}
-                    
-                    {(isAdmin || isSpecialRole) && (
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("export")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "export" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <Download className="h-6 w-6 mb-1" />
-                        <div className="text-center">Export</div>
-                      </Button>
-                    )}
+              <div className="pt-1 pb-3">
+                {/* First row - Main tabs (4 items) */}
+                <div className="grid grid-cols-4 gap-x-4 mb-6">
+                  <div 
+                    onClick={() => setActiveTab("my-requests")}
+                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                  >
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div className="text-xs font-medium">My</div>
+                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      {requestCounts.myRequests}
+                    </div>
                   </div>
+                  
+                  <div 
+                    onClick={() => setActiveTab("drafts-to-submit")}
+                    className={`flex flex-col items-center ${activeTab === "drafts-to-submit" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                  >
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "drafts-to-submit" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <FileEdit className="h-6 w-6" />
+                    </div>
+                    <div className="text-xs font-medium">Drafts</div>
+                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      {requestCounts.draftsToSubmit}
+                    </div>
+                  </div>
+                  
+                  {(isAdmin || isSpecialRole) && (
+                    <div 
+                      onClick={() => setActiveTab("all-requests")}
+                      className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "all-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <Files className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">All</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.allRequests}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {(isAdmin || isSpecialRole) && (
+                    <div 
+                      onClick={() => setActiveTab("export")}
+                      className={`flex flex-col items-center ${activeTab === "export" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "export" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <ArrowDownToLine className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Export</div>
+                    </div>
+                  )}
+                  
+                  {!isAdmin && !isSpecialRole && showApprovalsTab && (
+                    <div 
+                      onClick={() => setActiveTab("approvals")}
+                      className={`flex flex-col items-center ${activeTab === "approvals" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approvals" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <CircleCheck className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Approvals</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.approvals}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
-                {/* Second row for mobile (status tabs) */}
+                {/* Second row for status tabs (4 items) */}
                 {(isAdmin || isSpecialRole) && (
-                  <div className="col-span-5">
-                    <div className="grid grid-cols-4 gap-x-2 mb-4">
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("pending")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "pending" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <Clock className="h-6 w-6 mb-1" />
-                        <div className="text-center">Pending</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.pending}
-                        </Badge>
-                      </Button>
-                      
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("approved")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "approved" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <CheckCircle className="h-6 w-6 mb-1" />
-                        <div className="text-center">Approved</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.approved}
-                        </Badge>
-                      </Button>
-                      
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("rejected")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "rejected" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <XCircle className="h-6 w-6 mb-1" />
-                        <div className="text-center">Rejected</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.rejected}
-                        </Badge>
-                      </Button>
-                      
-                      <Button 
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setActiveTab("changes")}
-                        className={`flex flex-col items-center justify-center py-5 aspect-square bg-white dark:bg-gray-800 rounded-lg shadow-sm text-xs border-0 
-                          ${activeTab === "changes" ? "bg-[#7156a2] text-white" : ""}`}
-                      >
-                        <PencilRuler className="h-6 w-6 mb-1" />
-                        <div className="text-center">Changes</div>
-                        <Badge variant="secondary" className="mt-1 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 min-w-[1.5rem]">
-                          {requestCounts.changes}
-                        </Badge>
-                      </Button>
+                  <div className="grid grid-cols-4 gap-x-4">
+                    <div 
+                      onClick={() => setActiveTab("pending")}
+                      className={`flex flex-col items-center ${activeTab === "pending" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "pending" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <Clock className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Pending</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.pending}
+                      </div>
+                    </div>
+                    
+                    <div 
+                      onClick={() => setActiveTab("approved")}
+                      className={`flex flex-col items-center ${activeTab === "approved" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approved" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <CheckCircle className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Approved</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.approved}
+                      </div>
+                    </div>
+                    
+                    <div 
+                      onClick={() => setActiveTab("rejected")}
+                      className={`flex flex-col items-center ${activeTab === "rejected" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "rejected" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <XCircle className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Rejected</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.rejected}
+                      </div>
+                    </div>
+                    
+                    <div 
+                      onClick={() => setActiveTab("changes")}
+                      className={`flex flex-col items-center ${activeTab === "changes" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "changes" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                        <PencilRuler className="h-6 w-6" />
+                      </div>
+                      <div className="text-xs font-medium">Changes</div>
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                        {requestCounts.changes}
+                      </div>
                     </div>
                   </div>
                 )}
