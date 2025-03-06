@@ -23,6 +23,7 @@ import { isWithinInterval, parseISO, isSameDay } from "date-fns";
 import { type RequestData } from "@/types/requests";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSubPurposes } from "@/hooks/use-sub-purposes";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Brand colors
 const BRAND = {
@@ -564,6 +565,7 @@ export default function Dashboard() {
                 </Button>
               </Link>
               <NotificationsDropdown onNotificationClick={handleNotificationClick} />
+              <ThemeToggle />
               <DashboardPreferences
                 preferences={preferences || DEFAULT_PREFERENCES}
                 onUpdate={updatePreferences}

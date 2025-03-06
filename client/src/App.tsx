@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
+import { useEffect } from "react";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import NewPurchaseRequestForm from "./pages/NewPurchaseRequestForm";
@@ -17,6 +18,19 @@ import TestExportPage from "./pages/TestExportPage";
 
 function App() {
   const { user, isLoading } = useUser();
+  
+  // Initialize theme from localStorage or system preference on app startup
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme") || "system";
+    
+    if (storedTheme === "dark" || 
+        (storedTheme === "system" && 
+         window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
 
   // Show loading spinner while checking auth status
   if (isLoading) {
