@@ -26,6 +26,7 @@ export function ChangePasswordDialog({ userId, username, onPasswordChange }: Cha
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const isMobile = useIsMobile();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,8 +88,14 @@ export function ChangePasswordDialog({ userId, username, onPasswordChange }: Cha
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Change Password
+        <Button 
+          variant="outline" 
+          size={isMobile ? "icon" : "sm"}
+          title="Change Password"
+          className="flex items-center"
+        >
+          <Lock className="h-4 w-4" />
+          {!isMobile && <span className="ml-1">Change Password</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

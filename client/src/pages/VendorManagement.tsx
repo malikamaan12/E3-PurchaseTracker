@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Search, Star } from "lucide-react";
 import type { Vendor } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { VendorForm } from "@/components/VendorForm";
 import { VendorDetails } from "@/components/VendorDetails";
 import { createVendor, updateVendor } from "@/services/vendors";
@@ -38,6 +39,7 @@ export default function VendorManagement() {
   const [isAddVendorOpen, setIsAddVendorOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -258,13 +260,13 @@ export default function VendorManagement() {
             </Select>
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Company Name</TableHead>
-                  <TableHead>Contact Person</TableHead>
-                  <TableHead>Email</TableHead>
+                  {!isMobile && <TableHead>Contact Person</TableHead>}
+                  {!isMobile && <TableHead>Email</TableHead>}
                   <TableHead>Rating</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -273,22 +275,29 @@ export default function VendorManagement() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={isMobile ? 4 : 6} className="text-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : filteredVendors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={isMobile ? 4 : 6} className="text-center py-8">
                       No vendors found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredVendors.map((vendor: Vendor) => (
                     <TableRow key={vendor.id}>
-                      <TableCell className="font-medium">{vendor.companyName}</TableCell>
-                      <TableCell>{vendor.contactPerson}</TableCell>
-                      <TableCell>{vendor.email}</TableCell>
+                      <TableCell className="font-medium">
+                        {vendor.companyName}
+                        {isMobile && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {vendor.contactPerson}
+                          </div>
+                        )}
+                      </TableCell>
+                      {!isMobile && <TableCell>{vendor.contactPerson}</TableCell>}
+                      {!isMobile && <TableCell>{vendor.email}</TableCell>}
                       <TableCell>
                         <div className="flex items-center">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
@@ -306,7 +315,7 @@ export default function VendorManagement() {
                           size="sm"
                           onClick={() => handleViewDetails(vendor)}
                         >
-                          View Details
+                          {isMobile ? "View" : "View Details"}
                         </Button>
                       </TableCell>
                     </TableRow>

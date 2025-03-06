@@ -33,19 +33,25 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
 
     // Initial fetch when dropdown opens
     if (open) {
-      pollNotifications();
-      // Start polling
-      pollTimerRef.current = window.setInterval(pollNotifications, 10000); // Poll every 10 seconds
+      // Only fetch if we're not already loading
+      if (!isLoading) {
+        pollNotifications();
+      }
+      
+      // Start polling only if we don't have an active timer
+      if (!pollTimerRef.current) {
+        pollTimerRef.current = window.setInterval(pollNotifications, 30000); // Poll every 30 seconds
+      }
     }
 
     // Cleanup function
     return () => {
-      if (pollTimerRef.current) {
+      if (pollTimerRef.current && !open) {
         window.clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
     };
-  }, [open, refetch]);
+  }, [open, refetch, isLoading]);
   
   // Removed duplicate cleanup effect that was causing potential memory issues
 
