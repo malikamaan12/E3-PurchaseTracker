@@ -162,7 +162,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
   return (
     <Form {...form}>
       <form className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="companyName"
@@ -223,7 +223,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
             control={form.control}
             name="address"
             render={({ field }) => (
-              <FormItem className="col-span-2">
+              <FormItem className="col-span-1 sm:col-span-2">
                 <FormLabel>Address*</FormLabel>
                 <FormControl>
                   <Textarea {...field} placeholder="Enter complete address" />
@@ -329,7 +329,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
             control={form.control}
             name="rating"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="col-span-1 sm:col-span-2">
                 <FormLabel>Vendor Rating</FormLabel>
                 <FormControl>
                   <div className="flex items-center space-x-2">
@@ -367,7 +367,7 @@ export function VendorForm({ onSubmit, defaultValues }: VendorFormProps) {
             control={form.control}
             name="remarks"
             render={({ field }) => (
-              <FormItem className="col-span-2">
+              <FormItem className="col-span-1 sm:col-span-2">
                 <FormLabel>Remarks</FormLabel>
                 <FormControl>
                   <Textarea 

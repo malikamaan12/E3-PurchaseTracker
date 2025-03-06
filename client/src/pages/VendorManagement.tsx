@@ -234,7 +234,7 @@ export default function VendorManagement() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 flex gap-4">
+          <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -248,7 +248,7 @@ export default function VendorManagement() {
               value={statusFilter}
               onValueChange={(value: "all" | "active" | "blocked" | "frozen") => setStatusFilter(value)}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full sm:w-40">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>

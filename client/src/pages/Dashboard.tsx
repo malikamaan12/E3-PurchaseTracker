@@ -537,29 +537,28 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20">
       <header className="bg-white dark:bg-gray-900 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                 Purchase Management System
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                 Welcome, {user?.username} ({user?.department})
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
+            <div className="flex flex-row flex-wrap items-center gap-1.5 sm:gap-3 w-full sm:w-auto justify-end mt-2 sm:mt-0">
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-sm">
-                    <Settings className="h-4 w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Admin Panel</span>
-                    <span className="sm:hidden">Admin</span>
+                  <Button size="sm" variant="outline" className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-3">
+                    <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Admin</span>
                   </Button>
                 </Link>
               )}
               <Link href="/new-request">
-                <Button className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white text-sm">
-                  <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                <Button size="sm" className="bg-[#7156a2] hover:bg-[#7156a2]/90 text-white text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-3">
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
                   <span className="hidden sm:inline">New Request</span>
                   <span className="sm:hidden">New</span>
                 </Button>
@@ -571,13 +570,13 @@ export default function Dashboard() {
                 onUpdate={updatePreferences}
               />
               <Button
+                size="sm"
                 variant="outline"
-                className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-sm"
+                className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-3"
                 onClick={() => logout()}
               >
-                <LogOut className="h-4 w-4 mr-1 sm:mr-2" />
+                <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Logout</span>
-                <span className="sm:hidden">Log out</span>
               </Button>
             </div>
           </div>
