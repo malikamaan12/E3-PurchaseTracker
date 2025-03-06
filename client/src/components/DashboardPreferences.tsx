@@ -64,9 +64,22 @@ export default function DashboardPreferences({
                 <Label>Theme</Label>
                 <Select
                   value={preferences.theme}
-                  onValueChange={(value) =>
-                    onUpdate({ theme: value as "light" | "dark" | "system" })
-                  }
+                  onValueChange={(value) => {
+                    // Update preferences
+                    onUpdate({ theme: value as "light" | "dark" | "system" });
+                    
+                    // Also update theme class on document
+                    const themeValue = value as "light" | "dark" | "system";
+                    localStorage.setItem("theme", themeValue);
+                    
+                    if (themeValue === "dark" || 
+                        (themeValue === "system" && 
+                        window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+                      document.documentElement.classList.add("dark");
+                    } else {
+                      document.documentElement.classList.remove("dark");
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
