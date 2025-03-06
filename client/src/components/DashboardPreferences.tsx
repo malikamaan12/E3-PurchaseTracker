@@ -25,21 +25,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
-
-interface DashboardPreferences {
-  theme: "light" | "dark" | "system";
-  layout: "grid" | "list";
-  defaultView: "my-requests" | "all-requests" | "pending" | "approved";
-  showDrafts: boolean;
-  showPriorityIndicators: boolean;
-}
+import { DashboardPreferences as DashboardPreferencesType } from "@/hooks/use-dashboard-preferences";
 
 export default function DashboardPreferences({
   preferences,
   onUpdate,
 }: {
-  preferences: DashboardPreferences;
-  onUpdate: (prefs: Partial<DashboardPreferences>) => void;
+  preferences: DashboardPreferencesType;
+  onUpdate: (prefs: Partial<DashboardPreferencesType>) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
@@ -48,33 +41,34 @@ export default function DashboardPreferences({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30"
+        >
           <Settings className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px]">
+      <SheetContent className="w-[300px] sm:w-[400px]">
         <SheetHeader>
           <SheetTitle>Dashboard Preferences</SheetTitle>
         </SheetHeader>
         <div className="space-y-6 py-6">
-          <Card>
-            <CardHeader>
+          <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle className="text-base">Appearance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Theme</Label>
+                <Label className="text-gray-700 dark:text-gray-300">Theme</Label>
                 <Select
                   value={theme}
                   onValueChange={(value) => {
-                    // Update preferences
-                    onUpdate({ theme: value as "light" | "dark" | "system" });
-                    
-                    // Update theme using ThemeContext
+                    // Update theme using ThemeContext only
                     setTheme(value as "light" | "dark" | "system");
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -101,14 +95,14 @@ export default function DashboardPreferences({
               </div>
 
               <div className="space-y-2">
-                <Label>Layout</Label>
+                <Label className="text-gray-700 dark:text-gray-300">Layout</Label>
                 <Select
                   value={preferences.layout}
                   onValueChange={(value) =>
                     onUpdate({ layout: value as "grid" | "list" })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,8 +124,8 @@ export default function DashboardPreferences({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle className="text-base">Default View</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -139,11 +133,11 @@ export default function DashboardPreferences({
                 value={preferences.defaultView}
                 onValueChange={(value) =>
                   onUpdate({
-                    defaultView: value as DashboardPreferences["defaultView"],
+                    defaultView: value as DashboardPreferencesType["defaultView"],
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -161,7 +155,7 @@ export default function DashboardPreferences({
               </Select>
 
               <div className="flex items-center justify-between">
-                <Label>Show Drafts Section</Label>
+                <Label className="text-gray-700 dark:text-gray-300">Show Drafts Section</Label>
                 <Switch
                   checked={preferences.showDrafts}
                   onCheckedChange={(checked) => onUpdate({ showDrafts: checked })}
@@ -169,7 +163,7 @@ export default function DashboardPreferences({
               </div>
 
               <div className="flex items-center justify-between">
-                <Label>Show Priority Indicators</Label>
+                <Label className="text-gray-700 dark:text-gray-300">Show Priority Indicators</Label>
                 <Switch
                   checked={preferences.showPriorityIndicators}
                   onCheckedChange={(checked) =>
