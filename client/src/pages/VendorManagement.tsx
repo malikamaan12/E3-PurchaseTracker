@@ -52,11 +52,18 @@ export default function VendorManagement() {
   const addVendorMutation = useMutation({
     mutationFn: async (data: Omit<Vendor, "id" | "createdAt" | "updatedAt">) => {
       // Use our service function
-      // Ensure rating is a number
-      const formattedData = {
+      // Ensure rating is a number and handle nulls for optional fields
+      const formattedData: any = {
         ...data,
-        rating: typeof data.rating === 'string' ? Number(data.rating) || 0 : data.rating || 0
+        rating: typeof data.rating === 'string' ? Number(data.rating) || 0 : data.rating || 0,
+        category: data.category || 'general'
       };
+      
+      // Convert nulls to undefined for TypeScript compatibility
+      if (formattedData.taxNumber === null) formattedData.taxNumber = undefined;
+      if (formattedData.registrationNumber === null) formattedData.registrationNumber = undefined;
+      if (formattedData.remarks === null) formattedData.remarks = undefined;
+      
       console.log("Create vendor data with formatted rating:", formattedData);
       return createVendor(formattedData);
     },

@@ -101,7 +101,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="companyName"
@@ -162,7 +162,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                 control={form.control}
                 name="address"
                 render={({ field }) => (
-                  <FormItem className="col-span-2">
+                  <FormItem className="col-span-1 sm:col-span-2">
                     <FormLabel>Address*</FormLabel>
                     <FormControl>
                       <Textarea {...field} placeholder="Enter complete address" />
@@ -260,7 +260,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
                 control={form.control}
                 name="remarks"
                 render={({ field }) => (
-                  <FormItem className="col-span-2">
+                  <FormItem className="col-span-1 sm:col-span-2">
                     <FormLabel>Remarks</FormLabel>
                     <FormControl>
                       <Textarea {...field} placeholder="Enter additional remarks (optional)" />
@@ -317,16 +317,21 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
               />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
                 disabled={isSubmitting}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
