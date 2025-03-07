@@ -34,31 +34,58 @@ export function BulkExportButton({
   const handleExport = async (format: string) => {
     // Check if we have either requests or filters
     if (!requests?.length && !filters) {
+      onExportError?.(new Error('No requests available for export'));
       return;
     }
 
     setIsLoading(format);
     try {
-      // If we have direct requests, use them. Otherwise use API with filters
-      if (requests?.length) {
-        console.log(`Starting export for ${requests.length} requests with format: ${format}`);
-      } else if (filters) {
-        console.log(`Starting export with filters and format: ${format}`);
-      }
+      // Prepare requests count message for logs
+      const requestsCount = requests?.length || 0;
+      const formatLabel = format === 'excel' ? 'Excel Spreadsheet' : 
+                         format === 'csv' ? 'CSV File' : 
+                         format === 'zip' ? 'ZIP Archive' : format;
+      
+      console.log(`Starting export of ${requestsCount} requests in ${formatLabel} format`);
       
       let fileName = '';
 
       if (requests?.length) {
+        // Validate requests to ensure we have all required data
+        const validRequests = requests.filter(req => req && req.id);
+        
+        if (validRequests.length === 0) {
+          throw new Error('No valid requests to export');
+        }
+        
+        if (validRequests.length !== requests.length) {
+          console.warn(`Some requests (${requests.length - validRequests.length}) were filtered out due to missing data`);
+        }
+        
         // Export directly from provided requests
         switch (format) {
           case 'excel':
-            fileName = await exportMultipleRequestsToExcel(requests);
+            fileName = await exportMultipleRequestsToExcel(validRequests);
             break;
           case 'csv':
-            fileName = await exportMultipleRequestsToCSV(requests);
+            fileName = await exportMultipleRequestsToCSV(validRequests);
             break;
           case 'zip':
-            fileName = await exportMultipleRequestsAsZip(requests);
+            // Zip export can be large, so let's add a confirmation if many requests
+            if (validRequests.length > 20) {
+              const totalAttachments = validRequests.reduce((count, req) => 
+                count + (req.attachments?.length || 0), 0);
+              
+              if (totalAttachments > 50 && !window.confirm(
+                `You are about to export ${validRequests.length} requests with approximately ${totalAttachments} attachments. ` +
+                `This may take some time and create a large file. Continue?`
+              )) {
+                setIsLoading(null);
+                return;
+              }
+            }
+            
+            fileName = await exportMultipleRequestsAsZip(validRequests);
             break;
           default:
             throw new Error(`Unsupported export format: ${format}`);
@@ -79,33 +106,78 @@ export function BulkExportButton({
         if (filters.dateRange?.to) queryParams.append('endDate', filters.dateRange.to.toISOString());
         if (filters.searchQuery) queryParams.append('searchTerm', filters.searchQuery);
         
-        const response = await fetch(`/api/requests/export/bulk?${queryParams.toString()}`, {
-          credentials: "include",
-        });
-        
-        if (!response.ok) {
-          throw new Error(await response.text());
+        try {
+          console.log(`Fetching data with filters: ${queryParams.toString()}`);
+          const response = await fetch(`/api/requests/export/bulk?${queryParams.toString()}`, {
+            credentials: "include",
+            headers: {
+              'Accept': format === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                        format === 'csv' ? 'text/csv' : 
+                        format === 'zip' ? 'application/zip' : '*/*'
+            }
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            try {
+              // Try to parse as JSON error
+              const errorJson = JSON.parse(errorText);
+              throw new Error(errorJson.message || errorJson.error || 'Export failed');
+            } catch (parseError) {
+              // If not JSON, use text
+              throw new Error(errorText || `Export failed with status ${response.status}`);
+            }
+          }
+          
+          // Get filename from Content-Disposition header or generate one
+          let suggestedName;
+          const contentDisposition = response.headers.get('Content-Disposition');
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch) {
+              suggestedName = filenameMatch[1];
+            }
+          }
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const date = new Date().toISOString().split('T')[0];
+          fileName = suggestedName || `procurement_export_${date}.${
+            format === 'excel' ? 'xlsx' : 
+            format === 'csv' ? 'csv' : 
+            format === 'zip' ? 'zip' : 'file'
+          }`;
+          
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch (apiError) {
+          console.error('API export error:', apiError);
+          throw apiError;
         }
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const date = new Date().toISOString().split('T')[0];
-        fileName = `procurement_export_${date}.${format}`;
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
       }
 
       console.log(`Export completed: ${fileName}`);
       onExportComplete?.(fileName);
     } catch (error) {
       console.error('Error exporting data:', error);
+      
+      // Enhanced error handling with better user feedback
       if (error instanceof Error) {
-        onExportError?.(error);
+        // Provide more helpful messages for common errors
+        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+          onExportError?.(new Error('Network error - please check your connection and try again'));
+        } else if (error.message.includes('CORS') || error.message.includes('Not allowed')) {
+          onExportError?.(new Error('Security restriction prevented the export - try refreshing the page'));
+        } else if (error.message.includes('memory') || error.message.includes('out of memory')) {
+          onExportError?.(new Error('Export data is too large - try exporting fewer requests or a different format'));
+        } else {
+          onExportError?.(error);
+        }
       } else {
         onExportError?.(new Error('Unknown export error occurred'));
       }
