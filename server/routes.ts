@@ -1202,13 +1202,15 @@ export function registerRoutes(app: Express): Server {
           ));
 
         await Promise.all(approvers.map(approver =>
-          createNotification(
-            approver.id,
-            'New Purchase Request',
-            `A new purchase request "${updatedRequest.title}" requires your approval`,
-            'request',
-            updatedRequest.id
-          )
+          notificationService.createNotification({
+            userId: approver.id,
+            title: 'New Purchase Request',
+            message: `A new purchase request "${updatedRequest.title}" requires your approval`,
+            type: 'approval_required',
+            requestId: updatedRequest.id,
+            priority: 'high',
+            actionType: 'approve'
+          })
         ));
       }
 
@@ -1224,13 +1226,15 @@ export function registerRoutes(app: Express): Server {
           ));
 
         await Promise.all(approvers.map(approver =>
-          createNotification(
-            approver.id,
-            'New Purchase Request',
-            `A new purchase request "${updatedRequest.title}" requires your approval`,
-            'request',
-            updatedRequest.id
-          )
+          notificationService.createNotification({
+            userId: approver.id,
+            title: 'New Purchase Request',
+            message: `A new purchase request "${updatedRequest.title}" requires your approval`,
+            type: 'approval_required',
+            requestId: updatedRequest.id,
+            priority: 'high',
+            actionType: 'approve'
+          })
         ));
       }
 
@@ -4326,13 +4330,15 @@ export function registerRoutes(app: Express): Server {
 
       // Create notification for the requester
       if (status === 'approved') {
-        await createNotification(
-          existingRequest.requesterId,
-          'Request Approved',
-          `Your purchase request "${existingRequest.title}" has been fully approved`,
-          'request',
-          requestId
-        );
+        await notificationService.createNotification({
+          userId: existingRequest.requesterId,
+          title: 'Request Approved',
+          message: `Your purchase request "${existingRequest.title}" has been fully approved`,
+          type: 'request_approved',
+          requestId: requestId,
+          priority: 'high',
+          actionType: 'view'
+        });
       }
 
       debug(req, 'Request status updated successfully:', updatedRequest);
