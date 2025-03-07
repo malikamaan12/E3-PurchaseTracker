@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import DateRangePicker from "@/components/ui/date-range-picker";
@@ -423,49 +429,84 @@ export function DashboardFilterPanel({
               {/* Sub-Purpose Filter */}
               <div className="space-y-2">
                 <Label>Sub-Purpose</Label>
-                <Select
-                  value={filters.subPurposeId?.toString() || ""}
-                  onValueChange={(value) =>
-                    updateFilters("subPurposeId", value ? parseInt(value) : null)
-                  }
-                  disabled={!filters.purposeType.length}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub-purpose" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px] overflow-y-auto">
-                    {availableSubPurposes.map((sp) => (
-                      <SelectItem key={sp.id} value={sp.id.toString()}>
-                        {sp.name} {sp.purposeType && <span className="ml-1 text-xs text-muted-foreground">({sp.purposeType})</span>}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-between" 
+                        disabled={!filters.purposeType.length}
+                      >
+                        {filters.subPurposeId 
+                          ? availableSubPurposes.find(sp => sp.id === filters.subPurposeId)?.name || "Select sub-purpose" 
+                          : "Select sub-purpose"}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[--trigger-width] max-h-[300px] overflow-y-auto">
+                      {availableSubPurposes.map((sp) => (
+                        <DropdownMenuItem 
+                          key={sp.id} 
+                          onClick={() => updateFilters("subPurposeId", sp.id)}
+                          className="flex flex-col items-start"
+                        >
+                          <div className="font-medium">{sp.name}</div>
+                          {sp.purposeType && (
+                            <div className="text-xs text-muted-foreground mt-0.5">{sp.purposeType}</div>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem 
+                        onClick={() => updateFilters("subPurposeId", null)}
+                        className="border-t"
+                      >
+                        Clear selection
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
 
               {/* Vendor Filter */}
               <div className="space-y-2">
                 <Label>Vendor</Label>
-                <Select
-                  value={filters.vendorId?.toString() || ""}
-                  onValueChange={(value) =>
-                    updateFilters("vendorId", value ? parseInt(value) : null)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select vendor" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px] overflow-y-auto">
-                    {vendors.map((vendor) => (
-                      <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                        {vendor.name || vendor.companyName || `Vendor #${vendor.id}`}
-                        {vendor.companyName && vendor.name && vendor.name !== vendor.companyName && (
-                          <span className="ml-1 text-xs text-muted-foreground">({vendor.companyName})</span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-between"
+                      >
+                        {filters.vendorId 
+                          ? vendors.find(v => v.id === filters.vendorId)?.name || 
+                            vendors.find(v => v.id === filters.vendorId)?.companyName || 
+                            "Select vendor" 
+                          : "Select vendor"}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[--trigger-width] max-h-[300px] overflow-y-auto">
+                      {vendors.map((vendor) => (
+                        <DropdownMenuItem 
+                          key={vendor.id} 
+                          onClick={() => updateFilters("vendorId", vendor.id)}
+                          className="flex flex-col items-start"
+                        >
+                          <div className="font-medium">{vendor.name || vendor.companyName || `Vendor #${vendor.id}`}</div>
+                          {vendor.companyName && vendor.name && vendor.name !== vendor.companyName && (
+                            <div className="text-xs text-muted-foreground mt-0.5">{vendor.companyName}</div>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem 
+                        onClick={() => updateFilters("vendorId", null)}
+                        className="border-t"
+                      >
+                        Clear selection
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </div>
 
