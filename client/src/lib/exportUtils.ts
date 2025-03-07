@@ -72,7 +72,7 @@ function calculateTotalCost(request: any): number {
 }
 
 /**
- * Format a purchase request for export
+ * Format a purchase request for export with comprehensive field coverage
  */
 function formatRequestForExport(request: any) {
   if (!request) return {};
@@ -80,14 +80,21 @@ function formatRequestForExport(request: any) {
   // Calculate total cost if not already calculated
   const totalCost = request.totalEstimatedCost || calculateTotalCost(request);
   
-  // Format dates for readability
-  const createdAt = request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
-  const updatedAt = request.updatedAt ? format(new Date(request.updatedAt), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
-  const processedAt = request.processedAt ? format(new Date(request.processedAt), 'yyyy-MM-dd HH:mm:ss') : 'N/A';
+  // Format dates consistently with enhanced error handling
+  const formatDate = (dateStr: string | Date | null | undefined): string => {
+    if (!dateStr) return 'N/A';
+    try {
+      return format(new Date(dateStr), 'yyyy-MM-dd HH:mm:ss');
+    } catch (e) {
+      return String(dateStr) || 'N/A';
+    }
+  };
   
   // Get requester details
-  const requesterName = request.requester?.username || 'Unknown';
+  const requesterName = request.requester?.username || `User ${request.requesterId}` || 'Unknown';
   const requesterDepartment = request.requester?.department || 'Unknown';
+  const requesterEmail = request.requester?.email || 'N/A';
+  const requesterContact = request.requester?.contactNumber || 'N/A';
   
   // Get vendor details
   const vendorName = request.vendor?.companyName || request.vendor?.name || 'N/A';
@@ -97,56 +104,126 @@ function formatRequestForExport(request: any) {
   
   // Format attachments
   const attachmentsCount = request.attachments?.length || 0;
+  const attachmentDetails = attachmentsCount > 0 ? 
+    request.attachments.map((a: any) => a.fileName).join(', ') : 'None';
+  
+  // Format approval details
+  const approvalCount = request.approvals?.length || 0;
+  const approvedCount = request.approvals?.filter((a: any) => a.status === 'approved').length || 0;
+  const rejectedCount = request.approvals?.filter((a: any) => a.status === 'rejected').length || 0;
+  const pendingCount = request.approvals?.filter((a: any) => a.status === 'pending').length || 0;
+  const changesCount = request.approvals?.filter((a: any) => a.status === 'changes_requested').length || 0;
+  
+  const approvalSummary = `${approvedCount} approved, ${rejectedCount} rejected, ${pendingCount} pending, ${changesCount} changes requested`;
+  const approversList = request.approvals?.filter((a: any) => a.status === 'approved')
+    .map((a: any) => a.approver?.username || 'Unknown')
+    .join(', ') || 'None';
+  
+  // Calculate total file size
+  const totalFileSizeMB = request.attachments?.reduce(
+    (sum: number, att: any) => sum + (att.fileSize || 0), 0
+  ) / (1024 * 1024) || 0;
   
   return {
+    // Request Identification
     'Request ID': request.id,
     'Request Number': request.requestNumber || `REQ-${request.id}`,
-    'Title': request.title,
-    'Status': request.status,
+    'Title': request.title || 'Untitled Request',
+    'Status': request.status || 'draft',
     'Priority': request.priority || 'Normal',
-    'Created Date': createdAt,
-    'Last Updated': updatedAt,
-    'Processed Date': processedAt,
+    'Is Locked': request.isLocked ? 'Yes' : 'No',
+    
+    // Timestamps
+    'Created Date': formatDate(request.createdAt),
+    'Last Updated': formatDate(request.updatedAt),
+    'Processed Date': formatDate(request.processedAt),
+    'Submitted Date': formatDate(request.submittedAt),
+    
+    // Requester Information
+    'Requester ID': request.requesterId,
     'Requester': requesterName,
     'Department': requesterDepartment,
+    'Requester Email': requesterEmail,
+    'Requester Contact': requesterContact,
+    
+    // Request Purpose
     'Purpose Type': request.purposeType || 'General',
+    'Sub Purpose ID': request.subPurposeId || 'N/A',
     'Sub Purpose': request.subPurpose?.name || 'N/A',
-    'Description': request.description,
+    'Description': request.description || '',
+    
+    // Financial Information
     'Currency': request.currency || 'USD',
     'Freight Amount': request.freightAmount || 0,
+    'Items Total': totalCost - (request.freightAmount || 0),
     'Total Estimated Cost': totalCost,
+    
+    // Vendor Information
+    'Vendor ID': request.vendorId || 'N/A',
     'Vendor': vendorName,
     'Vendor Contact': vendorContact,
     'Vendor Email': vendorEmail,
     'Vendor Phone': vendorPhone,
+    
+    // Approvals
+    'Required Approvals': request.mandatoryApproversCount || 0,
+    'Total Approvals': approvalCount,
+    'Approval Summary': approvalSummary,
+    'Approved By': approversList,
+    
+    // Attachments
     'Attachments Count': attachmentsCount,
+    'Attachments Size (MB)': totalFileSizeMB.toFixed(2),
+    'Attachment Names': attachmentDetails,
+    
+    // Items
     'Items Count': request.items?.length || 0
   };
 }
 
 /**
- * Format items for export
+ * Format items for export with enhanced details
  */
 function formatItemsForExport(request: any) {
   if (!request?.items || !Array.isArray(request.items)) {
     return [];
   }
   
-  return request.items.map((item: any, index: number) => ({
-    'Request ID': request.id,
-    'Request Number': request.requestNumber || `REQ-${request.id}`,
-    'Item #': index + 1,
-    'Name': item.name,
-    'Description': item.description || '',
-    'Quantity': item.quantity,
-    'Unit Cost': item.estimatedCost,
-    'Total Cost': Number(item.quantity) * Number(item.estimatedCost),
-    'Currency': request.currency || 'USD'
-  }));
+  return request.items.map((item: any, index: number) => {
+    // Calculate item total cost
+    const quantity = Number(item.quantity) || 0;
+    const unitCost = Number(item.estimatedCost) || 0;
+    const totalCost = quantity * unitCost;
+    
+    return {
+      // Request identification
+      'Request ID': request.id,
+      'Request Number': request.requestNumber || `REQ-${request.id}`,
+      'Request Status': request.status || 'draft',
+      'Request Created': request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : 'N/A',
+      
+      // Item identification
+      'Item #': index + 1,
+      'Item Name': item.name || 'Unnamed Item',
+      'Item Description': item.description || '',
+      
+      // Item financials
+      'Quantity': quantity,
+      'Unit Cost': unitCost,
+      'Total Cost': totalCost,
+      'Currency': request.currency || 'USD',
+      
+      // Related information
+      'Purpose Type': request.purposeType || 'General',
+      'Requester': request.requester?.username || `User ${request.requesterId}` || 'Unknown',
+      'Department': request.requester?.department || 'Unknown',
+      'Vendor': request.vendor?.companyName || request.vendor?.name || 'N/A'
+    };
+  });
 }
 
 /**
- * Format approvals for export
+ * Format approvals for export with enhanced details
  */
 function formatApprovalsForExport(request: any) {
   if (!request?.approvals || !Array.isArray(request.approvals)) {
@@ -154,18 +231,46 @@ function formatApprovalsForExport(request: any) {
   }
   
   return request.approvals.map((approval: any, index: number) => {
+    // Format dates
     const processedDate = approval.processedAt ? 
       format(new Date(approval.processedAt), 'yyyy-MM-dd HH:mm:ss') : 'Pending';
     
+    // Map status to more readable version
+    const statusMap: Record<string, string> = {
+      'approved': 'Approved',
+      'rejected': 'Rejected',
+      'pending': 'Pending',
+      'changes_requested': 'Changes Requested'
+    };
+    
+    const readableStatus = statusMap[approval.status] || approval.status || 'Unknown';
+    
     return {
+      // Request identification
       'Request ID': request.id,
       'Request Number': request.requestNumber || `REQ-${request.id}`,
-      'Approval #': index + 1,
-      'Department': approval.department,
-      'Status': approval.status,
+      'Request Title': request.title || 'Untitled Request',
+      'Request Status': request.status || 'draft',
+      
+      // Approval details
+      'Approval ID': approval.id || index + 1,
+      'Approval Sequence': index + 1,
+      'Department': approval.department || 'Unknown Department',
+      'Status': readableStatus,
+      'Is Mandatory': approval.isMandatory ? 'Yes' : 'No',
+      
+      // Approver details
+      'Approver ID': approval.approverId || 'N/A',
       'Approver': approval.approver?.username || 'Not assigned',
+      'Approver Role': approval.approver?.role || 'N/A',
+      
+      // Timeline
       'Process Date': processedDate,
-      'Comments': approval.comments || ''
+      'Request Created': request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : 'N/A',
+      
+      // Decision details
+      'Comments': approval.comments || '',
+      'Decision Notes': approval.notes || ''
     };
   });
 }
@@ -274,11 +379,60 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       responseType: 'blob'
     });
     
+    // Ensure proper PDF content type
     const blob = new Blob([response.data], { type: 'application/pdf' });
     const fileName = `Purchase_Request_${request.id || 'export'}_${format(new Date(), 'yyyyMMdd')}.pdf`;
     
-    await safeDownload(blob, fileName);
-    return fileName;
+    // Validate if this is a valid PDF (check for PDF signature)
+    const fileReader = new FileReader();
+    
+    return new Promise<string>((resolve, reject) => {
+      fileReader.onload = () => {
+        const arr = new Uint8Array(fileReader.result as ArrayBuffer);
+        // Check PDF signature at the beginning of the file (should start with "%PDF-")
+        const pdfSignature = String.fromCharCode(37, 80, 68, 70, 45); // "%PDF-"
+        const fileSignature = String.fromCharCode(...arr.slice(0, 5));
+        
+        if (fileSignature !== pdfSignature) {
+          const errorMsg = `Invalid PDF format: File signature doesn't match PDF standard`;
+          logExport('pdf', errorMsg, new Error(errorMsg));
+          // Instead of throwing, we'll try to get the JSON response and extract the data
+          try {
+            const jsonReader = new FileReader();
+            jsonReader.onload = () => {
+              try {
+                const jsonContent = JSON.parse(jsonReader.result as string);
+                if (jsonContent.data) {
+                  // Use client-side PDF generation as fallback
+                  import('./pdfGenerator').then(pdfModule => {
+                    pdfModule.generateRequestPDF(jsonContent.data, type)
+                      .then(pdfBlob => {
+                        safeDownload(pdfBlob, fileName).then(() => resolve(fileName));
+                      })
+                      .catch(err => {
+                        reject(new Error(`Fallback PDF generation failed: ${err.message}`));
+                      });
+                  });
+                } else {
+                  reject(new Error('Invalid server response format for PDF generation'));
+                }
+              } catch (parseError) {
+                reject(new Error(`Failed to parse server response: ${parseError.message}`));
+              }
+            };
+            jsonReader.onerror = () => reject(new Error('Failed to read server response'));
+            jsonReader.readAsText(blob);
+          } catch (fallbackError) {
+            reject(new Error(`PDF validation failed and fallback generation failed: ${fallbackError.message}`));
+          }
+        } else {
+          // Valid PDF - proceed with download
+          safeDownload(blob, fileName).then(() => resolve(fileName));
+        }
+      };
+      fileReader.onerror = () => reject(new Error('Failed to read PDF data'));
+      fileReader.readAsArrayBuffer(blob.slice(0, 10)); // Only need to read the header
+    });
   } catch (error) {
     logExport('pdf', `Failed to export request to PDF: ${error instanceof Error ? error.message : 'Unknown error'}`, error);
     throw new Error(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -490,20 +644,118 @@ export async function exportMultipleRequestsAsZip(requests: any[]): Promise<stri
     // Create a new JSZip instance
     const mainZip = new JSZip();
     
-    // First add a bulk Excel file
-    // Format all requests
+    // Create a comprehensive index/catalog file first
+    const exportInfo = {
+      exportDate: new Date().toISOString(),
+      totalRequests: requests.length,
+      requestsSummary: requests.map(request => ({
+        id: request.id,
+        requestNumber: request.requestNumber || `REQ-${request.id}`,
+        title: request.title || 'Untitled Request',
+        status: request.status || 'draft',
+        requester: request.requester?.username || 'Unknown',
+        createdAt: request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : 'Unknown',
+        totalCost: request.totalEstimatedCost || 0,
+        currency: request.currency || 'USD',
+        itemsCount: request.items?.length || 0,
+        attachmentsCount: request.attachments?.length || 0,
+        purposeType: request.purposeType || 'Unknown',
+        subPurpose: request.subPurpose?.name || 'Unknown'
+      }))
+    };
+    
+    // Add the export info as JSON
+    mainZip.file('export_info.json', JSON.stringify(exportInfo, null, 2));
+    
+    // Add a complete CSV catalog with all requests
     const formattedRequests = requests.map(request => formatRequestForExport(request));
     
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
+    try {
+      // Add a complete CSV catalog with all requests
+      const catalogParser = new Parser({
+        fields: Object.keys(formattedRequests[0] || {}),
+        defaultValue: 'N/A'
+      });
+      
+      // Add BOM for Excel compatibility
+      const catalogCSV = '\ufeff' + catalogParser.parse(formattedRequests);
+      mainZip.file('all_requests_catalog.csv', catalogCSV);
+    } catch (csvError) {
+      logExport('bulk-zip', `Failed to create catalog CSV: ${csvError instanceof Error ? csvError.message : 'Unknown error'}`, csvError);
+      // Continue even if catalog fails
+    }
     
-    // Add main requests sheet
-    const requestsSheet = XLSX.utils.json_to_sheet(formattedRequests);
-    XLSX.utils.book_append_sheet(workbook, requestsSheet, 'All Requests');
-    
-    // Add Excel to ZIP
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    mainZip.file('all_purchase_requests.xlsx', excelBuffer);
+    // Create comprehensive Excel workbook with all requests
+    try {
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Add main requests sheet
+      const requestsSheet = XLSX.utils.json_to_sheet(formattedRequests);
+      XLSX.utils.book_append_sheet(workbook, requestsSheet, 'All Requests');
+      
+      // Collect all items from all requests
+      const allItems: any[] = [];
+      requests.forEach(request => {
+        const items = formatItemsForExport(request);
+        allItems.push(...items);
+      });
+      
+      // Add items sheet if available
+      if (allItems.length > 0) {
+        const itemsSheet = XLSX.utils.json_to_sheet(allItems);
+        XLSX.utils.book_append_sheet(workbook, itemsSheet, 'All Items');
+      }
+      
+      // Collect all approvals from all requests
+      const allApprovals: any[] = [];
+      requests.forEach(request => {
+        const approvals = formatApprovalsForExport(request);
+        allApprovals.push(...approvals);
+      });
+      
+      // Add approvals sheet if available
+      if (allApprovals.length > 0) {
+        const approvalsSheet = XLSX.utils.json_to_sheet(allApprovals);
+        XLSX.utils.book_append_sheet(workbook, approvalsSheet, 'All Approvals');
+      }
+      
+      // Create an attachments reference sheet
+      const attachmentsReference: any[] = [];
+      requests.forEach(request => {
+        if (request.attachments && Array.isArray(request.attachments)) {
+          request.attachments.forEach((attachment: any) => {
+            attachmentsReference.push({
+              'Request ID': request.id,
+              'Request Number': request.requestNumber || `REQ-${request.id}`,
+              'Attachment ID': attachment.id,
+              'File Name': attachment.fileName,
+              'File Type': attachment.fileType,
+              'File Size (bytes)': attachment.fileSize,
+              'Uploaded At': attachment.uploadedAt ? format(new Date(attachment.uploadedAt), 'yyyy-MM-dd HH:mm:ss') : 'Unknown',
+              'ZIP Path': `Request_${request.id}/attachments/${attachment.fileName}`
+            });
+          });
+        }
+      });
+      
+      // Add attachments reference sheet if there are any attachments
+      if (attachmentsReference.length > 0) {
+        const attachmentsSheet = XLSX.utils.json_to_sheet(attachmentsReference);
+        XLSX.utils.book_append_sheet(workbook, attachmentsSheet, 'Attachments');
+      }
+      
+      // Add Excel to ZIP
+      const excelBuffer = XLSX.write(workbook, { 
+        bookType: 'xlsx', 
+        type: 'array',
+        compression: true
+      });
+      mainZip.file('all_purchase_requests.xlsx', excelBuffer);
+    } catch (excelError) {
+      logExport('bulk-zip', `Failed to create Excel catalog: ${excelError instanceof Error ? excelError.message : 'Unknown error'}`, excelError);
+      // Continue even if Excel catalog fails
+    }
     
     // Create a dedicated folder for each request
     for (const request of requests) {
@@ -548,21 +800,76 @@ export async function exportMultipleRequestsAsZip(requests: any[]): Promise<stri
         requestFolder.file('approvals.csv', approvalsCSV);
       }
       
-      // Try to add PDF for each request
+      // Try to add PDF for each request using our enhanced PDF export
       try {
-        const response = await axios.get(`/api/requests/${request.id}/pdf`, {
+        const pdfResponse = await axios.get(`/api/requests/${request.id}/pdf`, {
           responseType: 'blob'
         });
-        requestFolder.file('purchase_request.pdf', response.data);
+        
+        // Check if response is a valid PDF by checking the first few bytes
+        const bytes = await pdfResponse.data.arrayBuffer();
+        const headerView = new Uint8Array(bytes, 0, 5);
+        const pdfSignature = String.fromCharCode(37, 80, 68, 70, 45); // "%PDF-"
+        const fileSignature = String.fromCharCode(...headerView);
+        
+        if (fileSignature === pdfSignature) {
+          // Valid PDF - add it to the ZIP
+          requestFolder.file('purchase_request.pdf', pdfResponse.data);
+        } else {
+          // Invalid PDF - try to use client-side generation
+          try {
+            // Parse the response as JSON to get request data
+            const jsonText = await pdfResponse.data.text();
+            const jsonResponse = JSON.parse(jsonText);
+            
+            if (jsonResponse.data) {
+              // Use client-side PDF generation as fallback
+              const pdfGenerator = await import('./pdfGenerator');
+              const pdfBlob = await pdfGenerator.generateRequestPDF(jsonResponse.data, 'user');
+              
+              if (pdfBlob) {
+                const pdfBuffer = await pdfBlob.arrayBuffer();
+                requestFolder.file('purchase_request.pdf', pdfBuffer);
+              }
+            }
+          } catch (fallbackError) {
+            logExport('bulk-zip', `Failed to add fallback PDF for request ${request.id}`, fallbackError);
+          }
+        }
       } catch (pdfError) {
         // Continue without PDF
         logExport('bulk-zip', `Failed to add PDF for request ${request.id}`, pdfError);
       }
+      
+      // Add attachments to a subfolder
+      if (request.attachments && Array.isArray(request.attachments) && request.attachments.length > 0) {
+        const attachmentsFolder = requestFolder.folder('attachments');
+        if (!attachmentsFolder) continue;
+        
+        for (const attachment of request.attachments) {
+          try {
+            const response = await axios.get(`/api/attachments/${attachment.id}`, {
+              responseType: 'blob'
+            });
+            attachmentsFolder.file(attachment.fileName, response.data);
+          } catch (attachmentError) {
+            logExport('bulk-zip', `Failed to add attachment ${attachment.fileName}`, attachmentError);
+            // Continue with other attachments
+          }
+        }
+      }
     }
     
-    // Generate and download ZIP
-    const zipBlob = await mainZip.generateAsync({ type: 'blob' });
-    const fileName = `Bulk_Purchase_Requests_${format(new Date(), 'yyyyMMdd')}.zip`;
+    // Generate and download ZIP with better compression
+    const zipBlob = await mainZip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 6 // Higher compression level (0-9)
+      }
+    });
+    
+    const fileName = `Purchase_Requests_Export_${format(new Date(), 'yyyyMMdd_HHmmss')}.zip`;
     
     await safeDownload(zipBlob, fileName);
     return fileName;
