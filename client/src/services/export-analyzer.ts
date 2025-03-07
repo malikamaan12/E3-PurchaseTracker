@@ -445,7 +445,7 @@ export function quickDiagnoseExportError(
   ) {
     result = {
       message: 'You don\'t have permission to export this data',
-      severity: 'high',
+      severity: 'medium',
       possibleFixes: [
         'Log out and log back in',
         'Contact your administrator for appropriate permissions',
@@ -483,7 +483,7 @@ export function quickDiagnoseExportError(
   ) {
     result = {
       message: 'The export data is too large to process',
-      severity: 'high',
+      severity: 'medium',
       possibleFixes: [
         'Try exporting a smaller subset of data',
         'Use filters to reduce the dataset size',

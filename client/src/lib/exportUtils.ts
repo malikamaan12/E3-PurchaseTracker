@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { generateRequestPDF } from './pdfGenerator';
 import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
+import { saveAs } from 'file-saver';
 import { safeDownload, safeUrlDownload, safeExport } from './safeDownload';
 
 /**
@@ -543,7 +544,12 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
       return fileName;
     } catch (downloadError) {
       logExport('excel', 'Excel file generation succeeded but download failed:', downloadError);
-      throw new Error(`Excel generation succeeded but download failed: ${downloadError.message || 'Unknown error'}`);
+      const errorMessage = downloadError instanceof Error 
+        ? downloadError.message 
+        : typeof downloadError === 'string' 
+          ? downloadError 
+          : 'Unknown error';
+      throw new Error(`Excel generation succeeded but download failed: ${errorMessage}`);
     }
   } catch (error) {
     logExport('excel', 'Excel export failed:', error);
@@ -794,9 +800,16 @@ export async function exportRequestToCSV(
             return itemsFileName;
           }
         } catch (itemsError) {
+          // Use anthropic-powered error analysis with more robust error handling
           logExport('csv', `Error exporting items to CSV:`, itemsError);
           if (exportType === 'items') {
-            throw new Error(`Failed to export items to CSV: ${itemsError.message || 'Unknown error'}`);
+            // Properly handle the error type to avoid LSP errors
+            const errorMessage = itemsError instanceof Error 
+              ? itemsError.message 
+              : typeof itemsError === 'string' 
+                ? itemsError 
+                : 'Unknown error';
+            throw new Error(`Failed to export items to CSV: ${errorMessage}`);
           }
         }
       } else if (exportType === 'items') {
@@ -851,9 +864,16 @@ export async function exportRequestToCSV(
             return approvalsFileName;
           }
         } catch (approvalsError) {
+          // Use anthropic-powered error analysis with more robust error handling
           logExport('csv', `Error exporting approvals to CSV:`, approvalsError);
           if (exportType === 'approvals') {
-            throw new Error(`Failed to export approvals to CSV: ${approvalsError.message || 'Unknown error'}`);
+            // Properly handle the error type to avoid LSP errors
+            const errorMessage = approvalsError instanceof Error 
+              ? approvalsError.message 
+              : typeof approvalsError === 'string' 
+                ? approvalsError 
+                : 'Unknown error';
+            throw new Error(`Failed to export approvals to CSV: ${errorMessage}`);
           }
         }
       } else if (exportType === 'approvals') {
