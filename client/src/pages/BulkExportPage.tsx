@@ -39,7 +39,7 @@ export default function BulkExportPage() {
     toast({
       title: 'Export Complete',
       description: `Successfully exported to ${fileName}`,
-      variant: 'success',
+      variant: 'default',
     });
   };
 

@@ -46,6 +46,7 @@ function App() {
         <Route path="/department-dashboard" component={DepartmentDashboard} />
         <Route path="/error-predictions" component={ErrorPredictionDashboard} />
         <Route path="/test-export" component={TestExportPage} />
+        <Route path="/export" component={BulkExportPage} />
 
         {/* Add admin routes with proper access control */}
         {user.role === "admin" && (
