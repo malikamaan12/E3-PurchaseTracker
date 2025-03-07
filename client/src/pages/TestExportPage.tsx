@@ -24,7 +24,9 @@ export default function TestExportPage() {
     'enhanced-pdf': 'not-run',
     'enhanced-excel': 'not-run',
     'enhanced-csv': 'not-run',
-    'enhanced-zip': 'not-run'
+    'enhanced-zip': 'not-run',
+    'bulk-excel': 'not-run',
+    'bulk-zip': 'not-run'
   });
 
   const addLog = (message: string) => {
@@ -248,6 +250,83 @@ export default function TestExportPage() {
     }
   };
   
+  // Test bulk export utilities
+  const testBulkExcelExport = async () => {
+    addLog('Starting bulk Excel export test...');
+    updateTestResult('bulk-excel', 'pending');
+    
+    try {
+      // Create an array of mock requests for bulk export
+      const mockRequests = [
+        mockPurchaseRequest,
+        {
+          ...mockPurchaseRequest,
+          id: 12346,
+          requestNumber: 'REQ-TEST-12346',
+          title: 'Second Test Request'
+        },
+        {
+          ...mockPurchaseRequest,
+          id: 12347,
+          requestNumber: 'REQ-TEST-12347',
+          title: 'Third Test Request',
+          status: 'approved'
+        }
+      ];
+      
+      addLog(`Preparing bulk Excel export for ${mockRequests.length} requests...`);
+      console.log('Mock requests for bulk export:', mockRequests);
+      
+      const fileName = await exportMultipleRequestsToExcel(mockRequests);
+      addLog(`Bulk Excel export successful: ${fileName}`);
+      updateTestResult('bulk-excel', 'success');
+    } catch (error: any) {
+      addLog(`Error during bulk Excel export: ${error.message || 'Unknown error'}`);
+      console.error('Bulk Excel export error:', error);
+      
+      // More detailed error logging
+      if (error.stack) {
+        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
+      }
+      updateTestResult('bulk-excel', 'failed');
+    }
+  };
+  
+  const testBulkZipExport = async () => {
+    addLog('Starting bulk ZIP export test...');
+    updateTestResult('bulk-zip', 'pending');
+    
+    try {
+      // Create an array of mock requests for bulk export
+      const mockRequests = [
+        mockPurchaseRequest,
+        {
+          ...mockPurchaseRequest,
+          id: 12346,
+          requestNumber: 'REQ-TEST-12346',
+          title: 'Second Test Request'
+        },
+        {
+          ...mockPurchaseRequest,
+          id: 12347,
+          requestNumber: 'REQ-TEST-12347',
+          title: 'Third Test Request',
+          status: 'approved'
+        }
+      ];
+      
+      addLog(`Preparing bulk ZIP export for ${mockRequests.length} requests...`);
+      
+      const fileName = await exportMultipleRequestsAsZip(mockRequests, 'admin');
+      addLog(`Bulk ZIP export successful: ${fileName}`);
+      updateTestResult('bulk-zip', 'success');
+    } catch (error: any) {
+      addLog(`Error during bulk ZIP export: ${error.message || 'Unknown error'}`);
+      console.error('Bulk ZIP export error:', error);
+      updateTestResult('bulk-zip', 'failed');
+    }
+  };
+  
   const testEnhancedExcelExport = async () => {
     addLog('Starting enhanced Excel export test...');
     updateTestResult('enhanced-excel', 'pending');
@@ -383,6 +462,27 @@ export default function TestExportPage() {
         </div>
       </div>
       
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3">Bulk Export Tests</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <Button 
+            variant="secondary" 
+            onClick={testBulkExcelExport}
+            className="w-full"
+          >
+            Test Bulk Excel Export
+          </Button>
+          
+          <Button 
+            variant="secondary" 
+            onClick={testBulkZipExport}
+            className="w-full"
+          >
+            Test Bulk ZIP Export
+          </Button>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="col-span-2 bg-slate-100 dark:bg-slate-900 rounded-md p-4">
           <div className="flex justify-between items-center mb-2">
@@ -504,6 +604,36 @@ export default function TestExportPage() {
                 </div>
               </div>
             </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
+              <h3 className="text-sm font-medium mb-2">Bulk Export Tests</h3>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">Bulk Excel Export</span>
+                  <Badge variant={
+                    testResults['bulk-excel'] === 'success' ? 'success' : 
+                    testResults['bulk-excel'] === 'pending' ? 'outline' :
+                    testResults['bulk-excel'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['bulk-excel'] === 'not-run' ? 'Not Run' : 
+                     testResults['bulk-excel'] === 'pending' ? 'Running...' :
+                     testResults['bulk-excel'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">Bulk ZIP Export</span>
+                  <Badge variant={
+                    testResults['bulk-zip'] === 'success' ? 'success' : 
+                    testResults['bulk-zip'] === 'pending' ? 'outline' :
+                    testResults['bulk-zip'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['bulk-zip'] === 'not-run' ? 'Not Run' : 
+                     testResults['bulk-zip'] === 'pending' ? 'Running...' :
+                     testResults['bulk-zip'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -517,9 +647,11 @@ export default function TestExportPage() {
         <ul className="list-disc list-inside text-sm space-y-1">
           <li>The Basic Tests use direct library calls (saveAs, createObjectURL, etc.)</li>
           <li>The Enhanced Tests use our improved utilities from exportUtils.ts</li>
-          <li>Enhanced utilities feature better error handling, validation, and fallbacks</li>
-          <li>All exports use the same safeDownload method under the hood</li>
-          <li>All logs are displayed above for debugging</li>
+          <li>The Bulk Tests verify multiple-request exports with proper file formatting</li>
+          <li>All exports use the UTF-8 encoding with proper BOM implementation</li>
+          <li>Enhanced exports include better error handling, validation, and fallbacks</li>
+          <li>All downloads use the same safeDownload method with multiple fallback mechanisms</li>
+          <li>All logs are displayed above for debugging and troubleshooting</li>
         </ul>
       </div>
     </div>
