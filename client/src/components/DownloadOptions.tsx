@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { 
   exportRequestToPDF, 
-  exportRequestAsZip, 
+  exportMultipleRequestsAsZip,
   exportRequestToExcel,
   exportRequestToCSV 
 } from "@/lib/exportUtils";

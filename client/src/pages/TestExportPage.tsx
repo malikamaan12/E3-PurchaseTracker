@@ -6,7 +6,6 @@ import * as XLSX from 'xlsx';
 import { 
   exportRequestToCSV, 
   exportRequestToExcel, 
-  exportRequestAsZip, 
   exportRequestToPDF,
   exportMultipleRequestsToExcel,
   exportMultipleRequestsAsZip
@@ -378,8 +377,8 @@ export default function TestExportPage() {
     updateTestResult('enhanced-zip', 'pending');
     
     try {
-      addLog('Using exportRequestAsZip utility...');
-      const fileName = await exportRequestAsZip(mockPurchaseRequest, true, 'admin');
+      addLog('Using exportMultipleRequestsAsZip utility...');
+      const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], true);
       addLog(`ZIP export successful: ${fileName}`);
       updateTestResult('enhanced-zip', 'success');
     } catch (error: any) {

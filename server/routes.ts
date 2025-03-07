@@ -3010,7 +3010,45 @@ export function registerRoutes(app: Express): Server {
         }
         
         if (purposeType && purposeType !== 'all' && typeof purposeType === 'string') {
-          query = query.where(eq(purchaseRequests.purposeType, purposeType));
+          const purposeValues = purposeType.split(',');
+          if (purposeValues.length > 1) {
+            query = query.where(inArray(purchaseRequests.purposeType, purposeValues));
+          } else {
+            query = query.where(eq(purchaseRequests.purposeType, purposeType));
+          }
+        }
+        
+        // Handle department filtering
+        if (department && typeof department === 'string' && department !== 'all') {
+          // Find requests based on the requester's department
+          try {
+            const departmentValues = department.split(',');
+            
+            // Find users with the specified department(s)
+            let departmentCondition = departmentValues.length > 1 
+              ? inArray(users.department, departmentValues)
+              : eq(users.department, department);
+              
+            // Get IDs of users with the specified department
+            const userIdsQuery = db
+              .select({ id: users.id })
+              .from(users)
+              .where(departmentCondition);
+              
+            const userIdsResult = await userIdsQuery;
+            const userIds = userIdsResult.map(u => u.id);
+            
+            if (userIds.length > 0) {
+              // Filter requests by these user IDs
+              query = query.where(inArray(purchaseRequests.requesterId, userIds));
+            } else {
+              console.log(`[BULK EXPORT] No users found with department(s): ${department}`);
+              // If no users found with this department, return no results
+              query = query.where(eq(purchaseRequests.id, -1)); // Will match nothing
+            }
+          } catch (deptError) {
+            console.error("[BULK EXPORT] Error filtering by department:", deptError);
+          }
         }
         
         if (subPurposeId && typeof subPurposeId === 'string' && subPurposeId !== 'all') {
@@ -3048,12 +3086,49 @@ export function registerRoutes(app: Express): Server {
         // Add search functionality
         if (searchTerm && typeof searchTerm === 'string' && searchTerm.trim() !== '') {
           const searchValue = `%${searchTerm.trim()}%`;
+          
+          // First try to fetch vendor IDs matching the search term
+          const vendorSearchQuery = db
+            .select({ id: vendors.id })
+            .from(vendors)
+            .where(
+              or(
+                ilike(vendors.companyName, searchValue),
+                ilike(vendors.contactPerson, searchValue),
+                ilike(vendors.email, searchValue)
+              )
+            );
+          
+          const matchingVendors = await vendorSearchQuery;
+          const vendorIds = matchingVendors.map(v => v.id);
+          
+          // Also find requester IDs matching the search term
+          // Get user IDs for department matches
+          const userSearchQuery = db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              or(
+                ilike(users.username, searchValue),
+                ilike(users.department, searchValue),
+                ilike(users.email, searchValue)
+              )
+            );
+          
+          const matchingUsers = await userSearchQuery;
+          const userIds = matchingUsers.map(u => u.id);
+          
+          // Now combine all search conditions
           query = query.where(
             or(
               ilike(purchaseRequests.title, searchValue),
               ilike(purchaseRequests.description, searchValue),
-              ilike(purchaseRequests.requestNumber, searchValue)
-            )
+              ilike(purchaseRequests.requestNumber, searchValue),
+              // Include vendor matches if we found any
+              vendorIds.length > 0 ? inArray(purchaseRequests.vendorId, vendorIds) : undefined,
+              // Include requester matches if we found any
+              userIds.length > 0 ? inArray(purchaseRequests.requesterId, userIds) : undefined
+            ).filter(Boolean) // Filter out undefined conditions
           );
         }
         

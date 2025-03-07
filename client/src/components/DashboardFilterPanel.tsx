@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import DateRangePicker from "@/components/ui/date-range-picker";
 import { Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -465,12 +465,12 @@ export function DashboardFilterPanel({
               {/* Date Range Filter */}
               <div className="space-y-2">
                 <Label>Date Range</Label>
-                <DatePickerWithRange
+                <DateRangePicker 
                   date={{
                     from: filters.dateRange.from,
                     to: filters.dateRange.to,
                   }}
-                  onSelect={(range) => updateFilters("dateRange", range || { from: undefined, to: undefined })}
+                  onDateChange={(range) => updateFilters("dateRange", range || { from: undefined, to: undefined })}
                 />
               </div>
 

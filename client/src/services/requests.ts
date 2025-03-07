@@ -12,8 +12,9 @@ export interface RequestFilters {
   department?: string[];
   purposeType?: string;
   subPurposeId?: number | null;
-  startDate?: string;
-  endDate?: string;
+  vendorId?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   searchTerm?: string;
 }
 

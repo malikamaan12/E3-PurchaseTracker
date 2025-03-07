@@ -1,52 +1,39 @@
 import React from "react";
-import { ArrowLeft } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  children?: React.ReactNode;
   backLink?: string;
-  backLabel?: string;
-  className?: string;
+  actions?: React.ReactNode;
 }
 
-export function PageHeader({
-  title,
-  description,
-  children,
-  backLink,
-  backLabel = "Back",
-  className,
-}: PageHeaderProps) {
+export function PageHeader({ title, description, backLink, actions }: PageHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between",
-        className
-      )}
-    >
-      <div className="space-y-1">
-        {backLink && (
-          <Link href={backLink}>
-            <Button
-              variant="link"
-              className="gap-1 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {backLabel}
-            </Button>
-          </Link>
-        )}
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-lg text-muted-foreground">{description}</p>
-        )}
+    <div className="flex flex-col space-y-3 md:space-y-2">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          {backLink && (
+            <Link href={backLink}>
+              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </Button>
+            </Link>
+          )}
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        </div>
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
-      {children && <div className="flex items-center gap-4">{children}</div>}
+      {description && (
+        <p className="text-muted-foreground max-w-3xl">
+          {description}
+        </p>
+      )}
     </div>
   );
 }
+
+export default PageHeader;
