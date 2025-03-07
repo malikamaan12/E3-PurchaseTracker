@@ -5,6 +5,7 @@ import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { exportMultipleRequestsAsZip } from "@/lib/exportUtils";
 import { analyzeBulkExportIssue } from "@/services/export-analyzer";
+import { safeDownload } from '@/lib/safeDownload';
 import {
   Dialog,
   DialogContent,
@@ -247,21 +248,11 @@ export function BulkExportButton({
         mimeType = 'application/zip';
       }
       
-      // Directly initiate download with correct MIME type
+      // Use our safer download utility for better cross-browser compatibility
       const blobWithType = new Blob([blob], { type: mimeType });
-      const url = window.URL.createObjectURL(blobWithType);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
       
-      // Clean up
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
+      // Start the download using our utility
+      await safeDownload(blobWithType, fileName);
       
       toast({
         title: "Export Completed",
