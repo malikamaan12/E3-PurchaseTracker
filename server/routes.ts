@@ -4464,13 +4464,15 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       // Create notification
-      await createNotification(
-        existingRequest.requesterId,
-        `Request ${status.replace('_', ' ')}`,
-        `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
-        'request',
-        requestId
-      );
+      await notificationService.createNotification({
+        userId: existingRequest.requesterId,
+        title: `Request ${status.replace('_', ' ')}`,
+        message: `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
+        type: 'request_status_update',
+        requestId: requestId,
+        priority: status === 'approved' ? 'high' : status === 'rejected' ? 'high' : 'normal',
+        actionType: status === 'approved' ? 'view' : status === 'changes_requested' ? 'update' : 'acknowledge'
+      });
 
       console.log('Approval created successfully:', approval);
       res.json({
