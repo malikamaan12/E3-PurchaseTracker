@@ -68,6 +68,17 @@ BEGIN
         ALTER TABLE notifications
         ADD COLUMN expires_at timestamp;
     END IF;
+    
+    -- Add updated_at column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'notifications'
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE notifications
+        ADD COLUMN updated_at timestamp NOT NULL DEFAULT now();
+    END IF;
 END
 $$;
 `;
