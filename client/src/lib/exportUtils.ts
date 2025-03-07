@@ -8,7 +8,7 @@
 
 import { Parser } from '@json2csv/plainjs';
 import * as XLSX from 'xlsx';
-import * as JSZip from 'jszip';
+import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -290,6 +290,7 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
  */
 export async function exportRequestAsZip(request: any, includeAttachments: boolean = true): Promise<string> {
   try {
+    // Create a new JSZip instance
     const zip = new JSZip();
     
     // Add CSV format
@@ -486,6 +487,7 @@ export async function exportMultipleRequestsAsZip(requests: any[]): Promise<stri
       throw new Error('No requests provided for export');
     }
     
+    // Create a new JSZip instance
     const mainZip = new JSZip();
     
     // First add a bulk Excel file
