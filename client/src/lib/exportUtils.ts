@@ -598,24 +598,34 @@ const createEncodedCsvBlob = (csvData: string): Blob => {
   // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
   const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
   
+  // Clean the CSV data to ensure it's properly formatted
+  const cleanedCsvData = csvData
+    .replace(/\r\n/g, '\n') // Normalize line endings
+    .replace(/\n+/g, '\n')  // Remove multiple line breaks
+    .trim();
+  
   // Create CSV data with robust encoding
   let finalCsvData: any;
   try {
     // First try with TextEncoder for better cross-browser compatibility
     const encoder = new TextEncoder();
-    const encodedData = encoder.encode(csvData);
+    const encodedData = encoder.encode(cleanedCsvData);
+    
+    // Create a new buffer with BOM at the beginning
     finalCsvData = new Uint8Array(BOM.length + encodedData.length);
     finalCsvData.set(BOM);
     finalCsvData.set(encodedData, BOM.length);
   } catch (encodeError) {
     // Fallback method if TextEncoder isn't available
     console.warn('TextEncoder not available, using fallback CSV encoding');
-    finalCsvData = [BOM, csvData];
+    // Add BOM as a string for fallback method
+    const bomString = '\ufeff';
+    finalCsvData = bomString + cleanedCsvData;
   }
   
   // Ensure the proper content type is set for Excel compatibility
   return new Blob([finalCsvData], { 
-    type: 'text/csv;charset=utf-8;' 
+    type: 'text/csv;charset=utf-8' 
   });
 };
 
