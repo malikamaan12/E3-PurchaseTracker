@@ -31,7 +31,7 @@ export const accountRequests = pgTable("account_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-//notifications table
+//notifications table with enhanced structure
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -39,9 +39,15 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull(),
+  priority: text("priority").notNull().default('normal'), // 'high', 'normal', 'low'
   isRead: boolean("is_read").notNull().default(false),
+  isAcknowledged: boolean("is_acknowledged").notNull().default(false),
   link: text("link"),
+  actionType: text("action_type"), // Optional field for indicating action required
+  actionData: jsonb("action_data").$type<Record<string, any>>(), // Optional data for action
+  expiresAt: timestamp("expires_at"), // Optional expiration time
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const errorLogs = pgTable("error_logs", {
