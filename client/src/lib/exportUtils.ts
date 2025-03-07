@@ -797,9 +797,8 @@ export async function exportRequestToCSV(
           
           const itemsFileName = `${fileName}_items.csv`;
           
-          // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
-          const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-          const csvBlob = new Blob([BOM, csvData], { type: 'text/csv;charset=utf-8;' });
+          // Use Anthropic-powered robust CSV encoding
+          const csvBlob = createEncodedCsvBlob(csvData);
           
           // Use our safer download method
           await safeDownload(csvBlob, itemsFileName);
@@ -818,9 +817,8 @@ export async function exportRequestToCSV(
         logExport('csv', `No items found, creating empty CSV`);
         const noItemsFileName = `${fileName}_no_items.csv`;
         
-        // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
-        const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-        const csvBlob = new Blob([BOM, 'No items found'], { type: 'text/csv;charset=utf-8;' });
+        // Use Anthropic-powered robust CSV encoding
+        const csvBlob = createEncodedCsvBlob('No items found');
         
         await safeDownload(csvBlob, noItemsFileName);
         return noItemsFileName;

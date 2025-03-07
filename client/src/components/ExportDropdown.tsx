@@ -388,10 +388,8 @@ export function ExportDropdown({
             <DropdownMenuLabel className="text-xs text-muted-foreground">Advanced Options</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => handleExport('pdf', 'admin')}>
               <PenTool className="h-4 w-4 mr-2" />
-                  <span>Admin ZIP Archive</span>
-                </DropdownMenuItem>
-              </>
-            )}
+              <span>Admin Report</span>
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
