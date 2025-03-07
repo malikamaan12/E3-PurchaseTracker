@@ -375,6 +375,127 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
 }
 
 /**
+ * Export multiple purchase requests as PDFs in a combined ZIP
+ */
+export async function exportMultipleRequestsToPDF(requests: any[]): Promise<string> {
+  if (!requests || requests.length === 0) {
+    throw new Error('No requests to export');
+  }
+  
+  try {
+    const zip = new JSZip();
+    
+    // Create PDF for each request and add to zip
+    for (const request of requests) {
+      // Create new PDF document
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 20);
+      
+      // Add basic info
+      doc.setFontSize(12);
+      doc.text(`Title: ${request.title}`, 14, 30);
+      doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Unknown'}`, 14, 38);
+      doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Unknown'}`, 14, 46);
+      doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}`, 14, 54);
+      doc.text(`Requester: ${request.requester?.username || 'Unknown'}`, 14, 62);
+      doc.text(`Department: ${request.requester?.department || 'Unknown'}`, 14, 70);
+      
+      // Add description
+      doc.text('Description:', 14, 82);
+      const splitDescription = doc.splitTextToSize(request.description || 'No description provided', 180);
+      doc.text(splitDescription, 14, 90);
+      
+      // Set y position after description
+      let yPos = 90 + (splitDescription.length * 7);
+      
+      // Add items
+      if (request.items && request.items.length > 0) {
+        yPos += 10;
+        doc.text('Items:', 14, yPos);
+        yPos += 8;
+        
+        // Item table headers
+        const itemHead = [['#', 'Name', 'Quantity', 'Est. Cost', 'Total']];
+        const itemBody = request.items.map((item: any, index: number) => [
+          index + 1,
+          item.name || '',
+          item.quantity || 0,
+          (item.estimatedCost || 0).toFixed(2),
+          ((item.quantity || 0) * (item.estimatedCost || 0)).toFixed(2)
+        ]);
+        
+        // @ts-ignore
+        doc.autoTable({
+          head: itemHead,
+          body: itemBody,
+          startY: yPos,
+          margin: { left: 14 },
+          theme: 'grid',
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [66, 139, 202] }
+        });
+        
+        // @ts-ignore
+        yPos = doc.autoTable.previous.finalY + 10;
+      }
+      
+      // Add approvals if they exist
+      if (request.approvals && request.approvals.length > 0) {
+        doc.text('Approval Status:', 14, yPos);
+        yPos += 8;
+        
+        // Approval table headers
+        const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
+        const approvalBody = request.approvals.map((approval: any) => [
+          approval.department || '',
+          approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
+          approval.approver?.username || '',
+          approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : 'Pending',
+          approval.comments || ''
+        ]);
+        
+        // @ts-ignore
+        doc.autoTable({
+          head: approvalHead,
+          body: approvalBody,
+          startY: yPos,
+          margin: { left: 14 },
+          theme: 'grid',
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [66, 139, 202] }
+        });
+      }
+      
+      // Add footer with total
+      const totalCost = calculateTotalCost(request);
+      doc.setFontSize(12);
+      doc.text(`Total Amount: ${totalCost.toFixed(2)} ${request.currency || 'USD'}`, 14, doc.internal.pageSize.height - 20);
+      
+      // Generate PDF output as blob
+      const pdfOutput = doc.output('blob');
+      
+      // Add PDF to the zip file
+      zip.file(`purchase-request-${request.id}.pdf`, pdfOutput);
+    }
+    
+    // Generate the ZIP file
+    const content = await zip.generateAsync({ type: 'blob' });
+    await safeDownload(content, 'purchase-requests-pdf-export.zip');
+    return 'success';
+  } catch (error) {
+    console.error('Multiple PDF export error:', error);
+    throw new Error(`Failed to export multiple requests to PDF: ${error}`);
+  }
+}
+
+/**
  * Export multiple purchase requests as individual ZIP files in a combined ZIP
  */
 export async function exportMultipleRequestsAsZip(requests: any[], includeAttachments: boolean = true): Promise<string> {
@@ -402,6 +523,108 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
       const formattedRequest = formatRequestForExport(request);
       const csv = parser.parse([formattedRequest]);
       requestFolder.file(`request-${request.id}.csv`, csv);
+      
+      // Add PDF export for each request
+      try {
+        // Create new PDF document
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        // Add title
+        doc.setFontSize(18);
+        doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 20);
+        
+        // Add basic info
+        doc.setFontSize(12);
+        doc.text(`Title: ${request.title}`, 14, 30);
+        doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Unknown'}`, 14, 38);
+        doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Unknown'}`, 14, 46);
+        doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}`, 14, 54);
+        doc.text(`Requester: ${request.requester?.username || 'Unknown'}`, 14, 62);
+        doc.text(`Department: ${request.requester?.department || 'Unknown'}`, 14, 70);
+        
+        // Add description
+        doc.text('Description:', 14, 82);
+        const splitDescription = doc.splitTextToSize(request.description || 'No description provided', 180);
+        doc.text(splitDescription, 14, 90);
+        
+        // Set y position after description
+        let yPos = 90 + (splitDescription.length * 7);
+        
+        // Add items
+        if (request.items && request.items.length > 0) {
+          yPos += 10;
+          doc.text('Items:', 14, yPos);
+          yPos += 8;
+          
+          // Item table headers
+          const itemHead = [['#', 'Name', 'Quantity', 'Est. Cost', 'Total']];
+          const itemBody = request.items.map((item: any, index: number) => [
+            index + 1,
+            item.name || '',
+            item.quantity || 0,
+            (item.estimatedCost || 0).toFixed(2),
+            ((item.quantity || 0) * (item.estimatedCost || 0)).toFixed(2)
+          ]);
+          
+          // @ts-ignore
+          doc.autoTable({
+            head: itemHead,
+            body: itemBody,
+            startY: yPos,
+            margin: { left: 14 },
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [66, 139, 202] }
+          });
+          
+          // @ts-ignore
+          yPos = doc.autoTable.previous.finalY + 10;
+        }
+        
+        // Add approvals if they exist
+        if (request.approvals && request.approvals.length > 0) {
+          doc.text('Approval Status:', 14, yPos);
+          yPos += 8;
+          
+          // Approval table headers
+          const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
+          const approvalBody = request.approvals.map((approval: any) => [
+            approval.department || '',
+            approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
+            approval.approver?.username || '',
+            approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : 'Pending',
+            approval.comments || ''
+          ]);
+          
+          // @ts-ignore
+          doc.autoTable({
+            head: approvalHead,
+            body: approvalBody,
+            startY: yPos,
+            margin: { left: 14 },
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [66, 139, 202] }
+          });
+        }
+        
+        // Add footer with total
+        const totalCost = calculateTotalCost(request);
+        doc.setFontSize(12);
+        doc.text(`Total Amount: ${totalCost.toFixed(2)} ${request.currency || 'USD'}`, 14, doc.internal.pageSize.height - 20);
+        
+        // Generate PDF output as blob
+        const pdfOutput = doc.output('blob');
+        
+        // Add PDF to the request folder
+        requestFolder.file(`request-${request.id}.pdf`, pdfOutput);
+      } catch (pdfError) {
+        console.warn(`Failed to create PDF for request ${request.id}:`, pdfError);
+      }
       
       // Add attachments if requested
       if (includeAttachments && request.attachments && request.attachments.length > 0) {

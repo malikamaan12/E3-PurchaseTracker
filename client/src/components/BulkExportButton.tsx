@@ -71,9 +71,8 @@ export function BulkExportButton({
           fileName = `${fileName}.csv`;
           break;
         case "pdf":
-          // Either implement this function or use another approach for PDFs
-          exportResult = await exportUtils.exportRequestToPDF(requests[0]);
-          fileName = `${fileName}.pdf`;
+          exportResult = await exportUtils.exportMultipleRequestsToPDF(requests);
+          fileName = `${fileName}.zip`;
           break;
         case "zip":
           exportResult = await exportUtils.exportMultipleRequestsAsZip(requests);
@@ -139,7 +138,7 @@ export function BulkExportButton({
                 {format === "csv" && <FileText className="mr-2 h-4 w-4" />}
                 {format === "pdf" && <FileText className="mr-2 h-4 w-4" />}
                 {format === "zip" && <Archive className="mr-2 h-4 w-4" />}
-                Export as {format.toUpperCase()}
+                Export as {format === "pdf" ? "PDF (ZIP)" : format.toUpperCase()}
               </>
             )}
           </>
@@ -184,7 +183,7 @@ export function BulkExportButton({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport("pdf")}>
           <FileText className="mr-2 h-4 w-4" />
-          PDF
+          PDF (ZIP with PDFs)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport("zip")}>
           <Archive className="mr-2 h-4 w-4" />
