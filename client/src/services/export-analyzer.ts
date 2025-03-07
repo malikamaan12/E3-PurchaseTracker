@@ -3,6 +3,121 @@ import Anthropic from '@anthropic-ai/sdk';
 // Use the Anthropic client for browser environment
 let anthropic: Anthropic | null = null;
 
+/**
+ * Specialized function to analyze and fix CSV/Excel export issues
+ * This uses Claude to analyze the byte patterns and recommend encoding-specific fixes
+ */
+export async function analyzeAndFixCSVExportIssue(
+  errorContext: {
+    format: 'csv' | 'excel' | 'xlsx';
+    sampleData?: string;
+    errorMessage?: string;
+    exportType?: string;
+  }
+): Promise<{
+  fixedEncoding: string;
+  recommendations: string[];
+  fixedCode?: string;
+}> {
+  try {
+    const client = getAnthropicClient();
+    if (!client) {
+      throw new Error('Anthropic client unavailable - API key might be missing');
+    }
+    
+    const format = errorContext.format;
+    
+    // Create a detailed prompt specific to the CSV/Excel encoding issues
+    const response = await client.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      temperature: 0.2,
+      messages: [{
+        role: 'user',
+        content: `You are a specialized CSV/Excel encoding expert. Our enterprise application has persistent issues with ${format.toUpperCase()} exports. 
+        When users try to download ${format.toUpperCase()} files, they encounter encoding issues, incorrect formatting, or corruption.
+        
+        Format: ${format}
+        Error: ${errorContext.errorMessage || 'Unknown encoding/formatting issue'}
+        Export Type: ${errorContext.exportType || 'General data export'}
+        
+        ${errorContext.sampleData ? `Sample Data: ${errorContext.sampleData.substring(0, 500)}...` : ''}
+        
+        Technical Context:
+        - We use Blob object with appropriate MIME types to create downloadable files
+        - We're currently using BOM for UTF-8 encoding (Uint8Array([0xEF, 0xBB, 0xBF]))
+        - For Excel exports, we use xlsx library (SheetJS)
+        - We have several export types: basic, items, approvals, all
+        - We wrap CSV values in quotes and escape internal quotes with double quotes
+        
+        Please provide a comprehensive analysis and solution in this exact JSON format:
+        {
+          "diagnosis": "Detailed explanation of what's likely causing the encoding/format issues",
+          "fixedEncoding": "The correct encoding/approach to use (e.g., 'UTF-8 with BOM', 'UTF-16LE', etc.)",
+          "recommendations": [
+            "List of specific recommendations to fix the issues"
+          ],
+          "fixedCode": "If applicable, a code snippet showing the correct implementation"
+        }`
+      }]
+    });
+    
+    // Extract and parse the analysis
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
+    }
+
+    // Extract the JSON part from the response
+    let jsonStr = content.text;
+    if (content.text.includes('```json')) {
+      jsonStr = content.text.split('```json')[1].split('```')[0].trim();
+    } else if (content.text.includes('```')) {
+      const matches = content.text.match(/```(?:json)?([\s\S]*?)```/);
+      if (matches && matches[1]) {
+        jsonStr = matches[1].trim();
+      }
+    } else if (content.text.includes('{') && content.text.includes('}')) {
+      const startPos = content.text.indexOf('{');
+      const endPos = content.text.lastIndexOf('}') + 1;
+      if (startPos < endPos) {
+        jsonStr = content.text.substring(startPos, endPos);
+      }
+    }
+    
+    // Clean up and parse the JSON
+    const cleanedJsonStr = jsonStr
+      .replace(/,\s*}/g, '}') // Remove trailing commas
+      .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+    
+    try {
+      const result = JSON.parse(cleanedJsonStr);
+      console.log('Successfully analyzed CSV/Excel export issue with AI');
+      return {
+        fixedEncoding: result.fixedEncoding,
+        recommendations: result.recommendations,
+        fixedCode: result.fixedCode
+      };
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      console.log('Raw response:', jsonStr);
+      throw new Error('Invalid response format from AI analysis');
+    }
+  } catch (error) {
+    console.error('Error analyzing CSV/Excel export issue with AI:', error);
+    return {
+      fixedEncoding: 'UTF-8 with BOM',
+      recommendations: [
+        "Ensure all CSV strings are properly wrapped in quotes", 
+        "Add UTF-8 BOM header (0xEF, 0xBB, 0xBF) to the CSV data",
+        "Set the correct MIME type for downloads: text/csv;charset=utf-8",
+        "For Excel, ensure column widths are properly set for better display",
+        "Consider using the FileSaver.js library for more reliable file downloads"
+      ]
+    };
+  }
+}
+
 // Lazy initialization of the Anthropic client
 function getAnthropicClient(): Anthropic | null {
   if (anthropic) return anthropic;

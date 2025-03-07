@@ -704,8 +704,28 @@ export async function exportRequestToCSV(
         const basicFileName = `${fileName}_basic.csv`;
         
         // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+        // Using Anthropic-guided solution for reliable CSV encoding
         const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-        const csvBlob = new Blob([BOM, csvData], { type: 'text/csv;charset=utf-8;' });
+        
+        // Create CSV data with robust encoding
+        let finalCsvData: any;
+        try {
+          // First try with TextEncoder for better cross-browser compatibility
+          const encoder = new TextEncoder();
+          const encodedData = encoder.encode(csvData);
+          finalCsvData = new Uint8Array(BOM.length + encodedData.length);
+          finalCsvData.set(BOM);
+          finalCsvData.set(encodedData, BOM.length);
+        } catch (encodeError) {
+          // Fallback method if TextEncoder isn't available
+          console.warn('TextEncoder not available, using fallback CSV encoding');
+          finalCsvData = [BOM, csvData];
+        }
+        
+        // Ensure the proper content type is set for Excel compatibility
+        const csvBlob = new Blob([finalCsvData], { 
+          type: 'text/csv;charset=utf-8;' 
+        });
         
         // Use our safer download method
         await safeDownload(csvBlob, basicFileName);
