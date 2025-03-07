@@ -72,6 +72,15 @@ export default function Dashboard() {
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(preferences?.defaultView || "my-requests");
 
+  // Handle tab navigation for special tabs
+  useEffect(() => {
+    if (activeTab === "export") {
+      setLocation("/export");
+      // Reset to default tab after navigation
+      setActiveTab(preferences?.defaultView || "my-requests");
+    }
+  }, [activeTab, setLocation, preferences?.defaultView]);
+
   // Role-based access control
   const isAdmin = useMemo(() => user?.role === "admin", [user?.role]);
   const isSpecialRole = useMemo(() => (
@@ -623,11 +632,19 @@ export default function Dashboard() {
                 </DropdownMenu>
                 
                 {isAdmin && (
-                  <BulkExportButton 
-                    filters={activeFilters}
-                    variant="secondary" 
-                    size="default"
-                  />
+                  <>
+                    <Link href="/export">
+                      <Button variant="outline" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Bulk Export
+                      </Button>
+                    </Link>
+                    <BulkExportButton 
+                      filters={activeFilters}
+                      variant="secondary" 
+                      size="default"
+                    />
+                  </>
                 )}
               </div>
             </div>
