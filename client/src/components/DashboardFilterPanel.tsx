@@ -50,7 +50,11 @@ export interface FilterValues {
 interface DashboardFilterPanelProps {
   onFilterChange: (filters: FilterValues) => void;
   departments: string[];
-  vendors: Array<{ id: number; name: string }>;
+  vendors: Array<{ 
+    id: number; 
+    name?: string;
+    companyName?: string;
+  }>;
   subPurposes: Array<{ id: number; name: string; purposeType: string }>;
   isLoading?: boolean;
 }
@@ -383,7 +387,7 @@ export function DashboardFilterPanel({
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
                     {departments.map((dept) => (
                       <SelectItem key={dept} value={dept}>
                         {dept}
@@ -428,10 +432,10 @@ export function DashboardFilterPanel({
                   <SelectTrigger>
                     <SelectValue placeholder="Select sub-purpose" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
                     {availableSubPurposes.map((sp) => (
                       <SelectItem key={sp.id} value={sp.id.toString()}>
-                        {sp.name}
+                        {sp.name} {sp.purposeType && `(${sp.purposeType})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -450,10 +454,10 @@ export function DashboardFilterPanel({
                   <SelectTrigger>
                     <SelectValue placeholder="Select vendor" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
                     {vendors.map((vendor) => (
                       <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                        {vendor.name}
+                        {vendor.name || vendor.companyName || `Vendor #${vendor.id}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
