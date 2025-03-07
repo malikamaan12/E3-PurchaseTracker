@@ -2933,8 +2933,8 @@ export function registerRoutes(app: Express): Server {
       const format = req.query.format as string || 'json'; // Default to JSON if not specified
       
       // Check if export format is valid
-      if (format && !['json', 'xlsx', 'csv'].includes(format)) {
-        throw new ValidationError('Invalid format', { format: 'Must be json, xlsx, or csv' });
+      if (format && !['json', 'xlsx', 'csv', 'zip'].includes(format)) {
+        throw new ValidationError('Invalid format', { format: 'Must be json, xlsx, csv, or zip' });
       }
       
       const { ids, status, startDate, endDate, priority, department, purposeType } = req.query;
@@ -3072,11 +3072,63 @@ export function registerRoutes(app: Express): Server {
         
         console.log(`[BULK EXPORT] Successfully prepared ${requestsWithRelations.length} requests for export`);
         
-        return res.status(200).json({
-          success: true,
-          message: 'Request data for bulk export',
-          data: requestsWithRelations
-        });
+        // Handle format-specific exports
+        if (format === 'zip') {
+          try {
+            // Create a ZIP file with all requests
+            const JSZip = require('jszip');
+            const zip = new JSZip();
+            const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+            const mainFolder = zip.folder(`purchase_requests_export_${timestamp}`);
+            
+            if (!mainFolder) {
+              throw new Error('Failed to create ZIP folder');
+            }
+            
+            // Add a summary index file
+            const summary = {
+              exportDate: new Date().toISOString(),
+              totalRequests: requestsWithRelations.length,
+              exportType: 'bulk',
+              requests: requestsWithRelations.map(req => ({
+                id: req.id,
+                requestNumber: req.requestNumber,
+                title: req.title,
+                status: req.status,
+                createdAt: req.createdAt
+              }))
+            };
+            
+            mainFolder.file('export-summary.json', JSON.stringify(summary, null, 2));
+            
+            // Add each request as a JSON file in the ZIP
+            for (const request of requestsWithRelations) {
+              mainFolder.file(`request_${request.id}.json`, JSON.stringify(request, null, 2));
+            }
+            
+            // Generate the ZIP file
+            const zipContent = await zip.generateAsync({ 
+              type: 'nodebuffer',
+              compression: 'DEFLATE',
+              compressionOptions: { level: 6 }
+            });
+            
+            // Set response headers for ZIP download
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="purchase_requests_${timestamp}.zip"`);
+            return res.send(zipContent);
+          } catch (zipError) {
+            console.error('[BULK EXPORT] Error generating ZIP:', zipError);
+            throw new AppError(`Failed to generate ZIP export: ${zipError.message}`, 500);
+          }
+        } else {
+          // For JSON format or when no format specified, return the data as JSON
+          return res.status(200).json({
+            success: true,
+            message: 'Request data for bulk export',
+            data: requestsWithRelations
+          });
+        }
       } catch (exportError) {
         console.error('[BULK EXPORT] Error in final export stage:', exportError);
         return next(new AppError('Error processing export data: ' + (exportError instanceof Error ? exportError.message : String(exportError)), 500));
