@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { FileArchive, AlertTriangle, Loader2 } from "lucide-react";
+import { FileArchive, AlertTriangle, Loader2, FileSpreadsheet, Table } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { exportMultipleRequestsAsZip } from "@/lib/exportUtils";
@@ -29,6 +29,7 @@ export function BulkExportButton({
   size = "sm" 
 }: BulkExportButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [currentExportType, setCurrentExportType] = useState<'zip' | 'xlsx' | 'csv' | 'check' | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [exportCount, setExportCount] = useState<number | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -102,6 +103,7 @@ export function BulkExportButton({
   const checkExportCount = async () => {
     try {
       setIsLoading(true);
+      setCurrentExportType('check');
       setExportError(null);
       
       const endpoint = processExportFilters();
@@ -161,13 +163,130 @@ export function BulkExportButton({
     }
   };
 
+  const handleDirectExport = async (format: 'xlsx' | 'csv' | 'zip' = 'zip') => {
+    try {
+      setIsLoading(true);
+      setCurrentExportType(format);
+      setIsConfirmOpen(false);
+      
+      // Show toast that we're preparing the export
+      toast({
+        title: "Preparing Export",
+        description: `Processing bulk ${format.toUpperCase()} export...`,
+        variant: "default",
+      });
+      
+      // Construct the URL with format parameter
+      const baseEndpoint = processExportFilters();
+      const exportEndpoint = `${baseEndpoint}${baseEndpoint.includes('?') ? '&' : '?'}format=${format}`;
+      console.log(`Direct ${format.toUpperCase()} export endpoint:`, exportEndpoint);
+      
+      // Fetch the file directly from the API
+      const response = await fetch(exportEndpoint, {
+        credentials: 'include',
+        headers: {
+          'Accept': format === 'xlsx' 
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            : format === 'csv'
+              ? 'text/csv'
+              : 'application/zip'
+        }
+      });
+      
+      // Handle HTTP errors
+      if (!response.ok) {
+        let errorMessage = `Failed to export requests as ${format.toUpperCase()}`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } else {
+            errorMessage = await response.text() || `${response.status}: ${response.statusText}`;
+          }
+        } catch (e) {
+          // If can't parse response, use status text
+          errorMessage = `${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Get the blob data
+      const blob = await response.blob();
+      
+      // Create filename based on format
+      const timestamp = new Date().toISOString().split('T')[0];
+      const fileName = `bulk_purchase_requests_${timestamp}.${format}`;
+      
+      // Directly initiate download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+      toast({
+        title: "Export Completed",
+        description: `Successfully exported purchase requests as ${format.toUpperCase()}.`
+      });
+    } catch (error) {
+      console.error(`Error during direct ${format} export:`, error);
+      
+      // Use AI analysis for more helpful error feedback
+      try {
+        const analysis = await analyzeBulkExportIssue(filters, error);
+        console.log('Export error analysis:', analysis);
+        
+        toast({
+          title: "Export Failed",
+          description: analysis.issue.description || 
+            (error instanceof Error ? error.message : `Failed to export requests as ${format.toUpperCase()}`),
+          variant: "destructive",
+        });
+        
+        // Log immediate fix suggestions to console for developers
+        if (analysis.fixes?.immediate?.length > 0) {
+          console.info('Suggested fixes:', analysis.fixes.immediate);
+        }
+      } catch (analysisError) {
+        // Fallback to simple error message if AI analysis fails
+        toast({
+          title: "Export Failed",
+          description: error instanceof Error ? error.message : `Failed to export requests as ${format.toUpperCase()}`,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Legacy client-side export method as backup
   const handleExportRequests = async () => {
     try {
       setIsLoading(true);
+      setCurrentExportType(null); // Smart export uses null to indicate fallback process
       setIsConfirmOpen(false);
       
+      // First try the direct ZIP export
+      try {
+        await handleDirectExport('zip');
+        return; // If direct export succeeds, we're done
+      } catch (directError) {
+        console.error('Direct export failed, falling back to client-side processing:', directError);
+        // Continue with client-side processing
+      }
+      
       const endpoint = processExportFilters();
-      console.log('Bulk export endpoint:', endpoint);
+      console.log('Bulk export endpoint (fallback method):', endpoint);
       console.log('Filters being used:', filters);
 
       // Fetch data from the API
@@ -252,7 +371,7 @@ export function BulkExportButton({
         });
         
         // Log immediate fix suggestions to console for developers
-        if (analysis.fixes.immediate.length > 0) {
+        if (analysis.fixes?.immediate?.length > 0) {
           console.info('Suggested fixes:', analysis.fixes.immediate);
         }
       } catch (analysisError) {
@@ -276,10 +395,15 @@ export function BulkExportButton({
         onClick={checkExportCount}
         disabled={isLoading}
       >
-        {isLoading ? (
+        {isLoading && currentExportType === 'check' ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Preparing...
+            Checking...
+          </>
+        ) : isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
           </>
         ) : (
           <>
@@ -310,19 +434,69 @@ export function BulkExportButton({
             </Alert>
           )}
           
+          <div className="flex flex-col space-y-4 my-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => handleDirectExport('zip')}
+                disabled={isLoading}
+                className="flex items-center justify-center"
+              >
+                {isLoading && currentExportType === 'zip' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileArchive className="mr-2 h-4 w-4" />
+                )}
+                Download as ZIP
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => handleDirectExport('xlsx')}
+                disabled={isLoading}
+                className="flex items-center justify-center"
+              >
+                {isLoading && currentExportType === 'xlsx' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                )}
+                Download as Excel
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => handleDirectExport('csv')}
+                disabled={isLoading}
+                className="flex items-center justify-center"
+              >
+                {isLoading && currentExportType === 'csv' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Table className="mr-2 h-4 w-4" />
+                )}
+                Download as CSV
+              </Button>
+              
+              <Button 
+                variant="default"
+                onClick={handleExportRequests}
+                disabled={isLoading}
+                className="flex items-center justify-center"
+              >
+                {isLoading && !currentExportType ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileArchive className="mr-2 h-4 w-4" />
+                )}
+                Smart Export (Recommended)
+              </Button>
+            </div>
+          </div>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>
               Cancel
-            </Button>
-            <Button onClick={handleExportRequests} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                'Proceed with Export'
-              )}
             </Button>
           </DialogFooter>
         </DialogContent>
