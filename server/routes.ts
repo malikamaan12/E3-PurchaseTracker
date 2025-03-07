@@ -4409,7 +4409,7 @@ export function registerRoutes(app: Express): Server {
       let requestId = null;
       
       // More robust ID validation with detailed logging
-      if (req.query.id) {
+      if (req.query.id && req.query.id !== 'undefined' && req.query.id !== 'null') {
         console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}"`);
         const idString = req.query.id as string;
         const idValue = parseInt(idString);
@@ -4423,7 +4423,9 @@ export function registerRoutes(app: Express): Server {
           throw new ValidationError('Invalid request ID', { id: `"${idString}" is not a valid positive number` });
         }
       } else {
-        console.log('[GET /api/requests/export] No ID parameter provided, exporting all requests');
+        // If no ID provided or it's 'undefined'/'null', we'll export all requests
+        console.log('[GET /api/requests/export] No valid ID parameter provided, exporting all requests');
+        requestId = null;
       }
       
       console.log(`[GET /api/requests/export] Fetching purchase request with ID: ${requestId || 'all'}`);
