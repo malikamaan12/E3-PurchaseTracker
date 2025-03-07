@@ -701,10 +701,13 @@ export async function exportRequestToCSV(
         }
         
         const basicFileName = `${fileName}_basic.csv`;
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        
+        // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+        const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const csvBlob = new Blob([BOM, csvData], { type: 'text/csv;charset=utf-8;' });
         
         // Use our safer download method
-        await safeDownload(blob, basicFileName);
+        await safeDownload(csvBlob, basicFileName);
         
         if (exportType === 'basic') {
           logExport('csv', `Basic CSV export complete: ${basicFileName}`);
@@ -746,10 +749,13 @@ export async function exportRequestToCSV(
           }
           
           const itemsFileName = `${fileName}_items.csv`;
-          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+          
+          // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+          const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+          const csvBlob = new Blob([BOM, csvData], { type: 'text/csv;charset=utf-8;' });
           
           // Use our safer download method
-          await safeDownload(blob, itemsFileName);
+          await safeDownload(csvBlob, itemsFileName);
           
           if (exportType === 'items') {
             logExport('csv', `Items CSV export complete: ${itemsFileName}`);
@@ -764,8 +770,12 @@ export async function exportRequestToCSV(
       } else if (exportType === 'items') {
         logExport('csv', `No items found, creating empty CSV`);
         const noItemsFileName = `${fileName}_no_items.csv`;
-        const blob = new Blob(['No items found'], { type: 'text/csv;charset=utf-8;' });
-        await safeDownload(blob, noItemsFileName);
+        
+        // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+        const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const csvBlob = new Blob([BOM, 'No items found'], { type: 'text/csv;charset=utf-8;' });
+        
+        await safeDownload(csvBlob, noItemsFileName);
         return noItemsFileName;
       }
     }
@@ -798,10 +808,13 @@ export async function exportRequestToCSV(
           }
           
           const approvalsFileName = `${fileName}_approvals.csv`;
-          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+          
+          // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+          const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+          const csvBlob = new Blob([BOM, csvData], { type: 'text/csv;charset=utf-8;' });
           
           // Use our safer download method
-          await safeDownload(blob, approvalsFileName);
+          await safeDownload(csvBlob, approvalsFileName);
           
           if (exportType === 'approvals') {
             logExport('csv', `Approvals CSV export complete: ${approvalsFileName}`);
@@ -816,8 +829,12 @@ export async function exportRequestToCSV(
       } else if (exportType === 'approvals') {
         logExport('csv', `No approvals found, creating empty CSV`);
         const noApprovalsFileName = `${fileName}_no_approvals.csv`;
-        const blob = new Blob(['No approvals found'], { type: 'text/csv;charset=utf-8;' });
-        await safeDownload(blob, noApprovalsFileName);
+        
+        // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+        const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const csvBlob = new Blob([BOM, 'No approvals found'], { type: 'text/csv;charset=utf-8;' });
+        
+        await safeDownload(csvBlob, noApprovalsFileName);
         return noApprovalsFileName;
       }
     }
