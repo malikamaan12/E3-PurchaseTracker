@@ -35,7 +35,7 @@ interface DownloadOptionsProps {
 
 export function DownloadOptions({ request, compact = false }: DownloadOptionsProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'zip' | 'excel' | 'csv' | null>(null);
+  const [currentExportType, setCurrentExportType] = useState<'pdf' | 'pdf-admin' | 'pdf-approver' | 'zip' | 'zip-data' | 'excel' | 'csv' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useUser();
@@ -74,7 +74,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handlePdfDownload = async (type: 'user' | 'approver' | 'admin' = 'user') => {
     try {
       setIsLoading(true);
-      setExportType('pdf');
+      setCurrentExportType(type === 'admin' ? 'pdf-admin' : type === 'approver' ? 'pdf-approver' : 'pdf');
       setExportError(null);
       
       // Only allow admin to download admin PDF
