@@ -2938,7 +2938,18 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Invalid format', { format: 'Must be json, xlsx, csv, or zip' });
       }
       
-      const { ids, status, startDate, endDate, priority, department, purposeType } = req.query;
+      const { 
+        ids, 
+        status, 
+        startDate, 
+        endDate, 
+        priority, 
+        department, 
+        purposeType, 
+        subPurposeId, 
+        vendorId,
+        searchTerm 
+      } = req.query;
       let requestIds: number[] = [];
       
       // Process the ids parameter if provided
@@ -2973,7 +2984,9 @@ export function registerRoutes(app: Express): Server {
         console.log(`[BULK EXPORT] Found ${requests.length} requests by IDs`);
       } else {
         // Build a query with all the filters
-        console.log("[BULK EXPORT] Building filtered query with:", { status, startDate, endDate, priority, department, purposeType });
+        console.log("[BULK EXPORT] Building filtered query with:", { 
+        status, startDate, endDate, priority, department, purposeType, subPurposeId, vendorId, searchTerm 
+      });
         
         let query = db.select().from(purchaseRequests).limit(30); // Limit to a reasonable number
         
