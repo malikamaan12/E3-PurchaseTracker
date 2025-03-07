@@ -2929,6 +2929,14 @@ export function registerRoutes(app: Express): Server {
         throw new AuthorizationError("Only administrators can perform bulk exports");
       }
       
+      // Get export format
+      const format = req.query.format as string || 'json'; // Default to JSON if not specified
+      
+      // Check if export format is valid
+      if (format && !['json', 'xlsx', 'csv'].includes(format)) {
+        throw new ValidationError('Invalid format', { format: 'Must be json, xlsx, or csv' });
+      }
+      
       const { ids, status, startDate, endDate, priority, department, purposeType } = req.query;
       let requestIds: number[] = [];
       
@@ -4390,6 +4398,8 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Not authenticated', 401);
       }
 
+      console.log("[GET /api/requests/export] Received request with query params:", req.query);
+
       const format = req.query.format as string;
       if (!format || !['xlsx', 'csv'].includes(format)) {
         throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
@@ -4398,13 +4408,22 @@ export function registerRoutes(app: Express): Server {
       // Check if we're exporting a specific request or all requests
       let requestId = null;
       
-      // More robust ID validation - using optional chaining and proper validation
+      // More robust ID validation with detailed logging
       if (req.query.id) {
-        const idValue = parseInt(req.query.id as string);
+        console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}"`);
+        const idString = req.query.id as string;
+        const idValue = parseInt(idString);
+        
         // Only set requestId if it's a valid positive number
         if (!isNaN(idValue) && idValue > 0) {
           requestId = idValue;
+          console.log(`[GET /api/requests/export] Valid request ID: ${requestId}`);
+        } else {
+          console.log(`[GET /api/requests/export] Invalid request ID format: "${idString}", parsed as: ${idValue}`);
+          throw new ValidationError('Invalid request ID', { id: `"${idString}" is not a valid positive number` });
         }
+      } else {
+        console.log('[GET /api/requests/export] No ID parameter provided, exporting all requests');
       }
       
       console.log(`[GET /api/requests/export] Fetching purchase request with ID: ${requestId || 'all'}`);

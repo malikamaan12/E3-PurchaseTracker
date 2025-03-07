@@ -171,6 +171,80 @@ export function ExportDropdown({
     try {
       setIsLoading(format);
       
+      // Direct API export approach for CSV and Excel
+      if (format === 'csv' || format === 'excel') {
+        try {
+          // Build proper query parameters
+          const queryParams: Record<string, string> = {};
+          
+          // Format determines the file type
+          queryParams.format = format === 'excel' ? 'xlsx' : 'csv';
+          
+          // Add IDs or filters based on export type
+          if (exportType === 'multiple' && requestIds.length > 0) {
+            // Convert array of IDs to string
+            queryParams.ids = requestIds.join(',');
+          } else if (exportType === 'filtered') {
+            // Add all filters as query parameters
+            Object.entries(filters).forEach(([key, value]) => {
+              if (value !== undefined && value !== null) {
+                if (Array.isArray(value)) {
+                  queryParams[key] = value.join(',');
+                } else {
+                  queryParams[key] = String(value);
+                }
+              }
+            });
+          }
+          
+          // Create URL with proper query parameters
+          const endpoint = `/api/requests/export/bulk?${new URLSearchParams(queryParams).toString()}`;
+          console.log('Direct API export endpoint:', endpoint);
+          
+          // Option 1: Open in new window (works in most browsers)
+          const win = window.open(endpoint, '_blank');
+          
+          // Option 2: If popup blocked, use a fetch-based approach
+          if (!win || win.closed || typeof win.closed === 'undefined') {
+            console.log('Popup blocked, using fetch for bulk download');
+            
+            const response = await fetch(endpoint);
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`API error: ${errorText || response.statusText}`);
+            }
+            
+            // Get blob data for file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            // Create and trigger download
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `requests_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          }
+          
+          toast({
+            title: "Export Initiated",
+            description: `Your ${format.toUpperCase()} export has started. Check your downloads folder.`
+          });
+          
+          setIsLoading(null);
+          return;
+        } catch (directApiError) {
+          console.error(`Direct API export error for ${format}:`, directApiError);
+          // Continue to client-side fallback export below
+        }
+      }
+      
+      // Client-side export fallback or for formats that need client processing (ZIP)
+      console.log('Using client-side bulk export for format:', format);
+      
       // For filtered export, we need to pass the filters
       const endpoint = exportType === 'filtered' 
         ? `/api/requests/export/bulk?${new URLSearchParams(Object.entries(filters).reduce((acc, [key, value]) => {
@@ -191,7 +265,10 @@ export function ExportDropdown({
       let requests = [];
       try {
         const response = await fetch(endpoint);
-        if (!response.ok) throw new Error('Failed to fetch requests data');
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch requests data: ${errorText}`);
+        }
         const responseData = await response.json();
         console.log('Received data from server:', responseData);
         
@@ -203,8 +280,8 @@ export function ExportDropdown({
       } catch (error) {
         console.error('Error fetching requests data:', error);
         toast({
-          title: "Error",
-          description: "Failed to fetch requests data for export",
+          title: "Export Error",
+          description: error instanceof Error ? error.message : "Failed to fetch requests data for export",
           variant: "destructive"
         });
         setIsLoading(null);

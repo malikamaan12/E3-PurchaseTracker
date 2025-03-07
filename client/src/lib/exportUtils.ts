@@ -1,8 +1,8 @@
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import { generateRequestPDF } from './pdfGenerator';
 import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
+import { safeDownload, safeUrlDownload, safeExport } from './safeDownload';
 
 /**
  * Enhanced logging function for export operations
@@ -24,14 +24,10 @@ export const logExport = (type: string, message: string, error?: any) => {
 };
 
 /**
- * Safely triggers a file download using multiple methods with fallbacks
- * to ensure maximum browser compatibility
- * 
- * @param blob The blob to download
- * @param fileName The name of the file to save
- * @returns Promise that resolves when download is initiated
+ * @deprecated Use the imported safeDownload from ./safeDownload.ts instead
+ * This function is kept for backward compatibility and will be removed in a future release
  */
-async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
+async function _legacySafeDownload(blob: Blob, fileName: string): Promise<boolean> {
   try {
     logExport('download', `Initiating download for ${fileName} (${blob.size} bytes)...`);
     
