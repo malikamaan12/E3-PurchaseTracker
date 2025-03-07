@@ -168,21 +168,43 @@ function getApprovalSummary(request: any): string {
  * Export a purchase request to CSV format
  */
 export async function exportRequestToCSV(request: any): Promise<string> {
-  const formattedRequest = formatRequestForExport(request);
-  
   try {
+    console.log(`Starting CSV export for request #${request.id}`);
+    const formattedRequest = formatRequestForExport(request);
+    
     const parser = new Parser({
       delimiter: ',',
       header: true
     });
     
     const csv = parser.parse([formattedRequest]);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    await safeDownload(blob, `purchase-request-${request.id}.csv`);
-    return 'success';
-  } catch (csvError) {
-    console.error('CSV export error:', csvError);
-    throw new Error(`Failed to export CSV: ${csvError}`);
+    
+    // Add BOM (Byte Order Mark) to ensure Excel can open the file correctly with UTF-8
+    const bomPrefix = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const csvContent = new Uint8Array(csv.length);
+    for (let i = 0; i < csv.length; i++) {
+      csvContent[i] = csv.charCodeAt(i);
+    }
+    
+    // Combine BOM and CSV content
+    const finalContent = new Uint8Array(bomPrefix.length + csvContent.length);
+    finalContent.set(bomPrefix);
+    finalContent.set(csvContent, bomPrefix.length);
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.csv`;
+    
+    // Create a blob with the BOM-prefixed content
+    const blob = new Blob([finalContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const downloadResult = await safeDownload(blob, fileName);
+    console.log(`CSV export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
+  } catch (error) {
+    console.error('CSV export error:', error);
+    throw new Error(`Failed to export CSV: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -191,73 +213,101 @@ export async function exportRequestToCSV(request: any): Promise<string> {
  */
 export async function exportRequestToExcel(request: any): Promise<string> {
   try {
+    console.log(`Starting Excel export for request #${request.id}`);
+    
     // Create workbook
     const wb = XLSX.utils.book_new();
     
     // Add main request sheet
     const mainData = [formatRequestForExport(request)];
     const mainWs = XLSX.utils.json_to_sheet(mainData);
+    
+    // Add column widths for better readability
+    const columns = Object.keys(mainData[0] || {});
+    const wscols = columns.map((col) => ({ 
+      wch: Math.max(col.length, 15) 
+    }));
+    mainWs['!cols'] = wscols;
+    
     XLSX.utils.book_append_sheet(wb, mainWs, 'Request Details');
     
     // Add items sheet if present
     if (request.items && request.items.length > 0) {
-      const itemsData = request.items.map((item: any, index: number) => ({
-        'Item #': index + 1,
-        'Name': item.name || '',
-        'Description': item.description || '',
-        'Quantity': item.quantity || 0,
-        'Unit Cost': item.estimatedCost ? item.estimatedCost.toFixed(2) : '0.00',
-        'Total Cost': (item.quantity * item.estimatedCost).toFixed(2) || '0.00'
-      }));
-      const itemsWs = XLSX.utils.json_to_sheet(itemsData);
-      XLSX.utils.book_append_sheet(wb, itemsWs, 'Items');
+      try {
+        const itemsData = request.items.map((item: any, index: number) => ({
+          'Item #': index + 1,
+          'Name': item.name || '',
+          'Description': item.description || '',
+          'Quantity': Number(item.quantity) || 0,
+          'Unit Cost': (Number(item.estimatedCost) || 0).toFixed(2),
+          'Total Cost': ((Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0)).toFixed(2)
+        }));
+        const itemsWs = XLSX.utils.json_to_sheet(itemsData);
+        XLSX.utils.book_append_sheet(wb, itemsWs, 'Items');
+      } catch (itemError) {
+        console.error('Error processing items for Excel export:', itemError);
+        // Continue without items sheet rather than failing the whole export
+      }
     }
     
     // Add approvals sheet if present
     if (request.approvals && request.approvals.length > 0) {
-      // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
-      // Create a map to hold the latest approval for each department
-      const departmentApprovals = new Map();
-      
-      // Sort approvals by processed date (newest first)
-      const sortedApprovals = [...request.approvals].sort((a, b) => {
-        const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
-        const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
-        return dateB - dateA; // Descending order (newest first)
-      });
-      
-      // Keep only the latest approval for each department
-      sortedApprovals.forEach(approval => {
-        if (!departmentApprovals.has(approval.department)) {
-          departmentApprovals.set(approval.department, approval);
-        }
-      });
-      
-      // Convert map back to array
-      const uniqueApprovals = Array.from(departmentApprovals.values());
-      
-      // Create approval data for Excel sheet
-      const approvalsData = uniqueApprovals.map((approval: any, index: number) => ({
-        'Approval #': index + 1,
-        'Department': approval.department || '',
-        'Status': approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
-        'Approver': approval.approver?.username || '',
-        'Processed Date': approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : '',
-        'Comments': approval.comments || ''
-      }));
-      
-      const approvalsWs = XLSX.utils.json_to_sheet(approvalsData);
-      XLSX.utils.book_append_sheet(wb, approvalsWs, 'Approvals');
+      try {
+        // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+        // Create a map to hold the latest approval for each department
+        const departmentApprovals = new Map();
+        
+        // Make a safe copy of the approvals array
+        const approvalsToCopy = [...request.approvals];
+        
+        // Sort approvals by processed date (newest first)
+        const sortedApprovals = approvalsToCopy.sort((a, b) => {
+          const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+          const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        // Keep only the latest approval for each department
+        sortedApprovals.forEach(approval => {
+          if (approval.department && !departmentApprovals.has(approval.department)) {
+            departmentApprovals.set(approval.department, approval);
+          }
+        });
+        
+        // Convert map back to array
+        const uniqueApprovals = Array.from(departmentApprovals.values());
+        
+        // Create approval data for Excel sheet
+        const approvalsData = uniqueApprovals.map((approval: any, index: number) => ({
+          'Approval #': index + 1,
+          'Department': approval.department || '',
+          'Status': approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
+          'Approver': approval.approver?.username || '',
+          'Processed Date': approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : '',
+          'Comments': approval.comments || ''
+        }));
+        
+        const approvalsWs = XLSX.utils.json_to_sheet(approvalsData);
+        XLSX.utils.book_append_sheet(wb, approvalsWs, 'Approvals');
+      } catch (approvalError) {
+        console.error('Error processing approvals for Excel export:', approvalError);
+        // Continue without approvals sheet rather than failing the whole export
+      }
     }
     
     // Generate Excel file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.xlsx`;
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    await safeDownload(blob, `purchase-request-${request.id}.xlsx`);
-    return 'success';
-  } catch (excelError) {
-    console.error('Excel export error:', excelError);
-    throw new Error(`Failed to export Excel file: ${excelError}`);
+    
+    const downloadResult = await safeDownload(blob, fileName);
+    console.log(`Excel export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
+  } catch (error) {
+    console.error('Excel export error:', error);
+    throw new Error(`Failed to export Excel: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -266,6 +316,8 @@ export async function exportRequestToExcel(request: any): Promise<string> {
  */
 export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
+    console.log(`Starting PDF export for request #${request.id}`);
+    
     // Create new PDF document
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -279,112 +331,165 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     
     // Add basic info
     doc.setFontSize(12);
-    doc.text(`Title: ${request.title}`, 14, 30);
+    doc.text(`Title: ${request.title || 'Untitled'}`, 14, 30);
     doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Unknown'}`, 14, 38);
     doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Unknown'}`, 14, 46);
-    doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}`, 14, 54);
+    
+    // Format date safely
+    const formatDate = (dateString: string | null | undefined): string => {
+      if (!dateString) return 'Unknown';
+      try {
+        return new Date(dateString).toLocaleDateString();
+      } catch (e) {
+        console.warn(`Failed to format date: ${dateString}`, e);
+        return 'Unknown';
+      }
+    };
+    
+    doc.text(`Created: ${formatDate(request.createdAt)}`, 14, 54);
     doc.text(`Requester: ${request.requester?.username || 'Unknown'}`, 14, 62);
     doc.text(`Department: ${request.requester?.department || 'Unknown'}`, 14, 70);
     
     // Add description
     doc.text('Description:', 14, 82);
-    const splitDescription = doc.splitTextToSize(request.description || 'No description provided', 180);
-    doc.text(splitDescription, 14, 90);
     
-    // Set y position after description
-    let yPos = 90 + (splitDescription.length * 7);
-    
-    // Add items
-    if (request.items && request.items.length > 0) {
-      yPos += 10;
-      doc.text('Items:', 14, yPos);
-      yPos += 8;
+    // Handle potential undefined description
+    const description = request.description || 'No description provided';
+    try {
+      const splitDescription = doc.splitTextToSize(description, 180);
+      doc.text(splitDescription, 14, 90);
       
-      // Item table headers
-      const itemHead = [['#', 'Name', 'Quantity', 'Est. Cost', 'Total']];
-      const itemBody = request.items.map((item: any, index: number) => [
-        index + 1,
-        item.name || '',
-        item.quantity || 0,
-        (item.estimatedCost || 0).toFixed(2),
-        ((item.quantity || 0) * (item.estimatedCost || 0)).toFixed(2)
-      ]);
+      // Set y position after description
+      let yPos = 90 + (splitDescription.length * 7);
       
-      // @ts-ignore
-      doc.autoTable({
-        head: itemHead,
-        body: itemBody,
-        startY: yPos,
-        margin: { left: 14 },
-        theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-      
-      // @ts-ignore
-      yPos = doc.autoTable.previous.finalY + 10;
-    }
-    
-    // Add approvals if they exist
-    if (request.approvals && request.approvals.length > 0) {
-      doc.text('Approval Status:', 14, yPos);
-      yPos += 8;
-      
-      // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
-      // Create a map to hold the latest approval for each department
-      const departmentApprovals = new Map();
-      
-      // Sort approvals by processed date (newest first)
-      const sortedApprovals = [...request.approvals].sort((a, b) => {
-        const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
-        const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
-        return dateB - dateA; // Descending order (newest first)
-      });
-      
-      // Keep only the latest approval for each department
-      sortedApprovals.forEach(approval => {
-        if (!departmentApprovals.has(approval.department)) {
-          departmentApprovals.set(approval.department, approval);
+      // Add items
+      if (request.items && request.items.length > 0) {
+        try {
+          yPos += 10;
+          doc.text('Items:', 14, yPos);
+          yPos += 8;
+          
+          // Item table headers
+          const itemHead = [['#', 'Name', 'Quantity', 'Est. Cost', 'Total']];
+          const itemBody = request.items.map((item: any, index: number) => [
+            index + 1,
+            item.name || '',
+            Number(item.quantity) || 0,
+            (Number(item.estimatedCost) || 0).toFixed(2),
+            ((Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0)).toFixed(2)
+          ]);
+          
+          // @ts-ignore
+          doc.autoTable({
+            head: itemHead,
+            body: itemBody,
+            startY: yPos,
+            margin: { left: 14 },
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [66, 139, 202] }
+          });
+          
+          // @ts-ignore
+          yPos = doc.autoTable.previous.finalY + 10;
+        } catch (itemsError) {
+          console.error('Error adding items to PDF:', itemsError);
+          yPos += 10;
+          doc.text('Error adding items to PDF', 14, yPos);
+          yPos += 10;
         }
-      });
+      }
       
-      // Convert map back to array
-      const uniqueApprovals = Array.from(departmentApprovals.values());
+      // Add approvals if they exist
+      if (request.approvals && request.approvals.length > 0) {
+        try {
+          doc.text('Approval Status:', 14, yPos);
+          yPos += 8;
+          
+          // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+          // Create a map to hold the latest approval for each department
+          const departmentApprovals = new Map();
+          
+          // Make a safe copy of the approvals array
+          const approvalsToCopy = [...request.approvals];
+          
+          // Sort approvals by processed date (newest first)
+          const sortedApprovals = approvalsToCopy.sort((a, b) => {
+            const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+            const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+            return dateB - dateA; // Descending order (newest first)
+          });
+          
+          // Keep only the latest approval for each department
+          sortedApprovals.forEach(approval => {
+            if (approval.department && !departmentApprovals.has(approval.department)) {
+              departmentApprovals.set(approval.department, approval);
+            }
+          });
+          
+          // Convert map back to array
+          const uniqueApprovals = Array.from(departmentApprovals.values());
+          
+          // Approval table headers
+          const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
+          const approvalBody = uniqueApprovals.map((approval: any) => [
+            approval.department || '',
+            approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
+            approval.approver?.username || '',
+            formatDate(approval.processedAt) || 'Pending',
+            approval.comments || ''
+          ]);
+          
+          // @ts-ignore
+          doc.autoTable({
+            head: approvalHead,
+            body: approvalBody,
+            startY: yPos,
+            margin: { left: 14 },
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [66, 139, 202] }
+          });
+        } catch (approvalsError) {
+          console.error('Error adding approvals to PDF:', approvalsError);
+          yPos += 10;
+          doc.text('Error adding approvals to PDF', 14, yPos);
+          yPos += 10;
+        }
+      }
       
-      // Approval table headers
-      const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
-      const approvalBody = uniqueApprovals.map((approval: any) => [
-        approval.department || '',
-        approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
-        approval.approver?.username || '',
-        approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : 'Pending',
-        approval.comments || ''
-      ]);
+      // Add footer with total
+      const totalCost = calculateTotalCost(request);
+      doc.setFontSize(12);
+      doc.text(`Total Amount: ${totalCost.toFixed(2)} ${request.currency || 'USD'}`, 14, doc.internal.pageSize.height - 20);
       
-      // @ts-ignore
-      doc.autoTable({
-        head: approvalHead,
-        body: approvalBody,
-        startY: yPos,
-        margin: { left: 14 },
-        theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
+      // Generate the PDF
+      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+      const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
+      const pdfOutput = doc.output('blob');
+      
+      const downloadResult = await safeDownload(pdfOutput, fileName);
+      console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
+      
+      return fileName;
+    } catch (textError) {
+      console.error('Error adding text to PDF:', textError);
+      
+      // Create a basic fallback PDF with error information
+      doc.text('Error generating detailed PDF', 14, 100);
+      doc.text(`Request ID: ${request.id}`, 14, 110);
+      doc.text(`Error: ${textError instanceof Error ? textError.message : String(textError)}`, 14, 120);
+      
+      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+      const fileName = `purchase-request-${request.id}-${timestamp}-error.pdf`;
+      const pdfOutput = doc.output('blob');
+      
+      await safeDownload(pdfOutput, fileName);
+      return fileName;
     }
-    
-    // Add footer with total
-    const totalCost = calculateTotalCost(request);
-    doc.setFontSize(12);
-    doc.text(`Total Amount: ${totalCost.toFixed(2)} ${request.currency || 'USD'}`, 14, doc.internal.pageSize.height - 20);
-    
-    // Generate the PDF
-    const pdfOutput = doc.output('blob');
-    await safeDownload(pdfOutput, `purchase-request-${request.id}.pdf`);
-    return 'success';
   } catch (error) {
     console.error('PDF export error:', error);
-    throw new Error(`Failed to export PDF: ${error}`);
+    throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
