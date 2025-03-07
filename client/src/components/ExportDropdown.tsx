@@ -48,9 +48,11 @@ export function ExportDropdown({
       let requestData = request;
       if (!requestData && singleRequestId) {
         try {
+          console.log(`Fetching request data for ID: ${singleRequestId}`);
           const response = await fetch(`/api/requests/${singleRequestId}`);
           if (!response.ok) throw new Error('Failed to fetch request data');
           requestData = await response.json();
+          console.log('Retrieved request data:', requestData);
         } catch (error) {
           console.error('Error fetching request data:', error);
           toast({
@@ -63,6 +65,65 @@ export function ExportDropdown({
         }
       }
 
+      // Early validation to prevent null/undefined requestData
+      if (!requestData || typeof requestData !== 'object') {
+        throw new Error('Invalid request data for export');
+      }
+
+      // For direct API formats like CSV and Excel, use the API endpoint
+      if (format === 'csv' || format === 'excel') {
+        try {
+          // Call the server-side export endpoint with proper ID parameter
+          const requestId = requestData?.id || singleRequestId;
+          if (!requestId) {
+            throw new Error('Missing request ID for export');
+          }
+          
+          console.log(`Using direct API export for ${format} with request ID: ${requestId}`);
+          const endpoint = `/api/requests/export?format=${format === 'excel' ? 'xlsx' : 'csv'}&id=${requestId}`;
+          
+          // Open the endpoint in a new window/tab for download
+          const win = window.open(endpoint, '_blank');
+          
+          // If popup blocked, use alternative download method
+          if (!win || win.closed || typeof win.closed === 'undefined') {
+            console.log('Popup blocked, using fetch for download');
+            const response = await fetch(endpoint);
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`API error: ${errorText || response.statusText}`);
+            }
+            
+            // Get the blob data for the file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            // Create an anchor element and trigger download
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `request_${requestId}.${format === 'excel' ? 'xlsx' : 'csv'}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          }
+          
+          toast({
+            title: "Export Successful",
+            description: `Successfully exported request to ${format.toUpperCase()}`
+          });
+          return;
+        } catch (apiError) {
+          console.error(`API export error for ${format}:`, apiError);
+          
+          // Fall back to client-side generation for API errors
+          console.log('Falling back to client-side export generation');
+        }
+      }
+
+      // Client-side generation as fallback or for PDF/ZIP
+      console.log(`Using client-side export for ${format}`);
       let fileName = '';
       switch (format) {
         case 'pdf':
