@@ -39,7 +39,7 @@ export async function safeDownload(blob: Blob, fileName: string): Promise<boolea
 function calculateTotalCost(request: any): number {
   if (!request?.items || !Array.isArray(request.items)) return 0;
   
-  return request.items.reduce((sum, item) => {
+  return request.items.reduce((sum: number, item: { quantity: number; estimatedCost: number }) => {
     return sum + (item.quantity * item.estimatedCost || 0);
   }, 0) + (request.freightAmount || 0);
 }
@@ -101,8 +101,7 @@ export async function exportRequestToCSV(request: any): Promise<string> {
   try {
     const parser = new Parser({
       delimiter: ',',
-      header: true,
-      quote: '"',
+      header: true
     });
     
     const csv = parser.parse([formattedRequest]);
@@ -362,8 +361,7 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
     // Create CSV
     const parser = new Parser({
       delimiter: ',',
-      header: true,
-      quote: '"'
+      header: true
     });
     
     const csv = parser.parse(formattedRequests);
@@ -399,8 +397,7 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
       // Add CSV export
       const parser = new Parser({
         delimiter: ',',
-        header: true,
-        quote: '"'
+        header: true
       });
       const formattedRequest = formatRequestForExport(request);
       const csv = parser.parse([formattedRequest]);

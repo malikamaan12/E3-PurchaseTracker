@@ -550,7 +550,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       // Generate and download CSV
       console.log('Generating CSV from data...');
-      await exportRequestToCSV(data, exportType);
+      await exportRequestToCSV(data);
       
       // Track successful download
       await trackDownload('csv', true);
