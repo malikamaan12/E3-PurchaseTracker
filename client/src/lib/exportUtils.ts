@@ -84,10 +84,32 @@ function getApprovalSummary(request: any): string {
     return 'No approvals';
   }
   
-  const approved = request.approvals.filter((a: any) => a.status === 'approved').length;
-  const rejected = request.approvals.filter((a: any) => a.status === 'rejected').length;
-  const pending = request.approvals.filter((a: any) => a.status === 'pending').length;
-  const total = request.approvals.length;
+  // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+  // Create a map to hold the latest approval for each department
+  const departmentApprovals = new Map();
+  
+  // Sort approvals by processed date (newest first)
+  const sortedApprovals = [...request.approvals].sort((a, b) => {
+    const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+    const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+    return dateB - dateA; // Descending order (newest first)
+  });
+  
+  // Keep only the latest approval for each department
+  sortedApprovals.forEach(approval => {
+    if (!departmentApprovals.has(approval.department)) {
+      departmentApprovals.set(approval.department, approval);
+    }
+  });
+  
+  // Convert map back to array
+  const uniqueApprovals = Array.from(departmentApprovals.values());
+  
+  // Count approvals by status
+  const approved = uniqueApprovals.filter((a: any) => a.status === 'approved').length;
+  const rejected = uniqueApprovals.filter((a: any) => a.status === 'rejected').length;
+  const pending = uniqueApprovals.filter((a: any) => a.status === 'pending').length;
+  const total = uniqueApprovals.length;
   
   return `${approved}/${total} approved, ${rejected} rejected, ${pending} pending`;
 }
@@ -143,7 +165,29 @@ export async function exportRequestToExcel(request: any): Promise<string> {
     
     // Add approvals sheet if present
     if (request.approvals && request.approvals.length > 0) {
-      const approvalsData = request.approvals.map((approval: any, index: number) => ({
+      // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+      // Create a map to hold the latest approval for each department
+      const departmentApprovals = new Map();
+      
+      // Sort approvals by processed date (newest first)
+      const sortedApprovals = [...request.approvals].sort((a, b) => {
+        const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+        const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      // Keep only the latest approval for each department
+      sortedApprovals.forEach(approval => {
+        if (!departmentApprovals.has(approval.department)) {
+          departmentApprovals.set(approval.department, approval);
+        }
+      });
+      
+      // Convert map back to array
+      const uniqueApprovals = Array.from(departmentApprovals.values());
+      
+      // Create approval data for Excel sheet
+      const approvalsData = uniqueApprovals.map((approval: any, index: number) => ({
         'Approval #': index + 1,
         'Department': approval.department || '',
         'Status': approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
@@ -151,6 +195,7 @@ export async function exportRequestToExcel(request: any): Promise<string> {
         'Processed Date': approval.processedAt ? new Date(approval.processedAt).toLocaleDateString() : '',
         'Comments': approval.comments || ''
       }));
+      
       const approvalsWs = XLSX.utils.json_to_sheet(approvalsData);
       XLSX.utils.book_append_sheet(wb, approvalsWs, 'Approvals');
     }
