@@ -34,8 +34,6 @@ import { cn } from "@/lib/utils";
 import debounce from "lodash/debounce";
 import { LoadingFilterPreview } from "./LoadingFilterPreview";
 
-// Keep existing interfaces and constants...
-
 export interface FilterValues {
   status: string[];
   dateRange: {
@@ -100,28 +98,10 @@ export function DashboardFilterPanel({
   const [isOpen, setIsOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  const [filters, setFilters] = useState<FilterValues>(() => {
-    const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
-    if (savedFilters) {
-      try {
-        const parsed = JSON.parse(savedFilters);
-        if (parsed.dateRange) {
-          parsed.dateRange.from = parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined;
-          parsed.dateRange.to = parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined;
-        }
-        return parsed;
-      } catch (error) {
-        console.error("Error parsing saved filters:", error);
-        // Return default filters if parsing fails
-        return getDefaultFilters();
-      }
-    }
-    return getDefaultFilters();
-  });
-
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Define function to get default filters
   function getDefaultFilters(): FilterValues {
     return {
       status: [],
@@ -141,25 +121,28 @@ export function DashboardFilterPanel({
       searchQuery: "",
     };
   }
+  
+  // Initialize filters from localStorage or defaults
+  const [filters, setFilters] = useState<FilterValues>(() => {
+    const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (parsed.dateRange) {
+          parsed.dateRange.from = parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined;
+          parsed.dateRange.to = parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined;
+        }
+        return parsed;
+      } catch (error) {
+        console.error("Error parsing saved filters:", error);
+        return getDefaultFilters();
+      }
+    }
+    return getDefaultFilters();
+  });
 
-  useEffect(() => {
-    // Update localStorage whenever filters change
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
-
-    // Calculate active filters when filters state changes
-    const activeFiltersList = Object.entries(filters)
-      .filter(([key, value]) => isFilterActive(value))
-      .map(([key]) => key);
-
-    setActiveFilters(activeFiltersList);
-  }, [filters]);
-
-  // Filter available sub-purposes based on selected purpose type
-  const availableSubPurposes = filters.purposeType.length > 0
-    ? subPurposes.filter(sp => filters.purposeType.includes(sp.purposeType))
-    : subPurposes;
-
-  const isFilterActive = (value: any): boolean => {
+  // Define isFilterActive function with useCallback to prevent recreation on each render
+  const isFilterActive = useCallback((value: any): boolean => {
     if (value === null || value === undefined) return false;
     if (Array.isArray(value)) return value.length > 0;
     if (typeof value === "object") {
@@ -173,8 +156,27 @@ export function DashboardFilterPanel({
     }
     if (typeof value === "number") return true;
     return Boolean(value);
-  };
+  }, []);
 
+  // Update active filters and localStorage when filters change
+  useEffect(() => {
+    // Update localStorage whenever filters change
+    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+
+    // Calculate active filters when filters state changes
+    const activeFiltersList = Object.entries(filters)
+      .filter(([key, value]) => isFilterActive(value))
+      .map(([key]) => key);
+
+    setActiveFilters(activeFiltersList);
+  }, [filters, isFilterActive]);
+
+  // Filter available sub-purposes based on selected purpose type
+  const availableSubPurposes = filters.purposeType.length > 0
+    ? subPurposes.filter(sp => filters.purposeType.includes(sp.purposeType))
+    : subPurposes;
+
+  // Debounced function to apply filter changes
   const debouncedOnFilterChange = useCallback(
     debounce(async (newFilters: FilterValues) => {
       setIsApplying(true);
@@ -190,6 +192,7 @@ export function DashboardFilterPanel({
     [onFilterChange]
   );
 
+  // Function to update filter values
   const updateFilters = (key: keyof FilterValues, value: any) => {
     // Handle purposeType and subPurposeId relationship
     if (key === 'purposeType' && filters.subPurposeId) {
@@ -223,11 +226,13 @@ export function DashboardFilterPanel({
     setIsDirty(true);
   };
 
+  // Function to apply filters
   const applyFilters = () => {
     setShowPreview(true);
     debouncedOnFilterChange(filters);
   };
 
+  // Function to clear a specific filter
   const clearFilter = (key: keyof FilterValues) => {
     const clearedValue = Array.isArray(filters[key])
       ? []
@@ -245,6 +250,7 @@ export function DashboardFilterPanel({
     applyFilters();
   };
 
+  // Function to clear all filters
   const clearAllFilters = () => {
     const clearedFilters = getDefaultFilters();
     setFilters(clearedFilters);
@@ -254,6 +260,7 @@ export function DashboardFilterPanel({
     localStorage.removeItem(FILTER_STORAGE_KEY);
   };
 
+  // Format filter label for display
   const formatFilterLabel = (key: string): string => {
     return key
       .split(/(?=[A-Z])/)
@@ -263,6 +270,7 @@ export function DashboardFilterPanel({
       .replace("Id", "");
   };
 
+  // Show loading state if necessary
   if (isLoading) {
     return <LoadingFilterPreview />;
   }
