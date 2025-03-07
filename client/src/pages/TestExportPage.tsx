@@ -101,7 +101,47 @@ export default function TestExportPage() {
           username: 'Finance Approver',
           department: 'Finance'
         },
-        comments: 'Pending review'
+        comments: 'Pending review',
+        processedAt: new Date().toISOString()
+      },
+      {
+        id: 2,
+        status: 'approved',
+        department: 'CEO Office',
+        approverId: 3,
+        approver: {
+          id: 3,
+          username: 'CEO Approver',
+          department: 'CEO Office'
+        },
+        comments: 'Approved with the latest timestamp',
+        processedAt: new Date().toISOString()
+      },
+      {
+        id: 3,
+        status: 'approved',
+        department: 'CEO Office',
+        approverId: 3,
+        approver: {
+          id: 3,
+          username: 'CEO Approver',
+          department: 'CEO Office'
+        },
+        comments: 'This is a duplicate CEO approval with an older timestamp',
+        processedAt: new Date(Date.now() - 3600000).toISOString() // 1 hour ago
+      },
+      {
+        id: 4,
+        status: 'approved',
+        department: 'CEO Office',
+        approverId: 3,
+        approver: {
+          id: 3,
+          username: 'CEO Approver',
+          department: 'CEO Office'
+        },
+        comments: 'This is another duplicate CEO approval with an even older timestamp',
+        processedAt: new Date(Date.now() - 7200000).toISOString() // 2 hours ago
       }
     ],
     attachments: [
