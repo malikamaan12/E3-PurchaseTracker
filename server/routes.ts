@@ -4396,12 +4396,23 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Check if we're exporting a specific request or all requests
-      const requestId = req.query.id ? parseInt(req.query.id as string) : null;
+      let requestId = null;
+      
+      // More robust ID validation - using optional chaining and proper validation
+      if (req.query.id) {
+        const idValue = parseInt(req.query.id as string);
+        // Only set requestId if it's a valid positive number
+        if (!isNaN(idValue) && idValue > 0) {
+          requestId = idValue;
+        }
+      }
+      
+      console.log(`[GET /api/requests/export] Fetching purchase request with ID: ${requestId || 'all'}`);
       debug(req, `[GET /api/requests/export] Fetching purchase request with ID: ${requestId || 'all'}`);
 
       let formattedRequests = [];
 
-      if (requestId && !isNaN(requestId)) {
+      if (requestId) {
         // Export a single request
         try {
           const requestWithRelations = await getRequestWithRelations(requestId);
@@ -4469,45 +4480,75 @@ export function registerRoutes(app: Express): Server {
         : `purchase_requests_${new Date().toISOString().split('T')[0]}`;
 
       if (format === 'csv') {
-        // Generate CSV properly using a more robust approach
-        const fields = Object.keys(formattedRequests[0]);
-        
-        // Create CSV with proper escaping for special characters
-        const csvRows = [];
-        
-        // Add header row
-        csvRows.push(fields.map(field => `"${field.replace(/"/g, '""')}"`).join(','));
-        
-        // Add data rows with proper escaping
-        for (const row of formattedRequests) {
-          const values = fields.map(field => {
-            const value = row[field as keyof typeof row];
-            // Handle different data types and escape special characters
-            if (value === null || value === undefined) return '""';
-            if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
-            if (typeof value === 'number') return value;
-            return `"${String(value).replace(/"/g, '""')}"`;
-          });
-          csvRows.push(values.join(','));
+        try {
+          // Ensure we have at least one request to export
+          if (!formattedRequests || formattedRequests.length === 0) {
+            throw new Error('No data available to export');
+          }
+          
+          // Generate CSV properly using a more robust approach
+          const fields = Object.keys(formattedRequests[0]);
+          
+          // Create CSV with proper escaping for special characters
+          const csvRows = [];
+          
+          // Add header row
+          csvRows.push(fields.map(field => {
+            // Ensure field name is properly escaped
+            return `"${String(field).replace(/"/g, '""')}"`;
+          }).join(','));
+          
+          // Add data rows with proper escaping
+          for (const row of formattedRequests) {
+            const values = fields.map(field => {
+              const value = row[field as keyof typeof row];
+              // Handle different data types and escape special characters
+              if (value === null || value === undefined) return '""';
+              if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
+              if (typeof value === 'number') return String(value); // Convert numbers to strings to avoid any issues
+              return `"${String(value).replace(/"/g, '""')}"`;
+            });
+            csvRows.push(values.join(','));
+          }
+          
+          const csv = csvRows.join('\n');
+          
+          // Log the size of the CSV for debugging
+          console.log(`[GET /api/requests/export] Generated CSV with ${formattedRequests.length} records, size: ${csv.length} bytes`);
+          
+          res.setHeader('Content-Type', 'text/csv');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+          return res.send(csv);
+        } catch (csvError) {
+          console.error('Error generating CSV:', csvError);
+          throw new AppError(`Failed to generate CSV: ${csvError.message}`, 500);
         }
-        
-        const csv = csvRows.join('\n');
-
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-        return res.send(csv);
       } else {
-        // Generate Excel
-        const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+        // Handle Excel export
+        try {
+          // Ensure we have at least one request to export
+          if (!formattedRequests || formattedRequests.length === 0) {
+            throw new Error('No data available to export');
+          }
+          
+          // Generate Excel
+          const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
 
-        // Generate buffer
-        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          // Generate buffer
+          const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          
+          // Log the size of the Excel file for debugging
+          console.log(`[GET /api/requests/export] Generated Excel with ${formattedRequests.length} records, size: ${excelBuffer.length} bytes`);
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
-        return res.send(Buffer.from(excelBuffer));
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+          return res.send(Buffer.from(excelBuffer));
+        } catch (excelError) {
+          console.error('Error generating Excel:', excelError);
+          throw new AppError(`Failed to generate Excel: ${excelError.message}`, 500);
+        }
       }
     } catch (error) {
       debug(req, 'Error exporting requests:', error);
