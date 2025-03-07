@@ -698,7 +698,7 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
           doc.text('Approval Status:', 14, yPos);
           yPos += 8;
           
-          // Process approvals to ensure unique departments
+          // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
           // Create a map to hold the latest approval for each department
           const departmentApprovals = new Map();
           
