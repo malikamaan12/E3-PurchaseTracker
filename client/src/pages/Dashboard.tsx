@@ -613,38 +613,13 @@ export default function Dashboard() {
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
               </div>
               <div className="flex flex-wrap items-center gap-2 justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
-                      <Download className="h-4 w-4 mr-2" />
-                      <span className="hidden xs:inline">Export</span>
-                      <span className="xs:hidden">Exp</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleExport("xlsx")}>
-                      Export as Excel
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport("csv")}>
-                      Export as CSV
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                
                 {isAdmin && (
-                  <>
-                    <Link href="/export">
-                      <Button variant="outline" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Bulk Export
-                      </Button>
-                    </Link>
-                    <BulkExportButton 
-                      filters={activeFilters}
-                      variant="secondary" 
-                      size="default"
-                    />
-                  </>
+                  <Link href="/export">
+                    <Button variant="outline" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Bulk Export
+                    </Button>
+                  </Link>
                 )}
               </div>
             </div>
