@@ -1,47 +1,40 @@
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import { Download, FileSpreadsheet, FileText, FileArchive, Loader2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Loader2, Download, FileSpreadsheet, FileText, Package } from "lucide-react";
-import { exportMultipleRequestsToExcel, exportMultipleRequestsToCSV, exportMultipleRequestsAsZip, logExport } from '@/lib/exportUtils';
+} from '@/components/ui/dropdown-menu';
+import { exportMultipleRequestsToExcel, exportMultipleRequestsToCSV, exportMultipleRequestsAsZip } from '@/lib/exportUtils';
 
 interface BulkExportButtonProps {
   requests: any[];
-  isLoading?: boolean;
-  disabled?: boolean;
-  onSuccess?: (fileName: string) => void;
-  onError?: (error: Error) => void;
+  onExportComplete?: (fileName: string) => void;
+  onExportError?: (error: Error) => void;
 }
 
-export function BulkExportButton({
-  requests = [], 
-  isLoading = false,
-  disabled = false,
-  onSuccess,
-  onError
+export function BulkExportButton({ 
+  requests,
+  onExportComplete,
+  onExportError
 }: BulkExportButtonProps) {
-  const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<null | 'excel' | 'csv' | 'zip'>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const handleExport = async (format: 'excel' | 'csv' | 'zip') => {
-    if (exporting || requests.length === 0) return;
-    
-    setExporting(true);
-    setExportFormat(format);
-    setErrorMessage(null);
-    
+  const handleExport = async (format: string) => {
+    if (!requests.length) {
+      return;
+    }
+
+    setIsLoading(format);
     try {
-      let fileName: string;
-      
-      // Log the requests we're exporting (count only for debugging)
-      logExport('bulkExport', `Starting bulk export of ${requests.length} requests in ${format} format`);
-      
+      console.log(`Starting export for ${requests.length} requests with format: ${format}`);
+      let fileName = '';
+
       switch (format) {
         case 'excel':
           fileName = await exportMultipleRequestsToExcel(requests);
@@ -55,89 +48,63 @@ export function BulkExportButton({
         default:
           throw new Error(`Unsupported export format: ${format}`);
       }
-      
-      if (onSuccess) {
-        onSuccess(fileName);
-      }
+
+      console.log(`Export completed: ${fileName}`);
+      onExportComplete?.(fileName);
     } catch (error) {
-      console.error('Export error:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Unknown export error');
-      
-      if (onError && error instanceof Error) {
-        onError(error);
+      console.error('Error exporting data:', error);
+      if (error instanceof Error) {
+        onExportError?.(error);
+      } else {
+        onExportError?.(new Error('Unknown export error occurred'));
       }
     } finally {
-      setExporting(false);
+      setIsLoading(null);
     }
   };
 
-  const buttonDisabled = disabled || isLoading || exporting || requests.length === 0;
-
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
-            disabled={buttonDisabled}
-            className="flex items-center gap-2"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Export {requests.length > 0 ? `(${requests.length})` : ''}
-          </Button>
-        </DropdownMenuTrigger>
-        
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem 
-            onClick={() => handleExport('excel')}
-            disabled={buttonDisabled}
-            className="flex items-center gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span>Export to Excel</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => handleExport('csv')}
-            disabled={buttonDisabled}
-            className="flex items-center gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            <span>Export to CSV</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => handleExport('zip')}
-            disabled={buttonDisabled}
-            className="flex items-center gap-2"
-          >
-            <Package className="h-4 w-4" />
-            <span>Export as ZIP (all formats)</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Error Dialog */}
-      <AlertDialog open={!!errorMessage} onOpenChange={() => setErrorMessage(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Export Error</AlertDialogTitle>
-            <AlertDialogDescription>
-              {errorMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-            <AlertDialogAction onClick={() => exportFormat ? handleExport(exportFormat) : null}>
-              Try Again
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          disabled={isLoading !== null || !requests.length} 
+          onClick={() => handleExport('excel')}
+        >
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          <span>Excel Spreadsheet</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem 
+          disabled={isLoading !== null || !requests.length} 
+          onClick={() => handleExport('csv')}
+        >
+          <FileText className="mr-2 h-4 w-4" />
+          <span>CSV File</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem 
+          disabled={isLoading !== null || !requests.length} 
+          onClick={() => handleExport('zip')}
+        >
+          <FileArchive className="mr-2 h-4 w-4" />
+          <span>ZIP Archive (All Formats)</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

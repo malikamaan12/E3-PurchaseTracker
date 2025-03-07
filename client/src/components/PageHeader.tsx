@@ -1,35 +1,52 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { ArrowLeft } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  actions?: React.ReactNode;
+  children?: React.ReactNode;
+  backLink?: string;
+  backLabel?: string;
   className?: string;
 }
 
-export function PageHeader({ 
-  title, 
-  description, 
-  actions,
-  className 
+export function PageHeader({
+  title,
+  description,
+  children,
+  backLink,
+  backLabel = "Back",
+  className,
 }: PageHeaderProps) {
   return (
-    <div className={cn(
-      "flex flex-col md:flex-row md:items-center justify-between gap-4 py-6",
-      className
-    )}>
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
+    <div
+      className={cn(
+        "flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between",
+        className
+      )}
+    >
+      <div className="space-y-1">
+        {backLink && (
+          <Link href={backLink}>
+            <Button
+              variant="link"
+              className="gap-1 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {backLabel}
+            </Button>
+          </Link>
+        )}
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          <p className="text-lg text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && (
-        <div className="flex items-center gap-2 md:ml-auto">
-          {actions}
-        </div>
-      )}
+      {children && <div className="flex items-center gap-4">{children}</div>}
     </div>
   );
 }
