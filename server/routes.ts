@@ -3101,9 +3101,91 @@ export function registerRoutes(app: Express): Server {
             
             mainFolder.file('export-summary.json', JSON.stringify(summary, null, 2));
             
-            // Add each request as a JSON file in the ZIP
+            // Add data in multiple formats for each request
             for (const request of requestsWithRelations) {
-              mainFolder.file(`request_${request.id}.json`, JSON.stringify(request, null, 2));
+              // Create a folder for each request
+              const requestFolder = mainFolder.folder(`request_${request.id}`);
+              if (!requestFolder) {
+                console.error(`Failed to create folder for request ${request.id}`);
+                continue;
+              }
+              
+              // Add JSON format (original functionality)
+              requestFolder.file(`request_${request.id}.json`, JSON.stringify(request, null, 2));
+              
+              // Add CSV format for basic request data
+              try {
+                const { Parser } = require('@json2csv/plainjs');
+                const basicRequestData = {
+                  request_number: request.requestNumber || `REQ-${request.id}`,
+                  title: request.title || 'Untitled Request',
+                  status: request.status || 'draft',
+                  priority: request.priority || 'medium',
+                  created_date: request.createdAt ? new Date(request.createdAt).toISOString() : '',
+                  requester_id: request.requesterId,
+                  description: request.description || '',
+                  purpose_type: request.purposeType || '',
+                  sub_purpose_id: request.subPurposeId || '',
+                  total_estimated_cost: request.totalEstimatedCost || 0,
+                  currency: request.currency || 'USD'
+                };
+                
+                const parser = new Parser();
+                // Add BOM for Excel compatibility
+                const csvContent = '\ufeff' + parser.parse(basicRequestData);
+                requestFolder.file(`request_${request.id}.csv`, csvContent);
+                
+                // If the request has items, create a CSV for items too
+                if (request.items && Array.isArray(request.items) && request.items.length > 0) {
+                  const itemsParser = new Parser();
+                  const itemsCsv = '\ufeff' + itemsParser.parse(request.items);
+                  requestFolder.file(`request_${request.id}_items.csv`, itemsCsv);
+                }
+              } catch (csvError) {
+                console.error(`Error creating CSV for request ${request.id}:`, csvError);
+                requestFolder.file('csv_error.txt', `Failed to generate CSV: ${csvError.message || 'Unknown error'}`);
+              }
+              
+              // Add Excel format if XLSX is available
+              try {
+                const XLSX = require('xlsx');
+                const wb = XLSX.utils.book_new();
+                
+                // Basic request data sheet
+                const basicData = [
+                  ['Field', 'Value'],
+                  ['Request Number', request.requestNumber || `REQ-${request.id}`],
+                  ['Title', request.title || 'Untitled Request'],
+                  ['Status', request.status || 'draft'],
+                  ['Priority', request.priority || 'medium'],
+                  ['Created Date', request.createdAt ? new Date(request.createdAt).toISOString() : ''],
+                  ['Description', request.description || ''],
+                  ['Purpose Type', request.purposeType || ''],
+                  ['Total Cost', request.totalEstimatedCost || 0],
+                  ['Currency', request.currency || 'USD']
+                ];
+                
+                const wsBasic = XLSX.utils.aoa_to_sheet(basicData);
+                XLSX.utils.book_append_sheet(wb, wsBasic, 'Request Info');
+                
+                // Items sheet if available
+                if (request.items && Array.isArray(request.items) && request.items.length > 0) {
+                  const wsItems = XLSX.utils.json_to_sheet(request.items);
+                  XLSX.utils.book_append_sheet(wb, wsItems, 'Items');
+                }
+                
+                // Generate Excel file
+                const excelBuffer = XLSX.write(wb, { 
+                  type: 'buffer', 
+                  bookType: 'xlsx',
+                  compression: true
+                });
+                
+                requestFolder.file(`request_${request.id}.xlsx`, excelBuffer);
+              } catch (excelError) {
+                console.error(`Error creating Excel for request ${request.id}:`, excelError);
+                requestFolder.file('excel_error.txt', `Failed to generate Excel: ${excelError.message || 'Unknown error'}`);
+              }
             }
             
             // Generate the ZIP file
