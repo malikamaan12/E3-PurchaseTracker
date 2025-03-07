@@ -382,6 +382,7 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     const allApprovals: any[] = [];
     requests.forEach((request: any) => {
       if (request.approvals && request.approvals.length > 0) {
+        // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
         // Create a map to hold the latest approval for each department
         const departmentApprovals = new Map();
         
