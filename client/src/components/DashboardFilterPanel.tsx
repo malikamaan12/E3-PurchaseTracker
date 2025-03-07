@@ -436,10 +436,7 @@ export function DashboardFilterPanel({
                   <SelectContent className="max-h-[300px] overflow-y-auto">
                     {availableSubPurposes.map((sp) => (
                       <SelectItem key={sp.id} value={sp.id.toString()}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{sp.name}</span>
-                          {sp.purposeType && <span className="text-xs text-muted-foreground mt-0.5">{sp.purposeType}</span>}
-                        </div>
+                        {sp.name} {sp.purposeType && <span className="ml-1 text-xs text-muted-foreground">({sp.purposeType})</span>}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -461,12 +458,10 @@ export function DashboardFilterPanel({
                   <SelectContent className="max-h-[300px] overflow-y-auto">
                     {vendors.map((vendor) => (
                       <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{vendor.name || vendor.companyName || `Vendor #${vendor.id}`}</span>
-                          {vendor.companyName && vendor.name && vendor.name !== vendor.companyName && (
-                            <span className="text-xs text-muted-foreground mt-0.5">{vendor.companyName}</span>
-                          )}
-                        </div>
+                        {vendor.name || vendor.companyName || `Vendor #${vendor.id}`}
+                        {vendor.companyName && vendor.name && vendor.name !== vendor.companyName && (
+                          <span className="ml-1 text-xs text-muted-foreground">({vendor.companyName})</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
