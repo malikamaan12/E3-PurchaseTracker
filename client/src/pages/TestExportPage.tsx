@@ -8,7 +8,8 @@ import {
   exportRequestToExcel, 
   exportRequestToPDF,
   exportMultipleRequestsToExcel,
-  exportMultipleRequestsAsZip
+  exportMultipleRequestsAsZip,
+  exportMultipleRequestsToPDF
 } from '../lib/exportUtils';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -25,7 +26,8 @@ export default function TestExportPage() {
     'enhanced-csv': 'not-run',
     'enhanced-zip': 'not-run',
     'bulk-excel': 'not-run',
-    'bulk-zip': 'not-run'
+    'bulk-zip': 'not-run',
+    'bulk-pdf': 'not-run'
   });
 
   const addLog = (message: string) => {
@@ -326,6 +328,41 @@ export default function TestExportPage() {
     }
   };
   
+  const testBulkPdfExport = async () => {
+    addLog('Starting bulk PDF export test...');
+    updateTestResult('bulk-pdf', 'pending');
+    
+    try {
+      // Create an array of mock requests for bulk export
+      const mockRequests = [
+        mockPurchaseRequest,
+        {
+          ...mockPurchaseRequest,
+          id: 12346,
+          requestNumber: 'REQ-TEST-12346',
+          title: 'Second Test Request'
+        },
+        {
+          ...mockPurchaseRequest,
+          id: 12347,
+          requestNumber: 'REQ-TEST-12347',
+          title: 'Third Test Request',
+          status: 'approved'
+        }
+      ];
+      
+      addLog(`Preparing bulk PDF export for ${mockRequests.length} requests...`);
+      
+      const fileName = await exportMultipleRequestsToPDF(mockRequests);
+      addLog(`Bulk PDF export successful: ${fileName}`);
+      updateTestResult('bulk-pdf', 'success');
+    } catch (error: any) {
+      addLog(`Error during bulk PDF export: ${error.message || 'Unknown error'}`);
+      console.error('Bulk PDF export error:', error);
+      updateTestResult('bulk-pdf', 'failed');
+    }
+  };
+  
   const testEnhancedExcelExport = async () => {
     addLog('Starting enhanced Excel export test...');
     updateTestResult('enhanced-excel', 'pending');
@@ -463,7 +500,7 @@ export default function TestExportPage() {
       
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Bulk Export Tests</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Button 
             variant="secondary" 
             onClick={testBulkExcelExport}
@@ -478,6 +515,14 @@ export default function TestExportPage() {
             className="w-full"
           >
             Test Bulk ZIP Export
+          </Button>
+          
+          <Button 
+            variant="secondary" 
+            onClick={testBulkPdfExport}
+            className="w-full"
+          >
+            Test Bulk PDF Export
           </Button>
         </div>
       </div>
@@ -629,6 +674,18 @@ export default function TestExportPage() {
                     {testResults['bulk-zip'] === 'not-run' ? 'Not Run' : 
                      testResults['bulk-zip'] === 'pending' ? 'Running...' :
                      testResults['bulk-zip'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">Bulk PDF Export</span>
+                  <Badge variant={
+                    testResults['bulk-pdf'] === 'success' ? 'success' : 
+                    testResults['bulk-pdf'] === 'pending' ? 'outline' :
+                    testResults['bulk-pdf'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['bulk-pdf'] === 'not-run' ? 'Not Run' : 
+                     testResults['bulk-pdf'] === 'pending' ? 'Running...' :
+                     testResults['bulk-pdf'] === 'success' ? 'Success' : 'Failed'}
                   </Badge>
                 </div>
               </div>
