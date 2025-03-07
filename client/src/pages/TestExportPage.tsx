@@ -334,7 +334,7 @@ export default function TestExportPage() {
       addLog('Using exportRequestToExcel utility...');
       console.log('Mock request data:', mockPurchaseRequest);
       
-      const fileName = await exportRequestToExcel(mockPurchaseRequest, true);
+      const fileName = await exportRequestToExcel(mockPurchaseRequest);
       addLog(`Excel export successful: ${fileName}`);
       updateTestResult('enhanced-excel', 'success');
     } catch (error: any) {
@@ -357,7 +357,7 @@ export default function TestExportPage() {
       addLog('Using exportRequestToCSV utility...');
       console.log('Mock request data for CSV:', mockPurchaseRequest);
       
-      const fileName = await exportRequestToCSV(mockPurchaseRequest, 'all');
+      const fileName = await exportRequestToCSV(mockPurchaseRequest);
       addLog(`CSV export successful: ${fileName}`);
       updateTestResult('enhanced-csv', 'success');
     } catch (error: any) {

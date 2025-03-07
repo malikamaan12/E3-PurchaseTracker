@@ -332,7 +332,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       // Generate and download Excel
       console.log('Generating Excel from data...');
-      await exportRequestToExcel(data, includeDetails);
+      await exportRequestToExcel(data);
       
       // Track successful download
       await trackDownload('excel', true);

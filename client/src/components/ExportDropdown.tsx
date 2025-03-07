@@ -130,10 +130,10 @@ export function ExportDropdown({
           fileName = await exportRequestToPDF(requestData, type);
           break;
         case 'excel':
-          fileName = await exportRequestToExcel(requestData, true);
+          fileName = await exportRequestToExcel(requestData);
           break;
         case 'csv':
-          fileName = await exportRequestToCSV(requestData, 'all');
+          fileName = await exportRequestToCSV(requestData);
           break;
         case 'zip':
           fileName = await exportMultipleRequestsAsZip([requestData], true);
@@ -303,7 +303,7 @@ export function ExportDropdown({
           fileName = await exportMultipleRequestsToExcel(requests);
           break;
         case 'zip':
-          fileName = await exportMultipleRequestsAsZip(requests, type);
+          fileName = await exportMultipleRequestsAsZip(requests, true);
           break;
         default:
           throw new Error(`Unsupported bulk format: ${format}`);
