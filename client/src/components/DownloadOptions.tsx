@@ -653,7 +653,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       // Generate and download ZIP
       console.log('Generating ZIP from data...');
-      await exportRequestAsZip(data, includeAttachments, userType);
+      await exportMultipleRequestsAsZip([data], includeAttachments);
       
       // Track successful download
       await trackDownload('zip', true);

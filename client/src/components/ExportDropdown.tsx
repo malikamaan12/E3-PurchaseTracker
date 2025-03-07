@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileDown, FileText, Table, FileSpreadsheet, Package, Calendar, PenTool, Download } from "lucide-react";
-import { exportRequestToPDF, exportRequestToExcel, exportRequestToCSV, exportRequestAsZip, exportMultipleRequestsToExcel, exportMultipleRequestsAsZip } from "@/lib/exportUtils";
+import { exportRequestToPDF, exportRequestToExcel, exportRequestToCSV, exportMultipleRequestsToExcel, exportMultipleRequestsAsZip } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExportDropdownProps {
@@ -136,7 +136,7 @@ export function ExportDropdown({
           fileName = await exportRequestToCSV(requestData, 'all');
           break;
         case 'zip':
-          fileName = await exportRequestAsZip(requestData, true, type);
+          fileName = await exportMultipleRequestsAsZip([requestData], true);
           break;
         default:
           throw new Error(`Unsupported format: ${format}`);

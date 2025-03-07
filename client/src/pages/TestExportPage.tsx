@@ -316,7 +316,7 @@ export default function TestExportPage() {
       
       addLog(`Preparing bulk ZIP export for ${mockRequests.length} requests...`);
       
-      const fileName = await exportMultipleRequestsAsZip(mockRequests, 'admin');
+      const fileName = await exportMultipleRequestsAsZip(mockRequests, true);
       addLog(`Bulk ZIP export successful: ${fileName}`);
       updateTestResult('bulk-zip', 'success');
     } catch (error: any) {

@@ -477,7 +477,7 @@ export function ExportFilters({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Any</SelectItem>
+                          <SelectItem value="any">Any</SelectItem>
                           {subPurposes.map((subPurpose: any) => (
                             <SelectItem key={subPurpose.id} value={subPurpose.id.toString()}>
                               {subPurpose.name}
@@ -513,7 +513,7 @@ export function ExportFilters({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
+                        <SelectItem value="any">Any</SelectItem>
                         {vendors.map((vendor: any) => (
                           <SelectItem key={vendor.id} value={vendor.id.toString()}>
                             {vendor.companyName || vendor.name}
