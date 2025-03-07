@@ -55,6 +55,13 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { vendors = [] } = useVendors();
   const { subPurposes = [] } = useSubPurposes();
+  
+  // Debug sub-purposes data
+  useEffect(() => {
+    if (subPurposes && subPurposes.length > 0) {
+      console.log("Sub-purposes loaded:", subPurposes);
+    }
+  }, [subPurposes]);
 
   // Local state
   const [activeFilters, setActiveFilters] = useState<FilterValues>({
