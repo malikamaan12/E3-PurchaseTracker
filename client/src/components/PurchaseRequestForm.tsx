@@ -333,13 +333,14 @@ export default function PurchaseRequestForm({
           attachments: [...fileAttachments, ...uploadedFiles],
           items: data.items.map(item => ({
             ...item,
-            quantity: Number(item.quantity),
-            estimatedCost: Number(item.estimatedCost)
+            quantity: Number(item.quantity || 0),
+            estimatedCost: Number(item.estimatedCost || 0)
           })),
           totalEstimatedCost: Number(data.totalEstimatedCost || 0),
           freightAmount: Number(data.freightAmount || 0),
-          vendorId: Number(data.vendorId),
-          subPurposeId: Number(data.subPurposeId),
+          // Only include non-null/undefined IDs
+          ...(data.vendorId ? { vendorId: Number(data.vendorId) } : {}),
+          ...(data.subPurposeId ? { subPurposeId: Number(data.subPurposeId) } : {}),
           additionalApprovers: data.additionalApprovers || []
         },
         action: draft ? 'draft' : 'submit'
