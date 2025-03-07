@@ -3,7 +3,14 @@ import { Button } from "../components/ui/button";
 import { Parser } from '@json2csv/plainjs';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
-import { exportRequestToCSV, exportRequestToExcel, exportRequestAsZip, exportRequestToPDF } from '../lib/exportUtils';
+import { 
+  exportRequestToCSV, 
+  exportRequestToExcel, 
+  exportRequestAsZip, 
+  exportRequestToPDF,
+  exportMultipleRequestsToExcel,
+  exportMultipleRequestsAsZip
+} from '../lib/exportUtils';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";

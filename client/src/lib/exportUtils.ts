@@ -608,10 +608,27 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     const fileName = `Purchase_Request_${requestIdentifier}.xlsx`;
     
     try {
-      // Create a blob from the workbook
-      logExport('excel', 'Converting Excel workbook to binary data');
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      // Create a blob from the workbook with enhanced compatibility settings
+      logExport('excel', 'Converting Excel workbook to binary data with enhanced compatibility');
+      const wbout = XLSX.write(wb, { 
+        bookType: 'xlsx', 
+        type: 'array',
+        compression: true,
+        Props: {
+          Title: `Purchase Request ${requestIdentifier}`,
+          Subject: "Purchase Request Data",
+          Author: "Purchase Management System",
+          CreatedDate: new Date()
+        },
+        cellStyles: true,
+        cellDates: true
+        // UTF-8 encoding is automatically used with proper blob type
+      });
+      
+      // Create a properly typed blob with the correct MIME type for Excel
+      const blob = new Blob([wbout], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
       
       // Use our safer download method
       logExport('excel', `Initiating Excel download: ${fileName}`);
@@ -1163,10 +1180,27 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     const timestamp = new Date().toISOString().split('T')[0];
     const fileName = `Purchase_Requests_Export_${timestamp}.xlsx`;
     
-    // Create a blob from the workbook
-    logExport('bulkExcel', 'Converting Excel workbook to binary data');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    // Create a blob from the workbook with enhanced compatibility settings
+    logExport('bulkExcel', 'Converting Excel workbook to binary data with enhanced compatibility');
+    const wbout = XLSX.write(wb, { 
+      bookType: 'xlsx', 
+      type: 'array',
+      compression: true,
+      Props: {
+        Title: "Purchase Requests Export",
+        Subject: "Export Data",
+        Author: "Purchase Management System",
+        CreatedDate: new Date()
+      },
+      cellStyles: true,
+      cellDates: true
+      // UTF-8 encoding is automatically used with proper blob type
+    });
+    
+    // Create a properly typed blob with the correct MIME type for Excel
+    const blob = new Blob([wbout], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
     
     // Use our safer download method
     logExport('bulkExcel', `Initiating bulk Excel download: ${fileName}`);
