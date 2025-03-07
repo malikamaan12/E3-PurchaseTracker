@@ -235,9 +235,30 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       doc.text('Approval Status:', 14, yPos);
       yPos += 8;
       
+      // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+      // Create a map to hold the latest approval for each department
+      const departmentApprovals = new Map();
+      
+      // Sort approvals by processed date (newest first)
+      const sortedApprovals = [...request.approvals].sort((a, b) => {
+        const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+        const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      // Keep only the latest approval for each department
+      sortedApprovals.forEach(approval => {
+        if (!departmentApprovals.has(approval.department)) {
+          departmentApprovals.set(approval.department, approval);
+        }
+      });
+      
+      // Convert map back to array
+      const uniqueApprovals = Array.from(departmentApprovals.values());
+      
       // Approval table headers
       const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
-      const approvalBody = request.approvals.map((approval: any) => [
+      const approvalBody = uniqueApprovals.map((approval: any) => [
         approval.department || '',
         approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
         approval.approver?.username || '',
