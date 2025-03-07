@@ -7,7 +7,7 @@ import {
   NOTIFICATION_TYPES,
   type InsertNotification
 } from "@db/schema";
-import { eq, and, lt, desc, gte, or, SQL } from "drizzle-orm";
+import { eq, and, lt, desc, gte, or, SQL, sql } from "drizzle-orm";
 
 /**
  * Notification Priority Levels
@@ -257,41 +257,43 @@ export class NotificationService {
     type?: string;
     priority?: NotificationPriority;
   }) {
-    let query = db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, userId));
-
+    // Build the conditions array
+    const conditions = [eq(notifications.userId, userId)];
+    
     // Apply filters
     if (options?.lastFetchTime) {
-      query = query.where(gte(notifications.createdAt, options.lastFetchTime));
+      conditions.push(gte(notifications.createdAt, options.lastFetchTime));
     }
 
     if (options?.includeRead === false) {
-      query = query.where(eq(notifications.isRead, false));
+      conditions.push(eq(notifications.isRead, false));
     }
 
     if (options?.type) {
-      query = query.where(eq(notifications.type, options.type));
+      conditions.push(eq(notifications.type, options.type));
     }
 
     if (options?.priority) {
-      query = query.where(eq(notifications.priority, options.priority));
+      conditions.push(eq(notifications.priority, options.priority));
     }
-
+    
     // Filter out expired notifications
     const now = new Date();
-    query = query.where(
+    conditions.push(
       or(
-        eq(notifications.expiresAt, null),
-        gte(notifications.expiresAt, now)
+        sql`${notifications.expiresAt} IS NULL`,
+        sql`${notifications.expiresAt} >= ${now}`
       )
     );
 
-    // Sort by created date, newest first
-    query = query.orderBy(desc(notifications.createdAt));
+    // Execute the query with all conditions
+    const result = await db
+      .select()
+      .from(notifications)
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt));
 
-    return query;
+    return result;
   }
 
   /**
@@ -364,20 +366,20 @@ export class NotificationService {
     const now = new Date();
     
     const [result] = await db
-      .select({ count: sql`count(*)` })
+      .select({ count: sql`count(*)::int` })
       .from(notifications)
       .where(
         and(
           eq(notifications.userId, userId),
           eq(notifications.isRead, false),
           or(
-            eq(notifications.expiresAt, null),
-            gte(notifications.expiresAt, now)
+            sql`${notifications.expiresAt} IS NULL`,
+            sql`${notifications.expiresAt} >= ${now}`
           )
         )
       );
 
-    return parseInt(result.count.toString());
+    return Number(result.count);
   }
 
   /**
@@ -507,7 +509,7 @@ export class NotificationService {
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     // Delete read notifications older than the cutoff date
-    const { count } = await db
+    const result = await db
       .delete(notifications)
       .where(
         and(
@@ -515,10 +517,10 @@ export class NotificationService {
           lt(notifications.createdAt, cutoffDate)
         )
       )
-      .returning({ count: sql`count(*)` })
-      .then(result => result[0] || { count: 0 });
+      .returning({ count: sql`count(*)::int` });
 
-    return { count: parseInt(count.toString()) };
+    const deleteCount = result[0]?.count ?? 0;
+    return { count: Number(deleteCount) };
   }
 
   /**
