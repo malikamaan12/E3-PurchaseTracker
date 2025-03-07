@@ -182,7 +182,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleDirectExcelExport = async () => {
     try {
       setIsLoading(true);
-      setExportType('excel');
+      setCurrentExportType('excel');
       setExportError(null);
       
       // Show toast for starting the download process
@@ -299,7 +299,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleExcelDownload = async (includeDetails: boolean = true) => {
     try {
       setIsLoading(true);
-      setExportType('excel');
+      setCurrentExportType('excel');
       setExportError(null);
       
       // Show toast for starting the download process
@@ -400,7 +400,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleDirectCsvExport = async () => {
     try {
       setIsLoading(true);
-      setExportType('csv');
+      setCurrentExportType('csv');
       setExportError(null);
       
       // Show toast for starting the download process
@@ -517,7 +517,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleCsvDownload = async (exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all') => {
     try {
       setIsLoading(true);
-      setExportType('csv');
+      setCurrentExportType('csv');
       setExportError(null);
       
       // Show toast for starting the download process
@@ -618,7 +618,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const handleZipDownload = async (includeAttachments: boolean = true) => {
     try {
       setIsLoading(true);
-      setExportType('zip');
+      setCurrentExportType('zip');
       setExportError(null);
       
       // Show toast for starting the download process
@@ -798,7 +798,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         onClick={() => handlePdfDownload(userType)}
         disabled={isLoading}
       >
-        {isLoading && exportType === 'pdf' ? (
+        {isLoading && currentExportType === 'pdf' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
@@ -812,7 +812,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         onClick={() => handleDirectExcelExport()}
         disabled={isLoading}
       >
-        {isLoading && exportType === 'excel' ? (
+        {isLoading && currentExportType === 'excel' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileSpreadsheet className="mr-2 h-4 w-4" />
@@ -826,7 +826,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         onClick={() => handleDirectCsvExport()}
         disabled={isLoading}
       >
-        {isLoading && exportType === 'csv' ? (
+        {isLoading && currentExportType === 'csv' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <Table className="mr-2 h-4 w-4" />
