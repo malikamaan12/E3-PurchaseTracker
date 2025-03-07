@@ -6,10 +6,8 @@ export function NotFound() {
       <div className="text-center">
         <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
         <p className="text-muted-foreground mb-4">The page you're looking for doesn't exist</p>
-        <Link href="/">
-          <a className="text-primary hover:underline">
+        <Link href="/" className="text-primary hover:underline inline-block px-4 py-2 border border-primary rounded-md">
             Return to Dashboard
-          </a>
         </Link>
       </div>
     </div>

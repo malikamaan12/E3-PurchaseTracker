@@ -117,43 +117,62 @@ export async function safeDownload(blob: Blob, fileName: string): Promise<boolea
       logDownload('Method 4 failed', error);
     }
     
-    // Method 5: Create a temporary download link in the visible DOM (for mobile especially)
+    // Method 5: Create a temporary download button in the visible DOM (for mobile especially)
     if (mobile) {
       try {
         const url = window.URL.createObjectURL(blob);
         
-        // Create a visible link for better mobile browser compatibility
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = fileName;
-        downloadLink.textContent = `Click here to download ${fileName}`;
-        downloadLink.style.display = 'block';
-        downloadLink.style.padding = '10px';
-        downloadLink.style.margin = '10px auto';
-        downloadLink.style.backgroundColor = '#f0f0f0';
-        downloadLink.style.border = '1px solid #ccc';
-        downloadLink.style.borderRadius = '4px';
-        downloadLink.style.textAlign = 'center';
-        downloadLink.style.color = '#333';
+        // Create a DOM element that's not an anchor to avoid nesting issues
+        // We'll use a button styled to look like a download link
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = `Click here to download ${fileName}`;
+        downloadButton.style.display = 'block';
+        downloadButton.style.padding = '10px';
+        downloadButton.style.margin = '10px auto';
+        downloadButton.style.backgroundColor = '#f0f0f0';
+        downloadButton.style.border = '1px solid #ccc';
+        downloadButton.style.borderRadius = '4px';
+        downloadButton.style.textAlign = 'center';
+        downloadButton.style.color = '#333';
+        downloadButton.style.cursor = 'pointer';
+        downloadButton.style.width = '80%';
+        downloadButton.style.maxWidth = '400px';
+        downloadButton.style.fontSize = '14px';
+        
+        // Add event listener to handle download when clicked
+        downloadButton.addEventListener('click', () => {
+          // Create a temporary anchor that won't be in the DOM
+          const tempLink = document.createElement('a');
+          tempLink.href = url;
+          tempLink.download = fileName;
+          // Trigger click programmatically
+          tempLink.click();
+        });
+        
+        // Create container for the button 
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '10px';
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.zIndex = '9999';
+        container.style.textAlign = 'center';
+        container.appendChild(downloadButton);
         
         // Add at the top of the document
-        if (document.body.firstChild) {
-          document.body.insertBefore(downloadLink, document.body.firstChild);
-        } else {
-          document.body.appendChild(downloadLink);
-        }
+        document.body.appendChild(container);
         
         // Remove after 30 seconds
         setTimeout(() => {
           try {
-            document.body.removeChild(downloadLink);
+            document.body.removeChild(container);
             window.URL.revokeObjectURL(url);
           } catch (cleanupError) {
             // Ignore cleanup errors
           }
         }, 30000);
         
-        logDownload('Created visible download link for mobile browsers');
+        logDownload('Created visible download button for mobile browsers');
         // Still return true even though user needs to click
         return true;
       } catch (error) {
@@ -271,41 +290,53 @@ export async function safeUrlDownload(url: string, fileName?: string): Promise<b
       logDownload('Fetch-based download failed, trying alternate methods', error);
     }
     
-    // Method 3: Create a link for the user (especially for mobile)
+    // Method 3: Create a button for the user (especially for mobile)
     if (mobile) {
       try {
-        // Create a visible link for better mobile browser compatibility
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.target = '_blank';
-        downloadLink.rel = 'noopener noreferrer';
-        downloadLink.textContent = `Click here to download ${fileName || 'file'}`;
-        downloadLink.style.display = 'block';
-        downloadLink.style.padding = '10px';
-        downloadLink.style.margin = '10px auto';
-        downloadLink.style.backgroundColor = '#f0f0f0';
-        downloadLink.style.border = '1px solid #ccc';
-        downloadLink.style.borderRadius = '4px';
-        downloadLink.style.textAlign = 'center';
-        downloadLink.style.color = '#333';
+        // Create a button instead of a link to avoid nesting issues
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = `Click here to download ${fileName || 'file'}`;
+        downloadButton.style.display = 'block';
+        downloadButton.style.padding = '10px';
+        downloadButton.style.margin = '10px auto';
+        downloadButton.style.backgroundColor = '#f0f0f0';
+        downloadButton.style.border = '1px solid #ccc';
+        downloadButton.style.borderRadius = '4px';
+        downloadButton.style.textAlign = 'center';
+        downloadButton.style.color = '#333';
+        downloadButton.style.cursor = 'pointer';
+        downloadButton.style.width = '80%';
+        downloadButton.style.maxWidth = '400px';
+        downloadButton.style.fontSize = '14px';
+        
+        // Add click handler
+        downloadButton.addEventListener('click', () => {
+          window.open(url, '_blank');
+        });
+        
+        // Create container
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '10px';
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.zIndex = '9999';
+        container.style.textAlign = 'center';
+        container.appendChild(downloadButton);
         
         // Add at the top of the document
-        if (document.body.firstChild) {
-          document.body.insertBefore(downloadLink, document.body.firstChild);
-        } else {
-          document.body.appendChild(downloadLink);
-        }
+        document.body.appendChild(container);
         
         // Remove after 30 seconds
         setTimeout(() => {
           try {
-            document.body.removeChild(downloadLink);
+            document.body.removeChild(container);
           } catch (cleanupError) {
             // Ignore cleanup errors
           }
         }, 30000);
         
-        logDownload('Created visible download link for mobile browsers');
+        logDownload('Created visible download button for mobile browsers');
         return true;
       } catch (error) {
         logDownload('Mobile fallback method failed', error);

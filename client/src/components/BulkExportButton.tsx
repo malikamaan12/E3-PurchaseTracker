@@ -83,34 +83,45 @@ export function BulkExportButton({
         description: `Preparing ${requests.length} requests for export as ${selectedFormat.toUpperCase()}...`,
       });
       
-      let result = false;
+      let exportedFileName: string;
       
       // Use the appropriate export function based on format
-      switch (selectedFormat) {
-        case "excel":
-          await exportUtils.exportMultipleRequestsToExcel(requests);
-          break;
-        case "csv":
-          await exportUtils.exportMultipleRequestsToCSV(requests);
-          break;
-        case "pdf":
-          await exportUtils.exportMultipleRequestsToPDF(requests);
-          break;
-        case "zip":
-          await exportUtils.exportMultipleRequestsAsZip(requests, includeAttachments);
-          break;
-        default:
-          throw new Error(`Unsupported export format: ${selectedFormat}`);
-      }
-      
-      // Export was successful if we reached this point
-      toast({
-        title: "Export Complete",
-        description: `Successfully exported ${requests.length} requests as ${selectedFormat.toUpperCase()}`,
-      });
+      try {
+        console.log(`Starting ${selectedFormat} export for ${requests.length} requests`);
+        
+        switch (selectedFormat) {
+          case "excel":
+            exportedFileName = await exportUtils.exportMultipleRequestsToExcel(requests);
+            break;
+          case "csv":
+            exportedFileName = await exportUtils.exportMultipleRequestsToCSV(requests);
+            break;
+          case "pdf":
+            exportedFileName = await exportUtils.exportMultipleRequestsToPDF(requests);
+            break;
+          case "zip":
+            exportedFileName = await exportUtils.exportMultipleRequestsAsZip(requests, includeAttachments);
+            break;
+          default:
+            throw new Error(`Unsupported export format: ${selectedFormat}`);
+        }
+        
+        // If we get here, the export functions successfully triggered a download
+        console.log(`Export completed successfully as: ${exportedFileName}`);
+        
+        // Export was successful if we reached this point
+        toast({
+          title: "Export Complete",
+          description: `Successfully exported ${requests.length} requests as ${selectedFormat.toUpperCase()}`,
+        });
 
-      if (onExportComplete) {
-        onExportComplete(fileName);
+        if (onExportComplete) {
+          // Use the actual filename returned by the export function
+          onExportComplete(exportedFileName || fileName);
+        }
+      } catch (exportError) {
+        console.error(`Error during ${selectedFormat} export:`, exportError);
+        throw exportError; // Rethrow to be caught by the outer try/catch
       }
     } catch (error) {
       console.error("Export error:", error);
