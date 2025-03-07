@@ -283,7 +283,7 @@ export class NotificationService {
       or(
         sql`${notifications.expiresAt} IS NULL`,
         sql`${notifications.expiresAt} >= ${now}`
-      )
+      ) as SQL<unknown>
     );
 
     // Execute the query with all conditions
@@ -375,7 +375,7 @@ export class NotificationService {
           or(
             sql`${notifications.expiresAt} IS NULL`,
             sql`${notifications.expiresAt} >= ${now}`
-          )
+          ) as SQL<unknown>
         )
       );
 
