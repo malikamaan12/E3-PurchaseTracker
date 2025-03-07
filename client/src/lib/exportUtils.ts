@@ -622,14 +622,15 @@ export async function exportRequestToCSV(
       }
     };
     
-    // Properly escape CSV values to prevent issues with special characters
+    // Enhanced function to properly escape CSV values and handle all special characters
     const escapeCsvValue = (value: any): string => {
+      // First, safely convert to string (handles null, undefined, etc.)
       const stringVal = safeString(value);
-      // If value contains commas, quotes, or newlines, wrap it in quotes and escape internal quotes
-      if (/[",\n\r]/.test(stringVal)) {
-        return `"${stringVal.replace(/"/g, '""')}"`;
-      }
-      return stringVal;
+      
+      // Always wrap strings in quotes to ensure consistent handling
+      // This helps with international characters, commas, quotes, etc.
+      // Double any quotes that may exist inside the string
+      return `"${stringVal.replace(/"/g, '""')}"`;
     };
     
     // Create clean CSV rows from an array of objects
@@ -886,7 +887,25 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
       'Vendor': req.vendor?.companyName || req.vendor?.name || 'N/A'
     }));
     
+    // Create the summary sheet
     const wsSummary = XLSX.utils.json_to_sheet(summary);
+    
+    // Add column width specifications
+    const summaryColWidths = [
+      { wch: 10 },  // Request #
+      { wch: 20 },  // Request Number
+      { wch: 40 },  // Title
+      { wch: 12 },  // Status
+      { wch: 12 },  // Priority
+      { wch: 20 },  // Created Date
+      { wch: 20 },  // Requester
+      { wch: 20 },  // Department
+      { wch: 12 },  // Total Cost
+      { wch: 30 }   // Vendor
+    ];
+    wsSummary['!cols'] = summaryColWidths;
+    
+    // Add the sheet to the workbook
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
     
     // Add individual request sheets for the first 10 requests 
@@ -956,7 +975,49 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
           });
         }
         
+        // Add detailed request data as a worksheet
         const wsRequest = XLSX.utils.aoa_to_sheet(requestData);
+        
+        // Set column widths for better readability
+        const requestColWidths = [
+          { wch: 25 },  // Property names
+          { wch: 50 }   // Values
+        ];
+        wsRequest['!cols'] = requestColWidths;
+        
+        // Apply some basic styling
+        // Get the range of cells (e.g., A1:B13)
+        const range = XLSX.utils.decode_range(wsRequest['!ref'] || 'A1:B13');
+        
+        // Merge header cells to create a better layout
+        wsRequest['!merges'] = [];
+        
+        // Add section titles as merged cells
+        if (Array.isArray(request.items) && request.items.length > 0) {
+          // Find the items section row
+          const itemsStartIndex = requestData.findIndex(row => row[0] === 'Items:');
+          if (itemsStartIndex > 0) {
+            // Merge the "Items:" cell across all columns
+            wsRequest['!merges'].push({ 
+              s: { r: itemsStartIndex, c: 0 }, 
+              e: { r: itemsStartIndex, c: 5 } 
+            });
+          }
+        }
+        
+        if (Array.isArray(request.approvals) && request.approvals.length > 0) {
+          // Find the approvals section row
+          const approvalsStartIndex = requestData.findIndex(row => row[0] === 'Approvals:');
+          if (approvalsStartIndex > 0) {
+            // Merge the "Approvals:" cell across all columns
+            wsRequest['!merges'].push({ 
+              s: { r: approvalsStartIndex, c: 0 }, 
+              e: { r: approvalsStartIndex, c: 4 } 
+            });
+          }
+        }
+        
+        // Add the sheet to the workbook with a clean name
         XLSX.utils.book_append_sheet(wb, wsRequest, `REQ-${i+1}`);
       } catch (requestError) {
         logExport('bulkExcel', `Error processing request ${i+1}:`, requestError);
