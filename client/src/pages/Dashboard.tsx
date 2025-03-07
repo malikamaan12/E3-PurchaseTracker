@@ -599,8 +599,8 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <Card className="mb-6 border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row justify-between gap-4">
-              <div className="relative flex-1 mb-3 sm:mb-0">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative w-full sm:flex-1 mb-3 sm:mb-0">
                 <Input
                   placeholder="Search requests..."
                   value={activeFilters.searchQuery}
@@ -612,16 +612,16 @@ export default function Dashboard() {
                 />
                 <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
               </div>
-              <div className="flex flex-wrap items-center gap-2 justify-end">
-                {isAdmin && (
-                  <Link href="/export">
-                    <Button variant="outline" className="bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+              {isAdmin && (
+                <div className="w-full sm:w-auto flex justify-center">
+                  <Link href="/export" className="w-full sm:w-auto">
+                    <Button variant="outline" className="w-full sm:w-auto bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
                       <FileText className="h-4 w-4 mr-2" />
                       Bulk Export
                     </Button>
                   </Link>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
