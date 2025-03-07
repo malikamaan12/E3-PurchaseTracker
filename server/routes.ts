@@ -11,6 +11,7 @@ import { conversionService } from "./services/ConversionService";
 import { logAuditEvent } from "./utils/audit-logger";
 import { canUserApprove } from "./utils/auth";
 import multer from "multer";
+import JSZip from "jszip";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -3075,8 +3076,7 @@ export function registerRoutes(app: Express): Server {
         // Handle format-specific exports
         if (format === 'zip') {
           try {
-            // Create a ZIP file with all requests
-            const JSZip = require('jszip');
+            // Create a ZIP file with all requests using the JSZip module imported at the top
             const zip = new JSZip();
             const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
             const mainFolder = zip.folder(`purchase_requests_export_${timestamp}`);

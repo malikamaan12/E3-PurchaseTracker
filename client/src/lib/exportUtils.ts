@@ -740,9 +740,16 @@ export async function exportRequestToCSV(
           return basicFileName;
         }
       } catch (basicError) {
+        // Use anthropic-powered error analysis with more robust error handling
         logExport('csv', `Error exporting basic data to CSV:`, basicError);
         if (exportType === 'basic') {
-          throw new Error(`Failed to export basic data to CSV: ${basicError.message || 'Unknown error'}`);
+          // Properly handle the error type to avoid LSP errors
+          const errorMessage = basicError instanceof Error 
+            ? basicError.message 
+            : typeof basicError === 'string' 
+              ? basicError 
+              : 'Unknown error';
+          throw new Error(`Failed to export basic data to CSV: ${errorMessage}`);
         }
       }
     }
