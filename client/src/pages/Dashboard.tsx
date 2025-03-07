@@ -730,12 +730,6 @@ export default function Dashboard() {
                         {requestCounts.changes}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="export" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
-                      <span className="flex items-center">
-                        <Download className="h-4 w-4 mr-2" />
-                        <span>Export</span>
-                      </span>
-                    </TabsTrigger>
                   </>
                 )}
                 {!isAdmin && !isSpecialRole && showApprovalsTab && (
@@ -803,17 +797,7 @@ export default function Dashboard() {
                     </div>
                   )}
                   
-                  {(isAdmin || isSpecialRole) && (
-                    <div 
-                      onClick={() => setActiveTab("export")}
-                      className={`flex flex-col items-center ${activeTab === "export" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
-                    >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "export" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
-                        <ArrowDownToLine className="h-6 w-6" />
-                      </div>
-                      <div className="text-xs font-medium">Export</div>
-                    </div>
-                  )}
+
                   
                   {!isAdmin && !isSpecialRole && showApprovalsTab && (
                     <div 
@@ -914,138 +898,6 @@ export default function Dashboard() {
                 </TabsContent>
                 <TabsContent value="changes">
                   {renderRequestsTable(categorizedRequests.changes)}
-                </TabsContent>
-                <TabsContent value="export">
-                  <div className="space-y-6">
-                    <div className="flex flex-col space-y-4">
-                      <h3 className="text-xl font-semibold text-[#7156a2]">Export Data</h3>
-                      <p className="text-muted-foreground">Choose an export format and filter options to generate reports from your purchase request data.</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="border-[#35bbba]/20">
-                        <CardContent className="pt-6">
-                          <h4 className="text-lg font-medium mb-4">Export All Requests</h4>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              Export all visible purchase requests based on your current filters and permissions.
-                            </p>
-                            <div className="flex flex-col space-y-2">
-                              <div className="flex items-center gap-4">
-                                <Button 
-                                  variant="outline" 
-                                  className="flex items-center gap-2" 
-                                  onClick={() => handleExport("xlsx")}
-                                >
-                                  <FileSpreadsheet className="h-4 w-4" />
-                                  Excel Format
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  className="flex items-center gap-2" 
-                                  onClick={() => handleExport("csv")}
-                                >
-                                  <TableIcon className="h-4 w-4" />
-                                  CSV Format
-                                </Button>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {categorizedRequests.allRequests.length} requests will be included in this export
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="border-[#35bbba]/20">
-                        <CardContent className="pt-6">
-                          <h4 className="text-lg font-medium mb-4">Bulk Export Options</h4>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              Export multiple requests at once with advanced options.
-                            </p>
-                            
-                            <div className="flex flex-col space-y-4">
-                              <BulkExportButton 
-                                filters={activeFilters}
-                                variant="outline" 
-                                size="default"
-                              />
-                              
-                              {isAdmin && (
-                                <div className="flex flex-col space-y-2">
-                                  <p className="text-sm font-medium">Admin Export Tools</p>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="flex items-center gap-2"
-                                      onClick={() => setLocation('/export-dashboard')}
-                                    >
-                                      <Settings className="h-4 w-4" />
-                                      Advanced Export Dashboard
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="border-[#35bbba]/20 md:col-span-2">
-                        <CardContent className="pt-6">
-                          <h4 className="text-lg font-medium mb-4">Export Dashboard</h4>
-                          <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              Export dashboard data and statistics as reports.
-                            </p>
-                            <div className="flex items-center gap-4">
-                              <Button
-                                variant="outline"
-                                className="flex items-center gap-2"
-                                onClick={() => {
-                                  // Simple dashboard stats export
-                                  const dashboardStats = {
-                                    total: requestCounts.allRequests,
-                                    pending: requestCounts.pending,
-                                    approved: requestCounts.approved,
-                                    rejected: requestCounts.rejected,
-                                    changes: requestCounts.changes,
-                                    timestamp: new Date().toISOString()
-                                  };
-                                  
-                                  // Convert to CSV
-                                  const headers = Object.keys(dashboardStats).join(',');
-                                  const values = Object.values(dashboardStats).join(',');
-                                  const csv = `${headers}\n${values}`;
-                                  
-                                  // Download
-                                  const blob = new Blob([csv], { type: 'text/csv' });
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `purchase_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  window.URL.revokeObjectURL(url);
-                                  document.body.removeChild(a);
-                                  
-                                  toast({
-                                    title: "Dashboard Exported",
-                                    description: "Dashboard statistics have been exported successfully"
-                                  });
-                                }}
-                              >
-                                <Download className="h-4 w-4" />
-                                Export Dashboard Stats
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
                 </TabsContent>
               </>
             )}
