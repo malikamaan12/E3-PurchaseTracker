@@ -4507,39 +4507,33 @@ export function registerRoutes(app: Express): Server {
             throw new Error('No data available to export');
           }
           
-          // Generate CSV properly using a more robust approach
-          const fields = Object.keys(formattedRequests[0]);
+          // Use a proper CSV library for more reliable formatting
+          const { Parser } = require('@json2csv/plainjs');
           
-          // Create CSV with proper escaping for special characters
-          const csvRows = [];
+          // Configure CSV parser options with correct field delimiter, quote character, etc.
+          const opts = {
+            fields: Object.keys(formattedRequests[0]), // Auto-detect fields from the first object
+            delimiter: ',',
+            quote: '"',
+            escapedQuote: '""',
+            header: true,
+            eol: '\n'
+          };
           
-          // Add header row
-          csvRows.push(fields.map(field => {
-            // Ensure field name is properly escaped
-            return `"${String(field).replace(/"/g, '""')}"`;
-          }).join(','));
+          // Generate CSV
+          const parser = new Parser(opts);
+          const csv = parser.parse(formattedRequests);
           
-          // Add data rows with proper escaping
-          for (const row of formattedRequests) {
-            const values = fields.map(field => {
-              const value = row[field as keyof typeof row];
-              // Handle different data types and escape special characters
-              if (value === null || value === undefined) return '""';
-              if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
-              if (typeof value === 'number') return String(value); // Convert numbers to strings to avoid any issues
-              return `"${String(value).replace(/"/g, '""')}"`;
-            });
-            csvRows.push(values.join(','));
-          }
-          
-          const csv = csvRows.join('\n');
+          // Add BOM for Excel compatibility with UTF-8 CSVs
+          const csvWithBom = '\ufeff' + csv;
           
           // Log the size of the CSV for debugging
-          console.log(`[GET /api/requests/export] Generated CSV with ${formattedRequests.length} records, size: ${csv.length} bytes`);
+          console.log(`[GET /api/requests/export] Generated CSV with ${formattedRequests.length} records, size: ${csvWithBom.length} bytes`);
           
-          res.setHeader('Content-Type', 'text/csv');
+          // Set proper headers for CSV download
+          res.setHeader('Content-Type', 'text/csv; charset=utf-8');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-          return res.send(csv);
+          return res.send(csvWithBom);
         } catch (csvError) {
           console.error('Error generating CSV:', csvError);
           throw new AppError(`Failed to generate CSV: ${csvError.message}`, 500);
@@ -4552,19 +4546,64 @@ export function registerRoutes(app: Express): Server {
             throw new Error('No data available to export');
           }
           
-          // Generate Excel
+          // Generate Excel with enhanced options and formatting
           const worksheet = XLSX.utils.json_to_sheet(formattedRequests);
+          
+          // Set column widths for better readability
+          const colWidths = [];
+          for (const field of Object.keys(formattedRequests[0])) {
+            // Estimate appropriate column width based on field name and sample data
+            const fieldWidth = Math.max(
+              field.length,
+              Math.min(50, String(formattedRequests[0][field as keyof typeof formattedRequests[0]] || '').length)
+            );
+            colWidths.push({ wch: fieldWidth });
+          }
+          worksheet['!cols'] = colWidths;
+          
+          // Style the header row
+          const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+          for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+            if (!worksheet[cellRef]) continue;
+            
+            // Add cell styling for the header row
+            worksheet[cellRef].s = {
+              font: { bold: true, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "4A72B0" } },
+              alignment: { horizontal: "center" }
+            };
+          }
+          
+          // Create the workbook and add the worksheet
           const workbook = XLSX.utils.book_new();
           XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+          
+          // Add metadata to the workbook
+          workbook.Props = {
+            Title: "Purchase Requests Export",
+            Subject: "Purchase Requests Data",
+            Author: "Enterprise Vendor Management System",
+            CreatedDate: new Date()
+          };
 
-          // Generate buffer
-          const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          // Generate buffer with specified options for Excel compatibility
+          const excelBuffer = XLSX.write(workbook, { 
+            type: 'buffer', 
+            bookType: 'xlsx',
+            compression: true, // Use compression for smaller file size
+            bookSST: true, // Generate shared string table for better performance
+            Props: workbook.Props
+          });
           
           // Log the size of the Excel file for debugging
           console.log(`[GET /api/requests/export] Generated Excel with ${formattedRequests.length} records, size: ${excelBuffer.length} bytes`);
 
+          // Set correct headers for Excel download
           res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+          
+          // Return the Excel file
           return res.send(Buffer.from(excelBuffer));
         } catch (excelError) {
           console.error('Error generating Excel:', excelError);

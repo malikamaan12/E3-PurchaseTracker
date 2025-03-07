@@ -176,6 +176,11 @@ export function BulkExportButton({
         variant: "default",
       });
       
+      // Validate format
+      if (!['xlsx', 'csv', 'zip'].includes(format)) {
+        throw new Error(`Invalid export format: ${format}`);
+      }
+      
       // Construct the URL with format parameter
       const baseEndpoint = processExportFilters();
       const exportEndpoint = `${baseEndpoint}${baseEndpoint.includes('?') ? '&' : '?'}format=${format}`;
@@ -214,12 +219,37 @@ export function BulkExportButton({
       // Get the blob data
       const blob = await response.blob();
       
-      // Create filename based on format
+      // Create filename based on format with correct extension
       const timestamp = new Date().toISOString().split('T')[0];
-      const fileName = `bulk_purchase_requests_${timestamp}.${format}`;
       
-      // Directly initiate download
-      const url = window.URL.createObjectURL(blob);
+      // Ensure correct file extension based on format
+      let fileExtension = format;
+      if (format === 'xlsx') {
+        // Excel files should use xlsx extension
+        fileExtension = 'xlsx'; 
+      } else if (format === 'csv') {
+        // CSV files should use csv extension
+        fileExtension = 'csv';
+      } else if (format === 'zip') {
+        // ZIP files should use zip extension
+        fileExtension = 'zip';
+      }
+      
+      const fileName = `bulk_purchase_requests_${timestamp}.${fileExtension}`;
+      
+      // Set correct MIME type based on format
+      let mimeType = 'application/octet-stream';
+      if (format === 'xlsx') {
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else if (format === 'csv') {
+        mimeType = 'text/csv';
+      } else if (format === 'zip') {
+        mimeType = 'application/zip';
+      }
+      
+      // Directly initiate download with correct MIME type
+      const blobWithType = new Blob([blob], { type: mimeType });
+      const url = window.URL.createObjectURL(blobWithType);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
