@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Loader2, Download, FileSpreadsheet, FileText, Archive } from "lucide-react";
+import { Loader2, Download, FileSpreadsheet, FileText, Package } from "lucide-react";
 import { exportMultipleRequestsToExcel, exportMultipleRequestsToCSV, exportMultipleRequestsAsZip, logExport } from '@/lib/exportUtils';
 
 interface BulkExportButtonProps {
@@ -106,7 +106,7 @@ export function BulkExportButton({
             disabled={buttonDisabled}
             className="flex items-center gap-2"
           >
-            <FileCopy className="h-4 w-4" />
+            <FileText className="h-4 w-4" />
             <span>Export to CSV</span>
           </DropdownMenuItem>
           
@@ -115,7 +115,7 @@ export function BulkExportButton({
             disabled={buttonDisabled}
             className="flex items-center gap-2"
           >
-            <FileArchive className="h-4 w-4" />
+            <Package className="h-4 w-4" />
             <span>Export as ZIP (all formats)</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -132,7 +132,7 @@ export function BulkExportButton({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Close</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleExport(exportFormat!)}>
+            <AlertDialogAction onClick={() => exportFormat ? handleExport(exportFormat) : null}>
               Try Again
             </AlertDialogAction>
           </AlertDialogFooter>
