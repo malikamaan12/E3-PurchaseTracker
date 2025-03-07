@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { 
   Bell, 
   Check, 
@@ -43,7 +43,7 @@ export function EnhancedNotificationsDropdown({
   onNotificationClick 
 }: EnhancedNotificationsDropdownProps) {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+  const [_, setLocation] = useLocation();
   const { toast } = useToast();
   
   const { 
@@ -113,7 +113,7 @@ export function EnhancedNotificationsDropdown({
     if (onNotificationClick) {
       onNotificationClick(notification);
     } else if (notification.link) {
-      navigate(notification.link);
+      setLocation(notification.link);
     }
   };
 
@@ -311,7 +311,7 @@ export function EnhancedNotificationsDropdown({
           onSelect={(e) => {
             e.preventDefault();
             setOpen(false);
-            navigate('/notifications');
+            setLocation('/notifications');
           }}
           className="justify-center text-center text-sm font-medium"
         >
