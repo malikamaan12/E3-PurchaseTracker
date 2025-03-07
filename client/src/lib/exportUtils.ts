@@ -37,81 +37,131 @@ export async function safeDownload(blob: Blob, fileName: string): Promise<boolea
  * Calculate the total cost of a purchase request
  */
 function calculateTotalCost(request: any): number {
-  if (!request?.items || !Array.isArray(request.items)) return 0;
-  
-  return request.items.reduce((sum: number, item: { quantity: number; estimatedCost: number }) => {
-    return sum + (item.quantity * item.estimatedCost || 0);
-  }, 0) + (request.freightAmount || 0);
+  try {
+    if (!request?.items || !Array.isArray(request.items)) return 0;
+    
+    // Calculate the sum of all items
+    const itemsTotal = request.items.reduce((sum: number, item: any) => {
+      const quantity = Number(item.quantity) || 0;
+      const cost = Number(item.estimatedCost) || 0;
+      const itemCost = quantity * cost;
+      return sum + itemCost;
+    }, 0);
+    
+    // Add any freight amount
+    const freightAmount = Number(request.freightAmount) || 0;
+    
+    return itemsTotal + freightAmount;
+  } catch (error) {
+    console.error('Error calculating total cost:', error);
+    return 0;
+  }
 }
 
 /**
  * Format a purchase request for export with comprehensive field coverage
  */
 function formatRequestForExport(request: any) {
-  if (!request) return {};
-  
-  const totalCost = calculateTotalCost(request);
-  
-  return {
-    'Request ID': request.id,
-    'Request Number': request.requestNumber || `PR-${request.id}`,
-    'Title': request.title,
-    'Description': request.description,
-    'Status': request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : '',
-    'Priority': request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : '',
-    'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
-    'Updated Date': request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : '',
-    'Requester': request.requester?.username || '',
-    'Department': request.requester?.department || '',
-    'Vendor': request.vendor?.companyName || request.vendor?.name || '',
-    'Purpose Type': request.purposeType || '',
-    'Sub Purpose': request.subPurpose?.name || '',
-    'Total Cost': totalCost.toFixed(2),
-    'Currency': request.currency || 'USD',
-    'Items Count': request.items?.length || 0,
-    'Freight Amount': request.freightAmount ? request.freightAmount.toFixed(2) : '0.00',
-    'Approval Status': getApprovalSummary(request),
-    'Has Attachments': request.attachments && request.attachments.length > 0 ? 'Yes' : 'No',
-    'Attachment Count': request.attachments?.length || 0
-  };
+  try {
+    if (!request) return {};
+    
+    // Calculate totals
+    const totalCost = calculateTotalCost(request);
+    
+    // Format dates safely
+    const formatDate = (dateString: string | null | undefined): string => {
+      if (!dateString) return '';
+      try {
+        return new Date(dateString).toLocaleDateString();
+      } catch (e) {
+        console.warn(`Failed to format date: ${dateString}`, e);
+        return '';
+      }
+    };
+    
+    // Log request format for debugging
+    console.log(`Formatting request #${request.id} for export`);
+    
+    return {
+      'Request ID': request.id || '',
+      'Request Number': request.requestNumber || `PR-${request.id || ''}`,
+      'Title': request.title || '',
+      'Description': request.description || '',
+      'Status': request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : '',
+      'Priority': request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : '',
+      'Created Date': formatDate(request.createdAt),
+      'Updated Date': formatDate(request.updatedAt),
+      'Requester': request.requester?.username || '',
+      'Department': request.requester?.department || '',
+      'Vendor': request.vendor?.companyName || request.vendor?.name || '',
+      'Purpose Type': request.purposeType || '',
+      'Sub Purpose': request.subPurpose?.name || '',
+      'Total Cost': totalCost.toFixed(2),
+      'Currency': request.currency || 'USD',
+      'Items Count': request.items?.length || 0,
+      'Freight Amount': Number(request.freightAmount || 0).toFixed(2),
+      'Approval Status': getApprovalSummary(request),
+      'Has Attachments': request.attachments && request.attachments.length > 0 ? 'Yes' : 'No',
+      'Attachment Count': request.attachments?.length || 0
+    };
+  } catch (error) {
+    console.error(`Error formatting request ${request?.id} for export:`, error);
+    
+    // Return a minimal fallback object if formatting fails
+    return {
+      'Request ID': request?.id || 'Unknown',
+      'Error': 'Failed to format request data',
+      'Raw Data Available': 'Yes'
+    };
+  }
 }
 
 /**
  * Get a summary of approval status
  */
 function getApprovalSummary(request: any): string {
-  if (!request.approvals || request.approvals.length === 0) {
-    return 'No approvals';
-  }
-  
-  // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
-  // Create a map to hold the latest approval for each department
-  const departmentApprovals = new Map();
-  
-  // Sort approvals by processed date (newest first)
-  const sortedApprovals = [...request.approvals].sort((a, b) => {
-    const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
-    const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
-    return dateB - dateA; // Descending order (newest first)
-  });
-  
-  // Keep only the latest approval for each department
-  sortedApprovals.forEach(approval => {
-    if (!departmentApprovals.has(approval.department)) {
-      departmentApprovals.set(approval.department, approval);
+  try {
+    if (!request?.approvals || !Array.isArray(request.approvals) || request.approvals.length === 0) {
+      return 'No approvals';
     }
-  });
-  
-  // Convert map back to array
-  const uniqueApprovals = Array.from(departmentApprovals.values());
-  
-  // Count approvals by status
-  const approved = uniqueApprovals.filter((a: any) => a.status === 'approved').length;
-  const rejected = uniqueApprovals.filter((a: any) => a.status === 'rejected').length;
-  const pending = uniqueApprovals.filter((a: any) => a.status === 'pending').length;
-  const total = uniqueApprovals.length;
-  
-  return `${approved}/${total} approved, ${rejected} rejected, ${pending} pending`;
+    
+    // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
+    // Create a map to hold the latest approval for each department
+    const departmentApprovals = new Map();
+    
+    // Make a safe copy of the approvals array
+    const approvalsToCopy = [...request.approvals];
+    
+    // Sort approvals by processed date (newest first)
+    const sortedApprovals = approvalsToCopy.sort((a, b) => {
+      const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+      const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+      return dateB - dateA; // Descending order (newest first)
+    });
+    
+    // Keep only the latest approval for each department
+    sortedApprovals.forEach(approval => {
+      if (approval.department && !departmentApprovals.has(approval.department)) {
+        departmentApprovals.set(approval.department, approval);
+      }
+    });
+    
+    // Convert map back to array
+    const uniqueApprovals = Array.from(departmentApprovals.values());
+    
+    // Count approvals by status
+    const approved = uniqueApprovals.filter((a: any) => a.status === 'approved').length;
+    const rejected = uniqueApprovals.filter((a: any) => a.status === 'rejected').length;
+    const pending = uniqueApprovals.filter((a: any) => 
+      !a.status || a.status === 'pending' || a.status === ''
+    ).length;
+    const total = uniqueApprovals.length;
+    
+    return `${approved}/${total} approved, ${rejected} rejected, ${pending} pending`;
+  } catch (error) {
+    console.error('Error generating approval summary:', error);
+    return 'Error in approval status';
+  }
 }
 
 /**
@@ -817,11 +867,16 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
     }
     
     // Generate the ZIP file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-requests-export-${timestamp}.zip`;
     const content = await zip.generateAsync({ type: 'blob' });
-    await safeDownload(content, 'purchase-requests-export.zip');
-    return 'success';
+    
+    const downloadResult = await safeDownload(content, fileName);
+    console.log(`ZIP export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
   } catch (error) {
     console.error('ZIP export error:', error);
-    throw new Error(`Failed to export requests as ZIP: ${error}`);
+    throw new Error(`Failed to export ZIP: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
