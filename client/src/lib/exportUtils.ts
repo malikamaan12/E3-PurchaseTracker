@@ -323,9 +323,86 @@ export async function exportRequestAsZip(
       throw new Error('Failed to create ZIP folder');
     }
     
-    // Add purchase request data as JSON
-    logExport('zip', 'Adding request data as JSON');
+    // Add purchase request data in multiple formats
+    logExport('zip', 'Adding request data in multiple formats (JSON, CSV, Excel)');
+    
+    // Add JSON format
     folder.file('request-data.json', formatRequestJSON(request));
+    
+    // Add CSV format with BOM for Excel compatibility
+    try {
+      logExport('zip', 'Adding CSV format');
+      const requestData = {
+        request_number: request.requestNumber || `REQ-${request.id || 'new'}`,
+        title: request.title || 'Untitled Request',
+        status: request.status || 'draft',
+        priority: request.priority || 'medium',
+        created_date: request.createdAt ? new Date(request.createdAt).toISOString() : '',
+        requester: request.requester?.username || 'Unknown',
+        department: request.requester?.department || 'N/A',
+        purpose_type: request.purposeType || 'N/A',
+        sub_purpose: request.subPurpose?.name || 'N/A',
+        description: request.description || '',
+        total_estimated_cost: calculateTotalCost(request),
+        currency: request.currency || 'USD',
+        vendor: request.vendor?.companyName || request.vendor?.name || 'N/A'
+      };
+      
+      // Generate CSV with proper BOM
+      const parser = new Parser();
+      // Add BOM for Excel compatibility
+      const csvContent = '\ufeff' + parser.parse([requestData]);
+      folder.file('request-data.csv', csvContent);
+      
+      // Add items CSV if available
+      if (Array.isArray(request.items) && request.items.length > 0) {
+        const itemsParser = new Parser();
+        const itemsCsv = '\ufeff' + itemsParser.parse(request.items);
+        folder.file('request-items.csv', itemsCsv);
+      }
+    } catch (csvError) {
+      logExport('zip', 'Error creating CSV data:', csvError);
+    }
+    
+    // Add Excel format
+    try {
+      logExport('zip', 'Adding Excel format');
+      const wb = XLSX.utils.book_new();
+      
+      // Create basic data sheet
+      const basicData = [
+        ['Field', 'Value'],
+        ['Request Number', request.requestNumber || `REQ-${request.id || 'new'}`],
+        ['Title', request.title || 'Untitled Request'],
+        ['Status', request.status || 'draft'],
+        ['Priority', request.priority || 'medium'],
+        ['Created Date', request.createdAt ? new Date(request.createdAt).toISOString() : ''],
+        ['Description', request.description || ''],
+        ['Purpose Type', request.purposeType || 'N/A'],
+        ['Total Cost', calculateTotalCost(request)],
+        ['Currency', request.currency || 'USD']
+      ];
+      
+      const wsBasic = XLSX.utils.aoa_to_sheet(basicData);
+      XLSX.utils.book_append_sheet(wb, wsBasic, 'Request Info');
+      
+      // Add items sheet if available
+      if (Array.isArray(request.items) && request.items.length > 0) {
+        const wsItems = XLSX.utils.json_to_sheet(request.items);
+        XLSX.utils.book_append_sheet(wb, wsItems, 'Items');
+      }
+      
+      // Generate Excel file
+      const excelData = XLSX.write(wb, {
+        type: 'array',
+        bookType: 'xlsx',
+        compression: true
+      });
+      
+      folder.file('request-data.xlsx', excelData);
+    } catch (excelError) {
+      logExport('zip', 'Error creating Excel data:', excelError);
+    }
     
     // Add request PDF 
     logExport('zip', `Generating PDF for ${type} view`);
