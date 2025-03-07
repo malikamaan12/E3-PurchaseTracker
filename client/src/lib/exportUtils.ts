@@ -316,7 +316,28 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     const allApprovals: any[] = [];
     requests.forEach((request: any) => {
       if (request.approvals && request.approvals.length > 0) {
-        request.approvals.forEach((approval: any) => {
+        // Create a map to hold the latest approval for each department
+        const departmentApprovals = new Map();
+        
+        // Sort approvals by processed date (newest first)
+        const sortedApprovals = [...request.approvals].sort((a, b) => {
+          const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+          const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        // Keep only the latest approval for each department
+        sortedApprovals.forEach(approval => {
+          if (!departmentApprovals.has(approval.department)) {
+            departmentApprovals.set(approval.department, approval);
+          }
+        });
+        
+        // Convert map back to array
+        const uniqueApprovals = Array.from(departmentApprovals.values());
+        
+        // Add each unique approval to the export
+        uniqueApprovals.forEach((approval: any) => {
           allApprovals.push({
             'Request ID': request.id,
             'Request Number': request.requestNumber || `PR-${request.id}`,
@@ -451,9 +472,30 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
         doc.text('Approval Status:', 14, yPos);
         yPos += 8;
         
+        // Process approvals to ensure unique departments
+        // Create a map to hold the latest approval for each department
+        const departmentApprovals = new Map();
+        
+        // Sort approvals by processed date (newest first)
+        const sortedApprovals = [...request.approvals].sort((a, b) => {
+          const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+          const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        // Keep only the latest approval for each department
+        sortedApprovals.forEach(approval => {
+          if (!departmentApprovals.has(approval.department)) {
+            departmentApprovals.set(approval.department, approval);
+          }
+        });
+        
+        // Convert map back to array
+        const uniqueApprovals = Array.from(departmentApprovals.values());
+        
         // Approval table headers
         const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
-        const approvalBody = request.approvals.map((approval: any) => [
+        const approvalBody = uniqueApprovals.map((approval: any) => [
           approval.department || '',
           approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
           approval.approver?.username || '',
@@ -590,9 +632,30 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
           doc.text('Approval Status:', 14, yPos);
           yPos += 8;
           
+          // Process approvals to ensure unique departments
+          // Create a map to hold the latest approval for each department
+          const departmentApprovals = new Map();
+          
+          // Sort approvals by processed date (newest first)
+          const sortedApprovals = [...request.approvals].sort((a, b) => {
+            const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
+            const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
+            return dateB - dateA; // Descending order (newest first)
+          });
+          
+          // Keep only the latest approval for each department
+          sortedApprovals.forEach(approval => {
+            if (!departmentApprovals.has(approval.department)) {
+              departmentApprovals.set(approval.department, approval);
+            }
+          });
+          
+          // Convert map back to array
+          const uniqueApprovals = Array.from(departmentApprovals.values());
+          
           // Approval table headers
           const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
-          const approvalBody = request.approvals.map((approval: any) => [
+          const approvalBody = uniqueApprovals.map((approval: any) => [
             approval.department || '',
             approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
             approval.approver?.username || '',
