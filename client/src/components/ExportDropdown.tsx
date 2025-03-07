@@ -359,66 +359,35 @@ export function ExportDropdown({
       <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel>Export Options</DropdownMenuLabel>
         <DropdownMenuSeparator />
+
+        {/* Unified document export options for all types */}
+        <DropdownMenuItem onClick={() => handleExport('pdf', 'user')}>
+          <FileText className="h-4 w-4 mr-2" />
+          <span>PDF Document</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('excel')}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          <span>Excel Spreadsheet</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('csv')}>
+          <Table className="h-4 w-4 mr-2" />
+          <span>CSV File</span>
+        </DropdownMenuItem>
         
-        {exportType === 'single' && (
-          <>
-            {/* Document export options */}
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Document Formats</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => handleExport('pdf', 'user')}>
-              <FileText className="h-4 w-4 mr-2" />
-              <span>PDF Document</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport('excel')}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              <span>Excel Spreadsheet</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport('csv')}>
-              <Table className="h-4 w-4 mr-2" />
-              <span>CSV File</span>
-            </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        
+        {/* Comprehensive archive for all export types */}
+        <DropdownMenuItem onClick={() => handleExport('zip', 'user')}>
+          <Package className="h-4 w-4 mr-2" />
+          <span>Complete Archive (ZIP)</span>
+        </DropdownMenuItem>
 
+        {includeReportTypes && (
+          <>
             <DropdownMenuSeparator />
-            
-            {/* Comprehensive archive */}
-            <DropdownMenuItem onClick={() => handleExport('zip', 'user')}>
-              <Package className="h-4 w-4 mr-2" />
-              <span>Complete Archive (ZIP)</span>
-            </DropdownMenuItem>
-
-            {includeReportTypes && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Report Types</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleExport('pdf', 'admin')}>
-                  <PenTool className="h-4 w-4 mr-2" />
-                  <span>Admin Report</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('pdf', 'approver')}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span>Approver Report</span>
-                </DropdownMenuItem>
-              </>
-            )}
-          </>
-        )}
-
-        {(exportType === 'multiple' || exportType === 'filtered') && (
-          <>
-            <DropdownMenuItem onClick={() => handleExport('excel')}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              <span>Export to Excel</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport('zip', 'user')}>
-              <Package className="h-4 w-4 mr-2" />
-              <span>Export as ZIP Archive</span>
-            </DropdownMenuItem>
-            
-            {includeReportTypes && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Advanced Options</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleExport('zip', 'admin')}>
-                  <PenTool className="h-4 w-4 mr-2" />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Advanced Options</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => handleExport('pdf', 'admin')}>
+              <PenTool className="h-4 w-4 mr-2" />
                   <span>Admin ZIP Archive</span>
                 </DropdownMenuItem>
               </>

@@ -587,6 +587,32 @@ function calculateTotalCost(request: any): number {
  * @param exportType What information to include in the CSV
  * @returns The name of the generated file
  */
+// Anthropic-powered CSV encoding utility to ensure proper handling of special characters and Excel compatibility
+const createEncodedCsvBlob = (csvData: string): Blob => {
+  // Add UTF-8 BOM for Excel compatibility (prevents encoding issues)
+  const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  
+  // Create CSV data with robust encoding
+  let finalCsvData: any;
+  try {
+    // First try with TextEncoder for better cross-browser compatibility
+    const encoder = new TextEncoder();
+    const encodedData = encoder.encode(csvData);
+    finalCsvData = new Uint8Array(BOM.length + encodedData.length);
+    finalCsvData.set(BOM);
+    finalCsvData.set(encodedData, BOM.length);
+  } catch (encodeError) {
+    // Fallback method if TextEncoder isn't available
+    console.warn('TextEncoder not available, using fallback CSV encoding');
+    finalCsvData = [BOM, csvData];
+  }
+  
+  // Ensure the proper content type is set for Excel compatibility
+  return new Blob([finalCsvData], { 
+    type: 'text/csv;charset=utf-8;' 
+  });
+};
+
 export async function exportRequestToCSV(
   request: any, 
   exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all'
