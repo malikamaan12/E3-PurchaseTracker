@@ -1,15 +1,13 @@
 import { db } from "@db";
-import { 
-  notifications, 
-  notificationPreferences, 
+import {
+  notifications,
+  notificationPreferences,
   users,
-  purchaseRequests,
-  NOTIFICATION_TYPES,
   NOTIFICATION_CATEGORIES,
-  type NotificationEventType
+  NOTIFICATION_TYPES,
+  type InsertNotification
 } from "@db/schema";
-import { and, eq, desc, sql, or, isNull } from "drizzle-orm";
-import { AppError } from "../utils/errors";
+import { eq, and, lt, desc, gte, or, SQL } from "drizzle-orm";
 
 /**
  * Notification Priority Levels
@@ -32,36 +30,36 @@ export type NotificationActionType =
  * Define valid notification types and their route patterns
  */
 export const NOTIFICATION_ROUTES = {
-  // Request related
-  new_request: (id: number) => `/requests/${id}`,
-  request_approved: (id: number) => `/requests/${id}`,
-  request_rejected: (id: number) => `/requests/${id}`,
-  request_changes: (id: number) => `/requests/${id}`,
-  request_comment: (id: number) => `/requests/${id}`,
-  request_mention: (id: number) => `/requests/${id}`,
+  // Purchase request related notifications
+  purchase_request_submitted: '/requests/{id}',
+  purchase_request_approved: '/requests/{id}',
+  purchase_request_rejected: '/requests/{id}',
+  purchase_request_changes_requested: '/requests/{id}',
+  purchase_request_updated: '/requests/{id}',
+  purchase_request_canceled: '/requests/{id}',
+  purchase_request_completed: '/requests/{id}',
   
-  // Approval related
-  pending_approval: (id: number) => `/requests/${id}/approve`,
-  approval_required: (id: number) => `/requests/${id}/approve`,
-  approval_reminder: (id: number) => `/requests/${id}/approve`,
-
-  // System related  
-  system_maintenance: () => '/system-status',
-  system_update: () => '/system-status',
+  // Approval related notifications
+  approval_required: '/requests/{id}',
+  approval_reminder: '/requests/{id}',
+  approval_delegated: '/requests/{id}',
+  approval_overridden: '/requests/{id}',
   
-  // Account related
-  account_request: () => '/admin/account-requests',
-  account_status_change: () => '/profile',
+  // Vendor related notifications
+  vendor_created: '/vendors/{id}',
+  vendor_updated: '/vendors/{id}',
+  vendor_deactivated: '/vendors/{id}',
   
-  // Vendor related
-  vendor_status_change: (id: number) => `/vendors/${id}`,
+  // Account related notifications
+  account_created: '/user-profile',
+  account_updated: '/user-profile',
+  password_reset: '/auth/reset-password',
   
-  // Error related
-  error_analytics: () => '/admin/error-analytics',
-  
-  // Default
-  default: () => '/'
-} as const;
+  // System notifications
+  system_maintenance: '/notifications',
+  system_update: '/notifications',
+  system_error: '/error-dashboard'
+};
 
 /**
  * NotificationService class encapsulates all notification-related functionality
@@ -108,175 +106,146 @@ export class NotificationService {
     actionData?: Record<string, any>;
     expiresAt?: Date;
   }) {
-    try {
-      // Determine the correct link based on notification type
-      let link: string | null = null;
-      
-      // Cast type to check if it's a valid notification type with a defined route
-      const notificationType = type as keyof typeof NOTIFICATION_ROUTES;
-      
-      if (requestId && NOTIFICATION_ROUTES[notificationType] && typeof NOTIFICATION_ROUTES[notificationType] === 'function') {
-        // @ts-ignore - We've already checked that the function exists
-        link = NOTIFICATION_ROUTES[notificationType](requestId);
-      } else if (NOTIFICATION_ROUTES[notificationType] && typeof NOTIFICATION_ROUTES[notificationType] === 'function') {
-        // @ts-ignore - We've already checked that the function exists
-        link = NOTIFICATION_ROUTES[notificationType]();
-      } else {
-        link = NOTIFICATION_ROUTES.default();
-      }
+    // Generate link based on type
+    const link = this.generateLink(type, { requestId });
 
-      // Check if user has opted out of this notification type
-      const userPreference = await this.getUserNotificationPreference(userId, type);
-      if (userPreference && !userPreference.enabled) {
-        console.log(`User ${userId} has opted out of notification type ${type}`);
-        return null;
-      }
+    const notification: InsertNotification = {
+      userId,
+      title,
+      message,
+      type,
+      priority,
+      link,
+      requestId,
+      isRead: false,
+      isAcknowledged: false,
+      expiresAt,
+      actionType: actionType ?? null,
+      actionData: actionData ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-      // Insert the notification
-      const [notification] = await db
-        .insert(notifications)
-        .values({
-          userId,
-          requestId,
-          title,
-          message,
-          type,
-          priority,
-          link,
-          actionType,
-          actionData,
-          expiresAt,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
+    const [result] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
 
-      return notification;
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      throw new AppError('Failed to create notification', 500);
-    }
+    return result;
   }
 
   /**
    * Create an approval notification
    */
   public async createApprovalNotification({
-    requesterId,
     requestId,
-    approverName,
-    department,
-    status,
-    comments
+    requestTitle,
+    requesterName,
+    approverIds,
+    department
   }: {
-    requesterId: number;
     requestId: number;
-    approverName: string;
+    requestTitle: string;
+    requesterName: string;
+    approverIds: number[];
     department: string;
-    status: 'approved' | 'rejected' | 'changes_requested';
-    comments?: string;
   }) {
-    const statusMap = {
-      approved: {
-        type: 'request_approved',
-        title: 'Request Approved',
-        priority: 'high' as const,
-        message: `Your request has been approved by ${approverName} from ${department}`
-      },
-      rejected: {
-        type: 'request_rejected',
-        title: 'Request Rejected',
-        priority: 'high' as const,
-        message: `Your request has been rejected by ${approverName} from ${department}`
-      },
-      changes_requested: {
-        type: 'request_changes',
-        title: 'Changes Requested',
-        priority: 'high' as const,
-        message: `${approverName} from ${department} has requested changes to your request`
-      }
-    };
+    const results = [];
 
-    const notificationData = statusMap[status];
-    const finalMessage = comments 
-      ? `${notificationData.message}. Comments: ${comments}`
-      : notificationData.message;
+    for (const approverId of approverIds) {
+      const notification = await this.createNotification({
+        userId: approverId,
+        title: 'Approval Required',
+        message: `A purchase request "${requestTitle}" from ${requesterName} requires your approval.`,
+        type: 'approval_required',
+        requestId,
+        priority: 'high',
+        actionType: 'approve',
+        actionData: {
+          department,
+          requestId
+        },
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Expires in 7 days
+      });
 
-    return this.createNotification({
-      userId: requesterId,
-      title: notificationData.title,
-      message: finalMessage,
-      type: notificationData.type,
-      requestId,
-      priority: notificationData.priority,
-      actionType: status === 'changes_requested' ? 'update' : 'view'
-    });
+      results.push(notification);
+    }
+
+    return results;
   }
 
   /**
    * Create a pending approval notification for approvers
    */
   public async createPendingApprovalNotification({
-    approverId,
     requestId,
     requestTitle,
-    requestNumber,
-    requesterName
+    requesterName,
+    requesterDepartment,
+    approverIds
   }: {
-    approverId: number;
     requestId: number;
     requestTitle: string;
-    requestNumber: string;
     requesterName: string;
+    requesterDepartment: string;
+    approverIds: number[];
   }) {
-    return this.createNotification({
-      userId: approverId,
-      title: 'Approval Requested',
-      message: `Your approval is requested for ${requestTitle} (${requestNumber}) submitted by ${requesterName}`,
-      type: 'pending_approval',
-      requestId,
-      priority: 'high',
-      actionType: 'approve'
-    });
+    const results = [];
+
+    for (const approverId of approverIds) {
+      const notification = await this.createNotification({
+        userId: approverId,
+        title: 'Pending Approval',
+        message: `${requesterName} from ${requesterDepartment} submitted a new request "${requestTitle}" that requires your approval.`,
+        type: 'approval_required',
+        requestId,
+        priority: 'high',
+        actionType: 'review',
+        actionData: {
+          requestId
+        }
+      });
+
+      results.push(notification);
+    }
+
+    return results;
   }
 
   /**
    * Create a new submission notification for admins
    */
   public async createNewSubmissionNotification({
-    adminIds,
     requestId,
     requestTitle,
-    requestNumber,
     requesterName,
-    department
+    adminIds
   }: {
-    adminIds: number[];
     requestId: number;
     requestTitle: string;
-    requestNumber: string;
     requesterName: string;
-    department: string;
+    adminIds: number[];
   }) {
-    const notifications = [];
+    const results = [];
 
     for (const adminId of adminIds) {
       const notification = await this.createNotification({
         userId: adminId,
         title: 'New Purchase Request',
-        message: `A new purchase request ${requestTitle} (${requestNumber}) has been submitted by ${requesterName} from ${department}`,
-        type: 'new_request',
+        message: `${requesterName} has submitted a new purchase request: "${requestTitle}".`,
+        type: 'purchase_request_submitted',
         requestId,
         priority: 'normal',
-        actionType: 'review'
+        actionType: 'view',
+        actionData: {
+          requestId
+        }
       });
-      
-      if (notification) {
-        notifications.push(notification);
-      }
+
+      results.push(notification);
     }
 
-    return notifications;
+    return results;
   }
 
   /**
@@ -284,198 +253,148 @@ export class NotificationService {
    */
   public async getNotifications(userId: number, options?: {
     lastFetchTime?: Date;
-    limit?: number;
     includeRead?: boolean;
     type?: string;
     priority?: NotificationPriority;
   }) {
-    try {
-      const { 
-        lastFetchTime, 
-        limit = 50, 
-        includeRead = true,
-        type,
-        priority
-      } = options || {};
+    let query = db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId));
 
-      let whereClause = eq(notifications.userId, userId);
-
-      if (lastFetchTime) {
-        whereClause = and(
-          whereClause,
-          sql`${notifications.createdAt} > ${lastFetchTime}`
-        );
-      }
-
-      if (!includeRead) {
-        whereClause = and(
-          whereClause,
-          eq(notifications.isRead, false)
-        );
-      }
-
-      if (type) {
-        whereClause = and(
-          whereClause,
-          eq(notifications.type, type)
-        );
-      }
-
-      if (priority) {
-        whereClause = and(
-          whereClause,
-          eq(notifications.priority, priority)
-        );
-      }
-
-      const results = await db
-        .select()
-        .from(notifications)
-        .where(whereClause)
-        .orderBy(desc(notifications.createdAt))
-        .limit(limit);
-
-      return results;
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      throw new AppError('Failed to fetch notifications', 500);
+    // Apply filters
+    if (options?.lastFetchTime) {
+      query = query.where(gte(notifications.createdAt, options.lastFetchTime));
     }
+
+    if (options?.includeRead === false) {
+      query = query.where(eq(notifications.isRead, false));
+    }
+
+    if (options?.type) {
+      query = query.where(eq(notifications.type, options.type));
+    }
+
+    if (options?.priority) {
+      query = query.where(eq(notifications.priority, options.priority));
+    }
+
+    // Filter out expired notifications
+    const now = new Date();
+    query = query.where(
+      or(
+        eq(notifications.expiresAt, null),
+        gte(notifications.expiresAt, now)
+      )
+    );
+
+    // Sort by created date, newest first
+    query = query.orderBy(desc(notifications.createdAt));
+
+    return query;
   }
 
   /**
    * Mark a notification as read
    */
   public async markNotificationAsRead(notificationId: number, userId: number) {
-    try {
-      const [updatedNotification] = await db
-        .update(notifications)
-        .set({ 
-          isRead: true,
-          updatedAt: new Date()
-        })
-        .where(and(
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(
           eq(notifications.id, notificationId),
           eq(notifications.userId, userId)
-        ))
-        .returning();
+        )
+      )
+      .limit(1);
 
-      if (!updatedNotification) {
-        throw new AppError('Notification not found or access denied', 404);
-      }
-
-      return updatedNotification;
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to mark notification as read', 500);
+    if (!notification) {
+      throw new Error('Notification not found');
     }
+
+    const [updated] = await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        updatedAt: new Date()
+      })
+      .where(eq(notifications.id, notificationId))
+      .returning();
+
+    return updated;
   }
 
   /**
    * Mark a notification as acknowledged
    */
   public async acknowledgeNotification(notificationId: number, userId: number) {
-    try {
-      const [updatedNotification] = await db
-        .update(notifications)
-        .set({ 
-          isAcknowledged: true,
-          updatedAt: new Date()
-        })
-        .where(and(
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(
           eq(notifications.id, notificationId),
           eq(notifications.userId, userId)
-        ))
-        .returning();
+        )
+      )
+      .limit(1);
 
-      if (!updatedNotification) {
-        throw new AppError('Notification not found or access denied', 404);
-      }
-
-      return updatedNotification;
-    } catch (error) {
-      console.error('Error acknowledging notification:', error);
-
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to acknowledge notification', 500);
+    if (!notification) {
+      throw new Error('Notification not found');
     }
+
+    const [updated] = await db
+      .update(notifications)
+      .set({
+        isAcknowledged: true,
+        isRead: true, // Also mark as read when acknowledged
+        updatedAt: new Date()
+      })
+      .where(eq(notifications.id, notificationId))
+      .returning();
+
+    return updated;
   }
 
   /**
    * Get unread notification count for a user
    */
   public async getUnreadCount(userId: number) {
-    try {
-      const [result] = await db
-        .select({ 
-          count: sql<number>`count(*)` 
-        })
-        .from(notifications)
-        .where(and(
+    const now = new Date();
+    
+    const [result] = await db
+      .select({ count: sql`count(*)` })
+      .from(notifications)
+      .where(
+        and(
           eq(notifications.userId, userId),
-          eq(notifications.isRead, false)
-        ));
+          eq(notifications.isRead, false),
+          or(
+            eq(notifications.expiresAt, null),
+            gte(notifications.expiresAt, now)
+          )
+        )
+      );
 
-      return result?.count || 0;
-    } catch (error) {
-      console.error('Error getting unread count:', error);
-      throw new AppError('Failed to get unread notification count', 500);
-    }
+    return parseInt(result.count.toString());
   }
 
   /**
    * Get notification preferences for a user
    */
   public async getUserNotificationPreferences(userId: number) {
-    try {
-      const preferences = await db
-        .select()
-        .from(notificationPreferences)
-        .where(eq(notificationPreferences.userId, userId))
-        .orderBy(notificationPreferences.category, notificationPreferences.type);
+    const preferences = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId))
+      .orderBy(notificationPreferences.category, notificationPreferences.type);
 
-      // If no preferences exist, create defaults
-      if (preferences.length === 0) {
-        return this.createDefaultNotificationPreferences(userId);
-      }
-
-      return preferences;
-    } catch (error) {
-      console.error('Error fetching notification preferences:', error);
-      throw new AppError('Failed to fetch notification preferences', 500);
-    }
-  }
-
-  /**
-   * Get a specific notification preference for a user
-   */
-  private async getUserNotificationPreference(userId: number, type: string) {
-    try {
-      const [preference] = await db
-        .select()
-        .from(notificationPreferences)
-        .where(and(
-          eq(notificationPreferences.userId, userId),
-          eq(notificationPreferences.type, type)
-        ))
-        .limit(1);
-
-      return preference;
-    } catch (error) {
-      console.error('Error fetching notification preference:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Create default notification preferences for a user
-   */
-  private async createDefaultNotificationPreferences(userId: number) {
-    try {
+    // If no preferences exist, create defaults
+    if (preferences.length === 0) {
       const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
         Object.keys(NOTIFICATION_TYPES)
-          .filter(type => type.toLowerCase().startsWith(category.toLowerCase()))
+          .filter(type => type.startsWith(category.toLowerCase()))
           .map(type => ({
             userId,
             category,
@@ -483,6 +402,8 @@ export class NotificationService {
             enabled: true,
             inAppEnabled: true,
             emailEnabled: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
           }))
       );
 
@@ -492,10 +413,54 @@ export class NotificationService {
         .returning();
 
       return insertedPreferences;
-    } catch (error) {
-      console.error('Error creating default notification preferences:', error);
-      throw new AppError('Failed to create default notification preferences', 500);
     }
+
+    return preferences;
+  }
+
+  /**
+   * Get a specific notification preference for a user
+   */
+  private async getUserNotificationPreference(userId: number, type: string) {
+    const [preference] = await db
+      .select()
+      .from(notificationPreferences)
+      .where(
+        and(
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.type, type)
+        )
+      )
+      .limit(1);
+
+    return preference;
+  }
+
+  /**
+   * Create default notification preferences for a user
+   */
+  private async createDefaultNotificationPreferences(userId: number) {
+    const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
+      Object.keys(NOTIFICATION_TYPES)
+        .filter(type => type.startsWith(category.toLowerCase()))
+        .map(type => ({
+          userId,
+          category,
+          type,
+          enabled: true,
+          inAppEnabled: true,
+          emailEnabled: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }))
+    );
+
+    const insertedPreferences = await db
+      .insert(notificationPreferences)
+      .values(defaultPreferences)
+      .returning();
+
+    return insertedPreferences;
   }
 
   /**
@@ -506,68 +471,87 @@ export class NotificationService {
     inAppEnabled?: boolean;
     emailEnabled?: boolean;
   }) {
-    try {
-      // Verify the preference belongs to the user
-      const [existing] = await db
-        .select()
-        .from(notificationPreferences)
-        .where(and(
+    // Verify preference belongs to user
+    const [existing] = await db
+      .select()
+      .from(notificationPreferences)
+      .where(
+        and(
           eq(notificationPreferences.id, preferenceId),
           eq(notificationPreferences.userId, userId)
-        ))
-        .limit(1);
+        )
+      )
+      .limit(1);
 
-      if (!existing) {
-        throw new AppError('Notification preference not found', 404);
-      }
-
-      const [updated] = await db
-        .update(notificationPreferences)
-        .set({
-          ...data,
-          updatedAt: new Date()
-        })
-        .where(eq(notificationPreferences.id, preferenceId))
-        .returning();
-
-      return updated;
-    } catch (error) {
-      console.error('Error updating notification preference:', error);
-      
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to update notification preference', 500);
+    if (!existing) {
+      throw new Error('Notification preference not found');
     }
+
+    const [updated] = await db
+      .update(notificationPreferences)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(notificationPreferences.id, preferenceId))
+      .returning();
+
+    return updated;
   }
 
   /**
    * Cleanup old notifications to prevent database bloat
    */
   public async cleanupOldNotifications(days: number = 30) {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
 
-      await db
-        .delete(notifications)
-        .where(
-          and(
-            lte(notifications.createdAt, cutoffDate),
-            or(
-              eq(notifications.isRead, true),
-              eq(notifications.isAcknowledged, true)
-            )
-          )
-        );
-    } catch (error) {
-      console.error('Error cleaning up old notifications:', error);
-    }
+    // Delete read notifications older than the cutoff date
+    const { count } = await db
+      .delete(notifications)
+      .where(
+        and(
+          eq(notifications.isRead, true),
+          lt(notifications.createdAt, cutoffDate)
+        )
+      )
+      .returning({ count: sql`count(*)` })
+      .then(result => result[0] || { count: 0 });
+
+    return { count: parseInt(count.toString()) };
+  }
+
+  /**
+   * Generate link for notification based on type
+   */
+  private generateLink(type: string, params: Record<string, any> = {}): string | null {
+    const routePattern = NOTIFICATION_ROUTES[type as keyof typeof NOTIFICATION_ROUTES];
+    if (!routePattern) return null;
+
+    let link = routePattern;
+    
+    // Replace parameters in route pattern
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        link = link.replace(`{${key}}`, params[key]);
+      }
+    });
+
+    return link;
   }
 }
 
-// Re-export for backwards compatibility
 export const notificationService = NotificationService.getInstance();
 
-// Helper function to log notification creation
+// Helper function to compare dates
 function lte(createdAt: any, cutoffDate: Date) {
-  return sql`${createdAt} <= ${cutoffDate}`;
+  if (createdAt instanceof Date) {
+    return createdAt <= cutoffDate;
+  }
+  
+  if (typeof createdAt === 'string') {
+    return new Date(createdAt) <= cutoffDate;
+  }
+  
+  return false;
 }

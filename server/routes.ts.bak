@@ -445,12 +445,99 @@ export function registerRoutes(app: Express): Server {
     res.json({ status: 'ok' });
   });
 
-  // Initialize auth
+  // Initialize auth second
   setupAuth(app);
 
   // Register enhanced notification routes
   registerNotificationRoutes(app);
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, req.user!.id))
+        .orderBy(notificationPreferences.category, notificationPreferences.type);
 
+      // If no preferences exist, create defaults
+      if (preferences.length === 0) {
+        const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
+          Object.keys(NOTIFICATION_TYPES)
+            .filter(type => type.startsWith(category.toLowerCase()))
+            .map(type => ({
+              userId: req.user!.id,
+              category,
+              type,
+              enabled: true,
+              inAppEnabled: true,
+              emailEnabled: false,
+            }))
+        );
+
+        const insertedPreferences = await db
+          .insert(notificationPreferences)
+          .values(defaultPreferences)
+          .returning();
+
+        return res.json(insertedPreferences);
+      }
+
+      res.json(preferences);
+    } catch (error) {
+      debug(req, 'Error fetching notification preferences:', error);
+      next(error);
+    }
+  });
+
+
+  app.get("/api/notification-preferences/metadata", (_req: Request, res: Response) => {
+    res.json({
+      categories: NOTIFICATION_CATEGORIES,
+      types: NOTIFICATION_TYPES
+    });
+  });
+
+  app.put("/api/notification-preferences/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const preferenceId = parseInt(req.params.id);
+      if (isNaN(preferenceId)) {
+        throw new ValidationError('Invalid preference ID', { id: 'Must be a number' });
+      }
+
+      const validationResult = insertNotificationPreferenceSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new ValidationError('Invalid input data', validationResult.error.format());
+      }
+
+      // Verify the preference belongs to the user
+      const [existing] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.id, preferenceId),
+          eq(notificationPreferences.userId, req.user!.id)
+        ))
+        .limit(1);
+
+      if (!existing) {
+        throw new AppError('Notification preference not found', 404);
+      }
+
+      const [updated] = await db
+        .update(notificationPreferences)
+        .set({
+          ...req.body,
+          updatedAt: new Date()
+        })
+        .where(eq(notificationPreferences.id, preferenceId))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      debug(req, 'Error updating notification preference:', error);
+      next(error);
+    }
+  });
   // Account Request endpoint with proper error handling
   app.post("/api/auth/request-account", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -506,13 +593,12 @@ export function registerRoutes(app: Express): Server {
 
       // Create notifications for admins
       await Promise.all(admins.map(admin =>
-        notificationService.createNotification({
-          userId: admin.id,
-          title: 'New Account Request',
-          message: `New account request from ${newRequest.username} for ${newRequest.department} department`,
-          type: 'account_request',
-          priority: 'normal'
-        })
+        createNotification(
+          admin.id,
+          'New Account Request',
+          `New account request from ${newRequest.username} for ${newRequest.department} department`,
+          'account_request'
+        )
       ));
 
       res.status(201).json({
