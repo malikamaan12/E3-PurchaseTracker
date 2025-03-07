@@ -4395,56 +4395,103 @@ export function registerRoutes(app: Express): Server {
         throw new ValidationError('Invalid format', { format: 'Must be xlsx or csv' });
       }
 
-      debug(req, 'Exporting requests in format:', format);
+      // Check if we're exporting a specific request or all requests
+      const requestId = req.query.id ? parseInt(req.query.id as string) : null;
+      debug(req, `[GET /api/requests/export] Fetching purchase request with ID: ${requestId || 'all'}`);
 
-      // Fetch all requests with related data
-      const requests = await db
-        .select({
-          id: purchaseRequests.id,
-          requestNumber: purchaseRequests.requestNumber,
-          title: purchaseRequests.title,
-          description: purchaseRequests.description,
-          status: purchaseRequests.status,
-          priority: purchaseRequests.priority,
-          purposeType: purchaseRequests.purposeType,
-          totalEstimatedCost: purchaseRequests.totalEstimatedCost,
-          createdAt: purchaseRequests.createdAt,
-          updatedAt: purchaseRequests.updatedAt,
-        })
-        .from(purchaseRequests)
-        .orderBy(desc(purchaseRequests.createdAt));
+      let formattedRequests = [];
 
-      if (requests.length === 0) {
-        throw new AppError('No requests found to export', 404);
+      if (requestId && !isNaN(requestId)) {
+        // Export a single request
+        try {
+          const requestWithRelations = await getRequestWithRelations(requestId);
+          
+          // Transform the request for export
+          formattedRequests = [{
+            'Request ID': requestWithRelations.id,
+            'Request Number': requestWithRelations.requestNumber,
+            'Title': requestWithRelations.title,
+            'Description': requestWithRelations.description,
+            'Status': requestWithRelations.status,
+            'Priority': requestWithRelations.priority,
+            'Purpose Type': requestWithRelations.purposeType,
+            'Total Cost': requestWithRelations.totalEstimatedCost?.toFixed(2) || '0.00',
+            'Created Date': new Date(requestWithRelations.createdAt).toLocaleDateString(),
+            'Last Updated': requestWithRelations.updatedAt ? new Date(requestWithRelations.updatedAt).toLocaleDateString() : 'N/A',
+            'Vendor': requestWithRelations.vendor ? (requestWithRelations.vendor.companyName || requestWithRelations.vendor.name) : 'N/A',
+            'Requester': requestWithRelations.requester ? requestWithRelations.requester.username : 'N/A',
+            'Items Count': Array.isArray(requestWithRelations.items) ? requestWithRelations.items.length : 0
+          }];
+        } catch (error) {
+          debug(req, `[GET /api/requests/export] Error fetching purchase request: ${JSON.stringify(error)}`);
+          throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+        }
+      } else {
+        // Export all requests (default behavior)
+        // Fetch all requests with related data
+        const requests = await db
+          .select({
+            id: purchaseRequests.id,
+            requestNumber: purchaseRequests.requestNumber,
+            title: purchaseRequests.title,
+            description: purchaseRequests.description,
+            status: purchaseRequests.status,
+            priority: purchaseRequests.priority,
+            purposeType: purchaseRequests.purposeType,
+            totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+            createdAt: purchaseRequests.createdAt,
+            updatedAt: purchaseRequests.updatedAt,
+          })
+          .from(purchaseRequests)
+          .orderBy(desc(purchaseRequests.createdAt));
+
+        if (requests.length === 0) {
+          throw new AppError('No requests found to export', 404);
+        }
+
+        // Transform dates and format data
+        formattedRequests = requests.map(request => ({
+          'Request ID': request.id,
+          'Request Number': request.requestNumber,
+          'Title': request.title,
+          'Description': request.description,
+          'Status': request.status,
+          'Priority': request.priority,
+          'Purpose Type': request.purposeType,
+          'Total Cost': request.totalEstimatedCost?.toFixed(2) || '0.00',
+          'Created Date': new Date(request.createdAt).toLocaleDateString(),
+          'Last Updated': new Date(request.updatedAt).toLocaleDateString()
+        }));
       }
 
-      // Transform dates and format data
-      const formattedRequests = requests.map(request => ({
-        'Request ID': request.id,
-        'Request Number': request.requestNumber,
-        'Title': request.title,
-        'Description': request.description,
-        'Status': request.status,
-        'Priority': request.priority,
-        'Purpose Type': request.purposeType,
-        'Total Cost': request.totalEstimatedCost?.toFixed(2) || '0.00',
-        'Created Date': new Date(request.createdAt).toLocaleDateString(),
-        'Last Updated': new Date(request.updatedAt).toLocaleDateString()
-      }));
-
-      const filename = `purchase_requests_${new Date().toISOString().split('T')[0]}`;
+      const filename = requestId 
+        ? `purchase_request_${requestId}_${new Date().toISOString().split('T')[0]}`
+        : `purchase_requests_${new Date().toISOString().split('T')[0]}`;
 
       if (format === 'csv') {
-        // Generate CSV
+        // Generate CSV properly using a more robust approach
         const fields = Object.keys(formattedRequests[0]);
-        const csv = [
-          fields.join(','), // Header row
-          ...formattedRequests.map(row => 
-            fields.map(field => 
-              JSON.stringify(row[field as keyof typeof row] || '')
-            ).join(',')
-          )
-        ].join('\n');
+        
+        // Create CSV with proper escaping for special characters
+        const csvRows = [];
+        
+        // Add header row
+        csvRows.push(fields.map(field => `"${field.replace(/"/g, '""')}"`).join(','));
+        
+        // Add data rows with proper escaping
+        for (const row of formattedRequests) {
+          const values = fields.map(field => {
+            const value = row[field as keyof typeof row];
+            // Handle different data types and escape special characters
+            if (value === null || value === undefined) return '""';
+            if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
+            if (typeof value === 'number') return value;
+            return `"${String(value).replace(/"/g, '""')}"`;
+          });
+          csvRows.push(values.join(','));
+        }
+        
+        const csv = csvRows.join('\n');
 
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);

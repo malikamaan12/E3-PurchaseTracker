@@ -411,29 +411,52 @@ export async function exportRequestAsZip(
 export async function exportRequestToExcel(request: any, includeDetails: boolean = true): Promise<string> {
   try {
     logExport('excel', `Starting Excel export for request ${request?.id || 'unknown'}`);
-    console.log('Excel Export - Request Data:', request);
     
     // Validate request data - more lenient to allow mock data testing
     if (!request) {
       throw new Error('Invalid request data - request is undefined or null');
     }
     
-    // Create simplified request object for basic information
+    // Create simplified request object for basic information with safe type handling
     logExport('excel', 'Creating basic request information sheet');
+    
+    // Handle data more defensively to prevent Excel issues
+    const safeString = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'string') return value;
+      return String(value);
+    };
+    
+    const safeNumber = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const num = Number(value);
+      return isNaN(num) ? 0 : num;
+    };
+    
+    const safeDate = (dateStr: any): string => {
+      if (!dateStr) return 'N/A';
+      try {
+        const date = new Date(dateStr);
+        return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleString();
+      } catch (e) {
+        return 'N/A';
+      }
+    };
+    
     const requestData = {
-      'Request Number': request.requestNumber || `REQ-${request.id || 'new'}`,
-      'Title': request.title || 'Untitled Request',
-      'Status': request.status || 'draft',
-      'Priority': request.priority || 'medium',
-      'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A',
-      'Requester': request.requester?.username || 'Unknown',
-      'Department': request.requester?.department || 'N/A',
-      'Purpose Type': request.purposeType || 'N/A',
-      'Sub-Purpose': request.subPurpose?.name || 'N/A',
-      'Description': request.description || '',
+      'Request Number': safeString(request.requestNumber) || `REQ-${safeString(request.id) || 'new'}`,
+      'Title': safeString(request.title) || 'Untitled Request',
+      'Status': safeString(request.status) || 'draft',
+      'Priority': safeString(request.priority) || 'medium',
+      'Created Date': safeDate(request.createdAt),
+      'Requester': safeString(request.requester?.username) || 'Unknown',
+      'Department': safeString(request.requester?.department) || 'N/A',
+      'Purpose Type': safeString(request.purposeType) || 'N/A',
+      'Sub-Purpose': safeString(request.subPurpose?.name) || 'N/A',
+      'Description': safeString(request.description) || '',
       'Total Estimated Cost': calculateTotalCost(request), // Already handles null values safely
-      'Currency': request.currency || 'USD',
-      'Vendor': request.vendor?.companyName || request.vendor?.name || 'N/A'
+      'Currency': safeString(request.currency) || 'USD',
+      'Vendor': safeString(request.vendor?.companyName || request.vendor?.name) || 'N/A'
     };
     
     // Create workbook and add requests worksheet
@@ -447,11 +470,11 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         logExport('excel', `Adding ${request.items.length} items to Excel workbook`);
         const items = request.items.map((item: any, index: number) => ({
           'Item #': index + 1,
-          'Name': item?.name || 'Unnamed Item',
-          'Quantity': item?.quantity || 0,
-          'Estimated Cost': item?.estimatedCost || 0,
-          'Total': (item?.quantity || 0) * (item?.estimatedCost || 0),
-          'Description': item?.description || ''
+          'Name': safeString(item?.name) || 'Unnamed Item',
+          'Quantity': safeNumber(item?.quantity),
+          'Estimated Cost': safeNumber(item?.estimatedCost),
+          'Total': safeNumber(item?.quantity) * safeNumber(item?.estimatedCost),
+          'Description': safeString(item?.description) || ''
         }));
         
         const wsItems = XLSX.utils.json_to_sheet(items);
@@ -469,11 +492,11 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         logExport('excel', `Adding ${request.approvals.length} approvals to Excel workbook`);
         const approvals = request.approvals.map((approval: any, index: number) => ({
           'Approval #': index + 1,
-          'Department': approval?.department || 'N/A',
-          'Approver': approval?.approver?.username || 'N/A',
-          'Status': approval?.status || 'pending',
-          'Date': approval?.processedAt ? new Date(approval?.processedAt).toLocaleString() : 'N/A',
-          'Comments': approval?.comments || ''
+          'Department': safeString(approval?.department) || 'N/A',
+          'Approver': safeString(approval?.approver?.username) || 'N/A',
+          'Status': safeString(approval?.status) || 'pending',
+          'Date': safeDate(approval?.processedAt),
+          'Comments': safeString(approval?.comments) || ''
         }));
         
         const wsApprovals = XLSX.utils.json_to_sheet(approvals);
@@ -491,10 +514,10 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
         logExport('excel', `Adding ${request.attachments.length} attachments to Excel workbook`);
         const attachments = request.attachments.map((attachment: any, index: number) => ({
           'Attachment #': index + 1,
-          'File Name': attachment?.fileName || attachment?.name || `file_${attachment?.id || index}`,
-          'File Type': attachment?.fileType || attachment?.type || 'Unknown',
-          'File Size (bytes)': attachment?.fileSize || attachment?.size || 0,
-          'Download URL': attachment?.fileUrl || 'N/A'
+          'File Name': safeString(attachment?.fileName || attachment?.name) || `file_${safeString(attachment?.id) || index}`,
+          'File Type': safeString(attachment?.fileType || attachment?.type) || 'Unknown',
+          'File Size (bytes)': safeNumber(attachment?.fileSize || attachment?.size),
+          'Download URL': safeString(attachment?.fileUrl) || 'N/A'
         }));
         
         const wsAttachments = XLSX.utils.json_to_sheet(attachments);
@@ -507,19 +530,25 @@ export async function exportRequestToExcel(request: any, includeDetails: boolean
     }
     
     // Generate Excel file and trigger download
-    const fileName = `Purchase_Request_${request.requestNumber || request.id}.xlsx`;
+    const requestIdentifier = safeString(request.requestNumber || request.id || 'unknown');
+    const fileName = `Purchase_Request_${requestIdentifier}.xlsx`;
     
-    // Create a blob from the workbook
-    logExport('excel', 'Converting Excel workbook to binary data');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    // Use our safer download method
-    logExport('excel', `Initiating Excel download: ${fileName}`);
-    await safeDownload(blob, fileName);
-    
-    logExport('excel', 'Excel export completed successfully');
-    return fileName;
+    try {
+      // Create a blob from the workbook
+      logExport('excel', 'Converting Excel workbook to binary data');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      // Use our safer download method
+      logExport('excel', `Initiating Excel download: ${fileName}`);
+      await safeDownload(blob, fileName);
+      
+      logExport('excel', 'Excel export completed successfully');
+      return fileName;
+    } catch (downloadError) {
+      logExport('excel', 'Excel file generation succeeded but download failed:', downloadError);
+      throw new Error(`Excel generation succeeded but download failed: ${downloadError.message || 'Unknown error'}`);
+    }
   } catch (error) {
     logExport('excel', 'Excel export failed:', error);
     throw error;
@@ -568,14 +597,67 @@ export async function exportRequestToCSV(
 ): Promise<string> {
   try {
     logExport('csv', `Starting CSV export for request ${request?.id || 'unknown'} with type ${exportType}`);
-    console.log('CSV Export - Request Data:', request);
     
     // Validate request data - more lenient to allow mock data testing
     if (!request) {
       throw new Error('Invalid request data - request is undefined or null');
     }
     
-    const fileName = `Purchase_Request_${request.requestNumber || request.id || 'export'}`;
+    // Add safe type handling functions
+    const safeString = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'string') return value;
+      return String(value);
+    };
+    
+    const safeNumber = (value: any): number => {
+      if (value === null || value === undefined) return 0;
+      const num = Number(value);
+      return isNaN(num) ? 0 : num;
+    };
+    
+    const safeDate = (dateStr: any): string => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+      } catch (e) {
+        return '';
+      }
+    };
+    
+    // Properly escape CSV values to prevent issues with special characters
+    const escapeCsvValue = (value: any): string => {
+      const stringVal = safeString(value);
+      // If value contains commas, quotes, or newlines, wrap it in quotes and escape internal quotes
+      if (/[",\n\r]/.test(stringVal)) {
+        return `"${stringVal.replace(/"/g, '""')}"`;
+      }
+      return stringVal;
+    };
+    
+    // Create clean CSV rows from an array of objects
+    const objectsToCsv = (data: Record<string, any>[]): string => {
+      if (!Array.isArray(data) || data.length === 0) {
+        return '';
+      }
+      
+      // Get headers from the first object
+      const headers = Object.keys(data[0]);
+      
+      // Create header row
+      const headerRow = headers.map(h => escapeCsvValue(h)).join(',');
+      
+      // Create data rows
+      const rows = data.map(item => {
+        return headers.map(header => escapeCsvValue(item[header])).join(',');
+      });
+      
+      // Combine all rows
+      return [headerRow, ...rows].join('\n');
+    };
+    
+    const fileName = `Purchase_Request_${safeString(request.requestNumber || request.id || 'export')}`;
     
     if (exportType === 'basic' || exportType === 'all') {
       // Export basic request information
@@ -583,41 +665,43 @@ export async function exportRequestToCSV(
         logExport('csv', 'Preparing basic request data for CSV export');
         // Handle missing or malformed data gracefully
         const basicData = {
-          request_number: request.requestNumber || `REQ-${request.id || 'new'}`,
-          title: request.title || 'Untitled Request',
-          status: request.status || 'draft',
-          priority: request.priority || 'medium',
-          created_date: request.createdAt || new Date().toISOString(),
-          requester: request.requester?.username || 'Unknown',
-          department: request.requester?.department || 'N/A',
-          purpose_type: request.purposeType || 'N/A',
-          sub_purpose: request.subPurpose?.name || 'N/A',
-          description: request.description || '',
+          request_number: safeString(request.requestNumber) || `REQ-${safeString(request.id) || 'new'}`,
+          title: safeString(request.title) || 'Untitled Request',
+          status: safeString(request.status) || 'draft',
+          priority: safeString(request.priority) || 'medium',
+          created_date: safeDate(request.createdAt),
+          requester: safeString(request.requester?.username) || 'Unknown',
+          department: safeString(request.requester?.department) || 'N/A',
+          purpose_type: safeString(request.purposeType) || 'N/A',
+          sub_purpose: safeString(request.subPurpose?.name) || 'N/A',
+          description: safeString(request.description) || '',
           total_estimated_cost: calculateTotalCost(request),
-          currency: request.currency || 'USD',
-          vendor: request.vendor?.companyName || request.vendor?.name || 'N/A'
+          currency: safeString(request.currency) || 'USD',
+          vendor: safeString(request.vendor?.companyName || request.vendor?.name) || 'N/A'
         };
         
-        logExport('csv', `Creating parser for basic CSV data`);
-        // Import Parser at the top of the file to avoid reference errors
+        logExport('csv', `Creating CSV data for basic export`);
         let csvData;
+        
         try {
-          // Simplified parser configuration
+          // First try to use Parser if available
           const parser = new Parser({
             header: true,
             delimiter: ','
           });
-          
-          // Parse the data - it needs to be an array
-          logExport('csv', `Parsing basic data into CSV`);
           csvData = parser.parse([basicData]);
         } catch (parserError) {
-          console.error('CSV Parser error:', parserError);
-          // Fallback to simple CSV generation
-          csvData = 'Property,Value\n' + 
-                   Object.entries(basicData)
-                   .map(([key, value]) => `"${key}","${value}"`)
-                   .join('\n');
+          // Fallback to our custom CSV generation
+          logExport('csv', `CSV Parser failed, using fallback method`, parserError);
+          csvData = objectsToCsv([basicData]);
+          
+          // If that fails too, use even simpler method
+          if (!csvData) {
+            csvData = 'Property,Value\n' + 
+                     Object.entries(basicData)
+                     .map(([key, value]) => `${escapeCsvValue(key)},${escapeCsvValue(value)}`)
+                     .join('\n');
+          }
         }
         
         const basicFileName = `${fileName}_basic.csv`;
@@ -632,9 +716,8 @@ export async function exportRequestToCSV(
         }
       } catch (basicError) {
         logExport('csv', `Error exporting basic data to CSV:`, basicError);
-        console.error('Basic CSV export error:', basicError);
         if (exportType === 'basic') {
-          throw basicError;
+          throw new Error(`Failed to export basic data to CSV: ${basicError.message || 'Unknown error'}`);
         }
       }
     }
@@ -646,23 +729,28 @@ export async function exportRequestToCSV(
           logExport('csv', `Preparing items data for CSV export (${request.items.length} items)`);
           const items = request.items.map((item: any, index: number) => ({
             item_number: index + 1,
-            name: item?.name || 'Unnamed Item',
-            quantity: item?.quantity || 0,
-            estimated_cost: item?.estimatedCost || 0,
-            total: (item?.quantity || 0) * (item?.estimatedCost || 0),
-            description: item?.description || ''
+            name: safeString(item?.name) || 'Unnamed Item',
+            quantity: safeNumber(item?.quantity),
+            estimated_cost: safeNumber(item?.estimatedCost),
+            total: safeNumber(item?.quantity) * safeNumber(item?.estimatedCost),
+            description: safeString(item?.description) || ''
           }));
           
-          const parser = new Parser({
-            header: true,
-            delimiter: ','
-          });
-          
-          logExport('csv', `Parsing items data into CSV`);
-          const csv = parser.parse(items);
+          let csvData;
+          try {
+            const parser = new Parser({
+              header: true,
+              delimiter: ','
+            });
+            csvData = parser.parse(items);
+          } catch (parserError) {
+            // Fallback to our custom CSV generation
+            logExport('csv', `CSV Parser failed for items, using fallback method`, parserError);
+            csvData = objectsToCsv(items);
+          }
           
           const itemsFileName = `${fileName}_items.csv`;
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
           
           // Use our safer download method
           await safeDownload(blob, itemsFileName);
@@ -674,7 +762,7 @@ export async function exportRequestToCSV(
         } catch (itemsError) {
           logExport('csv', `Error exporting items to CSV:`, itemsError);
           if (exportType === 'items') {
-            throw itemsError;
+            throw new Error(`Failed to export items to CSV: ${itemsError.message || 'Unknown error'}`);
           }
         }
       } else if (exportType === 'items') {
@@ -693,23 +781,28 @@ export async function exportRequestToCSV(
           logExport('csv', `Preparing approvals data for CSV export (${request.approvals.length} approvals)`);
           const approvals = request.approvals.map((approval: any, index: number) => ({
             approval_number: index + 1,
-            department: approval?.department || 'N/A',
-            approver: approval?.approver?.username || 'N/A',
-            status: approval?.status || 'pending',
-            processed_date: approval?.processedAt || '',
-            comments: approval?.comments || ''
+            department: safeString(approval?.department) || 'N/A',
+            approver: safeString(approval?.approver?.username) || 'N/A',
+            status: safeString(approval?.status) || 'pending',
+            processed_date: safeDate(approval?.processedAt),
+            comments: safeString(approval?.comments) || ''
           }));
           
-          const parser = new Parser({
-            header: true,
-            delimiter: ','
-          });
-          
-          logExport('csv', `Parsing approvals data into CSV`);
-          const csv = parser.parse(approvals);
+          let csvData;
+          try {
+            const parser = new Parser({
+              header: true,
+              delimiter: ','
+            });
+            csvData = parser.parse(approvals);
+          } catch (parserError) {
+            // Fallback to our custom CSV generation
+            logExport('csv', `CSV Parser failed for approvals, using fallback method`, parserError);
+            csvData = objectsToCsv(approvals);
+          }
           
           const approvalsFileName = `${fileName}_approvals.csv`;
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
           
           // Use our safer download method
           await safeDownload(blob, approvalsFileName);
@@ -721,7 +814,7 @@ export async function exportRequestToCSV(
         } catch (approvalsError) {
           logExport('csv', `Error exporting approvals to CSV:`, approvalsError);
           if (exportType === 'approvals') {
-            throw approvalsError;
+            throw new Error(`Failed to export approvals to CSV: ${approvalsError.message || 'Unknown error'}`);
           }
         }
       } else if (exportType === 'approvals') {
