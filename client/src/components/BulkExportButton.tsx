@@ -49,8 +49,7 @@ export function BulkExportButton({
     setExporting(true);
 
     try {
-      let exportResult: string;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       let fileName = `purchase-requests-export-${timestamp}`;
 
       // Apply any filters provided for filename clarity
@@ -61,42 +60,57 @@ export function BulkExportButton({
         if (filters.endDate) fileName += `-to-${filters.endDate}`;
       }
 
+      // Add format-specific extension to the filename
+      let fileExtension = '';
       switch (selectedFormat) {
         case "excel":
-          exportResult = await exportUtils.exportMultipleRequestsToExcel(requests);
-          fileName = `${fileName}.xlsx`;
+          fileExtension = '.xlsx';
           break;
         case "csv":
-          exportResult = await exportUtils.exportMultipleRequestsToCSV(requests);
-          fileName = `${fileName}.csv`;
+          fileExtension = '.csv';
           break;
         case "pdf":
-          exportResult = await exportUtils.exportMultipleRequestsToPDF(requests);
-          fileName = `${fileName}.zip`;
+        case "zip":
+          fileExtension = '.zip';
+          break;
+      }
+      
+      fileName += fileExtension;
+      
+      // Show toast to inform user we're starting the export
+      toast({
+        title: "Starting Export",
+        description: `Preparing ${requests.length} requests for export as ${selectedFormat.toUpperCase()}...`,
+      });
+      
+      let result = false;
+      
+      // Use the appropriate export function based on format
+      switch (selectedFormat) {
+        case "excel":
+          await exportUtils.exportMultipleRequestsToExcel(requests);
+          break;
+        case "csv":
+          await exportUtils.exportMultipleRequestsToCSV(requests);
+          break;
+        case "pdf":
+          await exportUtils.exportMultipleRequestsToPDF(requests);
           break;
         case "zip":
-          exportResult = await exportUtils.exportMultipleRequestsAsZip(requests);
-          fileName = `${fileName}.zip`;
+          await exportUtils.exportMultipleRequestsAsZip(requests, includeAttachments);
           break;
         default:
           throw new Error(`Unsupported export format: ${selectedFormat}`);
       }
+      
+      // Export was successful if we reached this point
+      toast({
+        title: "Export Complete",
+        description: `Successfully exported ${requests.length} requests as ${selectedFormat.toUpperCase()}`,
+      });
 
-      if (exportResult) {
-        // If the export utilities returned a URL, initiate download
-        if (typeof exportResult === 'string' && exportResult.startsWith('blob:')) {
-          await exportUtils.safeDownload(new Blob([exportResult]), fileName);
-        } else {
-          // Display success message
-          toast({
-            title: "Export Complete",
-            description: `Successfully exported ${requests.length} requests as ${selectedFormat.toUpperCase()}`,
-          });
-        }
-
-        if (onExportComplete) {
-          onExportComplete(fileName);
-        }
+      if (onExportComplete) {
+        onExportComplete(fileName);
       }
     } catch (error) {
       console.error("Export error:", error);

@@ -19,7 +19,17 @@ export async function safeDownload(blob: Blob, fileName: string): Promise<boolea
   try {
     logDownload(`Starting download of ${fileName} (${blob.size} bytes)`);
     
-    // Method 1: Using the download attribute (most modern browsers)
+    // Method 1: FileSaver.js library (most reliable cross-browser solution)
+    try {
+      const { saveAs } = await import('file-saver');
+      saveAs(blob, fileName);
+      logDownload(`Download initiated via FileSaver for ${fileName}`);
+      return true;
+    } catch (error) {
+      logDownload('FileSaver method failed, trying method 2', error);
+    }
+    
+    // Method 2: Using the download attribute (modern browsers)
     try {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -33,33 +43,42 @@ export async function safeDownload(blob: Blob, fileName: string): Promise<boolea
       setTimeout(() => {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        logDownload(`Download initiated via method 1 for ${fileName}`);
       }, 100);
       
+      logDownload(`Download initiated via method 2 (download attribute) for ${fileName}`);
       return true;
-    } catch (method1Error) {
-      logDownload('Method 1 failed, trying fallback', method1Error);
-      
-      // Method 2: Using the Navigator.msSaveBlob API (for IE/Edge)
-      if (window.navigator && window.navigator.msSaveBlob) {
+    } catch (error) {
+      logDownload('Method 2 failed, trying method 3', error);
+    }
+    
+    // Method 3: Using msSaveBlob (for older IE/Edge)
+    try {
+      if (window.navigator && 'msSaveBlob' in window.navigator) {
+        // @ts-ignore - msSaveBlob may not be recognized in types
         window.navigator.msSaveBlob(blob, fileName);
-        logDownload(`Download initiated via method 2 (msSaveBlob) for ${fileName}`);
+        logDownload(`Download initiated via method 3 (msSaveBlob) for ${fileName}`);
         return true;
       }
-      
-      // Method 3: Open in new window (useful for some mobile browsers)
+    } catch (error) {
+      logDownload('Method 3 failed, trying method 4', error);
+    }
+    
+    // Method 4: Open in new window
+    try {
       const url = window.URL.createObjectURL(blob);
       const newWindow = window.open(url);
       
       if (newWindow) {
-        logDownload(`Download initiated via method 3 (new window) for ${fileName}`);
         // Clean up the object URL after a delay
         setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        logDownload(`Download initiated via method 4 (new window) for ${fileName}`);
         return true;
       }
-      
-      throw new Error('All download methods failed');
+    } catch (error) {
+      logDownload('Method 4 failed', error);
     }
+    
+    throw new Error('All download methods failed');
   } catch (error) {
     logDownload(`Download failed for ${fileName}`, error);
     return false;
@@ -78,12 +97,16 @@ export async function safeUrlDownload(url: string, fileName?: string): Promise<b
     logDownload(`Starting URL download from ${url}`);
     
     // Method 1: Using window.open (simplest approach)
-    const newWindow = window.open(url, '_blank');
-    
-    // If window.open worked, we're done
-    if (newWindow && !newWindow.closed) {
-      logDownload('Download initiated via window.open');
-      return true;
+    try {
+      const newWindow = window.open(url, '_blank');
+      
+      // If window.open worked, we're done
+      if (newWindow && !newWindow.closed) {
+        logDownload('Download initiated via window.open');
+        return true;
+      }
+    } catch (error) {
+      logDownload('Window.open method failed, trying fetch', error);
     }
     
     // Method 2: Fetch the file and use safeDownload
@@ -101,10 +124,12 @@ export async function safeUrlDownload(url: string, fileName?: string): Promise<b
           : 'download');
       
       return await safeDownload(blob, downloadFileName);
-    } catch (fetchError) {
-      logDownload('Fetch-based download failed', fetchError);
-      
-      // Method 3: Create a hidden iframe (works in some cases where other methods fail)
+    } catch (error) {
+      logDownload('Fetch-based download failed, trying iframe', error);
+    }
+    
+    // Method 3: Create a hidden iframe
+    try {
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
       iframe.src = url;
@@ -121,9 +146,13 @@ export async function safeUrlDownload(url: string, fileName?: string): Promise<b
       
       logDownload('Download attempted via iframe');
       return true;
+    } catch (error) {
+      logDownload('Iframe method failed', error);
     }
+    
+    throw new Error('All URL download methods failed');
   } catch (error) {
-    logDownload('All URL download methods failed', error);
+    logDownload('URL download failed completely', error);
     return false;
   }
 }

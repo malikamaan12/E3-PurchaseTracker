@@ -347,12 +347,22 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
   }
   
   try {
+    console.log(`Starting Excel export for ${requests.length} requests`);
+    
     // Create workbook
     const wb = XLSX.utils.book_new();
     
     // Add summary sheet with all requests
     const summaryData = requests.map((request: any) => formatRequestForExport(request));
     const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+    
+    // Add column widths for better readability
+    const columns = Object.keys(summaryData[0] || {});
+    const wscols = columns.map((col) => ({ 
+      wch: Math.max(col.length, 15) 
+    }));
+    summaryWs['!cols'] = wscols;
+    
     XLSX.utils.book_append_sheet(wb, summaryWs, 'All Requests');
     
     // Add items from all requests
@@ -424,13 +434,18 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     }
     
     // Generate Excel file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-requests-export-${timestamp}.xlsx`;
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    await safeDownload(blob, `purchase-requests-export.xlsx`);
-    return 'success';
+    
+    const downloadResult = await safeDownload(blob, fileName);
+    console.log(`Excel export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
   } catch (error) {
     console.error('Multiple Excel export error:', error);
-    throw new Error(`Failed to export multiple requests to Excel: ${error}`);
+    throw new Error(`Failed to export Excel: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -443,6 +458,8 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
   }
   
   try {
+    console.log(`Starting CSV export for ${requests.length} requests`);
+    
     // Format all requests
     const formattedRequests = requests.map(request => formatRequestForExport(request));
     
@@ -453,12 +470,31 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
     });
     
     const csv = parser.parse(formattedRequests);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    await safeDownload(blob, `purchase-requests-export.csv`);
-    return 'success';
+    
+    // Add BOM (Byte Order Mark) to ensure Excel can open the file correctly with UTF-8
+    const bomPrefix = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const csvContent = new Uint8Array(csv.length);
+    for (let i = 0; i < csv.length; i++) {
+      csvContent[i] = csv.charCodeAt(i);
+    }
+    
+    // Combine BOM and CSV content
+    const finalContent = new Uint8Array(bomPrefix.length + csvContent.length);
+    finalContent.set(bomPrefix);
+    finalContent.set(csvContent, bomPrefix.length);
+    
+    // Create blob and initiate download
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-requests-export-${timestamp}.csv`;
+    const blob = new Blob([finalContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const downloadResult = await safeDownload(blob, fileName);
+    console.log(`CSV export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
   } catch (error) {
     console.error('Multiple CSV export error:', error);
-    throw new Error(`Failed to export multiple requests to CSV: ${error}`);
+    throw new Error(`Failed to export CSV: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -595,12 +631,17 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
     }
     
     // Generate the ZIP file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-requests-pdf-export-${timestamp}.zip`;
     const content = await zip.generateAsync({ type: 'blob' });
-    await safeDownload(content, 'purchase-requests-pdf-export.zip');
-    return 'success';
+    
+    const downloadResult = await safeDownload(content, fileName);
+    console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
+    
+    return fileName;
   } catch (error) {
     console.error('Multiple PDF export error:', error);
-    throw new Error(`Failed to export multiple requests to PDF: ${error}`);
+    throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
