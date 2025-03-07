@@ -99,12 +99,22 @@ export function BulkExportButton({
         if (filters.status?.length) queryParams.append('status', filters.status.join(','));
         if (filters.priority?.length) queryParams.append('priority', filters.priority.join(','));
         if (filters.department?.length) queryParams.append('department', filters.department.join(','));
-        if (filters.purposeType?.length) queryParams.append('purposeType', filters.purposeType.join(','));
+        
+        // Handle single string purposeType vs array
+        if (Array.isArray(filters.purposeType) && filters.purposeType.length) {
+          queryParams.append('purposeType', filters.purposeType.join(','));
+        } else if (filters.purposeType) {
+          queryParams.append('purposeType', filters.purposeType);
+        }
+        
         if (filters.subPurposeId) queryParams.append('subPurposeId', filters.subPurposeId.toString());
         if (filters.vendorId) queryParams.append('vendorId', filters.vendorId.toString());
         if (filters.dateRange?.from) queryParams.append('startDate', filters.dateRange.from.toISOString());
         if (filters.dateRange?.to) queryParams.append('endDate', filters.dateRange.to.toISOString());
-        if (filters.searchQuery) queryParams.append('searchTerm', filters.searchQuery);
+        
+        // Handle both searchQuery and searchTerm field names for compatibility
+        const searchTerm = filters.searchTerm || filters.searchQuery;
+        if (searchTerm) queryParams.append('searchTerm', searchTerm);
         
         try {
           console.log(`Fetching data with filters: ${queryParams.toString()}`);

@@ -43,7 +43,7 @@ import {
   pdfSettings,
   purchaseApprovers
 } from "@db/schema";
-import { eq, and, desc, gte, lte, inArray, or, isNull, ne, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, or, isNull, ne, sql, ilike } from "drizzle-orm";
 import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import fsSync from 'fs';
@@ -3013,6 +3013,20 @@ export function registerRoutes(app: Express): Server {
           query = query.where(eq(purchaseRequests.purposeType, purposeType));
         }
         
+        if (subPurposeId && typeof subPurposeId === 'string' && subPurposeId !== 'all') {
+          const subPurposeIdNum = parseInt(subPurposeId);
+          if (!isNaN(subPurposeIdNum)) {
+            query = query.where(eq(purchaseRequests.subPurposeId, subPurposeIdNum));
+          }
+        }
+        
+        if (vendorId && typeof vendorId === 'string' && vendorId !== 'all') {
+          const vendorIdNum = parseInt(vendorId);
+          if (!isNaN(vendorIdNum)) {
+            query = query.where(eq(purchaseRequests.vendorId, vendorIdNum));
+          }
+        }
+        
         if (startDate && typeof startDate === 'string') {
           try {
             const date = new Date(startDate);
@@ -3029,6 +3043,18 @@ export function registerRoutes(app: Express): Server {
           } catch (e) {
             console.error("[BULK EXPORT] Invalid end date:", endDate);
           }
+        }
+        
+        // Add search functionality
+        if (searchTerm && typeof searchTerm === 'string' && searchTerm.trim() !== '') {
+          const searchValue = `%${searchTerm.trim()}%`;
+          query = query.where(
+            or(
+              ilike(purchaseRequests.title, searchValue),
+              ilike(purchaseRequests.description, searchValue),
+              ilike(purchaseRequests.requestNumber, searchValue)
+            )
+          );
         }
         
         // Execute the query
