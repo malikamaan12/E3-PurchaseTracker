@@ -840,7 +840,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         onClick={() => handleZipDownload(true)}
         disabled={isLoading}
       >
-        {isLoading && exportType === 'zip' ? (
+        {isLoading && currentExportType === 'zip' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileArchive className="mr-2 h-4 w-4" />
