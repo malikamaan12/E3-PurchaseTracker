@@ -3740,8 +3740,8 @@ export function registerRoutes(app: Express): Server {
         marginBottom: Number(marginBottom || 20),
         marginLeft: Number(marginLeft || 25),
         marginRight: Number(marginRight || 25),
-        headerHeight: Number(headerHeight || 100),
-        footerHeight: Number(footerHeight || 50),
+        headerHeight: Number(headerHeight || 60),
+        footerHeight: Number(footerHeight || 40),
         headerImage: headerImage || null,
         footerImage: footerImage || null,
         logo: logo || null,
@@ -3783,141 +3783,255 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-  // Add file upload endpoint for PDF branding
-  app.post("/api/pdf/upload-images", (req: Request, res: Response, next: NextFunction) => {
-    // First set up the upload using disk storage
-    const storage = multer.diskStorage({
-      destination: async (_, __, cb) => {
-        // Ensure the logos directory exists
-        const uploadDir = path.join(process.cwd(), 'uploads/logos');
-        try {
-          await fs.mkdir(uploadDir, { recursive: true });
-        } catch (err) {
-          // Directory might already exist, which is fine
-          console.log("Directory creation status:", err);
-        }
-        cb(null, uploadDir);
-      },
-      filename: (_, file, cb) => {
-        // Generate unique filename with field name, timestamp and random number
-        const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 1000000000)}`;
-        const extension = path.extname(file.originalname) || '.jpg';
-        cb(null, `${file.fieldname}-${uniqueSuffix}${extension}`);
-      }
-    });
-    
-    const uploadHandler = multer({
-      storage,
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-      fileFilter: (_, file, cb) => {
-        const allowedTypes = [
-          'image/jpeg',
-          'image/jpg',
-          'image/png'
-        ];
-        if (allowedTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new Error('Invalid file type. Only JPEG and PNG images are allowed.'));
-        }
-      }
-    }).fields([
-      { name: 'headerImage', maxCount: 1 },
-      { name: 'footerImage', maxCount: 1 },
-      { name: 'logo', maxCount: 1 }
-    ]);
-    
-    // Handle the upload
-    uploadHandler(req, res, async (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            return next(new AppError('File size limit exceeded (5MB maximum)', 400));
-          } else {
-            return next(new AppError(`File upload error: ${err.message}`, 400));
-          }
-        }
-        return next(new AppError(err.message, 400));
+  // Add endpoint for PDF image uploads
+  app.post("/api/pdf/upload-images", upload.array("files", 5), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
       }
       
-      try {
-        // Check authentication
-        if (!req.isAuthenticated()) {
-          throw new AppError('Not authenticated', 401);
-        }
-        
-        // Check if user is admin
-        if (req.user?.role !== 'admin') {
-          throw new AppError('Only administrators can upload branding images', 403);
-        }
-        
-        // Process uploaded files
-        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-        const uploadResults: Record<string, string> = {};
-        
-        // Create URL paths for each uploaded file
-        for (const fieldName of ['headerImage', 'footerImage', 'logo']) {
-          if (files[fieldName] && files[fieldName].length > 0) {
-            const file = files[fieldName][0];
-            // Convert the path to a URL
-            uploadResults[fieldName] = `/${file.path.replace(/\\/g, '/')}`;
-          }
-        }
-        
-        // Update PDF settings with the new image URLs
-        if (Object.keys(uploadResults).length > 0) {
-          const updateData: Partial<typeof pdfSettings.$inferInsert> = {};
-          if (uploadResults.headerImage) updateData.headerImage = uploadResults.headerImage;
-          if (uploadResults.footerImage) updateData.footerImage = uploadResults.footerImage;
-          if (uploadResults.logo) updateData.logo = uploadResults.logo;
-          
-          // Get existing settings or create new
-          const existingSettings = await db.query.pdfSettings.findMany({
-            orderBy: [desc(pdfSettings.updatedAt)],
-            limit: 1
-          });
-          
-          if (existingSettings.length > 0) {
-            // Update existing settings
-            const settingId = existingSettings[0].id;
-            await db.update(pdfSettings)
-              .set({
-                ...updateData,
-                updatedAt: new Date()
-              })
-              .where(eq(pdfSettings.id, settingId));
-          } else {
-            // Create new settings with default values and new image URLs
-            await db.insert(pdfSettings).values({
-              headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
-              headerSubtitle: 'PURCHASE REQUEST',
-              headerColor: '#1a365d',
-              footerText: 'ALL RIGHTS RESERVED BY E3',
-              footerColor: '#1a365d',
-              pageNumbering: true,
-              fontSize: 11,
-              marginTop: 20,
-              marginBottom: 20,
-              marginLeft: 25,
-              marginRight: 25,
-              ...updateData,
-              userId: req.user!.id,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            });
-          }
-        }
-        
-        // Send success response
-        res.status(201).json({ 
-          success: true, 
-          files: uploadResults,
-          message: 'PDF branding images uploaded successfully'
-        });
-      } catch (error) {
-        next(error);
+      // Check if user is admin
+      if (req.user?.role !== 'admin') {
+        throw new AppError('Only administrators can upload PDF images', 403);
       }
-    });
+      
+      // Check if files were uploaded
+      if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
+        throw new ValidationError('No files were uploaded', { files: 'Required' });
+      }
+      
+      // Get upload type (header, footer, or logo)
+      const { type } = req.body;
+      if (!type || !['header', 'footer', 'logo'].includes(type)) {
+        throw new ValidationError('Invalid image type', { type: 'Must be header, footer, or logo' });
+      }
+      
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      const logoDir = path.join(uploadsDir, 'logos');
+      
+      try {
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+        if (!fs.existsSync(logoDir)) {
+          fs.mkdirSync(logoDir);
+        }
+      } catch (err) {
+        console.error('Error creating directory:', err);
+        throw new AppError('Failed to create upload directory', 500);
+      }
+      
+      // Get the uploaded file
+      const files = req.files as Express.Multer.File[];
+      const file = files[0]; // Just use the first file for now
+      
+      // Generate a unique filename based on upload type
+      const timestamp = Date.now();
+      const fileExtension = path.extname(file.originalname);
+      let fieldName = '';
+      
+      switch (type) {
+        case 'header':
+          fieldName = 'headerImage';
+          break;
+        case 'footer':
+          fieldName = 'footerImage';
+          break;
+        case 'logo':
+          fieldName = 'logo';
+          break;
+      }
+      
+      const newFilename = `${fieldName}-${timestamp}${fileExtension}`;
+      const filePath = path.join(logoDir, newFilename);
+      
+      // Write the file to disk
+      fs.writeFileSync(filePath, file.buffer);
+      
+      // Construct URL for the file
+      const fileUrl = `/uploads/logos/${newFilename}`;
+      
+      // Get current settings to update
+      const currentSettings = await db.query.pdfSettings.findMany({
+        orderBy: [desc(pdfSettings.updatedAt)],
+        limit: 1
+      });
+      
+      if (currentSettings && currentSettings.length > 0) {
+        // Update the settings with the new image path
+        const settingId = currentSettings[0].id;
+        const updateData: { [key: string]: any } = { updatedAt: new Date() };
+        
+        switch (type) {
+          case 'header':
+            updateData.headerImage = fileUrl;
+            break;
+          case 'footer':
+            updateData.footerImage = fileUrl;
+            break;
+          case 'logo':
+            updateData.logo = fileUrl;
+            break;
+        }
+        
+        await db.update(pdfSettings)
+          .set(updateData)
+          .where(eq(pdfSettings.id, settingId));
+      }
+      
+      res.status(201).json({
+        success: true,
+        fileUrl,
+        originalName: file.originalname,
+        size: file.size,
+        type: file.mimetype
+      });
+    } catch (error) {
+      console.error('Error uploading PDF image:', error);
+      next(error);
+    }
+  });
+
+  // Handler for PDF branding image uploads
+  app.post("/api/pdf/branding-images", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Verify authentication and permissions
+      if (!req.isAuthenticated()) {
+        return next(new AppError('Not authenticated', 401));
+      }
+      
+      if (req.user?.role !== 'admin') {
+        return next(new AuthorizationError('Only administrators can modify branding settings'));
+      }
+      
+      // Set up the upload using disk storage
+      const storage = multer.diskStorage({
+        destination: async (_, __, cb) => {
+          // Ensure the logos directory exists
+          const uploadDir = path.join(process.cwd(), 'uploads/logos');
+          try {
+            await fs.mkdir(uploadDir, { recursive: true });
+          } catch (err) {
+            // Directory might already exist, which is fine
+            console.log("Directory creation status:", err);
+          }
+          cb(null, uploadDir);
+        },
+        filename: (_, file, cb) => {
+          // Generate unique filename with field name, timestamp and random number
+          const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 1000000000)}`;
+          const extension = path.extname(file.originalname) || '.jpg';
+          cb(null, `${file.fieldname}-${uniqueSuffix}${extension}`);
+        }
+      });
+      
+      // Create the multer middleware for this specific route
+      const upload = multer({
+        storage,
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+        fileFilter: (_, file, cb) => {
+          const allowedTypes = [
+            'image/jpeg',
+            'image/jpg',
+            'image/png'
+          ];
+          if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+          } else {
+            cb(new Error('Invalid file type. Only JPEG and PNG images are allowed.'));
+          }
+        }
+      });
+      
+      // Complete the route using upload.fields
+      upload.fields([
+        { name: 'headerImage', maxCount: 1 },
+        { name: 'footerImage', maxCount: 1 },
+        { name: 'logo', maxCount: 1 }
+      ])(req, res, async (err) => {
+        if (err) {
+          if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+              return next(new AppError('File size limit exceeded (5MB maximum)', 400));
+            } else {
+              return next(new AppError(`File upload error: ${err.message}`, 400));
+            }
+          }
+          return next(err);
+        }
+        
+        try {
+          // Process uploaded files
+          const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+          const uploadResults: Record<string, string> = {};
+          
+          // Create URL paths for each uploaded file
+          for (const fieldName of ['headerImage', 'footerImage', 'logo']) {
+            if (files[fieldName] && files[fieldName].length > 0) {
+              const file = files[fieldName][0];
+              // Convert the path to a URL
+              uploadResults[fieldName] = `/${file.path.replace(/\\/g, '/')}`;
+            }
+          }
+          
+          // Update PDF settings with the new image URLs
+          if (Object.keys(uploadResults).length > 0) {
+            const updateData: Partial<typeof pdfSettings.$inferInsert> = {};
+            if (uploadResults.headerImage) updateData.headerImage = uploadResults.headerImage;
+            if (uploadResults.footerImage) updateData.footerImage = uploadResults.footerImage;
+            if (uploadResults.logo) updateData.logo = uploadResults.logo;
+            
+            // Get existing settings or create new
+            const existingSettings = await db.query.pdfSettings.findMany({
+              orderBy: [desc(pdfSettings.updatedAt)],
+              limit: 1
+            });
+            
+            if (existingSettings.length > 0) {
+              // Update existing settings
+              const settingId = existingSettings[0].id;
+              await db.update(pdfSettings)
+                .set({
+                  ...updateData,
+                  updatedAt: new Date()
+                })
+                .where(eq(pdfSettings.id, settingId));
+            } else {
+              // Create new settings with default values and new image URLs
+              await db.insert(pdfSettings).values({
+                headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
+                headerSubtitle: 'PURCHASE REQUEST',
+                headerColor: '#1a365d',
+                footerText: 'ALL RIGHTS RESERVED BY E3',
+                footerColor: '#1a365d',
+                pageNumbering: true,
+                fontSize: 11,
+                marginTop: 20,
+                marginBottom: 20,
+                marginLeft: 25,
+                marginRight: 25,
+                ...updateData,
+                userId: req.user!.id,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+            }
+          }
+          
+          // Send success response
+          res.status(201).json({ 
+            success: true, 
+            files: uploadResults,
+            message: 'PDF branding images uploaded successfully'
+          });
+        } catch (error) {
+          next(error);
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
   });
   
   app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
