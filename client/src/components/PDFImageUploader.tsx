@@ -147,15 +147,16 @@ export function PDFImageUploader({
           </div>
         </div>
       ) : (
-        <FileUploadMultiple
-          onFilesSelected={handleFileChange}
-          accept=".jpg,.jpeg,.png"
-          maxFiles={1}
-          maxSizeBytes={maxSize}
-          isUploading={isUploading}
-          className="w-full p-6 border-dashed border-2 rounded-lg flex flex-col items-center justify-center text-center"
-        >
-          <div className="flex flex-col items-center justify-center gap-2">
+        <div className="w-full p-6 border-dashed border-2 rounded-lg flex flex-col items-center justify-center text-center relative">
+          <FileUploadMultiple
+            onFilesSelected={handleFileChange}
+            accept=".jpg,.jpeg,.png"
+            maxFiles={1}
+            maxSizeBytes={maxSize}
+            isUploading={isUploading}
+            className="absolute inset-0"
+          />
+          <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
             <div className="rounded-full bg-primary/10 p-2">
               <ImageIcon className="h-6 w-6 text-primary" />
             </div>
@@ -166,7 +167,7 @@ export function PDFImageUploader({
               JPG or PNG up to {maxSizeInMB}MB
             </p>
           </div>
-        </FileUploadMultiple>
+        </div>
       )}
     </div>
   );
