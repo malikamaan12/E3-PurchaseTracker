@@ -11,6 +11,7 @@ interface Notification {
   type: string;
   priority?: string;
   link: string | null;
+  requestId?: number;
   isRead: boolean;
   createdAt: string;
   updatedAt: string;
