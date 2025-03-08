@@ -12,6 +12,7 @@ import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import BulkExportPage from "./pages/BulkExportPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import { NotFound } from "@/components/NotFound";
 import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
 import TestExportPage from "./pages/TestExportPage";
