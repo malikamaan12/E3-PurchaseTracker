@@ -679,9 +679,9 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
-                  <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-                    <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
+                  <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] mb-4 flex items-center">
+                    <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                     Supporting Documents
                   </h3>
 
@@ -689,14 +689,14 @@ export default function NewRequest() {
                     <div className="flex items-center justify-center w-full">
                       <label
                         htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#7058a3]/20 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#7058a3]/20 dark:border-[#7058a3]/30 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                       >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="h-8 w-8 text-[#7058a3] mb-2" />
-                          <p className="mb-2 text-sm text-[#7058a3]">
+                          <Upload className="h-8 w-8 text-[#7058a3] dark:text-[#9f83d5] mb-2" />
+                          <p className="mb-2 text-sm text-[#7058a3] dark:text-[#9f83d5]">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-gray-300">
                             PDF, Word, Excel, Images (up to 10MB each)
                           </p>
                         </div>
@@ -717,11 +717,11 @@ export default function NewRequest() {
                         {files.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#7058a3]/10 hover:border-[#7058a3]/30 transition-colors"
+                            className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded-lg border border-[#7058a3]/10 dark:border-[#7058a3]/30 hover:border-[#7058a3]/30 dark:hover:border-[#7058a3]/50 transition-colors"
                           >
                             <div className="flex items-center space-x-2">
-                              <span className="text-sm text-[#7058a3]">{file.name}</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-sm text-[#7058a3] dark:text-[#9f83d5]">{file.name}</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-300">
                                 ({(file.size / 1024 / 1024).toFixed(2)} MB)
                               </span>
                             </div>
@@ -732,7 +732,7 @@ export default function NewRequest() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeFile(index)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50 interactive-bounce"
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 interactive-bounce"
                               >
                                 <Trash className="h-4 w-4" />
                               </Button>
@@ -750,7 +750,7 @@ export default function NewRequest() {
                     onClick={() => handleSubmit("draft")}
                     variant="outline"
                     disabled={isSubmitting}
-                    className="border-[#3eb6ba] text-[#3eb6ba] hover:bg-[#3eb6ba]/10 transition-colors"
+                    className="border-[#3eb6ba] text-[#3eb6ba] dark:border-[#4fd0d5] dark:text-[#4fd0d5] hover:bg-[#3eb6ba]/10 dark:hover:bg-[#3eb6ba]/20 transition-colors"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
@@ -765,7 +765,7 @@ export default function NewRequest() {
                     type="button"
                     onClick={() => handleSubmit("pending")}
                     disabled={isSubmitting}
-                    className="bg-[#7058a3] hover:bg-[#7058a3]/90 text-white transition-colors"
+                    className="bg-[#7058a3] hover:bg-[#7058a3]/90 dark:bg-[#7058a3]/90 dark:hover:bg-[#7058a3]/80 text-white transition-colors"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center">
@@ -779,19 +779,20 @@ export default function NewRequest() {
                 </div>
               </form>
             </Form>
-          </CardContent</Card>
+          </CardContent>
+          </Card>
       </div>
 
       <VendorDialog
-        isOpen={isAddVendorOpen}
-        onClose={() => setIsAddVendorOpen(false)}
+        open={isAddVendorOpen}
+        onOpenChange={(open) => setIsAddVendorOpen(open)}
         onVendorCreated={handleVendorCreated}
       />
       {isSubmitting && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg flex items-center gap-2 shadow-lg">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span>Processing request...</span>
+            <span className="dark:text-gray-200">Processing request...</span>
           </div>
         </div>
       )}
