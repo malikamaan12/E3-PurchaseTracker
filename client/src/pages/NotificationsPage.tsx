@@ -57,11 +57,26 @@ export default function NotificationsPage() {
     acknowledgeNotification,
     markAllAsRead,
     refetch,
-    isLoading 
+    isLoading,
+    performAction,
+    handleNavigate
   } = useEnhancedNotifications({
     autoPolling: true,
     pollInterval: 30000,
-    includeRead: true
+    includeRead: true,
+    onActionSuccess: (actionType, notificationId) => {
+      // Show success toast for specific actions if not already handled in the hook
+      if (!['approve', 'reject', 'update', 'complete'].includes(actionType)) {
+        toast({
+          title: "Success",
+          description: `Action '${actionType}' completed successfully`,
+        });
+      }
+    },
+    onActionError: (actionType, notificationId, error) => {
+      // Additional error handling specific to this page if needed
+      console.error(`Failed to perform ${actionType} action on notification ${notificationId}:`, error);
+    }
   });
 
   const filteredNotifications = notifications.filter(notification => {

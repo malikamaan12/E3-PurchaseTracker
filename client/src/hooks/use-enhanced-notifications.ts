@@ -41,13 +41,17 @@ export function useEnhancedNotifications(options?: {
   includeRead?: boolean;
   filterType?: string;
   filterPriority?: 'high' | 'normal' | 'low';
+  onActionSuccess?: (actionType: string, notificationId: number, result: any) => void;
+  onActionError?: (actionType: string, notificationId: number, error: NotificationError) => void;
 }) {
   const {
     autoPolling = true,
     pollInterval = POLLING_INTERVAL,
     includeRead = true,
     filterType,
-    filterPriority
+    filterPriority,
+    onActionSuccess,
+    onActionError
   } = options || {};
 
   const queryClient = useQueryClient();
@@ -251,6 +255,159 @@ export function useEnhancedNotifications(options?: {
     !n.isRead && n.actionType && ['approve', 'review', 'acknowledge', 'update'].includes(n.actionType)
   ).length;
 
+  // Handle notification action
+  const performAction = useMutation({
+    mutationFn: async ({ 
+      actionType, 
+      notificationId, 
+      requestId,
+      actionData = {}
+    }: { 
+      actionType: string; 
+      notificationId: number; 
+      requestId?: number;
+      actionData?: Record<string, any>; 
+    }) => {
+      let endpoint = '';
+      let method = 'POST';
+      
+      // Determine the endpoint based on action type
+      switch (actionType) {
+        case 'approve':
+          endpoint = `/api/requests/${requestId}/approvals`;
+          method = 'POST';
+          break;
+        case 'reject':
+          endpoint = `/api/requests/${requestId}/approvals`;
+          method = 'POST';
+          break;
+        case 'review':
+          endpoint = `/api/requests/${requestId}`;
+          method = 'GET';
+          break;
+        case 'acknowledge':
+          endpoint = `/api/notifications/${notificationId}/acknowledge`;
+          method = 'PUT';
+          break;
+        case 'view':
+          // Just mark as read and navigate (handled separately)
+          endpoint = `/api/notifications/${notificationId}/read`;
+          method = 'PUT';
+          break;
+        case 'update':
+          endpoint = `/api/requests/${requestId}`;
+          method = 'PUT';
+          break;
+        case 'complete':
+          endpoint = `/api/requests/${requestId}/status`;
+          method = 'POST';
+          break;
+        default:
+          throw new Error(`Unknown action type: ${actionType}`);
+      }
+      
+      // Make API request
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: method !== 'GET' ? JSON.stringify(actionData) : undefined
+      });
+      
+      if (!response.ok) {
+        const error = new Error(`Failed to perform action: ${actionType}`) as NotificationError;
+        error.status = response.status;
+        try {
+          const data = await response.json();
+          error.details = data;
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        throw error;
+      }
+      
+      // Mark the notification as read
+      if (notificationId) {
+        await fetch(`/api/notifications/${notificationId}/read`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      
+      // If we have a requestId, also invalidate the requests query
+      if (variables.requestId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/requests'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/requests/${variables.requestId}`] });
+      }
+      
+      // Call the provided success callback if any
+      if (onActionSuccess) {
+        onActionSuccess(variables.actionType, variables.notificationId, data);
+      }
+      
+      // Show toast for specific action types
+      const actionMessages = {
+        'approve': 'Request approved successfully',
+        'reject': 'Request rejected successfully',
+        'update': 'Request updated successfully',
+        'complete': 'Request marked as complete',
+      };
+      
+      if (actionMessages[variables.actionType]) {
+        toast({
+          title: "Success",
+          description: actionMessages[variables.actionType],
+        });
+      }
+    },
+    onError: (error: NotificationError, variables) => {
+      console.error(`Failed to perform ${variables.actionType} action:`, error);
+      
+      // Call the provided error callback if any
+      if (onActionError) {
+        onActionError(variables.actionType, variables.notificationId, error);
+      }
+      
+      // Show appropriate error message based on status code and action type
+      let errorMessage = 'Failed to perform action';
+      
+      if (error.status === 404) {
+        errorMessage = 'The requested resource was not found';
+      } else if (error.status === 403) {
+        errorMessage = 'You do not have permission to perform this action';
+      } else if (error.status === 400) {
+        errorMessage = error.details?.message || 'Invalid request data';
+      } else if (error.status === 500) {
+        errorMessage = 'Server error occurred. Please try again later.';
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+    retry: (failureCount, error: NotificationError) => {
+      // Only retry for network errors or 5xx server errors, not for 4xx client errors
+      return failureCount < MAX_RETRIES && (!error.status || error.status >= 500);
+    }
+  });
+  
+  // Helper function to navigate to the appropriate page based on notification type
+  const handleNavigate = useCallback((link: string | null) => {
+    if (link) {
+      // Use direct navigation for reliable state management
+      window.location.href = link;
+    }
+  }, []);
+
   return {
     notifications,
     unreadCount,
@@ -263,6 +420,13 @@ export function useEnhancedNotifications(options?: {
     markAsRead: (id: number) => markAsRead.mutate(id),
     acknowledgeNotification: (id: number) => acknowledgeNotification.mutate(id),
     markAllAsRead: () => markAllAsRead.mutate(),
+    performAction: (params: { 
+      actionType: string; 
+      notificationId: number; 
+      requestId?: number;
+      actionData?: Record<string, any>; 
+    }) => performAction.mutate(params),
+    handleNavigate,
     refetch: () => {
       setLastFetchTime(new Date());
       return queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
