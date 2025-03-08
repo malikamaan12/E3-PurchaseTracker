@@ -3717,7 +3717,9 @@ export function registerRoutes(app: Express): Server {
         marginRight,
         headerImage,
         footerImage,
-        logo
+        logo,
+        headerHeight,
+        footerHeight
       } = req.body;
       
       // Validate required fields
@@ -3738,6 +3740,8 @@ export function registerRoutes(app: Express): Server {
         marginBottom: Number(marginBottom || 20),
         marginLeft: Number(marginLeft || 25),
         marginRight: Number(marginRight || 25),
+        headerHeight: Number(headerHeight || 100),
+        footerHeight: Number(footerHeight || 50),
         headerImage: headerImage || null,
         footerImage: footerImage || null,
         logo: logo || null,
@@ -3762,7 +3766,9 @@ export function registerRoutes(app: Express): Server {
         marginRight: setting.marginRight,
         headerImage: setting.headerImage,
         footerImage: setting.footerImage,
-        logo: setting.logo
+        logo: setting.logo,
+        headerHeight: setting.headerHeight,
+        footerHeight: setting.footerHeight
       });
     } catch (error) {
       const analysis = await analyzeError(error as Error, {

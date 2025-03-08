@@ -725,6 +725,8 @@ export const pdfSettings = pgTable("pdf_settings", {
   headerImage: text("header_image"),
   footerImage: text("footer_image"),
   logo: text("logo"),
+  headerHeight: integer("header_height").notNull().default(100),
+  footerHeight: integer("footer_height").notNull().default(50),
   userId: integer("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -747,6 +749,8 @@ export const insertPdfSettingsSchema = createInsertSchema(pdfSettings, {
   headerImage: z.string().optional().nullable(),
   footerImage: z.string().optional().nullable(),
   logo: z.string().optional().nullable(),
+  headerHeight: z.number().min(20).max(200).default(100),
+  footerHeight: z.number().min(20).max(200).default(50),
   userId: z.number().optional(),
 });
 
