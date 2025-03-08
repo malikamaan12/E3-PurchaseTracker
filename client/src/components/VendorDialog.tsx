@@ -33,7 +33,6 @@ interface VendorDialogProps {
 }
 
 export default function VendorDialog({ open, onOpenChange, onVendorCreated }: VendorDialogProps) {
-  const onClose = () => onOpenChange(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
@@ -79,7 +78,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
       onVendorCreated(newVendor);
       form.reset();
       ToastService.success("Success", "Vendor created successfully");
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       ToastService.error(
         "Error",
@@ -88,7 +87,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, onClose, onVendorCreated]);
+  }, [form, onOpenChange, onVendorCreated]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -322,7 +321,7 @@ export default function VendorDialog({ open, onOpenChange, onVendorCreated }: Ve
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
                 className="w-full sm:w-auto"
               >
