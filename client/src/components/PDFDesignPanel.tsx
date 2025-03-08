@@ -21,6 +21,7 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Loader2, Upload } from 'lucide-react';
+import { PDFImageUploader } from '../components/PDFImageUploader';
 import { useToast } from '../hooks/use-toast';
 
 // Define the PDF settings schema
@@ -367,39 +368,15 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                   
                   <div className="space-y-2">
                     <Label htmlFor="headerImage">Header Image</Label>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="headerImage"
-                          type="file"
-                          accept="image/jpeg,image/png"
-                          onChange={(e) => handleFileChange(e, 'header')}
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          disabled={uploadMutation.isPending}
-                        >
-                          {uploadMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      
-                      {headerPreview && (
-                        <div className="relative border rounded-md overflow-hidden h-20">
-                          <img
-                            src={headerPreview}
-                            alt="Header preview"
-                            className="max-h-full w-auto object-contain"
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <PDFImageUploader
+                      type="header"
+                      currentImage={headerPreview}
+                      onUploadComplete={(fileUrl) => {
+                        form.setValue('headerImage', fileUrl);
+                        setHeaderPreview(fileUrl);
+                      }}
+                      maxSizeInMB={5}
+                    />
                     <p className="text-sm text-muted-foreground">
                       Upload a JPG or PNG image for the header (max 5MB)
                     </p>
@@ -508,39 +485,15 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                   
                   <div className="space-y-2">
                     <Label htmlFor="footerImage">Footer Image</Label>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="footerImage"
-                          type="file"
-                          accept="image/jpeg,image/png"
-                          onChange={(e) => handleFileChange(e, 'footer')}
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          disabled={uploadMutation.isPending}
-                        >
-                          {uploadMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      
-                      {footerPreview && (
-                        <div className="relative border rounded-md overflow-hidden h-20">
-                          <img
-                            src={footerPreview}
-                            alt="Footer preview"
-                            className="max-h-full w-auto object-contain"
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <PDFImageUploader
+                      type="footer"
+                      currentImage={footerPreview}
+                      onUploadComplete={(fileUrl) => {
+                        form.setValue('footerImage', fileUrl);
+                        setFooterPreview(fileUrl);
+                      }}
+                      maxSizeInMB={5}
+                    />
                     <p className="text-sm text-muted-foreground">
                       Upload a JPG or PNG image for the footer (max 5MB)
                     </p>
@@ -671,39 +624,15 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                   
                   <div className="space-y-2">
                     <Label htmlFor="logoImage">Company Logo</Label>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="logoImage"
-                          type="file"
-                          accept="image/jpeg,image/png"
-                          onChange={(e) => handleFileChange(e, 'logo')}
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          disabled={uploadMutation.isPending}
-                        >
-                          {uploadMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      
-                      {logoPreview && (
-                        <div className="relative border rounded-md overflow-hidden h-20">
-                          <img
-                            src={logoPreview}
-                            alt="Logo preview"
-                            className="max-h-full w-auto object-contain"
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <PDFImageUploader
+                      type="logo"
+                      currentImage={logoPreview}
+                      onUploadComplete={(fileUrl) => {
+                        form.setValue('logoImage', fileUrl);
+                        setLogoPreview(fileUrl);
+                      }}
+                      maxSizeInMB={5}
+                    />
                     <p className="text-sm text-muted-foreground">
                       Upload your company logo (max 5MB)
                     </p>
