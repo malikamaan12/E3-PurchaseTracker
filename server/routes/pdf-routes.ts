@@ -327,7 +327,14 @@ export function registerPdfRoutes(app: Express) {
               const file = fieldFiles[0];
               const fileUrl = `/${file.path.replace(/\\/g, '/')}`;
               
-              updateData[fieldName as keyof typeof updateData] = fileUrl;
+              // Handle each field specifically to avoid type errors
+              if (fieldName === 'headerImage') {
+                updateData.headerImage = fileUrl;
+              } else if (fieldName === 'footerImage') {
+                updateData.footerImage = fileUrl;
+              } else if (fieldName === 'logo') {
+                updateData.logo = fileUrl;
+              }
             }
           });
           
@@ -398,16 +405,28 @@ export function registerPdfRoutes(app: Express) {
       }
       
       // Insert audit log entry
-      await db.insert(auditLogs).values({
-        userId: req.user!.id,
-        action,
-        resourceId,
-        resourceType: 'pdf',
-        details: details || {},
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'] || '',
-        createdAt: new Date()
-      });
+      if (req.user) {
+        await db.insert(auditLogs).values({
+          userId: req.user.id,
+          action,
+          resourceId,
+          resourceType: 'pdf',
+          details: details || {},
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          timestamp: new Date()
+        });
+      } else {
+        await db.insert(auditLogs).values({
+          action,
+          resourceId,
+          resourceType: 'pdf',
+          details: details || {},
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          timestamp: new Date()
+        });
+      }
       
       return res.status(201).json({ success: true });
     } catch (error) {
