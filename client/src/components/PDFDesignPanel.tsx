@@ -371,7 +371,7 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                     <PDFImageUploader
                       type="header"
                       currentImage={headerPreview}
-                      onUploadComplete={(fileUrl) => {
+                      onUploadComplete={(fileUrl: string) => {
                         form.setValue('headerImage', fileUrl);
                         setHeaderPreview(fileUrl);
                       }}
@@ -488,7 +488,7 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                     <PDFImageUploader
                       type="footer"
                       currentImage={footerPreview}
-                      onUploadComplete={(fileUrl) => {
+                      onUploadComplete={(fileUrl: string) => {
                         form.setValue('footerImage', fileUrl);
                         setFooterPreview(fileUrl);
                       }}
@@ -627,8 +627,8 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                     <PDFImageUploader
                       type="logo"
                       currentImage={logoPreview}
-                      onUploadComplete={(fileUrl) => {
-                        form.setValue('logoImage', fileUrl);
+                      onUploadComplete={(fileUrl: string) => {
+                        form.setValue('logo', fileUrl);
                         setLogoPreview(fileUrl);
                       }}
                       maxSizeInMB={5}
