@@ -153,8 +153,8 @@ export function registerPdfRoutes(app: Express) {
         }
       });
       
-      // Handle the file upload
-      upload.single('files')(req, res, async (err) => {
+      // Handle the file upload - supporting both single file and array format
+      upload.any()(req, res, async (err) => {
         if (err) {
           if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
@@ -167,15 +167,18 @@ export function registerPdfRoutes(app: Express) {
         }
         
         try {
-          if (!req.file) {
+          const files = req.files as Express.Multer.File[];
+          
+          if (!files || files.length === 0) {
             return next(new AppError('No file uploaded', 400));
           }
           
           // Get the image type from the request
           const type = req.body.type || 'unknown';
           
-          // Generate URL for the uploaded file
-          const fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+          // Generate URL for the uploaded file - use the first file
+          const file = files[0];
+          const fileUrl = `/${file.path.replace(/\\/g, '/')}`;
           
           // Update PDF settings if necessary based on the type
           if (['header', 'footer', 'logo'].includes(type)) {

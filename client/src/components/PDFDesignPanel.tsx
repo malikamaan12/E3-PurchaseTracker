@@ -93,7 +93,9 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
   const { data: settings, isLoading } = useQuery({
     queryKey: ['pdf-settings'],
     queryFn: async () => {
-      const response = await axios.get('/api/pdf/print-settings');
+      const response = await axios.get('/api/pdf/print-settings', {
+        withCredentials: true,
+      });
       return response.data;
     },
   });
@@ -117,7 +119,9 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
   // Mutation for saving PDF settings
   const saveMutation = useMutation({
     mutationFn: async (data: PDFSettings) => {
-      const response = await axios.post('/api/pdf/settings', data);
+      const response = await axios.post('/api/pdf/settings', data, {
+        withCredentials: true,
+      });
       return response.data;
     },
     onSuccess: () => {
