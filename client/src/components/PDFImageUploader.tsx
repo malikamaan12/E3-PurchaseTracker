@@ -65,13 +65,15 @@ export function PDFImageUploader({
       setIsUploading(true);
       
       const formData = new FormData();
-      formData.append('files', file);
+      formData.append('files', file); // Backend expects 'files' as the field name
       formData.append('type', type);
       
+      // Use the correct endpoint from our backend
       const response = await axios.post('/api/pdf/upload-images', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        withCredentials: true, // Important for auth sessions
       });
       
       if (response.data && response.data.fileUrl) {
@@ -96,11 +98,21 @@ export function PDFImageUploader({
 
   const handleRemoveImage = async () => {
     try {
-      // Optional: You could add an API endpoint to delete the image file
-      // await axios.delete(`/api/pdf/images/${type}`);
+      // Update settings in the database to remove the image reference
+      const updateData: Record<string, any> = {};
       
-      // For now, just clear the image locally
+      if (type === 'header') updateData.headerImage = null;
+      if (type === 'footer') updateData.footerImage = null;
+      if (type === 'logo') updateData.logo = null;
+      
+      // Save the updated settings to the database
+      await axios.post('/api/pdf/settings', updateData, {
+        withCredentials: true,
+      });
+      
+      // Clear the image locally
       onUploadComplete('');
+      
       toast({
         title: 'Image removed',
         description: `${type.charAt(0).toUpperCase() + type.slice(1)} image has been removed`,
