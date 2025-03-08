@@ -153,6 +153,7 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        withCredentials: true, // Important for auth sessions
       });
       return response.data;
     },
@@ -235,6 +236,8 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
         action: 'pdf_viewed',
         resourceId: 1, // Sample request ID
         details: { preview: true, source: 'design_panel' }
+      }, {
+        withCredentials: true, // Important for auth sessions
       });
       
       // Open a sample PDF in a new tab
