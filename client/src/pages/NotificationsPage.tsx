@@ -266,7 +266,11 @@ export default function NotificationsPage() {
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1.5 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
+              >
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
               </Button>
@@ -317,7 +321,7 @@ export default function NotificationsPage() {
               variant="outline" 
               size="sm"
               onClick={handleMarkAllAsRead}
-              className="flex items-center gap-1.5"
+              className="flex items-center gap-1.5 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
             >
               <Check className="h-4 w-4" />
               <span>Mark all as read</span>
@@ -327,39 +331,39 @@ export default function NotificationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="all" className="flex items-center gap-1.5">
+        <TabsList className="mb-6 dark:bg-gray-800">
+          <TabsTrigger value="all" className="flex items-center gap-1.5 dark:data-[state=active]:bg-gray-700 dark:text-gray-300 dark:data-[state=active]:text-white">
             <Bell className="h-4 w-4" />
             <span>All</span>
           </TabsTrigger>
-          <TabsTrigger value="unread" className="flex items-center gap-1.5">
+          <TabsTrigger value="unread" className="flex items-center gap-1.5 dark:data-[state=active]:bg-gray-700 dark:text-gray-300 dark:data-[state=active]:text-white">
             <Eye className="h-4 w-4" />
             <span>Unread</span>
             {unreadCount > 0 && (
-              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs">
+              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs dark:bg-gray-600">
                 {unreadCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="high-priority" className="flex items-center gap-1.5">
+          <TabsTrigger value="high-priority" className="flex items-center gap-1.5 dark:data-[state=active]:bg-gray-700 dark:text-gray-300 dark:data-[state=active]:text-white">
             <AlertCircle className="h-4 w-4" />
             <span>High Priority</span>
             {highPriorityCount > 0 && (
-              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs">
+              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs dark:bg-gray-600">
                 {highPriorityCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="actionable" className="flex items-center gap-1.5">
+          <TabsTrigger value="actionable" className="flex items-center gap-1.5 dark:data-[state=active]:bg-gray-700 dark:text-gray-300 dark:data-[state=active]:text-white">
             <CheckSquare className="h-4 w-4" />
             <span>Actionable</span>
             {actionableCount > 0 && (
-              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs">
+              <Badge variant="secondary" className="ml-1 rounded-full h-5 w-5 p-0 flex items-center justify-center text-xs dark:bg-gray-600">
                 {actionableCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="read" className="flex items-center gap-1.5">
+          <TabsTrigger value="read" className="flex items-center gap-1.5 dark:data-[state=active]:bg-gray-700 dark:text-gray-300 dark:data-[state=active]:text-white">
             <Check className="h-4 w-4" />
             <span>Read</span>
           </TabsTrigger>
@@ -390,9 +394,9 @@ export default function NotificationsPage() {
               </svg>
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <Card>
+            <Card className="dark:bg-gray-900/50 dark:border-gray-800">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mb-4 p-4 rounded-full bg-muted/50 dark:bg-gray-800">
+                <div className="mb-4 p-4 rounded-full bg-muted/50 dark:bg-gray-800/80 dark:border dark:border-gray-700">
                   <Bell className="h-8 w-8 text-muted-foreground dark:text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium dark:text-gray-100">No notifications found</h3>
@@ -416,13 +420,13 @@ export default function NotificationsPage() {
                     <Card 
                       key={notification.id} 
                       className={cn(
-                        "transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/10",
+                        "transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/10 dark:bg-gray-900/50 dark:border-gray-800 dark:hover:border-gray-700",
                         !notification.isRead && "border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10"
                       )}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 shrink-0 p-2 rounded-full bg-muted dark:bg-gray-800">
+                          <div className="mt-0.5 shrink-0 p-2 rounded-full bg-muted dark:bg-gray-800/90 dark:border dark:border-gray-700">
                             {getNotificationIcon(notification.type, notification.priority)}
                           </div>
                           <div className="flex-1 space-y-1.5">
@@ -454,7 +458,7 @@ export default function NotificationsPage() {
                                   <Button
                                     size="sm"
                                     variant="default"
-                                    className="h-8 px-3 text-xs"
+                                    className="h-8 px-3 text-xs dark:bg-primary/90 dark:hover:bg-primary/70"
                                     onClick={() => handleNotificationAction(notification)}
                                   >
                                     {notification.actionType === 'approve' && 'Review & Approve'}
@@ -470,7 +474,7 @@ export default function NotificationsPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-8 px-3 text-xs"
+                                    className="h-8 px-3 text-xs dark:border-gray-700 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
                                     onClick={() => handleNotificationClick(notification)}
                                   >
                                     <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -495,7 +499,7 @@ export default function NotificationsPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-8 px-2 text-xs"
+                                    className="h-8 px-2 text-xs dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
                                     onClick={() => acknowledgeNotification(notification.id)}
                                   >
                                     <X className="mr-1.5 h-3 w-3" />
