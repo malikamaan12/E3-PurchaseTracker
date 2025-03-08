@@ -251,11 +251,11 @@ export default function NotificationsPage() {
             variant="ghost"
             size="icon"
             onClick={() => setLocation('/dashboard')}
-            className="mr-2"
+            className="mr-2 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-bold">Notifications</h1>
+          <h1 className="text-2xl font-bold dark:text-gray-50">Notifications</h1>
           {unreadCount > 0 && (
             <Badge variant="secondary" className="ml-2">
               {unreadCount} unread
@@ -395,8 +395,8 @@ export default function NotificationsPage() {
                 <div className="mb-4 p-4 rounded-full bg-muted/50 dark:bg-gray-800">
                   <Bell className="h-8 w-8 text-muted-foreground dark:text-gray-400" />
                 </div>
-                <h3 className="text-lg font-medium dark:text-gray-200">No notifications found</h3>
-                <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
+                <h3 className="text-lg font-medium dark:text-gray-100">No notifications found</h3>
+                <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400 max-w-md">
                   {activeTab === 'unread' 
                     ? "You're all caught up! No unread notifications."
                     : activeTab === 'high-priority'
@@ -410,7 +410,7 @@ export default function NotificationsPage() {
           ) : (
             Object.entries(groupedNotifications).map(([date, notificationGroup]) => (
               <div key={date} className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground pl-2 mb-2">{date}</h3>
+                <h3 className="text-sm font-medium text-muted-foreground dark:text-gray-400 pl-2 mb-2">{date}</h3>
                 <div className="space-y-3">
                   {notificationGroup.map((notification) => (
                     <Card 
@@ -422,13 +422,13 @@ export default function NotificationsPage() {
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 shrink-0 p-2 rounded-full bg-muted">
+                          <div className="mt-0.5 shrink-0 p-2 rounded-full bg-muted dark:bg-gray-800">
                             {getNotificationIcon(notification.type, notification.priority)}
                           </div>
                           <div className="flex-1 space-y-1.5">
                             <div className="flex items-start justify-between">
                               <h4 className={cn(
-                                "text-base",
+                                "text-base dark:text-gray-100",
                                 !notification.isRead && "font-medium"
                               )}>
                                 {notification.title}
@@ -484,7 +484,7 @@ export default function NotificationsPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-8 px-2 text-xs"
+                                    className="h-8 px-2 text-xs dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
                                     onClick={() => markAsRead(notification.id)}
                                   >
                                     <Check className="mr-1.5 h-3 w-3" />
