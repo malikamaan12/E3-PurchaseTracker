@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useEnhancedNotifications } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';

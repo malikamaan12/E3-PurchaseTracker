@@ -41,6 +41,7 @@ function App() {
     return (
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/new-request" component={NewPurchaseRequestForm} />
         <Route path="/requests/:id" component={ViewRequest} />
         <Route path="/requests/:id/edit" component={EditRequest} />
@@ -48,6 +49,7 @@ function App() {
         <Route path="/error-predictions" component={ErrorPredictionDashboard} />
         <Route path="/test-export" component={TestExportPage} />
         <Route path="/export" component={BulkExportPage} />
+        <Route path="/notifications" component={NotificationsPage} />
 
         {/* Add admin routes with proper access control */}
         {user.role === "admin" && (
