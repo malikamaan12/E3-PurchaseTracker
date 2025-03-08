@@ -1,12 +1,12 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import PDFDesignPanel from '@/components/PDFDesignPanel';
-import { PageHeader } from '@/components/ui/page-header';
-import { Container } from '@/components/ui/container';
-import { Button } from '@/components/ui/button';
+import PDFDesignPanel from '../components/PDFDesignPanel';
+import { PageHeader } from '../components/ui/page-header';
+import { Container } from '../components/ui/container';
+import { Button } from '../components/ui/button';
 import { Link } from 'wouter';
 import { ChevronLeft, FileText, Settings } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '../hooks/use-toast';
 
 export default function PDFDesignPage() {
   const { toast } = useToast();
