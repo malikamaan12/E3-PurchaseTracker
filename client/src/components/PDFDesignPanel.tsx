@@ -225,20 +225,20 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
   // Generate PDF preview
   const generatePreview = async () => {
     try {
+      // First save current settings
       const formData = form.getValues();
-      const response = await axios.post('/api/pdf/audit', formData, {
-        responseType: 'blob',
+      await saveMutation.mutateAsync(formData);
+      
+      // Log the preview generation action
+      await axios.post('/api/pdf/audit', {
+        action: 'pdf_viewed',
+        resourceId: 1, // Sample request ID
+        details: { preview: true, source: 'design_panel' }
       });
       
-      // Create a URL for the blob
-      const url = URL.createObjectURL(response.data);
-      setPreviewUrl(url);
+      // Open a sample PDF in a new tab
+      window.open('/api/requests/1/pdf?preview=true', '_blank');
       
-      // Open preview in new tab
-      window.open(url, '_blank');
-      
-      // Clean up the URL when it's no longer needed
-      return () => URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to generate preview:', error);
       toast({

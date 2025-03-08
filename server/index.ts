@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerPdfRoutes } from "./routes/pdf-routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { db } from "@db";
 import fs from 'fs';
@@ -120,6 +121,7 @@ async function initializeServer() {
 
     // Set up routes
     const server = registerRoutes(app);
+    registerPdfRoutes(app);
     log("Routes registered successfully");
 
     // Global error handler with proper async handling
