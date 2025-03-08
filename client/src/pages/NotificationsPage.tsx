@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useEnhancedNotifications, Notification } from '@/hooks/use-enhanced-notifications';
+import { useEnhancedNotifications, Notification as AppNotification } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { 
@@ -116,7 +116,7 @@ export default function NotificationsPage() {
     
     groups[groupKey].push(notification);
     return groups;
-  }, {} as Record<string, typeof notifications>);
+  }, {} as Record<string, AppNotification[]>);
 
   // Calculate counts
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -218,7 +218,7 @@ export default function NotificationsPage() {
   };
   
   // Handle specific action on a notification (approve, reject, etc.)
-  const handleNotificationAction = (notification: Notification) => {
+  const handleNotificationAction = (notification: AppNotification) => {
     if (!notification.actionType || !notification.requestId) {
       return handleNotificationClick(notification);
     }
