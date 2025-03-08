@@ -63,7 +63,8 @@ export function useEnhancedNotifications(options?: {
   const buildQueryParams = useCallback(() => {
     const params = new URLSearchParams();
     
-    if (lastFetchTime) {
+    // Optional lastFetchTime - only include if set to avoid potential server-side issues
+    if (lastFetchTime && lastFetchTime instanceof Date && !isNaN(lastFetchTime.getTime())) {
       params.append('lastFetchTime', lastFetchTime.toISOString());
     }
     
@@ -217,11 +218,20 @@ export function useEnhancedNotifications(options?: {
 
   // Setup polling
   useEffect(() => {
+    // Initialize lastFetchTime on mount to avoid invalid date issues
+    if (lastFetchTime === null) {
+      setLastFetchTime(new Date());
+    }
+    
     const startPolling = () => {
       if (autoPolling && !pollTimerRef) {
         const id = window.setInterval(() => {
-          setLastFetchTime(new Date());
-          refetch();
+          // Use a safe way to update the date to avoid invalid date objects
+          const now = new Date();
+          if (!isNaN(now.getTime())) {
+            setLastFetchTime(now);
+            refetch();
+          }
         }, pollInterval);
         setPollTimerRef(id);
         return id;
@@ -241,7 +251,7 @@ export function useEnhancedNotifications(options?: {
         window.clearInterval(timerId);
       }
     };
-  }, [autoPolling, pollInterval, refetch]);
+  }, [autoPolling, pollInterval, refetch, lastFetchTime]);
 
   // Safely calculate counts
   const notificationArray = Array.isArray(notifications) ? notifications : [];
@@ -428,8 +438,12 @@ export function useEnhancedNotifications(options?: {
     }) => performAction.mutate(params),
     handleNavigate,
     refetch: () => {
-      setLastFetchTime(new Date());
-      return queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      const now = new Date();
+      if (!isNaN(now.getTime())) {
+        setLastFetchTime(now);
+        return queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      }
+      return Promise.resolve();
     }
   };
 }
