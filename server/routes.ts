@@ -4261,44 +4261,360 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+        return next(new AppError('Not authenticated', 401));
       }
-
-      const { action, requestId } = req.body;
-
-      if (!action || !requestId) {
-        throw new ValidationError('Invalid input', {
-          action: !action ? ['Action is required'] : [],
-          requestId: !requestId ? ['Request ID is required'] : []
-        });
-      }
-
-      // Validate action type
-      const validActions = ['pdf_viewed', 'pdf_downloaded', 'pdf_generated'];
-      if (!validActions.includes(action)) {
-        throw new ValidationError('Invalid action', {
-          action: [`Action must be one of: ${validActions.join(', ')}`]
-        });
-      }
-
-      // Log the PDF event
-      await logAuditEvent(req, {
-        userId: req.user!.id,
-        action: action as AuditAction,
-        resourceId: requestId,
-        resourceType: 'purchase_request',
-        details: {
-          timestamp: new Date().toISOString()
+      
+      // This endpoint serves dual purpose:
+      // 1. For audit logging of PDF actions
+      // 2. For generating a PDF preview based on form settings
+      
+      // Check if this is a preview generation request
+      if (req.headers['accept']?.includes('application/pdf') || 
+          req.query.preview === 'true' ||
+          req.body.preview === true) {
+        
+        // This is a PDF preview generation request
+        try {
+          // Get a sample request to use for the preview
+          const sampleRequests = await db.query.purchaseRequests.findMany({
+            limit: 1,
+            with: {
+              requester: true,
+              vendor: true,
+              subPurpose: true,
+              approvals: {
+                with: {
+                  approver: true
+                }
+              },
+              attachments: true
+            }
+          });
+          
+          if (sampleRequests.length === 0) {
+            // Create a demo purchase request object if no requests exist
+            const sampleRequest = {
+              id: 999,
+              title: "Sample Purchase Request",
+              description: "This is a sample purchase request for PDF preview",
+              status: "pending",
+              requestNumber: "PR-SAMPLE-001",
+              createdAt: new Date(),
+              items: [
+                { name: "Item 1", quantity: 2, estimatedCost: 100, description: "Sample item 1" },
+                { name: "Item 2", quantity: 1, estimatedCost: 200, description: "Sample item 2" }
+              ],
+              totalEstimatedCost: 300,
+              freightAmount: 20,
+              currency: "USD",
+              priority: "medium",
+              purposeType: "Office Supplies",
+              requester: { username: "Demo User", department: "IT Department" },
+              approvals: [
+                { status: "pending", department: "Finance", approver: { username: "Finance Approver" } },
+                { status: "pending", department: "CEO Office", approver: { username: "CEO" } }
+              ]
+            };
+            
+            // Get the PDF settings from the request body or use defaults
+            const pdfFormSettings = req.body || {};
+            
+            // Generate PDF buffer using the sample request and form settings
+            // For now, we'll just create a simple PDF with text
+            const { PDFDocument, rgb } = await import('pdf-lib');
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage([600, 800]);
+            
+            // Set header color from settings or use default
+            const headerColor = pdfFormSettings.headerColor 
+              ? hexToRgb(pdfFormSettings.headerColor) 
+              : [0.1, 0.2, 0.5]; // Default blue
+            
+            // Header
+            page.drawRectangle({
+              x: 0,
+              y: page.getHeight() - (pdfFormSettings.headerHeight || 80),
+              width: page.getWidth(),
+              height: pdfFormSettings.headerHeight || 80,
+              color: rgb(headerColor[0], headerColor[1], headerColor[2]),
+            });
+            
+            // Header Text
+            page.drawText(pdfFormSettings.headerTitle || 'PURCHASE REQUEST', {
+              x: 50,
+              y: page.getHeight() - 40,
+              size: 24,
+              color: rgb(1, 1, 1), // White text
+            });
+            
+            if (pdfFormSettings.headerSubtitle) {
+              page.drawText(pdfFormSettings.headerSubtitle, {
+                x: 50,
+                y: page.getHeight() - 65,
+                size: 14,
+                color: rgb(1, 1, 1), // White text
+              });
+            }
+            
+            // Sample request details
+            page.drawText('Sample Purchase Request', {
+              x: 50,
+              y: page.getHeight() - 120,
+              size: 18,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Request #: PR-SAMPLE-001`, {
+              x: 50,
+              y: page.getHeight() - 150,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Status: Pending`, {
+              x: 50,
+              y: page.getHeight() - 170,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Requester: Demo User (IT Department)`, {
+              x: 50,
+              y: page.getHeight() - 190,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Total Amount: $320.00 USD`, {
+              x: 50,
+              y: page.getHeight() - 210,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Footer
+            const footerColor = pdfFormSettings.footerColor 
+              ? hexToRgb(pdfFormSettings.footerColor) 
+              : [0.1, 0.2, 0.5]; // Default blue
+              
+            page.drawRectangle({
+              x: 0,
+              y: 0,
+              width: page.getWidth(),
+              height: pdfFormSettings.footerHeight || 50,
+              color: rgb(footerColor[0], footerColor[1], footerColor[2]),
+            });
+            
+            // Footer Text
+            page.drawText(pdfFormSettings.footerText || 'CONFIDENTIAL', {
+              x: 50,
+              y: 20,
+              size: 12,
+              color: rgb(1, 1, 1), // White text
+            });
+            
+            // Page numbering if enabled
+            if (pdfFormSettings.pageNumbering !== false) {
+              page.drawText('Page 1 of 1', {
+                x: page.getWidth() - 100,
+                y: 20,
+                size: 10,
+                color: rgb(1, 1, 1), // White text
+              });
+            }
+            
+            // Save the PDF
+            const pdfBytes = await pdfDoc.save();
+            
+            // Return the PDF
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+            return res.send(Buffer.from(pdfBytes));
+          } else {
+            // Use an actual purchase request for the preview
+            const request = sampleRequests[0];
+            
+            // Get the PDF settings from the request body or use defaults
+            const pdfFormSettings = req.body || {};
+            
+            // Generate PDF buffer using the request and form settings
+            // Here we'll implement similar logic as above but with real data
+            const { PDFDocument, rgb } = await import('pdf-lib');
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage([600, 800]);
+            
+            // Set header color from settings or use default
+            const headerColor = pdfFormSettings.headerColor 
+              ? hexToRgb(pdfFormSettings.headerColor) 
+              : [0.1, 0.2, 0.5]; // Default blue
+            
+            // Header
+            page.drawRectangle({
+              x: 0,
+              y: page.getHeight() - (pdfFormSettings.headerHeight || 80),
+              width: page.getWidth(),
+              height: pdfFormSettings.headerHeight || 80,
+              color: rgb(headerColor[0], headerColor[1], headerColor[2]),
+            });
+            
+            // Header Text
+            page.drawText(pdfFormSettings.headerTitle || 'PURCHASE REQUEST', {
+              x: 50,
+              y: page.getHeight() - 40,
+              size: 24,
+              color: rgb(1, 1, 1), // White text
+            });
+            
+            if (pdfFormSettings.headerSubtitle) {
+              page.drawText(pdfFormSettings.headerSubtitle, {
+                x: 50,
+                y: page.getHeight() - 65,
+                size: 14,
+                color: rgb(1, 1, 1), // White text
+              });
+            }
+            
+            // Request details
+            page.drawText(request.title, {
+              x: 50,
+              y: page.getHeight() - 120,
+              size: 18,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Request #: ${request.requestNumber}`, {
+              x: 50,
+              y: page.getHeight() - 150,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Status: ${request.status.charAt(0).toUpperCase() + request.status.slice(1)}`, {
+              x: 50,
+              y: page.getHeight() - 170,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            const requesterInfo = request.requester 
+              ? `${request.requester.username} (${request.requester.department || 'N/A'})` 
+              : 'Unknown';
+              
+            page.drawText(`Requester: ${requesterInfo}`, {
+              x: 50,
+              y: page.getHeight() - 190,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            page.drawText(`Total Amount: $${(request.totalEstimatedCost || 0).toFixed(2)} ${request.currency || 'USD'}`, {
+              x: 50,
+              y: page.getHeight() - 210,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Footer
+            const footerColor = pdfFormSettings.footerColor 
+              ? hexToRgb(pdfFormSettings.footerColor) 
+              : [0.1, 0.2, 0.5]; // Default blue
+              
+            page.drawRectangle({
+              x: 0,
+              y: 0,
+              width: page.getWidth(),
+              height: pdfFormSettings.footerHeight || 50,
+              color: rgb(footerColor[0], footerColor[1], footerColor[2]),
+            });
+            
+            // Footer Text
+            page.drawText(pdfFormSettings.footerText || 'CONFIDENTIAL', {
+              x: 50,
+              y: 20,
+              size: 12,
+              color: rgb(1, 1, 1), // White text
+            });
+            
+            // Page numbering if enabled
+            if (pdfFormSettings.pageNumbering !== false) {
+              page.drawText('Page 1 of 1', {
+                x: page.getWidth() - 100,
+                y: 20,
+                size: 10,
+                color: rgb(1, 1, 1), // White text
+              });
+            }
+            
+            // Save the PDF
+            const pdfBytes = await pdfDoc.save();
+            
+            // Log the PDF generation audit event
+            await logAuditEvent(req, {
+              userId: req.user!.id,
+              action: 'pdf_generated' as AuditAction,
+              resourceId: request.id,
+              resourceType: 'purchase_request',
+              details: {
+                timestamp: new Date().toISOString(),
+                isPreview: true
+              }
+            });
+            
+            // Return the PDF
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+            return res.send(Buffer.from(pdfBytes));
+          }
+        } catch (error) {
+          debug(req, 'Error generating PDF preview:', error);
+          return next(error);
         }
-      });
-
-      debug(req, `PDF audit logged: ${action} for request ${requestId}`);
-      res.json({ success: true });
+      } else {
+        // This is a regular audit logging request
+        const { action, requestId } = req.body;
+  
+        if (!action || !requestId) {
+          return next(new ValidationError('Invalid input', {
+            action: !action ? ['Action is required'] : [],
+            requestId: !requestId ? ['Request ID is required'] : []
+          }));
+        }
+  
+        // Validate action type
+        const validActions = ['pdf_viewed', 'pdf_downloaded', 'pdf_generated'];
+        if (!validActions.includes(action)) {
+          return next(new ValidationError('Invalid action', {
+            action: [`Action must be one of: ${validActions.join(', ')}`]
+          }));
+        }
+  
+        // Log the PDF event
+        await logAuditEvent(req, {
+          userId: req.user!.id,
+          action: action as AuditAction,
+          resourceId: requestId,
+          resourceType: 'purchase_request',
+          details: {
+            timestamp: new Date().toISOString()
+          }
+        });
+  
+        debug(req, `PDF audit logged: ${action} for request ${requestId}`);
+        return res.json({ success: true });
+      }
     } catch (error) {
-      debug(req, 'Error logging PDF audit:', error);
+      debug(req, 'Error in PDF audit endpoint:', error);
       next(error);
     }
   });
+  
+  // Helper function to convert hex color to RGB
+  function hexToRgb(hex: string): [number, number, number] {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return [r, g, b];
+  }
   
   // AI-powered image analysis for PDF branding
   app.post("/api/pdf/analyze-images", async (req: Request, res: Response, next: NextFunction) => {
