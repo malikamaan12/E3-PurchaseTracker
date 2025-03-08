@@ -40,17 +40,7 @@ export function useNotifications() {
     staleTime: 5000, // Consider data stale after 5 seconds
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchOnReconnect: true,
-    onError: (error: any) => {
-      console.error("Failed to fetch notifications:", error);
-      toast({
-        title: "Error Loading Notifications",
-        description: error.status === 401 
-          ? ERROR_MESSAGES.UNAUTHORIZED 
-          : ERROR_MESSAGES.FETCH_FAILED,
-        variant: "destructive",
-      });
-    },
-    select: (data) => {
+    select: (data: Notification[]) => {
       // Transform and sort notifications, prioritizing unread and high priority
       return [...data].sort((a, b) => {
         // First sort by read status
@@ -89,9 +79,9 @@ export function useNotifications() {
     },
     onSuccess: (_, notificationId) => {
       // Optimistic update
-      queryClient.setQueryData<Notification[]>([API_ROUTES.NOTIFICATIONS], (oldData) => {
+      queryClient.setQueryData<Notification[]>([API_ROUTES.NOTIFICATIONS], (oldData: Notification[] | undefined) => {
         if (!oldData) return [];
-        return oldData.map(notification => 
+        return oldData.map((notification: Notification) => 
           notification.id === notificationId 
             ? { ...notification, isRead: true }
             : notification
@@ -116,8 +106,8 @@ export function useNotifications() {
 
   // Safely calculate unread and high priority counts to avoid type errors
   const notificationArray = Array.isArray(notifications) ? notifications : [];
-  const unreadCount = notificationArray.filter((n: any) => !n.isRead).length;
-  const highPriorityCount = notificationArray.filter((n: any) => !n.isRead && n.priority === 'high').length;
+  const unreadCount = notificationArray.filter((n: Notification) => !n.isRead).length;
+  const highPriorityCount = notificationArray.filter((n: Notification) => !n.isRead && n.priority === 'high').length;
 
   return {
     notifications,

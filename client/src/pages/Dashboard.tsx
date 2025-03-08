@@ -62,6 +62,20 @@ export default function Dashboard() {
       console.log("Sub-purposes loaded:", subPurposes);
     }
   }, [subPurposes]);
+  
+  // Handle notification clicks
+  const handleNotificationClick = useCallback((notification: { id: number; link: string | null; requestId?: number }) => {
+    console.log("Notification clicked:", notification);
+    
+    // First, try to navigate using the link if it exists
+    if (notification.link) {
+      setLocation(notification.link);
+    } 
+    // If no link but has requestId, navigate to the view request page
+    else if (notification.requestId) {
+      setLocation(`/requests/${notification.requestId}`);
+    }
+  }, [setLocation]);
 
   // Local state
   const [activeFilters, setActiveFilters] = useState<FilterValues>({
@@ -342,11 +356,7 @@ export default function Dashboard() {
     }).format(Number(amount));
   };
 
-  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
-    if (notification.link) {
-      setLocation(notification.link);
-    }
-  };
+
 
   // Render methods
   const renderRequestsTable = (requests: RequestData[], showApproval: boolean = false) => {
