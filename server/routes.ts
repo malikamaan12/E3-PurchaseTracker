@@ -3566,8 +3566,8 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add PDF audit endpoint inside registerRoutes
-  // Add endpoint for PDF print settings
-  app.get("/api/pdf/print-settings", async (req: Request, res: Response, next: NextFunction) => {
+  // DEPRECATED: This endpoint is now handled at the end of the file
+  app.get("/api/pdf/print-settings-deprecated", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {
         throw new AppError('Not authenticated', 401);
@@ -3635,57 +3635,11 @@ export function registerRoutes(app: Express): Server {
   
   // This endpoint is now implemented below with more functionality
   
-  // Get PDF settings endpoint
-  app.get("/api/pdf/print-settings", async (req: Request, res: Response, next: NextFunction) => {
+  // DEPRECATED: This endpoint is duplicated. Use the consolidated endpoint at the bottom of this file.
+  app.get("/api/pdf/print-settings-duplicate1", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-      
-      // Query the database for PDF settings using Drizzle ORM
-      const settings = await db.query.pdfSettings.findMany({
-        orderBy: [desc(pdfSettings.updatedAt)],
-        limit: 1
-      });
-      
-      // If no settings found, return default values
-      if (!settings || settings.length === 0) {
-        return res.json({
-          headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
-          headerSubtitle: "PURCHASE REQUEST",
-          headerColor: "#1a365d",
-          footerText: "ALL RIGHTS RESERVED BY E3",
-          footerColor: "#1a365d",
-          pageNumbering: true,
-          fontSize: 11,
-          marginTop: 20,
-          marginBottom: 20,
-          marginLeft: 25,
-          marginRight: 25,
-          headerImage: null,
-          footerImage: null,
-          logo: null
-        });
-      }
-      
-      // Return the settings
-      const setting = settings[0];
-      res.json({
-        headerTitle: setting.headerTitle,
-        headerSubtitle: setting.headerSubtitle,
-        headerColor: setting.headerColor,
-        footerText: setting.footerText,
-        footerColor: setting.footerColor,
-        pageNumbering: setting.pageNumbering,
-        fontSize: setting.fontSize,
-        marginTop: setting.marginTop,
-        marginBottom: setting.marginBottom,
-        marginLeft: setting.marginLeft,
-        marginRight: setting.marginRight,
-        headerImage: setting.headerImage,
-        footerImage: setting.footerImage,
-        logo: setting.logo
-      });
+      // This endpoint is no longer active
+      res.status(410).json({ message: 'This endpoint has been deprecated. Please use /api/pdf/print-settings instead.' });
     } catch (error) {
       next(error);
     }
