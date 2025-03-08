@@ -265,8 +265,8 @@ export function EnhancedNotificationsDropdown({
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <Bell className="mb-2 h-8 w-8 text-muted-foreground opacity-40" />
-            <p className="text-sm text-muted-foreground">No notifications</p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground dark:text-gray-300">No notifications</p>
+            <p className="mt-1 text-xs text-muted-foreground dark:text-gray-400">
               You're all caught up!
             </p>
           </div>
@@ -282,7 +282,7 @@ export function EnhancedNotificationsDropdown({
                   }}
                   className={cn(
                     "flex cursor-pointer flex-col items-start p-3 text-left",
-                    !notification.isRead && "bg-muted/50"
+                    !notification.isRead && "bg-muted/50 dark:bg-gray-800/70"
                   )}
                 >
                   <div className="flex w-full items-start gap-2">
@@ -306,12 +306,12 @@ export function EnhancedNotificationsDropdown({
                               {notification.actionType}
                             </Badge>
                           )}
-                          <span className="ml-auto text-xs text-muted-foreground">
+                          <span className="ml-auto text-xs text-muted-foreground dark:text-gray-400">
                             {formatDate(notification.createdAt)}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground dark:text-gray-300">
                         {notification.message}
                       </p>
                       
