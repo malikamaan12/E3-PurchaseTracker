@@ -36,7 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EnhancedNotificationsDropdownProps {
-  onNotificationClick?: (notification: { id: number; link: string | null }) => void;
+  onNotificationClick?: (notification: { id: number; link: string | null; requestId?: number }) => void;
 }
 
 export function EnhancedNotificationsDropdown({ 
@@ -102,7 +102,7 @@ export function EnhancedNotificationsDropdown({
   };
 
   // Handle notification click
-  const handleNotificationClick = (notification: { id: number; link: string | null }) => {
+  const handleNotificationClick = (notification: { id: number; link: string | null; requestId?: number }) => {
     // Mark as read first
     markAsRead(notification.id);
     
@@ -113,7 +113,11 @@ export function EnhancedNotificationsDropdown({
     if (onNotificationClick) {
       onNotificationClick(notification);
     } else if (notification.link) {
+      // Direct navigation using setLocation
       setLocation(notification.link);
+    } else if (notification.requestId) {
+      // If no link but has requestId, navigate to view request
+      setLocation(`/requests/${notification.requestId}`);
     }
   };
 

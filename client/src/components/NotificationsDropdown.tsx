@@ -21,13 +21,14 @@ interface Notification {
   type: string;
   priority?: string;
   link: string | null;
+  requestId?: number;
   isRead: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 interface NotificationsDropdownProps {
-  onNotificationClick: (notification: { id: number; link: string | null }) => void;
+  onNotificationClick: (notification: { id: number; link: string | null; requestId?: number }) => void;
 }
 
 export function NotificationsDropdown({ onNotificationClick }: NotificationsDropdownProps) {
@@ -74,7 +75,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
   
   // Removed duplicate cleanup effect that was causing potential memory issues
 
-  const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null }) => {
+  const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null; requestId?: number }) => {
     try {
       // Check if the notification exists and is not read yet
       // Use proper typing with our interface
@@ -86,7 +87,11 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
       }
 
       setOpen(false);
-      onNotificationClick(notification);
+      onNotificationClick({
+        id: notification.id, 
+        link: notification.link,
+        requestId: notificationToMark?.requestId
+      });
     } catch (error) {
       console.error('Error handling notification click:', error);
     }
@@ -179,7 +184,8 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
                       e.stopPropagation();
                       handleNotificationClick({
                         id: notification.id,
-                        link: notification.link
+                        link: notification.link,
+                        requestId: notification.requestId
                       });
                     }}
                     className="w-full text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 rounded-md p-2 hover:bg-muted/50 transition-colors"
