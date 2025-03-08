@@ -145,21 +145,50 @@ export default function NotificationsPage() {
   };
 
   // Handle notification click
-  const handleNotificationClick = (notification: { id: number; link: string | null; requestId?: number }) => {
+  const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number }) => {
     // Mark as read first
     markAsRead(notification.id);
     
-    // Navigation prioritizing requestId for consistency
-    if (notification.requestId) {
-      // If notification has requestId, prioritize navigating to the request
-      // This fixes issues where notifications might have a generic "/" link
-      setLocation(`/requests/${notification.requestId}`);
-    } else if (notification.link && notification.link !== '/') {
-      // Only use link if it's not the root path
-      setLocation(notification.link);
-    } else {
-      // Fallback to dashboard if no valid target is available
-      setLocation('/dashboard');
+    try {
+      if (notification.requestId) {
+        // If notification has requestId, check if the request is accessible before navigating
+        // This prevents 403/500 errors when clicking on notifications for requests we can't access
+        const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // Request is accessible, navigate to it
+          setLocation(`/requests/${notification.requestId}`);
+        } else if (response.status === 403) {
+          // Access denied, show a helpful message and stay on current page
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to view this request.",
+            variant: "destructive"
+          });
+        } else {
+          // Handle other errors (like request not found)
+          toast({
+            title: "Error",
+            description: "The requested resource could not be found.",
+            variant: "destructive"
+          });
+        }
+      } else if (notification.link && notification.link !== '/') {
+        // Only use link if it's not the root path
+        setLocation(notification.link);
+      } else {
+        // Fallback to dashboard if no valid target is available
+        setLocation('/dashboard');
+      }
+    } catch (error) {
+      console.error("Error navigating from notification:", error);
+      toast({
+        title: "Navigation Error",
+        description: "There was a problem following this notification. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 

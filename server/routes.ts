@@ -4350,6 +4350,71 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add route to get request approvals
+  // Add a route to check if the user has access to a request without fetching all the data
+  app.get("/api/requests/:id/check-access", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const requestId = parseInt(req.params.id);
+      if (isNaN(requestId)) {
+        throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+      }
+
+      // Fetch the base request
+      const baseRequest = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, requestId)
+      });
+
+      if (!baseRequest) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      // Check if user has permission to view this request
+      const user = req.user as { id: number, role: string, department: string };
+      
+      // User can view if they are the requester, an admin, or from a mandatory department
+      const isAdmin = user.role === 'admin';
+      const isRequester = baseRequest.requesterId === user.id;
+      
+      // Check if user is an approver
+      const approvalsForUser = await db
+        .select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.requestId, requestId),
+          eq(approvals.department, user.department || ''),
+          eq(approvals.approverId, user.id)
+        ));
+        
+      const isApprover = approvalsForUser.length > 0;
+      
+      // Check if user's department is in additional approvers
+      const additionalApprovers = Array.isArray(baseRequest.additionalApprovers) 
+        ? baseRequest.additionalApprovers 
+        : [];
+        
+      const isAdditionalApprover = user.department && additionalApprovers.includes(user.department);
+      
+      // If user doesn't have permission to view, return 403
+      if (!isAdmin && !isRequester && !isApprover && !isAdditionalApprover) {
+        return res.status(403).json({ 
+          message: "You do not have permission to view this request",
+          error: "permission_denied" 
+        });
+      }
+
+      // User has access
+      return res.status(200).json({ 
+        message: "Access granted", 
+        access: true 
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/requests/:id/approvals", async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.isAuthenticated()) {

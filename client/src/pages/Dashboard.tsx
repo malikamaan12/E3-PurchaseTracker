@@ -65,23 +65,52 @@ export default function Dashboard() {
   }, [subPurposes]);
   
   // Handle notification clicks
-  const handleNotificationClick = useCallback((notification: { id: number; link: string | null; requestId?: number }) => {
+  const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null; requestId?: number }) => {
     console.log("Notification clicked:", notification);
     
-    // Navigation prioritizing requestId for consistency
-    if (notification.requestId) {
-      // If notification has requestId, prioritize navigating to the request
-      // This fixes issues where notifications might have a generic "/" link
-      setLocation(`/requests/${notification.requestId}`);
-    } else if (notification.link && notification.link !== '/') {
-      // Only use link if it's not the root path
-      setLocation(notification.link);
-    } else {
-      // We're already on the dashboard, so no need to navigate
-      // Just log for debugging
-      console.log("Notification has no valid navigation target");
+    try {
+      if (notification.requestId) {
+        // If notification has requestId, check if the request is accessible before navigating
+        // This prevents 403/500 errors when clicking on notifications for requests we can't access
+        const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // Request is accessible, navigate to it
+          setLocation(`/requests/${notification.requestId}`);
+        } else if (response.status === 403) {
+          // Access denied, show a helpful message and stay on current page
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to view this request.",
+            variant: "destructive"
+          });
+        } else {
+          // Handle other errors (like request not found)
+          toast({
+            title: "Error",
+            description: "The requested resource could not be found.",
+            variant: "destructive"
+          });
+        }
+      } else if (notification.link && notification.link !== '/') {
+        // Only use link if it's not the root path
+        setLocation(notification.link);
+      } else {
+        // We're already on the dashboard, so no need to navigate
+        // Just log for debugging
+        console.log("Notification has no valid navigation target");
+      }
+    } catch (error) {
+      console.error("Error navigating from notification:", error);
+      toast({
+        title: "Navigation Error",
+        description: "There was a problem following this notification. Please try again.",
+        variant: "destructive"
+      });
     }
-  }, [setLocation]);
+  }, [setLocation, toast]);
 
   // Local state
   const [activeFilters, setActiveFilters] = useState<FilterValues>({
