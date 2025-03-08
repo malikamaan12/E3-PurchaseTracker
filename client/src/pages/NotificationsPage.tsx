@@ -350,9 +350,9 @@ export default function NotificationsPage() {
           ) : filteredNotifications.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Bell className="mb-4 h-12 w-12 text-muted-foreground opacity-40" />
-                <h3 className="text-lg font-medium">No notifications found</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <Bell className="mb-4 h-12 w-12 text-muted-foreground opacity-40 dark:text-gray-400" />
+                <h3 className="text-lg font-medium dark:text-gray-200">No notifications found</h3>
+                <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
                   {activeTab === 'unread' 
                     ? "You're all caught up! No unread notifications."
                     : activeTab === 'high-priority'
@@ -395,12 +395,12 @@ export default function NotificationsPage() {
                                     High
                                   </Badge>
                                 )}
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-muted-foreground dark:text-gray-400">
                                   {formatRelativeTime(notification.createdAt)}
                                 </span>
                               </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground dark:text-gray-300">
                               {notification.message}
                             </p>
                             
