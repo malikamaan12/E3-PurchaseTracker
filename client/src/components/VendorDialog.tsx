@@ -27,12 +27,13 @@ import type { Vendor } from "@db/schema";
 import { vendorFormSchema } from "@db/schema";
 
 interface VendorDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onVendorCreated: (vendor: Vendor) => void;
 }
 
-export default function VendorDialog({ isOpen, onClose, onVendorCreated }: VendorDialogProps) {
+export default function VendorDialog({ open, onOpenChange, onVendorCreated }: VendorDialogProps) {
+  const onClose = () => onOpenChange(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
@@ -90,7 +91,7 @@ export default function VendorDialog({ isOpen, onClose, onVendorCreated }: Vendo
   }, [form, onClose, onVendorCreated]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Vendor</DialogTitle>
