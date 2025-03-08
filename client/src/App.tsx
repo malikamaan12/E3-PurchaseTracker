@@ -13,6 +13,7 @@ import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import BulkExportPage from "./pages/BulkExportPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import PDFDesignPage from "./pages/PDFDesignPage";
 import { NotFound } from "@/components/NotFound";
 import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
 import TestExportPage from "./pages/TestExportPage";
@@ -60,6 +61,7 @@ function App() {
             <Route path="/admin/error-analytics" component={ErrorDashboard} />
             <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
             <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
+            <Route path="/admin/pdf-design" component={PDFDesignPage} />
           </>
         )}
 
