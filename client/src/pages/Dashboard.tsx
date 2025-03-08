@@ -638,7 +638,14 @@ export default function Dashboard() {
                 size="sm"
                 variant="outline"
                 className="border-[#7156a2]/20 hover:bg-[#7156a2]/10 dark:border-[#7156a2]/50 dark:hover:bg-[#7156a2]/30 text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-3"
-                onClick={() => logout()}
+                onClick={async () => {
+                  try {
+                    await logout();
+                    window.location.href = '/login';
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                  }
+                }}
               >
                 <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Logout</span>
