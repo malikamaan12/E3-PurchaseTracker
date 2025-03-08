@@ -146,17 +146,17 @@ export default function NotificationsPage() {
     const iconProps = { className: 'h-5 w-5', strokeWidth: 2 };
     
     if (priority === 'high') {
-      if (type.includes('approved')) return <CheckCircle {...iconProps} className="text-green-500" />;
-      if (type.includes('rejected')) return <XCircle {...iconProps} className="text-red-500" />;
-      if (type.includes('changes')) return <AlertCircle {...iconProps} className="text-yellow-500" />;
-      return <AlertCircle {...iconProps} className="text-red-500" />;
+      if (type.includes('approved')) return <CheckCircle {...iconProps} className="text-green-500 dark:text-green-400" />;
+      if (type.includes('rejected')) return <XCircle {...iconProps} className="text-red-500 dark:text-red-400" />;
+      if (type.includes('changes')) return <AlertCircle {...iconProps} className="text-yellow-500 dark:text-yellow-400" />;
+      return <AlertCircle {...iconProps} className="text-red-500 dark:text-red-400" />;
     }
     
-    if (type.includes('request')) return <Info {...iconProps} className="text-blue-500" />;
-    if (type.includes('approval')) return <CheckSquare {...iconProps} className="text-green-500" />;
-    if (type.includes('system')) return <Info {...iconProps} className="text-gray-500" />;
+    if (type.includes('request')) return <Info {...iconProps} className="text-blue-500 dark:text-blue-400" />;
+    if (type.includes('approval')) return <CheckSquare {...iconProps} className="text-green-500 dark:text-green-400" />;
+    if (type.includes('system')) return <Info {...iconProps} className="text-gray-500 dark:text-gray-400" />;
     
-    return <Info {...iconProps} className="text-gray-500" />;
+    return <Info {...iconProps} className="text-gray-500 dark:text-gray-400" />;
   };
 
   // Handle notification click - for viewing details or navigating to request
@@ -392,7 +392,9 @@ export default function NotificationsPage() {
           ) : filteredNotifications.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Bell className="mb-4 h-12 w-12 text-muted-foreground opacity-40 dark:text-gray-400" />
+                <div className="mb-4 p-4 rounded-full bg-muted/50 dark:bg-gray-800">
+                  <Bell className="h-8 w-8 text-muted-foreground dark:text-gray-400" />
+                </div>
                 <h3 className="text-lg font-medium dark:text-gray-200">No notifications found</h3>
                 <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
                   {activeTab === 'unread' 
@@ -414,8 +416,8 @@ export default function NotificationsPage() {
                     <Card 
                       key={notification.id} 
                       className={cn(
-                        "transition-all duration-200 hover:shadow-md",
-                        !notification.isRead && "border-l-4 border-l-primary bg-primary/5"
+                        "transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-primary/10",
+                        !notification.isRead && "border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10"
                       )}
                     >
                       <CardContent className="p-4">
