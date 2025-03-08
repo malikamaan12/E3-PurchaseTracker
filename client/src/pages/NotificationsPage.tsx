@@ -149,11 +149,17 @@ export default function NotificationsPage() {
     // Mark as read first
     markAsRead(notification.id);
     
-    // Navigation
-    if (notification.link) {
-      setLocation(notification.link);
-    } else if (notification.requestId) {
+    // Navigation prioritizing requestId for consistency
+    if (notification.requestId) {
+      // If notification has requestId, prioritize navigating to the request
+      // This fixes issues where notifications might have a generic "/" link
       setLocation(`/requests/${notification.requestId}`);
+    } else if (notification.link && notification.link !== '/') {
+      // Only use link if it's not the root path
+      setLocation(notification.link);
+    } else {
+      // Fallback to dashboard if no valid target is available
+      setLocation('/dashboard');
     }
   };
 

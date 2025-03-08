@@ -68,13 +68,18 @@ export default function Dashboard() {
   const handleNotificationClick = useCallback((notification: { id: number; link: string | null; requestId?: number }) => {
     console.log("Notification clicked:", notification);
     
-    // First, try to navigate using the link if it exists
-    if (notification.link) {
-      setLocation(notification.link);
-    } 
-    // If no link but has requestId, navigate to the view request page
-    else if (notification.requestId) {
+    // Navigation prioritizing requestId for consistency
+    if (notification.requestId) {
+      // If notification has requestId, prioritize navigating to the request
+      // This fixes issues where notifications might have a generic "/" link
       setLocation(`/requests/${notification.requestId}`);
+    } else if (notification.link && notification.link !== '/') {
+      // Only use link if it's not the root path
+      setLocation(notification.link);
+    } else {
+      // We're already on the dashboard, so no need to navigate
+      // Just log for debugging
+      console.log("Notification has no valid navigation target");
     }
   }, [setLocation]);
 

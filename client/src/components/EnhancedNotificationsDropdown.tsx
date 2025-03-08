@@ -112,12 +112,16 @@ export function EnhancedNotificationsDropdown({
     // Use custom handler if provided
     if (onNotificationClick) {
       onNotificationClick(notification);
-    } else if (notification.link) {
-      // Direct navigation using setLocation
-      setLocation(notification.link);
     } else if (notification.requestId) {
-      // If no link but has requestId, navigate to view request
+      // If notification has requestId, prioritize navigating to the request
+      // This fixes issues where notifications might have a generic "/" link
       setLocation(`/requests/${notification.requestId}`);
+    } else if (notification.link && notification.link !== '/') {
+      // Only use link if it's not the root path
+      setLocation(notification.link);
+    } else {
+      // Fallback to dashboard if no valid target is available
+      setLocation('/dashboard');
     }
   };
 
