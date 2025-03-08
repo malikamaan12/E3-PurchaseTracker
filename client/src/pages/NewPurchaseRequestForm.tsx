@@ -114,12 +114,12 @@ export default function NewPurchaseRequestForm() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border border-[#35bbba]/20">
-          <div className="border-b border-[#7156a2]/10 pb-4 mb-6">
-            <h1 className="text-2xl font-bold text-[#7156a2]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-[#35bbba]/20 dark:border-[#35bbba]/30">
+          <div className="border-b border-[#7156a2]/10 dark:border-[#7156a2]/20 pb-4 mb-6">
+            <h1 className="text-2xl font-bold text-[#7156a2] dark:text-[#9f83d5]">
               New Purchase Request
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground dark:text-gray-300 mt-1">
               Fill in the details below to create a new purchase request
             </p>
           </div>

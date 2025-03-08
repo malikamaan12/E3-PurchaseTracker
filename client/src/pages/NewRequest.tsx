@@ -298,8 +298,8 @@ export default function NewRequest() {
         </Button>
 
         <Card className="border-[#3eb6ba]/20 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardHeader className="border-b border-[#3eb6ba]/20 bg-gradient-to-r from-[#7058a3]/5 to-[#3eb6ba]/5">
-            <CardTitle className="text-[#7058a3] text-2xl font-bold">
+          <CardHeader className="border-b border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 bg-gradient-to-r from-[#7058a3]/5 to-[#3eb6ba]/5 dark:from-[#7058a3]/10 dark:to-[#3eb6ba]/10">
+            <CardTitle className="text-[#7058a3] dark:text-[#9f83d5] text-2xl font-bold">
               Create New Purchase Request
             </CardTitle>
           </CardHeader>
@@ -307,9 +307,9 @@ export default function NewRequest() {
             <Form {...form}>
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
-                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                  <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
+                    <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                       Purpose Selection
                     </h3>
                     <FormField
@@ -358,9 +358,9 @@ export default function NewRequest() {
                     />
                   </div>
 
-                  <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
-                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                  <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
+                    <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                       Basic Information
                     </h3>
                     <FormField
@@ -403,10 +403,10 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-[#7058a3] flex items-center">
-                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                    <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                       Vendor Information
                     </h3>
                     <Button
@@ -441,10 +441,10 @@ export default function NewRequest() {
                   </Select>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <h3 className="text-lg font-semibold text-[#7058a3] flex items-center">
-                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                    <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                       Items
                     </h3>
                     <div className="flex flex-wrap items-center gap-4">
@@ -595,9 +595,9 @@ export default function NewRequest() {
                   </div>
                 </div>
 
-                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
-                  <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-                    <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
+                  <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] mb-4 flex items-center">
+                    <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                     Additional Approvers
                   </h3>
                   <DepartmentSelect
@@ -611,10 +611,10 @@ export default function NewRequest() {
                 </div>
 
                 {/* New Approval Flow Section */}
-                <div className="space-y-6 p-6 bg-white rounded-xl shadow-sm border border-[#3eb6ba]/20 hover:border-[#3eb6ba]/40 transition-colors">
+                <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-[#3eb6ba]/20 dark:border-[#3eb6ba]/30 hover:border-[#3eb6ba]/40 dark:hover:border-[#3eb6ba]/50 transition-colors">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-[#7058a3] mb-4 flex items-center">
-                      <span className="w-1.5 h-6 bg-[#7058a3] rounded-r mr-2"></span>
+                    <h3 className="text-lg font-semibold text-[#7058a3] dark:text-[#9f83d5] mb-4 flex items-center">
+                      <span className="w-1.5 h-6 bg-[#7058a3] dark:bg-[#9f83d5] rounded-r mr-2"></span>
                       Approval Flow
                     </h3>
                   </div>
