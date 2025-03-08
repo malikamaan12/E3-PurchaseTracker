@@ -57,12 +57,7 @@ export default function Dashboard() {
   const { vendors = [] } = useVendors();
   const { subPurposes = [] } = useSubPurposes();
   
-  // Debug sub-purposes data
-  useEffect(() => {
-    if (subPurposes && subPurposes.length > 0) {
-      console.log("Sub-purposes loaded:", subPurposes);
-    }
-  }, [subPurposes]);
+  // Debug sub-purposes data - removed to fix infinite loop
   
   // Handle notification clicks
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null; requestId?: number }) => {

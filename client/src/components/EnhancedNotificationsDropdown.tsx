@@ -103,20 +103,25 @@ export function EnhancedNotificationsDropdown({
 
   // Handle notification click
   const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number }) => {
+    console.log("Handling notification click:", notification);
+    
     // Mark as read first
-    markAsRead(notification.id);
+    await markAsRead(notification.id);
     
     // Close dropdown
     setOpen(false);
     
     // Use custom handler if provided
     if (onNotificationClick) {
+      console.log("Using custom notification click handler");
       onNotificationClick(notification);
       return;
     }
 
     try {
       if (notification.requestId) {
+        console.log("Notification has requestId:", notification.requestId);
+        
         // If notification has requestId, check if the request is accessible before navigating
         // This prevents 403/500 errors when clicking on notifications for requests we can't access
         const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
@@ -125,9 +130,12 @@ export function EnhancedNotificationsDropdown({
         
         if (response.ok) {
           // Request is accessible, navigate to it
-          setLocation(`/requests/${notification.requestId}`);
+          console.log("Request is accessible, navigating to:", `/requests/${notification.requestId}`);
+          // Use window.location.href for a full page navigation instead of router
+          window.location.href = `/requests/${notification.requestId}`;
         } else if (response.status === 403) {
           // Access denied, show a helpful message and stay on current page
+          console.log("Access denied for request:", notification.requestId);
           toast({
             title: "Access Denied",
             description: "You don't have permission to view this request.",
@@ -135,19 +143,22 @@ export function EnhancedNotificationsDropdown({
           });
         } else {
           // Handle other errors (like request not found)
+          console.log("Request not found:", notification.requestId);
           toast({
             title: "Error",
             description: "The requested resource could not be found.",
             variant: "destructive"
           });
-          setLocation('/dashboard');
+          window.location.href = '/dashboard';
         }
       } else if (notification.link && notification.link !== '/') {
         // Only use link if it's not the root path
-        setLocation(notification.link);
+        console.log("Using notification link:", notification.link);
+        window.location.href = notification.link;
       } else {
         // Fallback to dashboard if no valid target is available
-        setLocation('/dashboard');
+        console.log("No valid navigation target, fallback to dashboard");
+        window.location.href = '/dashboard';
       }
     } catch (error) {
       console.error("Error navigating from notification:", error);
@@ -156,7 +167,7 @@ export function EnhancedNotificationsDropdown({
         description: "There was a problem following this notification. Please try again.",
         variant: "destructive"
       });
-      setLocation('/dashboard');
+      window.location.href = '/dashboard';
     }
   };
 
@@ -354,7 +365,8 @@ export function EnhancedNotificationsDropdown({
           onSelect={(e) => {
             e.preventDefault();
             setOpen(false);
-            setLocation('/notifications');
+            // Use window.location for a full page navigation
+            window.location.href = '/notifications';
           }}
           className="justify-center text-center text-sm font-medium"
         >
