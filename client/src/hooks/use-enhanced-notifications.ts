@@ -353,7 +353,7 @@ export function useEnhancedNotifications(options?: {
       }
       
       // Show toast for specific action types
-      const actionMessages = {
+      const actionMessages: Record<string, string> = {
         'approve': 'Request approved successfully',
         'reject': 'Request rejected successfully',
         'update': 'Request updated successfully',

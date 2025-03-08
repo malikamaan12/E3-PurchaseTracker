@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useEnhancedNotifications } from '@/hooks/use-enhanced-notifications';
+import { useEnhancedNotifications, Notification } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { 
@@ -159,9 +159,19 @@ export default function NotificationsPage() {
     return <Info {...iconProps} className="text-gray-500" />;
   };
 
-  // Handle notification click
-  const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number }) => {
-    // Mark as read first
+  // Handle notification click - for viewing details or navigating to request
+  const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number; actionType?: string }) => {
+    // If the notification has an action type, use performAction to handle it
+    if (notification.actionType && notification.requestId) {
+      performAction({
+        actionType: notification.actionType,
+        notificationId: notification.id,
+        requestId: notification.requestId,
+      });
+      return;
+    }
+    
+    // Otherwise, just mark as read and navigate
     markAsRead(notification.id);
     
     try {
@@ -191,8 +201,8 @@ export default function NotificationsPage() {
           });
         }
       } else if (notification.link && notification.link !== '/') {
-        // Only use link if it's not the root path
-        setLocation(notification.link);
+        // Use handleNavigate for direct links
+        handleNavigate(notification.link);
       } else {
         // Fallback to dashboard if no valid target is available
         setLocation('/dashboard');
@@ -205,6 +215,23 @@ export default function NotificationsPage() {
         variant: "destructive"
       });
     }
+  };
+  
+  // Handle specific action on a notification (approve, reject, etc.)
+  const handleNotificationAction = (notification: Notification) => {
+    if (!notification.actionType || !notification.requestId) {
+      return handleNotificationClick(notification);
+    }
+    
+    performAction({
+      actionType: notification.actionType,
+      notificationId: notification.id,
+      requestId: notification.requestId,
+      // For approvals or rejections, we can include additional data here
+      actionData: notification.actionType === 'reject' ? { status: 'rejected' } : 
+                  notification.actionType === 'approve' ? { status: 'approved' } :
+                  undefined
+    });
   };
 
   // Handle mark all as read
@@ -426,7 +453,7 @@ export default function NotificationsPage() {
                                     size="sm"
                                     variant="default"
                                     className="h-8 px-3 text-xs"
-                                    onClick={() => handleNotificationClick(notification)}
+                                    onClick={() => handleNotificationAction(notification)}
                                   >
                                     {notification.actionType === 'approve' && 'Review & Approve'}
                                     {notification.actionType === 'reject' && 'Review & Reject'}
