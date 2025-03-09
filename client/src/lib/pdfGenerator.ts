@@ -19,6 +19,7 @@ function hexToRgb(hex: string): [number, number, number] {
 async function addHeader(doc: jsPDF, request: any): Promise<number> {
   try {
     const pageWidth = doc.internal.pageSize.width;
+    
     // Get header height from settings or use default
     let headerHeight = 35;
     if (request?.pdfSettings?.headerHeight) {
@@ -38,6 +39,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       headerTitle: string;
       headerSubtitle: string;
       headerColor: string;
+      accentColor: string;
       showHeaderText: boolean;
       showHeaderImage: boolean;
       showLogo: boolean;
@@ -47,6 +49,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       headerTitle: "EVENTS & ENTERTAINMENT",
       headerSubtitle: "ENTERPRISES",
       headerColor: "#6F2AE6", // E3 purple
+      accentColor: "#1FD3DB", // E3 teal
       showHeaderText: true,
       showHeaderImage: true,
       showLogo: true
@@ -66,6 +69,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         headerTitle: request.pdfSettings.headerTitle || settings.headerTitle,
         headerSubtitle: request.pdfSettings.headerSubtitle || settings.headerSubtitle,
         headerColor: request.pdfSettings.headerColor || settings.headerColor,
+        accentColor: request.pdfSettings.accentColor || settings.accentColor,
         // Fix visibility issues by checking for explicit boolean values
         showHeaderText: request.pdfSettings.hasOwnProperty('showHeaderText') 
           ? Boolean(request.pdfSettings.showHeaderText) 
@@ -90,6 +94,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
             headerTitle: apiSettings.headerTitle || settings.headerTitle,
             headerSubtitle: apiSettings.headerSubtitle || settings.headerSubtitle,
             headerColor: apiSettings.headerColor || settings.headerColor,
+            accentColor: apiSettings.accentColor || settings.accentColor,
             // Fix visibility issues by checking for explicit boolean values
             showHeaderText: apiSettings.hasOwnProperty('showHeaderText') 
               ? Boolean(apiSettings.showHeaderText) 
@@ -109,6 +114,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     
     // Convert header color from hex to RGB
     let headerColorRgb = primaryColor;
+    let accentColorRgb = accentColor;
     if (settings.headerColor && settings.headerColor.startsWith("#")) {
       try {
         headerColorRgb = hexToRgb(settings.headerColor);
@@ -116,14 +122,29 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         console.error('Error converting header color:', e);
       }
     }
+    if (settings.accentColor && settings.accentColor.startsWith("#")) {
+      try {
+        accentColorRgb = hexToRgb(settings.accentColor);
+      } catch (e) {
+        console.error('Error converting accent color:', e);
+      }
+    }
     
-    // Draw the background for the entire header area at the very top
-    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2], 0.1); // Very light background
-    doc.rect(0, startY, pageWidth, headerHeight, 'F');
+    // Create a more sophisticated header with a subtle gradient and rounded corners at the bottom
+    // Modern drop shadow effect - draw a very light shadow rectangle first
+    doc.setFillColor(220, 220, 220);
+    doc.rect(margin - 0.5, startY, pageWidth - (2 * margin) + 1, headerHeight + 1, 'F');
     
-    // Handle logo if explicitly enabled - now positioned at top
+    // Main header background with very light color (10% opacity)
+    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2], 0.08);
+    doc.rect(margin, startY, pageWidth - (2 * margin), headerHeight, 'F');
+    
+    // Clean top accent line
+    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
+    doc.rect(margin, startY, pageWidth - (2 * margin), 2, 'F');
+    
+    // Handle logo if explicitly enabled - now positioned at top with better placement
     if (settings.showLogo === true) {
-      // E3 Logo on left side
       let e3Logo: string = '/uploads/logos/e3-logo.png'; // Default logo path
       
       // Use custom logo if available
@@ -139,12 +160,12 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
           img.onerror = resolve; // Continue even if image fails to load
         });
         
-        // Draw the E3 logo on the left side at the top
-        const logoSize = Math.min(headerHeight * 0.6, 20);
-        const logoY = startY + 5;
-        doc.addImage(img, 'PNG', margin, logoY, logoSize, logoSize);
+        // Draw the logo with proper spacing and sizing
+        const logoSize = Math.min(headerHeight * 0.7, 22);
+        const logoY = startY + (headerHeight * 0.2); // 20% from the top
+        doc.addImage(img, 'PNG', margin + 5, logoY, logoSize, logoSize);
       } catch (logoError) {
-        console.error('Error adding E3 logo to PDF:', logoError);
+        console.error('Error adding logo to PDF:', logoError);
         
         // Create a simple text placeholder if logo fails to load
         doc.setFontSize(16);
@@ -153,75 +174,83 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Add header text if explicitly enabled - positioned in header area
+    // Add header text if explicitly enabled with enhanced typography and placement
     if (settings.showHeaderText === true) {
-      // Calculate position for header text to appear in the center of header area
-      const headerTextY = 15; // Positioned at the top half of the header
+      // Position header text to appear centered but with proper spacing from logo
+      const headerTextX = settings.showLogo ? pageWidth/2 + 10 : pageWidth/2;
+      const headerTextY = startY + (headerHeight * 0.4); // 40% from the top
       
-      // Add company header with appropriate branding colors
+      // Add company header with elegant typography
       doc.setFontSize(14);
+      doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
       doc.setTextColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
-      doc.text(settings.headerTitle, pageWidth/2, headerTextY, { align: 'center' });
+      doc.text(settings.headerTitle, headerTextX, headerTextY, { align: 'center' });
       
-      doc.setFontSize(12);
-      doc.text(settings.headerSubtitle, pageWidth/2, headerTextY + 7, { align: 'center' });
+      // Subtitle with slightly smaller size
+      doc.setFontSize(11);
+      doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+      doc.setTextColor(60, 60, 60); // Darker gray for better readability
+      doc.text(settings.headerSubtitle, headerTextX, headerTextY + 6, { align: 'center' });
       
-      // Add PURCHASE REQUEST text clearly labeled
+      // Add PURCHASE REQUEST text as prominent heading
       doc.setFontSize(13);
-      doc.setTextColor(0, 0, 0); // Black for visibility
-      doc.text("PURCHASE REQUEST", pageWidth/2, headerTextY + 16, { align: 'center' });
+      doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+      doc.setTextColor(50, 50, 50); // Near-black for maximum readability
+      doc.text("PURCHASE REQUEST", headerTextX, headerTextY + 15, { align: 'center' });
     }
     
-    // Always add the colored gradient bar (matching E3 brand)
-    // Create a gradient bar effect manually at the bottom of the header area
-    const gradientY = headerHeight - 3;
-    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]); // Primary color
-    doc.rect(margin, gradientY, pageWidth / 2 - margin, 3, 'F');
+    // Create a modern dual-color accent bar with gradient effect
+    const gradientY = headerHeight - 2;
     
-    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(pageWidth / 2, gradientY, pageWidth / 2 - margin, 3, 'F');
+    // First half with primary brand color
+    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
+    doc.roundedRect(margin, gradientY, (pageWidth / 2) - margin - 2, 3, 1, 1, 'F');
     
-    // Add subtle border line
-    doc.setDrawColor(240, 240, 240);
-    doc.line(margin, headerHeight + 2, pageWidth - margin, headerHeight + 2);
+    // Second half with accent color - slight overlap for seamless appearance
+    doc.setFillColor(accentColorRgb[0], accentColorRgb[1], accentColorRgb[2]);
+    doc.roundedRect((pageWidth / 2) - 2, gradientY, (pageWidth / 2) - margin + 2, 3, 1, 1, 'F');
     
     // Return position for content to start after the header
-    return headerHeight + 30;
-  } catch (error) {
-    console.error("Error rendering PDF header:", error);
-    // Continue rendering
-    return 40; // Default position in case of error
-  }
-
-  // Add request number and date with error handling
-  try {
-    const pageWidth = doc.internal.pageSize.width;
-    const margin = request?.pdfSettings?.marginLeft || 15;
+    const initialPosition = headerHeight + 8;
     
-    // Get header height from settings or use default
-    let headerHeight = 35;
-    if (request?.pdfSettings?.headerHeight) {
-      // Convert px to points (assuming 72 points per inch, typical for PDF)
-      headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
-    }
+    // Add request info after header in a clean bordered box
+    const detailsBoxY = initialPosition;
+    const detailsBoxHeight = 25;
     
-    // Starting position for request details
-    const yPosition = headerHeight + 10; 
+    // Draw a subtle box for the request details
+    doc.setFillColor(249, 250, 252); // Very light blue-gray
+    doc.roundedRect(margin, detailsBoxY, pageWidth - (2 * margin), detailsBoxHeight, 2, 2, 'F');
     
-    // Add request info after header
+    // Add thin border
+    doc.setDrawColor(230, 235, 240);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(margin, detailsBoxY, pageWidth - (2 * margin), detailsBoxHeight, 2, 2, 'S');
+    
+    // Add request number with prominent styling
     doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, yPosition);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+    doc.setTextColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]); // Use primary color
+    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin + 5, detailsBoxY + 6);
     
-    // Add requester and date on the next row
+    // Add requester details with clean layout
     doc.setFontSize(9);
-    doc.text(`Requester:`, margin, yPosition + 7);
-    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, yPosition + 7);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+    doc.setTextColor(70, 70, 70);
     
-    doc.text(`Department:`, pageWidth / 2, yPosition + 7);
-    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, yPosition + 7);
+    // First row - requester and department
+    doc.text(`Requester:`, margin + 5, detailsBoxY + 14);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 35, detailsBoxY + 14);
     
-    doc.text(`Date:`, margin, yPosition + 14);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+    doc.text(`Department:`, pageWidth / 2, detailsBoxY + 14);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 35, detailsBoxY + 14);
+    
+    // Second row - date and status
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+    doc.text(`Date:`, margin + 5, detailsBoxY + 21);
+    
     let dateText = 'N/A';
     if (request?.createdAt) {
       try {
@@ -230,26 +259,39 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         console.error('Error formatting date:', dateError);
       }
     }
-    doc.text(dateText, margin + 30, yPosition + 14);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+    doc.text(dateText, margin + 35, detailsBoxY + 21);
     
-    doc.text(`Status:`, pageWidth / 2, yPosition + 14);
-    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, yPosition + 14);
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+    doc.text(`Status:`, pageWidth / 2, detailsBoxY + 21);
     
-    // Add a horizontal separator line to create visual distinction
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.2);
-    doc.line(margin, yPosition + 18, pageWidth - margin, yPosition + 18);
+    // Format status with appropriate styling based on value
+    const status = request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending';
     
-    return yPosition + 25; // Return position after all header elements with additional spacing
-  } catch (error) {
-    console.error('Error adding request details:', error);
-    
-    // Get header height from settings or use default in error case
-    let headerHeight = 35;
-    if (request?.pdfSettings?.headerHeight) {
-      headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
+    // Color-code status text
+    if (status.toLowerCase() === 'approved') {
+      doc.setTextColor(46, 125, 50); // Green
+    } else if (status.toLowerCase() === 'rejected') {
+      doc.setTextColor(198, 40, 40); // Red
+    } else if (status.toLowerCase() === 'pending') {
+      doc.setTextColor(33, 150, 243); // Blue
+    } else {
+      doc.setTextColor(70, 70, 70); // Default gray
     }
-    return headerHeight + 30; // Return default position after header in case of error
+    
+    doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+    doc.text(status, pageWidth / 2 + 35, detailsBoxY + 21);
+    
+    // Reset text color back to default
+    doc.setTextColor(0, 0, 0);
+    
+    // Return position after the details box with spacing
+    return detailsBoxY + detailsBoxHeight + 5;
+    
+  } catch (error) {
+    console.error("Error rendering PDF header:", error);
+    // Continue rendering with a safe fallback
+    return 50; // Default position in case of error
   }
 }
 
@@ -262,7 +304,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     const margin = request?.pdfSettings?.marginLeft || 15;
     
     // Get footer height from settings or use default
-    let footerHeight = 20;
+    let footerHeight = 22; // Slightly taller for better proportions
     if (request?.pdfSettings?.footerHeight) {
       // Convert px to points (assuming 72 points per inch, typical for PDF)
       footerHeight = Math.min(Math.max(request.pdfSettings.footerHeight / 2, 10), 100);
@@ -274,7 +316,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     // E3 brand colors (matching header)
     const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
     const accentColor = [31, 211, 219]; // E3 teal #1FD3DB
-    const textColor = [50, 50, 50]; // Dark gray for text
+    const textColor = [70, 70, 70]; // Darker gray for better readability
     
     // Prepare settings with default and override values
     let settings: {
@@ -433,45 +475,94 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     }
     
-    // Add contact information in the footer
+    // Add contact information in the footer with improved layout and styling
     const { contactInfo } = settings;
-    doc.setFontSize(7);
-    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     
-    // Add icons and contact info - only if showContactInfo is explicitly enabled
+    // Add clean contact info layout if showContactInfo is explicitly enabled
     // Strict boolean check to fix visibility issues
     if (settings.showContactInfo === true && contactInfo) {
+      // Create a subtle rounded container for contact info
+      doc.setFillColor(248, 249, 252); // Very light blue-gray background
+      doc.roundedRect(margin, footerY + 8, pageWidth - (2 * margin), 12, 2, 2, 'F');
+      
+      // Set consistent font styling for contact info
+      doc.setFontSize(7);
+      doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      
+      // Add each contact element with proper spacing and layout
       // Left side - Phone and email
+      let contactY = footerY + 12;
+      let contactRight = pageWidth / 2 + 15; // Right side starting point
+      
       if (contactInfo.phone) {
-        doc.text(`☎ ${contactInfo.phone}`, margin, footerY + 10);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+        doc.text('Phone:', margin + 2, contactY);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        doc.text(contactInfo.phone, margin + 18, contactY);
       }
       
       if (contactInfo.email) {
-        doc.text(`✉ ${contactInfo.email}`, margin, footerY + 14);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+        doc.text('Email:', margin + 2, contactY + 5);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        doc.text(contactInfo.email, margin + 18, contactY + 5);
       }
       
+      // Right side elements
       if (contactInfo.website) {
-        doc.text(`🌐 ${contactInfo.website}`, margin, footerY + 18);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+        doc.text('Website:', contactRight - 35, contactY);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        doc.text(contactInfo.website, contactRight, contactY);
       }
       
-      // Right side - Address
+      // Address with better spacing
       if (contactInfo.address) {
-        doc.text(`📍 ${contactInfo.address}`, pageWidth / 2, footerY + 14);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'bold');
+        doc.text('Address:', contactRight - 35, contactY + 5);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        
+        // Handle potentially long addresses by wrapping/truncating
+        const maxWidth = pageWidth - contactRight - margin;
+        const shortenedAddress = contactInfo.address.length > 70 
+          ? contactInfo.address.substring(0, 70) + '...' 
+          : contactInfo.address;
+          
+        doc.text(shortenedAddress, contactRight, contactY + 5, { maxWidth });
       }
     }
     
-    // Add footer text at the very bottom of the page
-    if (settings.showFooterText === true) {
-      doc.setFontSize(8);
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.text(settings.footerText, margin, pageHeight - 4);
-    }
-    
-    // Add page numbers at the very bottom of the page
-    if (settings.pageNumbering === true) {
-      doc.setFontSize(8);
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
+    // Create a clean container for footer text and page numbers
+    if (settings.showFooterText === true || settings.pageNumbering === true) {
+      // Add a subtle separator line
+      doc.setDrawColor(230, 230, 230);
+      doc.setLineWidth(0.1);
+      doc.line(margin, pageHeight - 8, pageWidth - margin, pageHeight - 8);
+      
+      // Footer text with consistent styling
+      if (settings.showFooterText === true) {
+        doc.setFontSize(8);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        doc.setTextColor(100, 100, 100); // Lighter gray for footer text
+        doc.text(settings.footerText, margin, pageHeight - 4);
+      }
+      
+      // Page numbers with consistent styling
+      if (settings.pageNumbering === true) {
+        doc.setFontSize(8);
+        doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
+        
+        // Create page numbers in a clean box with accent color
+        doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+        const pageText = `Page ${currentPage} of ${totalPages}`;
+        const pageTextWidth = doc.getTextWidth(pageText) + 10;
+        doc.roundedRect(pageWidth - margin - pageTextWidth, pageHeight - 7, pageTextWidth, 5, 1, 1, 'F');
+        
+        // Draw the page number text
+        doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+        doc.text(pageText, pageWidth - margin - 5, pageHeight - 4, { align: 'right' });
+      }
     }
     
     // Remove black line at bottom - no need for a bottom border
