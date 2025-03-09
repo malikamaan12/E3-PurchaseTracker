@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
+import PDFSettingsPanel from "@/components/PDFSettingsPanel";
 import {
   Card,
   CardContent,
@@ -30,7 +31,9 @@ import {
   ListTree,
   Pencil,
   Trash2,
-  Loader2 
+  Loader2,
+  FileText,
+  Settings
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -413,7 +416,7 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users">
             {isMobile ? (
               <Users className="h-5 w-5" />
@@ -451,6 +454,16 @@ export default function AdminPanel() {
               <div className="flex items-center">
                 <ListTree className="h-4 w-4 mr-2" />
                 <span>Sub-purposes</span>
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="pdf-settings">
+            {isMobile ? (
+              <FileText className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                <span>PDF Settings</span>
               </div>
             )}
           </TabsTrigger>
@@ -997,6 +1010,21 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <DepartmentDashboard />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* PDF Settings Tab */}
+        <TabsContent value="pdf-settings">
+          <Card>
+            <CardHeader>
+              <CardTitle>PDF Document Settings</CardTitle>
+              <CardDescription>
+                Customize appearance and content of exported PDF documents
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PDFSettingsPanel />
             </CardContent>
           </Card>
         </TabsContent>
