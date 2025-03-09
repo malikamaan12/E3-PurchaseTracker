@@ -913,11 +913,12 @@ export default function PurchaseRequestForm({
                       if (files.length > 0) {
                         // Here we would typically upload the files to the server
                         // For now, we'll just create file preview objects
-                        const fileObjects = files.map(file => ({
-                          file,
+                        // Create FileWithPreview objects with the correct structure
+                        const fileObjects: FileWithPreview[] = files.map(file => ({
+                          file: file,
                           preview: URL.createObjectURL(file)
                         }));
-                        setFiles([...files, ...fileObjects]);
+                        setFiles(fileObjects); // Replace instead of append to avoid duplicate processing
                       }
                     }}
                     onUploadComplete={handleFileUploadComplete}
