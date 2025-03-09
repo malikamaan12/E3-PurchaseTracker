@@ -64,6 +64,7 @@ export default function PurchaseRequestForm({
   const [showAddVendor, setShowAddVendor] = useState2(false);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
 
   const form = useForm({
     resolver: zodResolver(insertPurchaseRequestSchema),
@@ -433,7 +434,10 @@ export default function PurchaseRequestForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((data) => handleSubmitRequest(data, false))} className="space-y-6">
-        <Tabs defaultValue="details" className="w-full">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="details">Request Details</TabsTrigger>
             <TabsTrigger value="items">Items</TabsTrigger>
@@ -690,6 +694,17 @@ export default function PurchaseRequestForm({
                 </CardContent>
               </Card>
             </div>
+            
+            {/* Next button for request details tab */}
+            <div className="flex justify-end mt-4">
+              <Button
+                type="button"
+                className="bg-[#7058a3] hover:bg-[#5d4a89] text-white"
+                onClick={() => setActiveTab("items")}
+              >
+                Next: Items
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="items" className="space-y-4">
@@ -858,6 +873,24 @@ export default function PurchaseRequestForm({
                   </span>
                 </div>
               </div>
+            </div>
+            
+            {/* Navigation buttons for items tab */}
+            <div className="flex justify-between mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setActiveTab("details")}
+              >
+                Back to Details
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#7058a3] hover:bg-[#5d4a89] text-white"
+                onClick={() => setActiveTab("documents")}
+              >
+                Next: Documents
+              </Button>
             </div>
           </TabsContent>
 
