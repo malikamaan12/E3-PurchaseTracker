@@ -37,14 +37,32 @@ import { FileUploadMultiple } from "@/components/FileUploadMultiple";
 
 // Define schema for PDF settings
 const pdfSettingsSchema = z.object({
-  companyName: z.string().min(1, "Company name is required"),
-  headerHeight: z.number().min(0).max(100).optional(),
-  footerHeight: z.number().min(0).max(100).optional(),
-  primaryColor: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, "Must be a valid hex color"),
-  secondaryColor: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, "Must be a valid hex color"),
-  accentColor: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, "Must be a valid hex color"),
-  headerStyle: z.enum(["modern", "classic", "minimal"]).optional(),
+  // Header settings
+  headerTitle: z.string().min(1, "Header title is required"),
+  headerSubtitle: z.string().optional(),
+  headerColor: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, "Must be a valid hex color"),
+  headerHeight: z.number().min(0).max(150).optional().default(100),
+  headerImage: z.string().optional(),
+  
+  // Footer settings
   footerText: z.string().optional(),
+  footerColor: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, "Must be a valid hex color"),
+  footerHeight: z.number().min(0).max(100).optional().default(50),
+  footerImage: z.string().optional(),
+  
+  // Page settings
+  marginTop: z.number().min(0).max(100).default(20),
+  marginBottom: z.number().min(0).max(100).default(20),
+  marginLeft: z.number().min(0).max(100).default(25),
+  marginRight: z.number().min(0).max(100).default(25),
+  fontSize: z.number().min(8).max(16).default(11),
+  
+  // Display controls
+  pageNumbering: z.boolean().default(true),
+  watermarkOpacity: z.number().min(0).max(100).default(10),
+  logo: z.string().optional(),
+  
+  // Content settings - client-side only
   showLogo: z.boolean().default(true),
   showDates: z.boolean().default(true),
   showPurposeInfo: z.boolean().default(true),
@@ -53,7 +71,7 @@ const pdfSettingsSchema = z.object({
   showApprovals: z.boolean().default(true),
   showAttachments: z.boolean().default(true),
   showAuditInfo: z.boolean().default(false),
-  fontFamily: z.string().optional(),
+  fontFamily: z.string().default("Arial"),
 });
 
 type PDFSettings = z.infer<typeof pdfSettingsSchema>;
@@ -82,11 +100,32 @@ export default function PDFSettingsPanel() {
   const form = useForm<PDFSettings>({
     resolver: zodResolver(pdfSettingsSchema),
     defaultValues: {
-      companyName: "",
-      primaryColor: "#7156a2",
-      secondaryColor: "#2f2f2f",
-      accentColor: "#9c86c3",
-      headerStyle: "modern",
+      // Header settings
+      headerTitle: "Purchase Request",
+      headerSubtitle: "",
+      headerColor: "#7156a2",
+      headerHeight: 100,
+      headerImage: "",
+      
+      // Footer settings
+      footerText: "Confidential - For internal use only",
+      footerColor: "#2f2f2f",
+      footerHeight: 50,
+      footerImage: "",
+      
+      // Page settings
+      marginTop: 20,
+      marginBottom: 20,
+      marginLeft: 25,
+      marginRight: 25,
+      fontSize: 11,
+      
+      // Display controls
+      pageNumbering: true,
+      watermarkOpacity: 10,
+      logo: "",
+      
+      // Content settings
       showLogo: true,
       showDates: true,
       showPurposeInfo: true,
@@ -103,15 +142,33 @@ export default function PDFSettingsPanel() {
   React.useEffect(() => {
     if (pdfSettings) {
       form.reset({
-        companyName: pdfSettings.companyName || "",
-        primaryColor: pdfSettings.primaryColor || "#7156a2",
-        secondaryColor: pdfSettings.secondaryColor || "#2f2f2f",
-        accentColor: pdfSettings.accentColor || "#9c86c3",
-        headerStyle: pdfSettings.headerStyle || "modern",
-        footerText: pdfSettings.footerText || "",
+        // Header settings
+        headerTitle: pdfSettings.headerTitle || "Purchase Request",
+        headerSubtitle: pdfSettings.headerSubtitle || "",
+        headerColor: pdfSettings.headerColor || "#7156a2",
+        headerHeight: pdfSettings.headerHeight || 100,
+        headerImage: pdfSettings.headerImage || "",
+        
+        // Footer settings
+        footerText: pdfSettings.footerText || "Confidential - For internal use only",
+        footerColor: pdfSettings.footerColor || "#2f2f2f",
+        footerHeight: pdfSettings.footerHeight || 50,
+        footerImage: pdfSettings.footerImage || "",
+        
+        // Page settings
+        marginTop: pdfSettings.marginTop || 20,
+        marginBottom: pdfSettings.marginBottom || 20,
+        marginLeft: pdfSettings.marginLeft || 25,
+        marginRight: pdfSettings.marginRight || 25,
+        fontSize: pdfSettings.fontSize || 11,
+        
+        // Display controls
+        pageNumbering: pdfSettings.pageNumbering ?? true,
+        watermarkOpacity: pdfSettings.watermarkOpacity || 10,
+        logo: pdfSettings.logo || "",
+        
+        // Content settings - client-side only
         showLogo: pdfSettings.showLogo ?? true,
-        headerHeight: pdfSettings.headerHeight,
-        footerHeight: pdfSettings.footerHeight,
         showDates: pdfSettings.showDates ?? true,
         showPurposeInfo: pdfSettings.showPurposeInfo ?? true,
         showVendorDetails: pdfSettings.showVendorDetails ?? true,
@@ -252,15 +309,15 @@ export default function PDFSettingsPanel() {
               <form onSubmit={onSubmit} className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="companyName"
+                  name="headerTitle"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company Name</FormLabel>
+                      <FormLabel>Header Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter company name" {...field} />
+                        <Input placeholder="Enter header title" {...field} />
                       </FormControl>
                       <FormDescription>
-                        This name will appear in the header of your PDF documents.
+                        This title will appear in the header of your PDF documents.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -383,22 +440,22 @@ export default function PDFSettingsPanel() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="primaryColor"
+                    name="headerColor"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Primary Color</FormLabel>
+                        <FormLabel>Header Color</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               {...field}
-                              onClick={() => setActivePicker("primaryColor")}
+                              onClick={() => setActivePicker("headerColor")}
                             />
                             <div
                               className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border cursor-pointer"
                               style={{ backgroundColor: field.value }}
-                              onClick={() => setActivePicker("primaryColor")}
+                              onClick={() => setActivePicker("headerColor")}
                             />
-                            {activePicker === "primaryColor" && (
+                            {activePicker === "headerColor" && (
                               <div className="absolute z-10 mt-2">
                                 <div
                                   className="fixed inset-0"
@@ -413,7 +470,7 @@ export default function PDFSettingsPanel() {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Primary color for headers and titles.
+                          Color for the PDF header.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -422,22 +479,22 @@ export default function PDFSettingsPanel() {
 
                   <FormField
                     control={form.control}
-                    name="secondaryColor"
+                    name="footerColor"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secondary Color</FormLabel>
+                        <FormLabel>Footer Color</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               {...field}
-                              onClick={() => setActivePicker("secondaryColor")}
+                              onClick={() => setActivePicker("footerColor")}
                             />
                             <div
                               className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border cursor-pointer"
                               style={{ backgroundColor: field.value }}
-                              onClick={() => setActivePicker("secondaryColor")}
+                              onClick={() => setActivePicker("footerColor")}
                             />
-                            {activePicker === "secondaryColor" && (
+                            {activePicker === "footerColor" && (
                               <div className="absolute z-10 mt-2">
                                 <div
                                   className="fixed inset-0"
@@ -452,7 +509,7 @@ export default function PDFSettingsPanel() {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Secondary color for backgrounds and sections.
+                          Color for the PDF footer.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -461,37 +518,21 @@ export default function PDFSettingsPanel() {
 
                   <FormField
                     control={form.control}
-                    name="accentColor"
+                    name="watermarkOpacity"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Accent Color</FormLabel>
+                        <FormLabel>Watermark Opacity (%)</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              {...field}
-                              onClick={() => setActivePicker("accentColor")}
-                            />
-                            <div
-                              className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border cursor-pointer"
-                              style={{ backgroundColor: field.value }}
-                              onClick={() => setActivePicker("accentColor")}
-                            />
-                            {activePicker === "accentColor" && (
-                              <div className="absolute z-10 mt-2">
-                                <div
-                                  className="fixed inset-0"
-                                  onClick={() => setActivePicker(null)}
-                                />
-                                <HexColorPicker
-                                  color={field.value}
-                                  onChange={field.onChange}
-                                />
-                              </div>
-                            )}
-                          </div>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
                         </FormControl>
                         <FormDescription>
-                          Accent color for highlights and buttons.
+                          Opacity level for watermarks (0-100%).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -500,17 +541,17 @@ export default function PDFSettingsPanel() {
 
                   <FormField
                     control={form.control}
-                    name="headerStyle"
+                    name="templateStyle"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Header Style</FormLabel>
+                        <FormLabel>Template Style</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select header style" />
+                              <SelectValue placeholder="Select template style" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -520,7 +561,7 @@ export default function PDFSettingsPanel() {
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          Style of the PDF document header.
+                          Overall style of the PDF document.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
