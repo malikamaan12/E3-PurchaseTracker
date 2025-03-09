@@ -493,22 +493,33 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
 
 function addSection(doc: jsPDF, title: string, yPos: number): number {
   const margin = 15;
-  // Slightly more prominent section appearance
-  doc.setFillColor(235, 240, 255); // Lighter blue background 
-  doc.rect(margin, yPos, doc.internal.pageSize.width - (2 * margin), 7, 'F');
+  const pageWidth = doc.internal.pageSize.width;
   
-  // Add thin border to the top and bottom of the section header
-  doc.setDrawColor(200, 210, 240);
+  // Create a subtle gradient-like background for section titles
+  doc.setFillColor(230, 236, 245); // Matching our table headers
+  // Draw rounded rectangle for section header with rounded corners
+  const radius = 2;
+  const sectionHeight = 8;
+  const width = pageWidth - (2 * margin);
+  
+  // Draw rounded rectangle for a more modern look
+  doc.roundedRect(margin, yPos, width, sectionHeight, radius, radius, 'F');
+  
+  // Add subtle border with a gradient effect
+  doc.setDrawColor(200, 210, 240); // Light blue border
   doc.setLineWidth(0.2);
-  doc.line(margin, yPos, doc.internal.pageSize.width - margin, yPos);
-  doc.line(margin, yPos + 7, doc.internal.pageSize.width - margin, yPos + 7);
-
+  
+  // Draw a highlight accent on left side
+  doc.setFillColor(40, 70, 120); // Darker blue that matches our table styling
+  doc.rect(margin, yPos, 3, sectionHeight, 'F');
+  
+  // Add title text with proper styling
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(26, 54, 93);
-  doc.text(title, margin + 2, yPos + 5);
-
-  return yPos + 9; // Increased spacing after section
+  doc.setTextColor(40, 70, 120); // Match our table headers
+  doc.text(title, margin + 6, yPos + 5.5); // Position text vertically centered
+  
+  return yPos + 12; // Increased spacing after section for better readability
 }
 
 /**
@@ -985,16 +996,27 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
           body: approvalRows,
           theme: 'striped',
           headStyles: {
-            fillColor: [247, 248, 250],
+            fillColor: [230, 236, 245],  // Match other tables
             textColor: [26, 54, 93],
             fontSize: 9,
             fontStyle: 'bold',
-            cellPadding: 2
+            cellPadding: 3
           },
           bodyStyles: {
             fontSize: 8,
-            cellPadding: 2,
-            overflow: 'linebreak'
+            cellPadding: 3,
+            overflow: 'linebreak',
+            lineColor: [240, 240, 240]
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 253]
+          },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 35 },
+            4: { cellWidth: 'auto' }
           },
           margin: { left: margin, right: margin }
         });
@@ -1036,12 +1058,16 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         theme: 'plain',
         styles: { 
           fontSize: 8, 
-          cellPadding: 2,
-          textColor: [80, 80, 80]
+          cellPadding: 3,
+          textColor: [60, 60, 60],
+          lineColor: [240, 240, 240]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 253]
         },
         columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 25 },
-          2: { fontStyle: 'bold', cellWidth: 25 }
+          0: { fontStyle: 'bold', cellWidth: 25, textColor: [40, 70, 120] },
+          2: { fontStyle: 'bold', cellWidth: 25, textColor: [40, 70, 120] }
         },
         margin: { left: margin, right: margin }
       });
@@ -1059,21 +1085,34 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
       
       // Function to draw a signature box
       const drawSignatureBox = (label: string, x: number, y: number, width: number, height: number) => {
-        // Draw a light border
-        doc.setDrawColor(200, 200, 200);
-        doc.rect(x, y, width, height);
+        // Draw a light background fill
+        doc.setFillColor(248, 250, 253); // Very light blue background
+        doc.rect(x, y, width, height, 'F');
         
-        // Add label
+        // Draw a light border with rounded corners
+        doc.setDrawColor(230, 236, 245); // Light blue border matching our tables
+        doc.setLineWidth(0.3);
+        
+        // Draw rounded rectangle border
+        const radius = 1.5;
+        doc.roundedRect(x, y, width, height, radius, radius);
+        
+        // Add label with blue color to match tables
         doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(label, x + 2, y + 4);
+        doc.setTextColor(40, 70, 120); // Matching the blue from audit table
+        doc.setFont(undefined, 'bold');
+        doc.text(label, x + 3, y + 5);
+        doc.setFont(undefined, 'normal');
         
         // Add signature line
-        doc.setDrawColor(180, 180, 180);
-        doc.line(x + 5, y + height - 5, x + width - 5, y + height - 5);
+        doc.setDrawColor(200, 210, 230); // Lighter blue for signature line
+        doc.setLineWidth(0.5);
+        doc.line(x + 5, y + height - 7, x + width - 5, y + height - 7);
         
         // Add 'Date:' text
-        doc.text('Date:', x + width - 25, y + height - 8);
+        doc.setFontSize(7);
+        doc.setTextColor(90, 110, 140); // Slightly muted blue
+        doc.text('Date:', x + width - 25, y + height - 9);
       };
       
       // Draw signature boxes for requester and approvers
