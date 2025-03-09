@@ -18,8 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useDashboardPreferences, DEFAULT_PREFERENCES } from "@/hooks/use-dashboard-preferences";
-import DashboardPreferences from "@/components/DashboardPreferences";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardFilterPanel, type FilterValues } from "@/components/DashboardFilterPanel";
 import { BulkExportButton } from "@/components/BulkExportButton";
@@ -50,7 +48,6 @@ export default function Dashboard() {
   // Core hooks and state
   const { user, logout } = useUser();
   const { requests, isLoading } = usePurchaseRequests();
-  const { preferences, updatePreferences } = useDashboardPreferences();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -121,16 +118,16 @@ export default function Dashboard() {
   });
   const [departments, setDepartments] = useState<string[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>(preferences?.defaultView || "my-requests");
+  const [activeTab, setActiveTab] = useState<string>("my-requests");
 
   // Handle tab navigation for special tabs
   useEffect(() => {
     if (activeTab === "export") {
       setLocation("/export");
       // Reset to default tab after navigation
-      setActiveTab(preferences?.defaultView || "my-requests");
+      setActiveTab("my-requests");
     }
-  }, [activeTab, setLocation, preferences?.defaultView]);
+  }, [activeTab, setLocation]);
 
   // Role-based access control
   const isAdmin = useMemo(() => user?.role === "admin", [user?.role]);
