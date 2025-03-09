@@ -19,10 +19,17 @@ function hexToRgb(hex: string): [number, number, number] {
 async function addHeader(doc: jsPDF, request: any): Promise<number> {
   try {
     const pageWidth = doc.internal.pageSize.width;
-    const headerHeight = 35; 
+    // Get header height from settings or use default
+    let headerHeight = 35;
+    if (request?.pdfSettings?.headerHeight) {
+      // Convert px to points (assuming 72 points per inch, typical for PDF)
+      headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
+    }
     
     // Get margin from the settings or use default
     const margin = request?.pdfSettings?.marginLeft || 15;
+    // Start position at top of page
+    const startY = 0;
     
     // Prepare settings with default and override values
     let settings: {
@@ -110,7 +117,16 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Handle logo if explicitly enabled
+    // Draw the background for the entire header area at the very top
+    doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2], 0.1); // Very light background
+    doc.rect(0, startY, pageWidth, headerHeight, 'F');
+    
+    // Draw a top border line
+    doc.setDrawColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
+    doc.setLineWidth(0.5);
+    doc.line(0, startY, pageWidth, startY);
+    
+    // Handle logo if explicitly enabled - now positioned at top
     if (settings.showLogo === true) {
       // E3 Logo on left side
       let e3Logo: string = '/uploads/logos/e3-logo.png'; // Default logo path
@@ -128,43 +144,49 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
           img.onerror = resolve; // Continue even if image fails to load
         });
         
-        // Draw the E3 logo on the left side
-        doc.addImage(img, 'PNG', margin, 10, 20, 20);
+        // Draw the E3 logo on the left side at the top
+        const logoSize = Math.min(headerHeight * 0.6, 20);
+        const logoY = startY + 5;
+        doc.addImage(img, 'PNG', margin, logoY, logoSize, logoSize);
       } catch (logoError) {
         console.error('Error adding E3 logo to PDF:', logoError);
         
         // Create a simple text placeholder if logo fails to load
         doc.setFontSize(16);
         doc.setTextColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
-        doc.text("E3", margin + 5, 20);
+        doc.text("E3", margin + 5, startY + 10);
       }
     }
     
-    // Add header text if explicitly enabled
+    // Add header text if explicitly enabled - positioned UNDER header
     if (settings.showHeaderText === true) {
+      // Calculate position for header text to appear under header area
+      const headerTextY = headerHeight + 8;
+      
       // Add company header with appropriate branding colors
       doc.setFontSize(14);
       doc.setTextColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
-      doc.text(settings.headerTitle, pageWidth/2, 15, { align: 'center' });
+      doc.text(settings.headerTitle, pageWidth/2, headerTextY, { align: 'center' });
       
       doc.setFontSize(12);
-      doc.text(settings.headerSubtitle, pageWidth/2, 22, { align: 'center' });
+      doc.text(settings.headerSubtitle, pageWidth/2, headerTextY + 7, { align: 'center' });
       
       doc.setFontSize(10);
-      doc.text("PURCHASE REQUEST", pageWidth/2, 29, { align: 'center' });
+      doc.text("PURCHASE REQUEST", pageWidth/2, headerTextY + 14, { align: 'center' });
     }
     
     // Always add the colored gradient bar (matching E3 brand)
-    // Create a gradient bar effect manually since PDF doesn't support CSS gradients
+    // Create a gradient bar effect manually at the bottom of the header area
+    const gradientY = headerHeight - 3;
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]); // Primary color
-    doc.rect(margin, 33, pageWidth / 2 - margin, 3, 'F');
+    doc.rect(margin, gradientY, pageWidth / 2 - margin, 3, 'F');
     
     doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(pageWidth / 2, 33, pageWidth / 2 - margin, 3, 'F');
+    doc.rect(pageWidth / 2, gradientY, pageWidth / 2 - margin, 3, 'F');
     
     // Add subtle border line
     doc.setDrawColor(240, 240, 240);
-    doc.line(margin, 38, pageWidth - margin, 38);
+    doc.line(margin, headerHeight + 2, pageWidth - margin, headerHeight + 2);
     
     // Add header image if explicitly enabled and available
     if (settings.showHeaderImage === true && settings.headerImage) {
@@ -196,12 +218,12 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
           imgWidth = imgWidth * ratio;
         }
         
-        // Position image centered horizontally under the colored bar
+        // Position image centered horizontally under the header title area
         const xPos = (pageWidth - imgWidth) / 2;
-        doc.addImage(headerImg, 'PNG', xPos, 40, imgWidth, imgHeight);
+        doc.addImage(headerImg, 'PNG', xPos, headerHeight + 25, imgWidth, imgHeight);
         
         // Adjust return position based on image height
-        return 45 + imgHeight;
+        return headerHeight + 30 + imgHeight;
       } catch (imgError) {
         console.error('Error adding header image:', imgError);
       }
@@ -216,20 +238,30 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     const pageWidth = doc.internal.pageSize.width;
     const margin = request?.pdfSettings?.marginLeft || 15;
     
+    // Get header height from settings or use default
+    let headerHeight = 35;
+    if (request?.pdfSettings?.headerHeight) {
+      // Convert px to points (assuming 72 points per inch, typical for PDF)
+      headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
+    }
+    
+    // Calculate position after the header title (header + title + spacing)
+    const posAfterTitle = headerHeight + 25; // Start after header + title area
+    
     // Add request info after header
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, 45);
+    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, posAfterTitle);
     
     // Add requester and date on the next row
     doc.setFontSize(9);
-    doc.text(`Requester:`, margin, 52);
-    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, 52);
+    doc.text(`Requester:`, margin, posAfterTitle + 7);
+    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, posAfterTitle + 7);
     
-    doc.text(`Department:`, pageWidth / 2, 52);
-    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, 52);
+    doc.text(`Department:`, pageWidth / 2, posAfterTitle + 7);
+    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, posAfterTitle + 7);
     
-    doc.text(`Date:`, margin, 59);
+    doc.text(`Date:`, margin, posAfterTitle + 14);
     let dateText = 'N/A';
     if (request?.createdAt) {
       try {
@@ -238,15 +270,21 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         console.error('Error formatting date:', dateError);
       }
     }
-    doc.text(dateText, margin + 30, 59);
+    doc.text(dateText, margin + 30, posAfterTitle + 14);
     
-    doc.text(`Status:`, pageWidth / 2, 59);
-    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, 59);
+    doc.text(`Status:`, pageWidth / 2, posAfterTitle + 14);
+    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, posAfterTitle + 14);
     
-    return 65; // Return position after all header elements
+    return posAfterTitle + 20; // Return position after all header elements
   } catch (error) {
     console.error('Error adding request details:', error);
-    return 40; // Return default header height
+    
+    // Get header height from settings or use default in error case
+    let headerHeight = 35;
+    if (request?.pdfSettings?.headerHeight) {
+      headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
+    }
+    return headerHeight + 30; // Return default position after header in case of error
   }
 }
 
@@ -257,7 +295,16 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     
     // Get margin from settings or use default
     const margin = request?.pdfSettings?.marginLeft || 15;
-    const footerHeight = 20;
+    
+    // Get footer height from settings or use default
+    let footerHeight = 20;
+    if (request?.pdfSettings?.footerHeight) {
+      // Convert px to points (assuming 72 points per inch, typical for PDF)
+      footerHeight = Math.min(Math.max(request.pdfSettings.footerHeight / 2, 10), 100);
+    }
+    
+    // Position footer at the very bottom of the page
+    const footerY = pageHeight - footerHeight;
     
     // E3 brand colors (matching header)
     const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
@@ -365,20 +412,23 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     }
     
-    // Draw gradient bar at the bottom (similar to header)
-    // Add a line above the footer
+    // Create footer background for the entire footer area
+    doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.05); // Very light background
+    doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+    
+    // Draw a line above the footer
     doc.setDrawColor(200, 200, 200);
-    doc.line(margin, pageHeight - footerHeight, pageWidth - margin, pageHeight - footerHeight);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
     
     // Add the colored gradient bar
     doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]); // Primary color 
-    doc.rect(margin, pageHeight - footerHeight + 2, pageWidth/3, 3, 'F');
+    doc.rect(margin, footerY + 2, pageWidth/3, 3, 'F');
     
     doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(margin + pageWidth/3, pageHeight - footerHeight + 2, pageWidth/3, 3, 'F');
+    doc.rect(margin + pageWidth/3, footerY + 2, pageWidth/3, 3, 'F');
     
     doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(margin + 2*pageWidth/3, pageHeight - footerHeight + 2, pageWidth/3 - margin, 3, 'F');
+    doc.rect(margin + 2*pageWidth/3, footerY + 2, pageWidth/3 - margin, 3, 'F');
     
     // Add footer image if explicitly enabled and available
     if (settings.showFooterImage === true && settings.footerImage) {
@@ -412,7 +462,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         
         // Position image to the right side of the footer
         const xPos = pageWidth - margin - imgWidth;
-        doc.addImage(footerImg, 'PNG', xPos, pageHeight - footerHeight + 3, imgWidth, imgHeight);
+        doc.addImage(footerImg, 'PNG', xPos, footerY + 3, imgWidth, imgHeight);
       } catch (imgError) {
         console.error('Error adding footer image:', imgError);
       }
@@ -428,36 +478,42 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     if (settings.showContactInfo === true && contactInfo) {
       // Left side - Phone and email
       if (contactInfo.phone) {
-        doc.text(`☎ ${contactInfo.phone}`, margin, pageHeight - footerHeight + 10);
+        doc.text(`☎ ${contactInfo.phone}`, margin, footerY + 10);
       }
       
       if (contactInfo.email) {
-        doc.text(`✉ ${contactInfo.email}`, margin, pageHeight - footerHeight + 14);
+        doc.text(`✉ ${contactInfo.email}`, margin, footerY + 14);
       }
       
       if (contactInfo.website) {
-        doc.text(`🌐 ${contactInfo.website}`, margin, pageHeight - footerHeight + 18);
+        doc.text(`🌐 ${contactInfo.website}`, margin, footerY + 18);
       }
       
       // Right side - Address
       if (contactInfo.address) {
-        doc.text(`📍 ${contactInfo.address}`, pageWidth / 2, pageHeight - footerHeight + 14);
+        doc.text(`📍 ${contactInfo.address}`, pageWidth / 2, footerY + 14);
       }
     }
     
-    // Add footer text if explicitly enabled
+    // Add footer text at the very bottom of the page
     if (settings.showFooterText === true) {
       doc.setFontSize(8);
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.text(settings.footerText, margin, pageHeight - 5);
+      doc.text(settings.footerText, margin, pageHeight - 4);
     }
     
-    // Add page numbers if explicitly enabled
+    // Add page numbers at the very bottom of the page
     if (settings.pageNumbering === true) {
       doc.setFontSize(8);
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
     }
+    
+    // Add bottom border line
+    doc.setDrawColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+    doc.setLineWidth(0.5);
+    doc.line(0, pageHeight, pageWidth, pageHeight);
+    
   } catch (error) {
     console.error('Error rendering PDF footer:', error);
     // Default footer as fallback
@@ -467,8 +523,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     
     doc.setFontSize(8);
     doc.setTextColor(90, 90, 90);
-    doc.text("ALL RIGHTS RESERVED BY E3", margin, pageHeight - 5);
-    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+    doc.text("ALL RIGHTS RESERVED BY E3", margin, pageHeight - 4);
+    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
   }
 }
 
