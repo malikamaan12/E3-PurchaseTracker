@@ -121,11 +121,6 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2], 0.1); // Very light background
     doc.rect(0, startY, pageWidth, headerHeight, 'F');
     
-    // Draw a top border line
-    doc.setDrawColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
-    doc.setLineWidth(0.5);
-    doc.line(0, startY, pageWidth, startY);
-    
     // Handle logo if explicitly enabled - now positioned at top
     if (settings.showLogo === true) {
       // E3 Logo on left side
@@ -158,10 +153,10 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Add header text if explicitly enabled - positioned UNDER header
+    // Add header text if explicitly enabled - positioned in header area
     if (settings.showHeaderText === true) {
-      // Calculate position for header text to appear under header area
-      const headerTextY = headerHeight + 8;
+      // Calculate position for header text to appear in the center of header area
+      const headerTextY = 15; // Positioned at the top half of the header
       
       // Add company header with appropriate branding colors
       doc.setFontSize(14);
@@ -171,8 +166,10 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       doc.setFontSize(12);
       doc.text(settings.headerSubtitle, pageWidth/2, headerTextY + 7, { align: 'center' });
       
-      doc.setFontSize(10);
-      doc.text("PURCHASE REQUEST", pageWidth/2, headerTextY + 14, { align: 'center' });
+      // Add PURCHASE REQUEST text clearly labeled
+      doc.setFontSize(13);
+      doc.setTextColor(0, 0, 0); // Black for visibility
+      doc.text("PURCHASE REQUEST", pageWidth/2, headerTextY + 16, { align: 'center' });
     }
     
     // Always add the colored gradient bar (matching E3 brand)
@@ -188,49 +185,12 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     doc.setDrawColor(240, 240, 240);
     doc.line(margin, headerHeight + 2, pageWidth - margin, headerHeight + 2);
     
-    // Add header image if explicitly enabled and available
-    if (settings.showHeaderImage === true && settings.headerImage) {
-      try {
-        const headerImg = new Image();
-        headerImg.src = settings.headerImage;
-        await new Promise((resolve) => {
-          headerImg.onload = resolve;
-          headerImg.onerror = resolve;
-        });
-        
-        // Calculate appropriate dimensions to maintain aspect ratio
-        const maxWidth = pageWidth - (2 * margin);
-        const maxHeight = 30; // Maximum height for header image
-        
-        let imgWidth = headerImg.width;
-        let imgHeight = headerImg.height;
-        
-        // Scale down if needed while maintaining aspect ratio
-        if (imgWidth > maxWidth) {
-          const ratio = maxWidth / imgWidth;
-          imgWidth = maxWidth;
-          imgHeight = imgHeight * ratio;
-        }
-        
-        if (imgHeight > maxHeight) {
-          const ratio = maxHeight / imgHeight;
-          imgHeight = maxHeight;
-          imgWidth = imgWidth * ratio;
-        }
-        
-        // Position image centered horizontally under the header title area
-        const xPos = (pageWidth - imgWidth) / 2;
-        doc.addImage(headerImg, 'PNG', xPos, headerHeight + 25, imgWidth, imgHeight);
-        
-        // Adjust return position based on image height
-        return headerHeight + 30 + imgHeight;
-      } catch (imgError) {
-        console.error('Error adding header image:', imgError);
-      }
-    }
+    // Return position for content to start after the header
+    return headerHeight + 30;
   } catch (error) {
     console.error("Error rendering PDF header:", error);
     // Continue rendering
+    return 40; // Default position in case of error
   }
 
   // Add request number and date with error handling
@@ -245,23 +205,23 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       headerHeight = Math.min(Math.max(request.pdfSettings.headerHeight / 2, 10), 100);
     }
     
-    // Calculate position after the header title (header + title + spacing)
-    const posAfterTitle = headerHeight + 25; // Start after header + title area
+    // Starting position for request details
+    const yPosition = headerHeight + 10; 
     
     // Add request info after header
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, posAfterTitle);
+    doc.text(`Purchase Request #${request?.requestNumber?.replace('PR-', '') || '12345'}`, margin, yPosition);
     
     // Add requester and date on the next row
     doc.setFontSize(9);
-    doc.text(`Requester:`, margin, posAfterTitle + 7);
-    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, posAfterTitle + 7);
+    doc.text(`Requester:`, margin, yPosition + 7);
+    doc.text(`${request?.requester?.username || 'John Smith'}`, margin + 30, yPosition + 7);
     
-    doc.text(`Department:`, pageWidth / 2, posAfterTitle + 7);
-    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, posAfterTitle + 7);
+    doc.text(`Department:`, pageWidth / 2, yPosition + 7);
+    doc.text(`${request?.requester?.department || 'Engineering'}`, pageWidth / 2 + 30, yPosition + 7);
     
-    doc.text(`Date:`, margin, posAfterTitle + 14);
+    doc.text(`Date:`, margin, yPosition + 14);
     let dateText = 'N/A';
     if (request?.createdAt) {
       try {
@@ -270,12 +230,17 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
         console.error('Error formatting date:', dateError);
       }
     }
-    doc.text(dateText, margin + 30, posAfterTitle + 14);
+    doc.text(dateText, margin + 30, yPosition + 14);
     
-    doc.text(`Status:`, pageWidth / 2, posAfterTitle + 14);
-    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, posAfterTitle + 14);
+    doc.text(`Status:`, pageWidth / 2, yPosition + 14);
+    doc.text(`${request?.status?.charAt(0).toUpperCase() + request?.status?.slice(1) || 'Pending'}`, pageWidth / 2 + 30, yPosition + 14);
     
-    return posAfterTitle + 20; // Return position after all header elements
+    // Add a horizontal separator line to create visual distinction
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margin, yPosition + 18, pageWidth - margin, yPosition + 18);
+    
+    return yPosition + 25; // Return position after all header elements with additional spacing
   } catch (error) {
     console.error('Error adding request details:', error);
     
@@ -303,8 +268,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       footerHeight = Math.min(Math.max(request.pdfSettings.footerHeight / 2, 10), 100);
     }
     
-    // Position footer at the very bottom of the page
-    const footerY = pageHeight - footerHeight;
+    // Position footer exactly at the bottom of the page (subtract 0.1 to avoid cutting off)
+    const footerY = pageHeight - footerHeight - 0.1;
     
     // E3 brand colors (matching header)
     const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
@@ -509,10 +474,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
     }
     
-    // Add bottom border line
-    doc.setDrawColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
-    doc.setLineWidth(0.5);
-    doc.line(0, pageHeight, pageWidth, pageHeight);
+    // Remove black line at bottom - no need for a bottom border
+    // This prevents the black section appearing at bottom of page
     
   } catch (error) {
     console.error('Error rendering PDF footer:', error);
@@ -530,15 +493,22 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
 
 function addSection(doc: jsPDF, title: string, yPos: number): number {
   const margin = 15;
-  doc.setFillColor(247, 248, 250);
-  doc.rect(margin, yPos, doc.internal.pageSize.width - (2 * margin), 6, 'F');
+  // Slightly more prominent section appearance
+  doc.setFillColor(235, 240, 255); // Lighter blue background 
+  doc.rect(margin, yPos, doc.internal.pageSize.width - (2 * margin), 7, 'F');
+  
+  // Add thin border to the top and bottom of the section header
+  doc.setDrawColor(200, 210, 240);
+  doc.setLineWidth(0.2);
+  doc.line(margin, yPos, doc.internal.pageSize.width - margin, yPos);
+  doc.line(margin, yPos + 7, doc.internal.pageSize.width - margin, yPos + 7);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(26, 54, 93);
-  doc.text(title, margin + 2, yPos + 4.5);
+  doc.text(title, margin + 2, yPos + 5);
 
-  return yPos + 8;
+  return yPos + 9; // Increased spacing after section
 }
 
 /**
@@ -905,32 +875,44 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         ],
         theme: templateConfig.tableStyle,
         headStyles: {
-          fillColor: [247, 248, 250],
-          textColor: [26, 54, 93],
+          fillColor: [230, 236, 245],  // Lighter blue for better contrast
+          textColor: [26, 54, 93],     // Dark blue text
           fontSize: 9,
           fontStyle: 'bold',
-          cellPadding: 2
+          cellPadding: 3               // Increased padding for better readability
         },
         footStyles: {
-          fillColor: [247, 248, 250],
-          textColor: [26, 54, 93],
+          fillColor: [235, 240, 250],  // Slightly different shade for footer
+          textColor: [40, 40, 40],     // Darker text for emphasis
           fontSize: 9,
           fontStyle: 'bold',
-          cellPadding: 2
+          cellPadding: 3
         },
         bodyStyles: {
           fontSize: 8,
-          cellPadding: 2,
-          overflow: 'linebreak'
+          cellPadding: 3,              // Matching padding for consistency
+          overflow: 'linebreak',
+          lineColor: [240, 240, 240]   // Lighter grid lines
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 253]   // Very light blue for alternate rows
         },
         columnStyles: {
           0: { cellWidth: 30 },
           1: { cellWidth: 'auto' },
-          2: { cellWidth: 15 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 25 }
+          2: { cellWidth: 15, halign: 'center' },  // Center-align quantity
+          3: { cellWidth: 25, halign: 'right' },   // Right-align prices
+          4: { cellWidth: 25, halign: 'right' }    // Right-align prices
         },
-        margin: { left: margin, right: margin }
+        margin: { left: margin, right: margin },
+        didDrawCell: (data) => {
+          // Add subtle border to the "Total Cost" cell in the footer for emphasis
+          if (data.section === 'foot' && data.row.index === 2 && data.column.index === 4) {
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.1);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height);
+          }
+        }
       });
 
       yPos = (doc as any).lastAutoTable.finalY + 5;
@@ -951,21 +933,25 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         body: attachments,
         theme: 'striped',
         headStyles: {
-          fillColor: [247, 248, 250],
+          fillColor: [230, 236, 245],  // Match same style as items table
           textColor: [26, 54, 93],
           fontSize: 9,
           fontStyle: 'bold',
-          cellPadding: 2
+          cellPadding: 3
         },
         bodyStyles: {
           fontSize: 8,
-          cellPadding: 2,
-          overflow: 'linebreak'
+          cellPadding: 3,
+          overflow: 'linebreak',
+          lineColor: [240, 240, 240]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 253]
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 20 }
+          1: { cellWidth: 30, halign: 'center' },  // Center-align type
+          2: { cellWidth: 25, halign: 'right' }   // Right-align size
         },
         margin: { left: margin, right: margin }
       });
