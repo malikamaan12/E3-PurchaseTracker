@@ -3567,83 +3567,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add PDF audit endpoint inside registerRoutes
   // DEPRECATED: This endpoint is now handled at the end of the file
-  app.get("/api/pdf/print-settings-deprecated", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
-      }
-      
-      // Look for existing settings in the database - in uploads/logos folder
-      const headerImagesDir = path.join(process.cwd(), 'uploads/logos');
-      let headerFiles: string[] = [];
-      let footerFiles: string[] = [];
-      let logoFiles: string[] = [];
-      
-      try {
-        headerFiles = fsSync.readdirSync(headerImagesDir)
-          .filter(file => file.startsWith('headerImage-'))
-          .sort((a, b) => {
-            // Get the timestamps from the filenames (assuming timestamp is part of the name)
-            const timeA = parseInt(a.split('-')[1]) || 0;
-            const timeB = parseInt(b.split('-')[1]) || 0;
-            return timeB - timeA; // Sort descending, newest first
-          });
-          
-        footerFiles = fsSync.readdirSync(headerImagesDir)
-          .filter(file => file.startsWith('footerImage-'))
-          .sort((a, b) => {
-            const timeA = parseInt(a.split('-')[1]) || 0;
-            const timeB = parseInt(b.split('-')[1]) || 0;
-            return timeB - timeA;
-          });
-          
-        logoFiles = fsSync.readdirSync(headerImagesDir)
-          .filter(file => file.startsWith('logo-'))
-          .sort((a, b) => {
-            const timeA = parseInt(a.split('-')[1]) || 0;
-            const timeB = parseInt(b.split('-')[1]) || 0;
-            return timeB - timeA;
-          });
-      } catch (err) {
-        console.error('Error reading logo directory:', err);
-        // Continue with default settings if directory can't be read
-      }
-        
-      // Return settings with image URLs if they exist
-      const settings = {
-        headerImage: headerFiles.length > 0 ? `/uploads/logos/${headerFiles[0]}` : null,
-        footerImage: footerFiles.length > 0 ? `/uploads/logos/${footerFiles[0]}` : null,
-        logo: logoFiles.length > 0 ? `/uploads/logos/${logoFiles[0]}` : null,
-        headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
-        headerSubtitle: "PURCHASE REQUEST",
-        headerColor: "#1a365d",
-        footerText: "ALL RIGHTS RESERVED BY E3",
-        footerColor: "#1a365d",
-        pageNumbering: true,
-        marginTop: 20,
-        marginBottom: 20,
-        marginLeft: 25,
-        marginRight: 25,
-        fontSize: 11
-      };
-      
-      res.json(settings);
-    } catch (error) {
-      next(error);
-    }
-  });
-  
-  // This endpoint is now implemented below with more functionality
-  
-  // DEPRECATED: This endpoint is duplicated. Use the consolidated endpoint at the bottom of this file.
-  app.get("/api/pdf/print-settings-duplicate1", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // This endpoint is no longer active
-      res.status(410).json({ message: 'This endpoint has been deprecated. Please use /api/pdf/print-settings instead.' });
-    } catch (error) {
-      next(error);
-    }
-  });
+  // Removed deprecated PDF settings endpoints
 
   // Add endpoint for saving PDF settings
   app.post("/api/pdf/settings", async (req: Request, res: Response, next: NextFunction) => {
@@ -4880,8 +4804,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add Deepseek API endpoints
-  // Removed Deepseek API endpoints
+
 
   // Add request status update endpoint
   app.post("/api/requests/:id/status", async (req: Request, res: Response, next: NextFunction) => {

@@ -15,7 +15,7 @@ import BulkExportPage from "./pages/BulkExportPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PDFDesignPage from "./pages/PDFDesignPage";
 import { NotFound } from "@/components/NotFound";
-import ErrorPredictionDashboard from "./components/ErrorPredictionDashboard";
+
 import TestExportPage from "./pages/TestExportPage";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
@@ -47,7 +47,7 @@ function App() {
         <Route path="/requests/:id" component={ViewRequest} />
         <Route path="/requests/:id/edit" component={EditRequest} />
         <Route path="/department-dashboard" component={DepartmentDashboard} />
-        <Route path="/error-predictions" component={ErrorPredictionDashboard} />
+
         <Route path="/test-export" component={TestExportPage} />
         <Route path="/export" component={BulkExportPage} />
         <Route path="/notifications" component={NotificationsPage} />
@@ -60,7 +60,7 @@ function App() {
             <Route path="/admin/account-requests" component={AdminPanel} />
             <Route path="/admin/error-analytics" component={ErrorDashboard} />
             <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
-            <Route path="/admin/error-predictions" component={ErrorPredictionDashboard} />
+
             <Route path="/admin/pdf-design" component={PDFDesignPage} />
           </>
         )}
