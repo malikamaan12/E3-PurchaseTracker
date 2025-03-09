@@ -730,20 +730,77 @@ export default function PurchaseRequestForm({
               {form.watch("items")?.map((item: any, index: number) => (
                 <div key={index} className="flex gap-4 items-start p-4 border rounded-lg">
                   <div className="flex-1 space-y-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Item name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+                    {/* First row: Item Name, Quantity, Cost Per Unit in a single row */}
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-6">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Item Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Item name" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="col-span-3">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quantity</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  min="1"
+                                  placeholder="Quantity"
+                                  onChange={(e) => {
+                                    field.onChange(Number(e.target.value));
+                                    updateTotalCost();
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="col-span-3">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.estimatedCost`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cost Per Unit</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Cost"
+                                  onChange={(e) => {
+                                    field.onChange(Number(e.target.value));
+                                    updateTotalCost();
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Second row: Item Description */}
                     <FormField
                       control={form.control}
                       name={`items.${index}.description`}
@@ -757,55 +814,6 @@ export default function PurchaseRequestForm({
                         </FormItem>
                       )}
                     />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.quantity`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Quantity</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="number"
-                                min="1"
-                                placeholder="Quantity"
-                                onChange={(e) => {
-                                  field.onChange(Number(e.target.value));
-                                  updateTotalCost();
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.estimatedCost`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Cost Per Unit</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Cost"
-                                onChange={(e) => {
-                                  field.onChange(Number(e.target.value));
-                                  updateTotalCost();
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
 
                     <div className="flex justify-end">
                       <div className="text-sm">
