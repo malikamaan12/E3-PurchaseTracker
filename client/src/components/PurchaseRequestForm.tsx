@@ -955,6 +955,17 @@ export default function PurchaseRequestForm({
                 )}
               </div>
             </Card>
+            
+            {/* Back button for documents tab */}
+            <div className="flex justify-start mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setActiveTab("items")}
+              >
+                Back to Items
+              </Button>
+            </div>
           </TabsContent>
         </Tabs>
 
