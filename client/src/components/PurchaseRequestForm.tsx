@@ -908,10 +908,21 @@ export default function PurchaseRequestForm({
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Upload Documents</h3>
                   <FileUploadMultiple
+                    onFilesSelected={(files) => {
+                      // Handle files selected
+                      if (files.length > 0) {
+                        // Here we would typically upload the files to the server
+                        // For now, we'll just create file preview objects
+                        const fileObjects = files.map(file => ({
+                          file,
+                          preview: URL.createObjectURL(file)
+                        }));
+                        setFiles([...files, ...fileObjects]);
+                      }
+                    }}
                     onUploadComplete={handleFileUploadComplete}
                     maxFiles={5}
-                    maxSizeInMB={10}
-                    uploadedFiles={uploadedFiles}
+                    maxSizeBytes={10 * 1024 * 1024} // 10 MB in bytes
                   />
                 </div>
 
@@ -1027,7 +1038,6 @@ export default function PurchaseRequestForm({
       {previewFile && showPreview && (
         <FilePreviewDialog
           file={previewFile}
-          isOpen={showPreview}
           onClose={() => {
             setShowPreview(false);
             setPreviewFile(null);
