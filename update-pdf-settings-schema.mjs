@@ -1,6 +1,6 @@
-// Simplified script using directly executed SQL using CommonJS
-const { db } = require('./db/index');
-const { sql } = require('drizzle-orm');
+// Simplified script using directly executed SQL in ES modules format
+import { db } from './db/index.js';
+import { sql } from 'drizzle-orm';
 
 async function updatePdfSettingsSchema() {
   console.log('Starting PDF settings schema update...');
