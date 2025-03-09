@@ -622,10 +622,6 @@ export default function Dashboard() {
               </Link>
               <EnhancedNotificationsDropdown onNotificationClick={handleNotificationClick} />
               <ThemeToggle />
-              <DashboardPreferences
-                preferences={preferences || DEFAULT_PREFERENCES}
-                onUpdate={updatePreferences}
-              />
               <Button
                 size="sm"
                 variant="outline"
