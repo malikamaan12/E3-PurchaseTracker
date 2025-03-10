@@ -11,11 +11,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@db/schema";
 import type { LoginCredentials } from "@db/schema";
 import AccountRequestForm from "@/components/AccountRequestForm";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useUser();
   const { toast } = useToast();
 
@@ -116,14 +117,29 @@ export default function AuthPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-gray-700 dark:text-gray-200">Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              {...field}
-                              className="border-[#7156a2]/20 focus:border-[#7156a2]"
+                          <div className="relative">
+                            <FormControl>
+                              <Input
+                                type={showPassword ? "text" : "password"}
+                                {...field}
+                                className="border-[#7156a2]/20 focus:border-[#7156a2] pr-10"
+                                disabled={isLoading}
+                              />
+                            </FormControl>
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                              tabIndex={-1}
                               disabled={isLoading}
-                            />
-                          </FormControl>
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

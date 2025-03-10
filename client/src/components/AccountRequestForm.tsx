@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { insertAccountRequestSchema, mandatoryDepartments } from "@db/schema";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 const formItemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -30,6 +31,7 @@ const formItemVariants = {
 
 export default function AccountRequestForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const form = useForm<AccountRequest>({
     resolver: zodResolver(insertAccountRequestSchema),
