@@ -1205,9 +1205,9 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         // Add label with blue color to match tables
         doc.setFontSize(8);
         doc.setTextColor(40, 70, 120); // Matching the blue from audit table
-        doc.setFont('helvetica', 'bold'); // Use helvetica instead of undefined
+        doc.setFont(templateConfig.fontFamily || 'helvetica', 'bold'); // Use template font family
         doc.text(label, x + 3, y + 5);
-        doc.setFont('helvetica', 'normal'); // Use helvetica instead of undefined
+        doc.setFont(templateConfig.fontFamily || 'helvetica', 'normal'); // Use template font family
         
         // Add signature line
         doc.setDrawColor(200, 210, 230); // Lighter blue for signature line
