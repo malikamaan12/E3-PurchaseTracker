@@ -29,8 +29,8 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     
     // Get margin from the settings or use default
     const margin = request?.pdfSettings?.marginLeft || 15;
-    // Start position at top of page
-    const startY = 0;
+    // Start position at top of page with a small offset to prevent edge artifacts
+    const startY = 5;
     
     // Prepare settings with default and override values
     let settings: {
@@ -130,14 +130,17 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
       }
     }
     
-    // Create a more sophisticated header with a subtle gradient and rounded corners at the bottom
-    // Modern drop shadow effect - draw a very light shadow rectangle first
-    doc.setFillColor(220, 220, 220);
-    doc.rect(margin - 0.5, startY, pageWidth - (2 * margin) + 1, headerHeight + 1, 'F');
+    // For white background behind header to avoid black box issues
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, headerHeight + 35, 'F');
     
-    // Main header background with very light color (10% opacity)
+    // Modern drop shadow effect with very subtle coloring
+    doc.setFillColor(230, 230, 235);
+    doc.roundedRect(margin - 0.5, startY, pageWidth - (2 * margin) + 1, headerHeight + 1, 1, 1, 'F');
+    
+    // Main header background with light brand color
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2], 0.08);
-    doc.rect(margin, startY, pageWidth - (2 * margin), headerHeight, 'F');
+    doc.roundedRect(margin, startY, pageWidth - (2 * margin), headerHeight, 1, 1, 'F');
     
     // Clean top accent line
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
@@ -200,7 +203,7 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     }
     
     // Create a modern dual-color accent bar with gradient effect
-    const gradientY = headerHeight - 2;
+    const gradientY = startY + headerHeight - 2;
     
     // First half with primary brand color
     doc.setFillColor(headerColorRgb[0], headerColorRgb[1], headerColorRgb[2]);
@@ -210,8 +213,8 @@ async function addHeader(doc: jsPDF, request: any): Promise<number> {
     doc.setFillColor(accentColorRgb[0], accentColorRgb[1], accentColorRgb[2]);
     doc.roundedRect((pageWidth / 2) - 2, gradientY, (pageWidth / 2) - margin + 2, 3, 1, 1, 'F');
     
-    // Return position for content to start after the header
-    const initialPosition = headerHeight + 8;
+    // Calculate position for content to start after the header
+    const initialPosition = startY + headerHeight + 8;
     
     // Add request info after header in a clean bordered box
     const detailsBoxY = initialPosition;
@@ -310,8 +313,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       footerHeight = Math.min(Math.max(request.pdfSettings.footerHeight / 2, 10), 100);
     }
     
-    // Position footer exactly at the bottom of the page (subtract 0.1 to avoid cutting off)
-    const footerY = pageHeight - footerHeight - 0.1;
+    // Position footer with some space from bottom to avoid rendering issues
+    const footerY = pageHeight - footerHeight - 5;
     
     // E3 brand colors (matching header)
     const primaryColor = [111, 42, 230]; // E3 purple #6F2AE6
@@ -419,23 +422,31 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     }
     
-    // Create footer background for the entire footer area
-    doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.05); // Very light background
-    doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+    // White background behind footer to prevent black areas
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, footerY - 5, pageWidth, footerHeight + 10, 'F');
     
-    // Draw a line above the footer
-    doc.setDrawColor(200, 200, 200);
+    // Create footer background with very light brand color
+    doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.05);
+    doc.roundedRect(margin, footerY, pageWidth - (2 * margin), footerHeight - 2, 1, 1, 'F');
+    
+    // Draw a subtle line above the footer
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.2);
     doc.line(margin, footerY, pageWidth - margin, footerY);
     
-    // Add the colored gradient bar
-    doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]); // Primary color 
-    doc.rect(margin, footerY + 2, pageWidth/3, 3, 'F');
+    // Add the colored gradient bar with rounded corners for a cleaner look
+    // Primary color section
+    doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+    doc.roundedRect(margin, footerY + 2, pageWidth/3 - 2, 2, 1, 1, 'F');
     
-    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(margin + pageWidth/3, footerY + 2, pageWidth/3, 3, 'F');
+    // Middle accent color section
+    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.rect(margin + pageWidth/3 - 1, footerY + 2, pageWidth/3 + 2, 2, 'F');
     
-    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]); // Teal
-    doc.rect(margin + 2*pageWidth/3, footerY + 2, pageWidth/3 - margin, 3, 'F');
+    // Final accent section with right rounded corner
+    doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.roundedRect(margin + 2*pageWidth/3, footerY + 2, pageWidth/3 - margin - 1, 2, 1, 1, 'F');
     
     // Add footer image if explicitly enabled and available
     if (settings.showFooterImage === true && settings.footerImage) {
@@ -738,11 +749,14 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         templateConfig.margins.left = request.pdfSettings.marginLeft;
     }
     
-    // Create PDF with template configuration
+    // Create PDF with template configuration & compression to avoid rendering artifacts
     const doc = new jsPDF({
       orientation: templateConfig.orientation,
       unit: templateConfig.unit,
       format: templateConfig.format,
+      compress: true,
+      putOnlyUsedFonts: true,
+      floatPrecision: 16 // Uses higher precision to avoid rendering issues
     });
 
     // Use margins from template configuration
@@ -1191,9 +1205,9 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
         // Add label with blue color to match tables
         doc.setFontSize(8);
         doc.setTextColor(40, 70, 120); // Matching the blue from audit table
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold'); // Use helvetica instead of undefined
         doc.text(label, x + 3, y + 5);
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'normal'); // Use helvetica instead of undefined
         
         // Add signature line
         doc.setDrawColor(200, 210, 230); // Lighter blue for signature line
