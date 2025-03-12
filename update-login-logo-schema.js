@@ -1,5 +1,5 @@
-const { db } = require('./db/index');
-const { sql } = require('drizzle-orm');
+import { db } from './db/index.ts';
+import { sql } from 'drizzle-orm';
 
 async function updateLoginLogoSchema() {
   console.log('Starting PDF settings login logo schema update...');
