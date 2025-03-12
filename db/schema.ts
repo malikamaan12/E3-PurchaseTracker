@@ -750,6 +750,7 @@ export const insertPdfSettingsSchema = createInsertSchema(pdfSettings, {
   headerImage: z.string().optional().nullable(),
   footerImage: z.string().optional().nullable(),
   logo: z.string().optional().nullable(),
+  loginLogo: z.string().optional().nullable(),
   headerHeight: z.number().min(20).max(200).default(100),
   footerHeight: z.number().min(20).max(200).default(50),
   userId: z.number().optional(),
