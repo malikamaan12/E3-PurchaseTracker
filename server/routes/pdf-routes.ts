@@ -20,13 +20,15 @@ export function registerPdfRoutes(app: Express) {
       const logoSettings = await db.query.pdfSettings.findFirst({
         columns: {
           loginLogo: true
-        }
+        },
+        orderBy: [desc(pdfSettings.updatedAt)]
       });
       
       return res.json({ 
         loginLogo: logoSettings?.loginLogo || null 
       });
     } catch (error) {
+      console.error('Error fetching login logo:', error);
       next(error);
     }
   });
