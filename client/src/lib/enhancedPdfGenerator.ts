@@ -4,19 +4,44 @@ import 'jspdf-autotable';
 import { PurchaseRequestWithRelations } from '../types/requests';
 
 /**
- * Convert hex color to RGB array
+ * Convert hex color to RGB array for PDF usage
+ * @param hex Hexadecimal color code (e.g., '#RRGGBB' or 'RRGGBB')
+ * @returns Normalized RGB values as [r, g, b] array with values between 0-1
  */
 function hexToRgb(hex: string): [number, number, number] {
-  // Remove the # if present
-  const cleanHex = hex.replace('#', '');
-  
-  // Handle both 3-char and 6-char hex
-  const r = parseInt(cleanHex.length === 3 ? cleanHex[0] + cleanHex[0] : cleanHex.substr(0, 2), 16);
-  const g = parseInt(cleanHex.length === 3 ? cleanHex[1] + cleanHex[1] : cleanHex.substr(2, 2), 16);
-  const b = parseInt(cleanHex.length === 3 ? cleanHex[2] + cleanHex[2] : cleanHex.substr(4, 2), 16);
-  
-  // Convert 0-255 to 0-1 range for PDF
-  return [r/255, g/255, b/255];
+  try {
+    // Default to black if input is invalid
+    if (!hex || typeof hex !== 'string') {
+      console.warn('Invalid hex color input');
+      return [0, 0, 0];
+    }
+    
+    // Remove the # if present
+    const cleanHex = hex.replace(/^#/, '');
+    
+    // Validate hex format (3 or 6 characters)
+    if (!/^([0-9A-F]{3}){1,2}$/i.test(cleanHex)) {
+      console.warn(`Invalid hex color format: ${hex}`);
+      return [0, 0, 0];
+    }
+    
+    // Handle both 3-char and 6-char hex
+    const r = parseInt(cleanHex.length === 3 ? cleanHex[0] + cleanHex[0] : cleanHex.substr(0, 2), 16);
+    const g = parseInt(cleanHex.length === 3 ? cleanHex[1] + cleanHex[1] : cleanHex.substr(2, 2), 16);
+    const b = parseInt(cleanHex.length === 3 ? cleanHex[2] + cleanHex[2] : cleanHex.substr(4, 2), 16);
+    
+    // Handle NaN values
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {
+      console.warn(`Color parsing error for hex: ${hex}`);
+      return [0, 0, 0];
+    }
+    
+    // Convert 0-255 to 0-1 range for PDF
+    return [r/255, g/255, b/255];
+  } catch (error) {
+    console.error(`Error parsing hex color ${hex}:`, error);
+    return [0, 0, 0];
+  }
 }
 
 /**
@@ -57,10 +82,10 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         console.error('Error adding header image:', error);
         
         // Fallback - create a gradient header
-        doc.setFillColor(...headerColor);
+        doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
         doc.rect(margin, startY, pageWidth/2 - margin, 10, 'F');
         
-        doc.setFillColor(...accentColor);
+        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
         doc.rect(pageWidth/2, startY, pageWidth/2 - margin, 10, 'F');
         
         // Add company name if header image fails
@@ -71,10 +96,10 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       }
     } else {
       // Fallback if no header image is set
-      doc.setFillColor(...headerColor);
+      doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
       doc.rect(margin, startY, pageWidth/2 - margin, 10, 'F');
       
-      doc.setFillColor(...accentColor);
+      doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
       doc.rect(pageWidth/2, startY, pageWidth/2 - margin, 10, 'F');
       
       // Add company name if header image is not available
@@ -132,10 +157,35 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       didDrawCell: (data) => {
         // Add border around the entire table
         if (data.row.index === 0 && data.column.index === 0) {
-          const { x, y, width, height } = data.table;
+          // Access table dimensions directly from the cell data
+          const x = data.cell.x;
+          const y = data.cell.y - data.row.height;
+          
+          // Calculate width and height based on all cells
+          let maxRight = 0;
+          let maxBottom = 0;
+          
+          // Find max right and bottom coordinates
+          data.table.body.forEach((row: any) => {
+            if (row.cells) {
+              row.cells.forEach((cell: any) => {
+                if (cell && typeof cell === 'object' && cell.x !== undefined && cell.width !== undefined) {
+                  const cellRight = cell.x + cell.width;
+                  const cellBottom = cell.y + cell.height;
+                  
+                  if (cellRight > maxRight) maxRight = cellRight;
+                  if (cellBottom > maxBottom) maxBottom = cellBottom;
+                }
+              });
+            }
+          });
+          
+          const width = maxRight - x;
+          const height = (maxBottom - y);
+          
           doc.setDrawColor(200, 200, 200);
           doc.setLineWidth(0.1);
-          doc.rect(x, y, width, height * 3);
+          doc.rect(x, y, width, height);
         }
       }
     });
@@ -182,10 +232,17 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     const pageHeight = doc.internal.pageSize.height;
     
     // Get footer colors from settings or use defaults
-    const primaryColor = [111/255, 42/255, 230/255]; // E3 purple
-    const accentColor = [31/255, 211/255, 219/255]; // E3 teal
-    const footerColor = pdfSettings?.footerColor ? 
-      hexToRgb(pdfSettings.footerColor) : primaryColor;
+    const primaryColor: [number, number, number] = [111/255, 42/255, 230/255]; // E3 purple
+    const accentColor: [number, number, number] = [31/255, 211/255, 219/255]; // E3 teal
+    
+    // Parse footer color from settings or use default
+    let footerColor: [number, number, number] = primaryColor;
+    if (pdfSettings?.footerColor && typeof pdfSettings.footerColor === 'string') {
+      const parsedColor = hexToRgb(pdfSettings.footerColor);
+      if (Array.isArray(parsedColor) && parsedColor.length === 3) {
+        footerColor = parsedColor;
+      }
+    }
     
     // Get margins and footer height
     const margin = pdfSettings?.marginLeft || 15;
@@ -206,18 +263,18 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
         console.error('Error adding footer image:', error);
         
         // Fallback - create a gradient footer
-        doc.setFillColor(...footerColor);
+        doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
         doc.rect(margin, footerY, pageWidth/2 - margin, 5, 'F');
         
-        doc.setFillColor(...accentColor);
+        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
         doc.rect(pageWidth/2, footerY, pageWidth/2 - margin, 5, 'F');
       }
     } else {
       // Fallback if no footer image is set
-      doc.setFillColor(...footerColor);
+      doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
       doc.rect(margin, footerY, pageWidth/2 - margin, 5, 'F');
       
-      doc.setFillColor(...accentColor);
+      doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
       doc.rect(pageWidth/2, footerY, pageWidth/2 - margin, 5, 'F');
     }
     
