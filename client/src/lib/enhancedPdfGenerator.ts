@@ -4,16 +4,24 @@ import 'jspdf-autotable';
 import { PurchaseRequestWithRelations } from '../types/requests';
 
 /**
+ * RGB color tuple type with normalized values (0-1)
+ */
+type RGBColor = [number, number, number];
+
+/**
  * Convert hex color to RGB array for PDF usage
  * @param hex Hexadecimal color code (e.g., '#RRGGBB' or 'RRGGBB')
  * @returns Normalized RGB values as [r, g, b] array with values between 0-1
  */
-function hexToRgb(hex: string): [number, number, number] {
+function hexToRgb(hex: string): RGBColor {
+  // Default color (black) for error cases
+  const defaultColor: RGBColor = [0, 0, 0];
+  
   try {
     // Default to black if input is invalid
     if (!hex || typeof hex !== 'string') {
       console.warn('Invalid hex color input');
-      return [0, 0, 0];
+      return defaultColor;
     }
     
     // Remove the # if present
@@ -22,7 +30,7 @@ function hexToRgb(hex: string): [number, number, number] {
     // Validate hex format (3 or 6 characters)
     if (!/^([0-9A-F]{3}){1,2}$/i.test(cleanHex)) {
       console.warn(`Invalid hex color format: ${hex}`);
-      return [0, 0, 0];
+      return defaultColor;
     }
     
     // Handle both 3-char and 6-char hex
@@ -33,14 +41,15 @@ function hexToRgb(hex: string): [number, number, number] {
     // Handle NaN values
     if (isNaN(r) || isNaN(g) || isNaN(b)) {
       console.warn(`Color parsing error for hex: ${hex}`);
-      return [0, 0, 0];
+      return defaultColor;
     }
     
-    // Convert 0-255 to 0-1 range for PDF
-    return [r/255, g/255, b/255];
+    // Convert 0-255 to 0-1 range for PDF and ensure we have a proper tuple
+    const result: RGBColor = [r/255, g/255, b/255];
+    return result;
   } catch (error) {
     console.error(`Error parsing hex color ${hex}:`, error);
-    return [0, 0, 0];
+    return defaultColor;
   }
 }
 
@@ -65,57 +74,67 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     // Get header height from settings or use default
     const headerHeight = pdfSettings?.headerHeight || 30;
     
-    // Get margins
+    // Get margins from settings or use default
     const margin = pdfSettings?.marginLeft || 15;
     
     // Add company logo if available
     if (pdfSettings?.headerImage) {
       try {
+        // Load image
         const img = new Image();
         img.src = pdfSettings.headerImage;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if image fails to load
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          setTimeout(() => resolve(), 1000); // Add timeout as fallback
+          img.onerror = () => {
+            console.error('Error loading header image');
+            resolve();
+          };
         });
-        doc.addImage(img, 'PNG', margin, startY, pageWidth - (margin * 2), headerHeight);
+        
+        // Calculate correct aspect ratio for header image
+        const imgWidth = Math.min(pageWidth / 2 - margin * 2, 60); // Max width of 60mm or half page width
+        const imgHeight = headerHeight;
+        
+        // Add the image on left side with proper sizing
+        doc.addImage(img, 'PNG', margin, startY, imgWidth, imgHeight);
+        
+        // Add a gradient bar on the right side for aesthetic balance
+        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.roundedRect(
+          pageWidth - margin - 60, // X position at right margin minus width
+          startY,                   // Y position same as logo
+          60,                      // Width of gradient bar
+          10,                      // Height of gradient bar
+          1,                       // Corner radius
+          1,                       // Corner radius
+          'F'                      // Fill style
+        );
       } catch (error) {
         console.error('Error adding header image:', error);
-        
-        // Fallback - create a gradient header
-        doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-        doc.rect(margin, startY, pageWidth/2 - margin, 10, 'F');
-        
-        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-        doc.rect(pageWidth/2, startY, pageWidth/2 - margin, 10, 'F');
-        
-        // Add company name if header image fails
-        doc.setFontSize(16);
-        doc.setTextColor(0, 0, 0);
-        doc.text("EVENTS & ENTERTAINMENT", pageWidth/2, startY + 25, { align: 'center' });
-        doc.text("ENTERPRISES", pageWidth/2, startY + 35, { align: 'center' });
+        renderDefaultHeader(doc, headerColor, accentColor, margin, startY, pageWidth);
       }
     } else {
       // Fallback if no header image is set
-      doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-      doc.rect(margin, startY, pageWidth/2 - margin, 10, 'F');
-      
-      doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-      doc.rect(pageWidth/2, startY, pageWidth/2 - margin, 10, 'F');
-      
-      // Add company name if header image is not available
-      doc.setFontSize(16);
-      doc.setTextColor(0, 0, 0);
-      doc.text("EVENTS & ENTERTAINMENT", pageWidth/2, startY + 25, { align: 'center' });
-      doc.text("ENTERPRISES", pageWidth/2, startY + 35, { align: 'center' });
+      renderDefaultHeader(doc, headerColor, accentColor, margin, startY, pageWidth);
     }
     
-    // Add "PURCHASE REQUEST" title
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text("PURCHASE REQUEST", pageWidth/2, startY + headerHeight + 20, { align: 'center' });
+    // Add "PURCHASE REQUEST" title - centered and with background
+    const titleY = startY + headerHeight + 10;
     
-    // Add request details table
-    const yPos = startY + headerHeight + 30;
+    // Add background box for title
+    doc.setFillColor(0, 0, 0);
+    doc.rect(0, titleY - 5, pageWidth, 10, 'F');
+    
+    // Add title text in white
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text("PURCHASE REQUEST", pageWidth/2, titleY, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    
+    // Add request info table
+    const yPos = titleY + 15;
     
     // Format date safely
     const formatDate = (dateString: string | undefined): string => {
@@ -138,8 +157,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         [
           'Purchase Request #' + (request.requestNumber || ''),
           '',
-          '',
-          ''
+          'Status:',
+          request.status?.toUpperCase() || 'N/A'
         ],
         [
           'Requester:',
@@ -150,22 +169,22 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         [
           'Date:',
           formatDate(request.createdAt),
-          'Status:',
-          request.status || 'N/A'
+          'Priority:',
+          request.priority?.toUpperCase() || 'N/A'
         ]
       ],
       didDrawCell: (data) => {
         // Add border around the entire table
         if (data.row.index === 0 && data.column.index === 0) {
-          // Access table dimensions directly from the cell data
+          // Access table dimensions
           const x = data.cell.x;
           const y = data.cell.y - data.row.height;
           
-          // Calculate width and height based on all cells
+          // Calculate dimensions
           let maxRight = 0;
           let maxBottom = 0;
           
-          // Find max right and bottom coordinates
+          // Find max coordinates
           data.table.body.forEach((row: any) => {
             if (row.cells) {
               row.cells.forEach((cell: any) => {
@@ -183,13 +202,15 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
           const width = maxRight - x;
           const height = (maxBottom - y);
           
-          doc.setDrawColor(200, 200, 200);
+          // Draw table border
+          doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.1);
           doc.rect(x, y, width, height);
         }
       }
     });
     
+    // Return the Y position for the next section
     return (doc as any).lastAutoTable.finalY + 10;
   } catch (error) {
     console.error('Error adding header:', error);
@@ -198,29 +219,81 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
 }
 
 /**
+ * Render default header with logo and gradient when image is not available
+ */
+function renderDefaultHeader(
+  doc: jsPDF, 
+  headerColor: [number, number, number], 
+  accentColor: [number, number, number], 
+  margin: number, 
+  startY: number, 
+  pageWidth: number
+): void {
+  // Create stylized "E3" logo with rectangles and text
+  // Purple box for 'E'
+  doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
+  doc.roundedRect(margin, startY, 15, 25, 2, 2, 'F');
+  
+  // Teal box connected to it
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.roundedRect(margin + 15, startY, 15, 10, 2, 2, 'F');
+  
+  // Draw fancy gradient on right side
+  const gradientWidth = 60;
+  const gradientX = pageWidth - margin - gradientWidth;
+  
+  // Purple to teal gradient effect (simulated with rectangles)
+  doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
+  doc.roundedRect(gradientX, startY, gradientWidth/2, 25, 2, 2, 'F');
+  
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.roundedRect(gradientX + gradientWidth/2, startY, gradientWidth/2, 25, 2, 2, 'F');
+  
+  // Add "E3" text in white on the purple box
+  doc.setFontSize(20);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text("E3", margin + 6, startY + 15);
+  
+  // Add company name text
+  doc.setFontSize(11);
+  doc.setTextColor(70, 42, 230); // Use E3 purple for text
+  doc.setFont('helvetica', 'bold');
+  doc.text("EVENTS &", margin + 35, startY + 8);
+  doc.text("ENTERTAINMENT", margin + 35, startY + 15);
+  doc.text("ENTERPRISES", margin + 35, startY + 22);
+  doc.setFont('helvetica', 'normal');
+}
+
+/**
  * Add a section title with styling
  */
 function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): number {
-  // Add a blue background bar
-  doc.setFillColor(63/255, 81/255, 181/255);
-  doc.rect(margin, yPos, 5, 6, 'F');
-  
-  // Add section title with a light gray background
-  doc.setFillColor(240/255, 240/255, 245/255);
   const pageWidth = doc.internal.pageSize.width;
-  doc.rect(margin + 5, yPos, pageWidth - (margin * 2) - 5, 6, 'F');
   
-  // Add title text
+  // Define E3 colors
+  const primaryColor: [number, number, number] = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
+  
+  // Add dark background full width
+  doc.setFillColor(0, 0, 0);
+  doc.rect(margin, yPos, pageWidth - (margin * 2), 7, 'F');
+  
+  // Add the colored accent bar at the left
+  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.rect(margin, yPos, 4, 7, 'F');
+  
+  // Add title text in white
   doc.setFontSize(10);
-  doc.setTextColor(50/255, 50/255, 150/255);
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, margin + 10, yPos + 4);
+  doc.text(title, margin + 8, yPos + 5);
   
-  // Reset text color
+  // Reset text color for subsequent content
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   
-  return yPos + 10;
+  // Return position after section title with some padding
+  return yPos + 12;
 }
 
 /**
@@ -246,54 +319,127 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     
     // Get margins and footer height
     const margin = pdfSettings?.marginLeft || 15;
-    const footerHeight = pdfSettings?.footerHeight || 30;
+    const footerHeight = 10; // Keep footer height small and consistent
     const footerY = pageHeight - footerHeight - 10;
+    
+    // Add footer bar - thin line with color
+    doc.setDrawColor(0, 0, 0);
+    doc.setFillColor(0, 0, 0);
+    doc.rect(margin, footerY, pageWidth - (margin * 2), 0.5, 'F');
     
     // Add footer image if available
     if (pdfSettings?.footerImage) {
       try {
         const img = new Image();
         img.src = pdfSettings.footerImage;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue even if image fails to load
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          setTimeout(() => resolve(), 1000); // Add timeout as fallback
+          img.onerror = () => {
+            console.error('Error loading footer image');
+            resolve();
+          };
         });
-        doc.addImage(img, 'PNG', margin, footerY, pageWidth - (margin * 2), footerHeight);
+        
+        // Scale the footer image appropriately (bottom right corner)
+        const imgWidth = 40; // Fixed width for consistency
+        const imgHeight = 10; // Fixed height for consistency
+        const imgX = pageWidth - margin - imgWidth;
+        
+        // Add the image properly scaled
+        doc.addImage(
+          img, 
+          'PNG', 
+          imgX, 
+          footerY + 1, // position just below the line
+          imgWidth, 
+          imgHeight
+        );
       } catch (error) {
         console.error('Error adding footer image:', error);
-        
-        // Fallback - create a gradient footer
-        doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-        doc.rect(margin, footerY, pageWidth/2 - margin, 5, 'F');
-        
-        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-        doc.rect(pageWidth/2, footerY, pageWidth/2 - margin, 5, 'F');
+        renderDefaultFooter(doc, footerColor, accentColor, margin, footerY, pageWidth);
       }
     } else {
       // Fallback if no footer image is set
-      doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-      doc.rect(margin, footerY, pageWidth/2 - margin, 5, 'F');
+      renderDefaultFooter(doc, footerColor, accentColor, margin, footerY, pageWidth);
+    }
+    
+    // Add company contact information (if provided)
+    if (pdfSettings?.companyPhone || pdfSettings?.companyEmail || pdfSettings?.companyWebsite) {
+      doc.setFontSize(7);
+      doc.setTextColor(70, 70, 70);
       
-      doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-      doc.rect(pageWidth/2, footerY, pageWidth/2 - margin, 5, 'F');
+      let contactText = '';
+      if (pdfSettings?.companyPhone) {
+        contactText += `Phone: ${pdfSettings.companyPhone}`;
+      }
+      if (pdfSettings?.companyEmail) {
+        contactText += contactText ? ' | ' : '';
+        contactText += `Email: ${pdfSettings.companyEmail}`;
+      }
+      if (pdfSettings?.companyWebsite) {
+        contactText += contactText ? ' | ' : '';
+        contactText += `Web: ${pdfSettings.companyWebsite}`;
+      }
+      
+      if (contactText) {
+        doc.text(contactText, margin, footerY + 6);
+      }
+    }
+    
+    // Add company address (if provided)
+    if (pdfSettings?.companyAddress) {
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text(pdfSettings.companyAddress, margin, footerY + 10);
     }
     
     // Add page numbers
     if (pdfSettings?.pageNumbering !== false) {
       doc.setFontSize(8);
-      doc.setTextColor(100/255, 100/255, 100/255);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, footerY + 6, { align: 'right' });
     }
     
-    // Add footer text if provided
+    // Add footer text (e.g., "Designed by Team E3")
     if (pdfSettings?.footerText) {
       doc.setFontSize(8);
-      doc.setTextColor(100/255, 100/255, 100/255);
-      doc.text(pdfSettings.footerText, margin, pageHeight - 10);
+      doc.setTextColor(primaryColor[0] * 255, primaryColor[1] * 255, primaryColor[2] * 255);
+      doc.setFont('helvetica', 'italic');
+      doc.text(pdfSettings.footerText, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
     }
   } catch (error) {
     console.error('Error adding footer:', error);
   }
+}
+
+/**
+ * Render default footer with company information
+ */
+function renderDefaultFooter(
+  doc: jsPDF,
+  footerColor: [number, number, number],
+  accentColor: [number, number, number],
+  margin: number,
+  footerY: number,
+  pageWidth: number
+): void {
+  // Add small E3 brand mark at bottom right
+  const brandSize = 8;
+  const brandX = pageWidth - margin - brandSize;
+  const brandY = footerY + 2;
+  
+  // Purple box for brand
+  doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
+  doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
+  
+  // Add "E3" text in white
+  doc.setFontSize(6);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
 }
 
 /**
