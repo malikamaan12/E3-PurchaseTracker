@@ -12,6 +12,7 @@ import { loginSchema } from "@db/schema";
 import type { LoginCredentials } from "@db/schema";
 import AccountRequestForm from "@/components/AccountRequestForm";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import e3Logo from "../assets/e3-logo.svg";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
@@ -65,12 +66,15 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
+        <div className="flex justify-center mb-6">
+          <img src={e3Logo} alt="E3 Logo" className="h-20 w-auto" />
+        </div>
         <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg">
           <CardHeader className="border-b border-[#35bbba]/20 dark:border-[#35bbba]/40 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/10 dark:to-[#35bbba]/10">
             <CardTitle className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-              Purchase Management System
+              E3 Purchase Request System
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -169,6 +173,9 @@ export default function AuthPage() {
             </Tabs>
           </CardContent>
         </Card>
+        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400 px-4">
+          Welcome to the E3 Purchase Request System—built with passion by E3 and driven by your success!
+        </div>
       </div>
     </div>
   );
