@@ -314,171 +314,40 @@ export async function exportRequestToExcel(request: any): Promise<string> {
 /**
  * Export a purchase request to PDF format
  */
+import { generateEnhancedPDF } from './enhancedPdfGenerator';
+
 export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting PDF export for request #${request.id}`);
     
-    // Create new PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    // Generate the PDF document using our enhanced generator
+    const doc = await generateEnhancedPDF(request, type);
     
-    // Add title
-    doc.setFontSize(18);
-    doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 20);
+    // Generate the PDF
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
+    const pdfOutput = doc.output('blob');
     
-    // Add basic info
-    doc.setFontSize(12);
-    doc.text(`Title: ${request.title || 'Untitled'}`, 14, 30);
-    doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Unknown'}`, 14, 38);
-    doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Unknown'}`, 14, 46);
+    const downloadResult = await safeDownload(pdfOutput, fileName);
+    console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
     
-    // Format date safely
-    const formatDate = (dateString: string | null | undefined): string => {
-      if (!dateString) return 'Unknown';
-      try {
-        return new Date(dateString).toLocaleDateString();
-      } catch (e) {
-        console.warn(`Failed to format date: ${dateString}`, e);
-        return 'Unknown';
-      }
-    };
+    return fileName;
+  } catch (error) {
+    console.error('PDF export error:', error);
     
-    doc.text(`Created: ${formatDate(request.createdAt)}`, 14, 54);
-    doc.text(`Requester: ${request.requester?.username || 'Unknown'}`, 14, 62);
-    doc.text(`Department: ${request.requester?.department || 'Unknown'}`, 14, 70);
-    
-    // Add description
-    doc.text('Description:', 14, 82);
-    
-    // Handle potential undefined description
-    const description = request.description || 'No description provided';
+    // Create a basic fallback PDF with error information
     try {
-      const splitDescription = doc.splitTextToSize(description, 180);
-      doc.text(splitDescription, 14, 90);
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      // Set y position after description
-      let yPos = 90 + (splitDescription.length * 7);
-      
-      // Add items
-      if (request.items && request.items.length > 0) {
-        try {
-          yPos += 10;
-          doc.text('Items:', 14, yPos);
-          yPos += 8;
-          
-          // Item table headers
-          const itemHead = [['#', 'Name', 'Quantity', 'Est. Cost', 'Total']];
-          const itemBody = request.items.map((item: any, index: number) => [
-            index + 1,
-            item.name || '',
-            Number(item.quantity) || 0,
-            (Number(item.estimatedCost) || 0).toFixed(2),
-            ((Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0)).toFixed(2)
-          ]);
-          
-          // @ts-ignore
-          doc.autoTable({
-            head: itemHead,
-            body: itemBody,
-            startY: yPos,
-            margin: { left: 14 },
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [66, 139, 202] }
-          });
-          
-          // @ts-ignore
-          yPos = doc.autoTable.previous.finalY + 10;
-        } catch (itemsError) {
-          console.error('Error adding items to PDF:', itemsError);
-          yPos += 10;
-          doc.text('Error adding items to PDF', 14, yPos);
-          yPos += 10;
-        }
-      }
-      
-      // Add approvals if they exist
-      if (request.approvals && request.approvals.length > 0) {
-        try {
-          doc.text('Approval Status:', 14, yPos);
-          yPos += 8;
-          
-          // Process approvals to ensure unique departments (fix for duplicate CEO Office approvals)
-          // Create a map to hold the latest approval for each department
-          const departmentApprovals = new Map();
-          
-          // Make a safe copy of the approvals array
-          const approvalsToCopy = [...request.approvals];
-          
-          // Sort approvals by processed date (newest first)
-          const sortedApprovals = approvalsToCopy.sort((a, b) => {
-            const dateA = a.processedAt ? new Date(a.processedAt).getTime() : 0;
-            const dateB = b.processedAt ? new Date(b.processedAt).getTime() : 0;
-            return dateB - dateA; // Descending order (newest first)
-          });
-          
-          // Keep only the latest approval for each department
-          sortedApprovals.forEach(approval => {
-            if (approval.department && !departmentApprovals.has(approval.department)) {
-              departmentApprovals.set(approval.department, approval);
-            }
-          });
-          
-          // Convert map back to array
-          const uniqueApprovals = Array.from(departmentApprovals.values());
-          
-          // Approval table headers
-          const approvalHead = [['Department', 'Status', 'Approver', 'Date', 'Comments']];
-          const approvalBody = uniqueApprovals.map((approval: any) => [
-            approval.department || '',
-            approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : '',
-            approval.approver?.username || '',
-            formatDate(approval.processedAt) || 'Pending',
-            approval.comments || ''
-          ]);
-          
-          // @ts-ignore
-          doc.autoTable({
-            head: approvalHead,
-            body: approvalBody,
-            startY: yPos,
-            margin: { left: 14 },
-            theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [66, 139, 202] }
-          });
-        } catch (approvalsError) {
-          console.error('Error adding approvals to PDF:', approvalsError);
-          yPos += 10;
-          doc.text('Error adding approvals to PDF', 14, yPos);
-          yPos += 10;
-        }
-      }
-      
-      // Add footer with total
-      const totalCost = calculateTotalCost(request);
+      doc.setFontSize(18);
+      doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 20);
       doc.setFontSize(12);
-      doc.text(`Total Amount: ${totalCost.toFixed(2)} ${request.currency || 'USD'}`, 14, doc.internal.pageSize.height - 20);
-      
-      // Generate the PDF
-      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-      const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
-      const pdfOutput = doc.output('blob');
-      
-      const downloadResult = await safeDownload(pdfOutput, fileName);
-      console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
-      
-      return fileName;
-    } catch (textError) {
-      console.error('Error adding text to PDF:', textError);
-      
-      // Create a basic fallback PDF with error information
-      doc.text('Error generating detailed PDF', 14, 100);
-      doc.text(`Request ID: ${request.id}`, 14, 110);
-      doc.text(`Error: ${textError instanceof Error ? textError.message : String(textError)}`, 14, 120);
+      doc.text('Error generating PDF document', 14, 30);
+      doc.text(`Error: ${error instanceof Error ? error.message : String(error)}`, 14, 40);
       
       const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
       const fileName = `purchase-request-${request.id}-${timestamp}-error.pdf`;
@@ -486,10 +355,10 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       
       await safeDownload(pdfOutput, fileName);
       return fileName;
+    } catch (fallbackError) {
+      console.error('Fallback PDF creation failed:', fallbackError);
+      throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
     }
-  } catch (error) {
-    console.error('PDF export error:', error);
-    throw new Error(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
