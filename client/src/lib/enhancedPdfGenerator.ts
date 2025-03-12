@@ -5,8 +5,20 @@ import { PurchaseRequestWithRelations } from '../types/requests';
 
 /**
  * RGB color tuple type with normalized values (0-1)
+ * This is a strict tuple type that requires exactly 3 elements
  */
-type RGBColor = [number, number, number];
+type RGBColor = [number, number, number]; // Must be exactly 3 values for RGB
+
+// Ensure array is a valid RGBColor with fallback to default values
+function ensureValidRGBColor(color: any, defaultColor: RGBColor): RGBColor {
+  if (Array.isArray(color) && color.length === 3 &&
+      typeof color[0] === 'number' && 
+      typeof color[1] === 'number' && 
+      typeof color[2] === 'number') {
+    return [color[0], color[1], color[2]];
+  }
+  return defaultColor;
+}
 
 /**
  * Convert hex color to RGB array for PDF usage
@@ -61,8 +73,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     const pageWidth = doc.internal.pageSize.width;
     
     // Default E3 colors
-    const primaryColor = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
-    const accentColor = [31/255, 211/255, 219/255]; // E3 teal #1FD3DB
+    const primaryColor: RGBColor = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
+    const accentColor: RGBColor = [31/255, 211/255, 219/255]; // E3 teal #1FD3DB
     
     // Get header colors from settings or use defaults
     const headerColor = pdfSettings?.headerColor ? 
@@ -100,7 +112,11 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         doc.addImage(img, 'PNG', margin, startY, imgWidth, imgHeight);
         
         // Add a gradient bar on the right side for aesthetic balance
-        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+        // Use our helper to ensure a valid RGB color tuple
+        const defaultTeal: RGBColor = [31/255, 211/255, 219/255]; // Default E3 teal
+        const accentRGB: RGBColor = ensureValidRGBColor(accentColor, defaultTeal);
+          
+        doc.setFillColor(accentRGB[0], accentRGB[1], accentRGB[2]);
         doc.roundedRect(
           pageWidth - margin - 60, // X position at right margin minus width
           startY,                   // Y position same as logo
@@ -112,11 +128,27 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         );
       } catch (error) {
         console.error('Error adding header image:', error);
-        renderDefaultHeader(doc, headerColor, accentColor, margin, startY, pageWidth);
+        // Use our helper to ensure valid RGB colors with proper defaults
+        const defaultPurple: RGBColor = [111/255, 42/255, 230/255]; // Default E3 purple
+        const defaultTeal: RGBColor = [31/255, 211/255, 219/255]; // Default E3 teal
+        
+        // Safely validate colors using our helper function
+        const safeHeaderColor: RGBColor = ensureValidRGBColor(headerColor, defaultPurple);
+        const safeAccentColor: RGBColor = ensureValidRGBColor(accentColor, defaultTeal);
+        
+        renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth);
       }
     } else {
       // Fallback if no header image is set
-      renderDefaultHeader(doc, headerColor, accentColor, margin, startY, pageWidth);
+      // Use our helper to ensure valid RGB colors with proper defaults
+      const defaultPurple: RGBColor = [111/255, 42/255, 230/255]; // Default E3 purple
+      const defaultTeal: RGBColor = [31/255, 211/255, 219/255]; // Default E3 teal
+      
+      // Safely validate colors using our helper function
+      const safeHeaderColor: RGBColor = ensureValidRGBColor(headerColor, defaultPurple);
+      const safeAccentColor: RGBColor = ensureValidRGBColor(accentColor, defaultTeal);
+      
+      renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth);
     }
     
     // Add "PURCHASE REQUEST" title - centered and with background
@@ -223,8 +255,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
  */
 function renderDefaultHeader(
   doc: jsPDF, 
-  headerColor: [number, number, number], 
-  accentColor: [number, number, number], 
+  headerColor: RGBColor, 
+  accentColor: RGBColor, 
   margin: number, 
   startY: number, 
   pageWidth: number
@@ -271,8 +303,8 @@ function renderDefaultHeader(
 function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): number {
   const pageWidth = doc.internal.pageSize.width;
   
-  // Define E3 colors
-  const primaryColor: [number, number, number] = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
+  // Define E3 colors with proper typing
+  const primaryColor: RGBColor = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
   
   // Add dark background full width
   doc.setFillColor(0, 0, 0);
@@ -305,16 +337,14 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     const pageHeight = doc.internal.pageSize.height;
     
     // Get footer colors from settings or use defaults
-    const primaryColor: [number, number, number] = [111/255, 42/255, 230/255]; // E3 purple
-    const accentColor: [number, number, number] = [31/255, 211/255, 219/255]; // E3 teal
+    const primaryColor: RGBColor = [111/255, 42/255, 230/255]; // E3 purple
+    const accentColor: RGBColor = [31/255, 211/255, 219/255]; // E3 teal
     
-    // Parse footer color from settings or use default
-    let footerColor: [number, number, number] = primaryColor;
+    // Parse footer color from settings using our helper for type safety
+    let footerColor: RGBColor = primaryColor;
     if (pdfSettings?.footerColor && typeof pdfSettings.footerColor === 'string') {
       const parsedColor = hexToRgb(pdfSettings.footerColor);
-      if (Array.isArray(parsedColor) && parsedColor.length === 3) {
-        footerColor = parsedColor;
-      }
+      footerColor = ensureValidRGBColor(parsedColor, primaryColor);
     }
     
     // Get margins and footer height
@@ -419,8 +449,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
  */
 function renderDefaultFooter(
   doc: jsPDF,
-  footerColor: [number, number, number],
-  accentColor: [number, number, number],
+  footerColor: RGBColor,
+  accentColor: RGBColor,
   margin: number,
   footerY: number,
   pageWidth: number
