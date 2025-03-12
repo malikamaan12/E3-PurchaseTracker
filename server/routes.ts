@@ -444,6 +444,23 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/health", (_req, res) => {
     res.json({ status: 'ok' });
   });
+  
+  // Public route to get login logo without authentication
+  app.get("/api/login-logo", async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const logoSettings = await db.query.pdfSettings.findFirst({
+        columns: {
+          loginLogo: true
+        }
+      });
+      
+      return res.json({ 
+        loginLogo: logoSettings?.loginLogo || null 
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Initialize auth
   setupAuth(app);

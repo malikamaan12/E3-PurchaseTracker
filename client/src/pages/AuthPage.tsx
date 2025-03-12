@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,44 @@ import AccountRequestForm from "@/components/AccountRequestForm";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import e3Logo from "../assets/e3-logo.svg";
 
+// Custom hook to fetch the login logo
+function useLoginLogo() {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchLogoUrl() {
+      try {
+        const response = await fetch('/api/login-logo');
+        if (!response.ok) {
+          throw new Error('Failed to fetch login logo');
+        }
+        const data = await response.json();
+        if (data.loginLogo) {
+          setLogoUrl(data.loginLogo);
+        }
+      } catch (err) {
+        console.error('Error fetching login logo:', err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchLogoUrl();
+  }, []);
+
+  return { logoUrl, isLoading, error };
+}
+
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useUser();
   const { toast } = useToast();
+  const { logoUrl } = useLoginLogo();
 
   const loginForm = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
@@ -69,7 +101,19 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-6">
-          <img src={e3Logo} alt="E3 Logo" className="h-20 w-auto" />
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt="Company Logo" 
+              className="h-20 w-auto object-contain" 
+              onError={(e) => {
+                console.error('Error loading custom logo, falling back to default');
+                e.currentTarget.src = e3Logo;
+              }}
+            />
+          ) : (
+            <img src={e3Logo} alt="E3 Logo" className="h-20 w-auto" />
+          )}
         </div>
         <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg">
           <CardHeader className="border-b border-[#35bbba]/20 dark:border-[#35bbba]/40 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/10 dark:to-[#35bbba]/10">
