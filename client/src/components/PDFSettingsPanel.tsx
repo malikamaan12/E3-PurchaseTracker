@@ -61,6 +61,7 @@ const pdfSettingsSchema = z.object({
   pageNumbering: z.boolean().default(true),
   watermarkOpacity: z.number().min(0).max(100).default(10),
   logo: z.string().optional(),
+  loginLogo: z.string().optional(),
   
   // Content settings - client-side only
   showLogo: z.boolean().default(true),
@@ -124,6 +125,7 @@ export default function PDFSettingsPanel() {
       pageNumbering: true,
       watermarkOpacity: 10,
       logo: "",
+      loginLogo: "",
       
       // Content settings
       showLogo: true,
@@ -166,6 +168,7 @@ export default function PDFSettingsPanel() {
         pageNumbering: pdfSettings.pageNumbering ?? true,
         watermarkOpacity: pdfSettings.watermarkOpacity || 10,
         logo: pdfSettings.logo || "",
+        loginLogo: pdfSettings.loginLogo || "",
         
         // Content settings - client-side only
         showLogo: pdfSettings.showLogo ?? true,
@@ -257,6 +260,10 @@ export default function PDFSettingsPanel() {
     },
   });
 
+  // State for login logo files
+  const [loginLogoFiles, setLoginLogoFiles] = useState<File[]>([]);
+  const [loginLogoUploadStatus, setLoginLogoUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
+
   // Handle file upload
   const handleFileUpload = () => {
     if (files.length === 0) return;
@@ -268,6 +275,66 @@ export default function PDFSettingsPanel() {
     formData.append("type", "logo");
 
     uploadLogo.mutate(formData);
+  };
+  
+  // Upload login logo mutation
+  const uploadLoginLogo = useMutation({
+    mutationFn: async (fileData: FormData) => {
+      setLoginLogoUploadStatus("uploading");
+      const response = await fetch("/api/pdf/upload-images", {
+        method: "POST",
+        body: fileData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        setLoginLogoUploadStatus("error");
+        throw new Error("Failed to upload login logo");
+      }
+
+      setLoginLogoUploadStatus("success");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pdf/print-settings"] });
+      toast({
+        title: "Success",
+        description: "Login logo uploaded successfully",
+      });
+      setLoginLogoFiles([]);
+      setTimeout(() => {
+        setLoginLogoUploadStatus("idle");
+      }, 3000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setLoginLogoUploadStatus("error");
+      setTimeout(() => {
+        setLoginLogoUploadStatus("idle");
+      }, 3000);
+    },
+  });
+  
+  // Handle login logo upload
+  const handleLoginLogoUpload = () => {
+    if (loginLogoFiles.length === 0) return;
+
+    const formData = new FormData();
+    loginLogoFiles.forEach((file) => {
+      formData.append("files", file);
+    });
+    formData.append("type", "loginLogo");
+
+    uploadLoginLogo.mutate(formData);
+  };
+  
+  // Handle login logo file change
+  const handleLoginLogoFileChange = (newFiles: File[]) => {
+    setLoginLogoFiles(newFiles);
   };
 
   // Handle form submission
@@ -373,7 +440,7 @@ export default function PDFSettingsPanel() {
                   )}
                 />
 
-                <div className="space-y-4">
+                <div className="space-y-8">
                   <div className="mt-6">
                     <h3 className="text-lg font-medium">Logo Upload</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -416,6 +483,57 @@ export default function PDFSettingsPanel() {
                           )}
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-medium">Login Page Logo</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      Upload a custom logo to display on the login page
+                    </p>
+                    <div className="flex flex-col space-y-4">
+                      <FileUploadMultiple
+                        maxFiles={1}
+                        maxSizeBytes={2 * 1024 * 1024} // 2MB
+                        accept="image/jpeg,image/png,image/svg+xml"
+                        onFilesSelected={handleLoginLogoFileChange}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          onClick={handleLoginLogoUpload}
+                          disabled={loginLogoFiles.length === 0 || loginLogoUploadStatus === "uploading"}
+                          className="mt-2"
+                        >
+                          {loginLogoUploadStatus === "uploading" ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : loginLogoUploadStatus === "success" ? (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Uploaded
+                            </>
+                          ) : loginLogoUploadStatus === "error" ? (
+                            <>
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              Failed
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Login Logo
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {pdfSettings?.loginLogo && (
+                        <div className="mt-2 flex items-center space-x-2">
+                          <FileImage className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Current login logo is set</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
