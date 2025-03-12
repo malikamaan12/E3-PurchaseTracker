@@ -725,6 +725,7 @@ export const pdfSettings = pgTable("pdf_settings", {
   headerImage: text("header_image"),
   footerImage: text("footer_image"),
   logo: text("logo"),
+  loginLogo: text("login_logo"),
   headerHeight: integer("header_height").notNull().default(100),
   footerHeight: integer("footer_height").notNull().default(50),
   userId: integer("user_id").references(() => users.id),
