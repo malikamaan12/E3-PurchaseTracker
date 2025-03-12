@@ -200,7 +200,7 @@ export function registerPdfRoutes(app: Express) {
           const fileUrl = `/${file.path.replace(/\\/g, '/')}`;
           
           // Update PDF settings if necessary based on the type
-          if (['header', 'footer', 'logo'].includes(type)) {
+          if (['header', 'footer', 'logo', 'loginLogo'].includes(type)) {
             const existingSettings = await db.query.pdfSettings.findMany({
               orderBy: [desc(pdfSettings.updatedAt)],
               limit: 1
@@ -211,6 +211,7 @@ export function registerPdfRoutes(app: Express) {
             if (type === 'header') updateData.headerImage = fileUrl;
             if (type === 'footer') updateData.footerImage = fileUrl;
             if (type === 'logo') updateData.logo = fileUrl;
+            if (type === 'loginLogo') updateData.loginLogo = fileUrl;
             
             if (existingSettings.length > 0) {
               // Update existing settings
@@ -315,7 +316,8 @@ export function registerPdfRoutes(app: Express) {
       upload.fields([
         { name: 'headerImage', maxCount: 1 },
         { name: 'footerImage', maxCount: 1 },
-        { name: 'logo', maxCount: 1 }
+        { name: 'logo', maxCount: 1 },
+        { name: 'loginLogo', maxCount: 1 }
       ])(req, res, async (err) => {
         if (err) {
           if (err instanceof multer.MulterError) {
@@ -356,6 +358,8 @@ export function registerPdfRoutes(app: Express) {
                 updateData.footerImage = fileUrl;
               } else if (fieldName === 'logo') {
                 updateData.logo = fileUrl;
+              } else if (fieldName === 'loginLogo') {
+                updateData.loginLogo = fileUrl;
               }
             }
           });
