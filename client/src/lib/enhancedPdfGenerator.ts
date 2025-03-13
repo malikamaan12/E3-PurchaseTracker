@@ -80,11 +80,11 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     const headerColor = pdfSettings?.headerColor ? 
       hexToRgb(pdfSettings.headerColor) : primaryColor;
     
-    // Start position at top of page
-    const startY = 10;
+    // Start position at top of page with adequate margin
+    const startY = 15; // Increased from 10 to provide more top margin
     
     // Get header height from settings or use default
-    const headerHeight = pdfSettings?.headerHeight || 30;
+    const headerHeight = pdfSettings?.headerHeight || 25; // Reduced from 30 to 25
     
     // Get margins from settings or use default
     const margin = pdfSettings?.marginLeft || 15;
@@ -105,7 +105,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         });
         
         // Calculate correct aspect ratio for header image
-        const imgWidth = Math.min(pageWidth / 2 - margin * 2, 60); // Max width of 60mm or half page width
+        const imgWidth = Math.min(pageWidth / 2 - margin * 2, 50); // Reduced from 60 to 50
         const imgHeight = headerHeight;
         
         // Add the image on left side with proper sizing
@@ -152,7 +152,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     }
     
     // Add "PURCHASE REQUEST" title - centered and with background
-    const titleY = startY + headerHeight + 10;
+    // Increase spacing after header to prevent overlap
+    const titleY = startY + headerHeight + 15; // Increased from +10 to +15
     
     // Add background box for title
     doc.setFillColor(0, 0, 0);
@@ -165,8 +166,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     doc.text("PURCHASE REQUEST", pageWidth/2, titleY, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     
-    // Add request info table
-    const yPos = titleY + 15;
+    // Add request info table - increased spacing after title
+    const yPos = titleY + 20; // Increased from +15 to +20
     
     // Format date safely
     const formatDate = (dateString: string | undefined): string => {
@@ -242,8 +243,8 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       }
     });
     
-    // Return the Y position for the next section
-    return (doc as any).lastAutoTable.finalY + 10;
+    // Return the Y position for the next section with increased spacing
+    return (doc as any).lastAutoTable.finalY + 15; // Increased from +10 to +15
   } catch (error) {
     console.error('Error adding header:', error);
     return 100; // Return a safe default position
@@ -306,6 +307,16 @@ function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): numbe
   // Define E3 colors with proper typing
   const primaryColor: RGBColor = [111/255, 42/255, 230/255]; // E3 purple #6F2AE6
   
+  // Check for page overflow before adding a section
+  const pageHeight = doc.internal.pageSize.height;
+  const safeMargin = 20; // Safe margin at bottom of page
+  
+  // If we're too close to the bottom of the page, start a new page
+  if (yPos > pageHeight - 40) { // 40mm from bottom of page
+    doc.addPage();
+    yPos = 15; // Reset to top of page with margin
+  }
+  
   // Add dark background full width
   doc.setFillColor(0, 0, 0);
   doc.rect(margin, yPos, pageWidth - (margin * 2), 7, 'F');
@@ -324,8 +335,8 @@ function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): numbe
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   
-  // Return position after section title with some padding
-  return yPos + 12;
+  // Return position after section title with increased padding
+  return yPos + 15; // Increased from 12 to 15
 }
 
 /**
