@@ -489,25 +489,53 @@ function renderDefaultFooter(
  * @param type Type of PDF to generate
  * @returns jsPDF document
  */
-export async function generateEnhancedPDF(request: PurchaseRequestWithRelations, type: 'user' | 'approver' | 'admin' = 'user'): Promise<jsPDF> {
+export async function generateEnhancedPDF(
+  request: PurchaseRequestWithRelations, 
+  type: 'user' | 'approver' | 'admin' = 'user',
+  customSettings?: any // Allow passing custom settings
+): Promise<jsPDF> {
   try {
-    // Fetch PDF settings
-    let pdfSettings = null;
-    try {
-      const response = await fetch('/api/pdf/print-settings');
-      if (response.ok) {
-        pdfSettings = await response.json();
+    // Use provided settings if passed, otherwise fetch from API
+    let pdfSettings = customSettings || null;
+    
+    // If no custom settings provided, fetch settings from API
+    if (!pdfSettings) {
+      try {
+        // First try to fetch PDF settings from the API that includes request-specific settings
+        const requestSettingsResponse = await fetch(`/api/requests/${request.id}/pdf?type=${type}&preview=true`);
+        
+        if (requestSettingsResponse.ok) {
+          const data = await requestSettingsResponse.json();
+          if (data && data.pdfSettings) {
+            // Use settings from the enhanced endpoint
+            pdfSettings = data.pdfSettings;
+            console.log('Using PDF settings from enhanced endpoint');
+          }
+        }
+        
+        // If no settings from enhanced endpoint, fall back to general settings
+        if (!pdfSettings) {
+          const response = await fetch('/api/pdf/print-settings');
+          if (response.ok) {
+            const data = await response.json();
+            pdfSettings = data;
+            console.log('Using general PDF settings');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching PDF settings:', error);
       }
-    } catch (error) {
-      console.error('Error fetching PDF settings:', error);
     }
     
-    // Create new PDF document
+    // Create new PDF document with settings from PDF settings if available
     const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true
+      orientation: pdfSettings?.orientation || 'portrait',
+      unit: pdfSettings?.unit || 'mm',
+      format: pdfSettings?.format || 'a4',
+      compress: true,
+      // You can add more PDF configuration options here if needed
+      putOnlyUsedFonts: true,
+      floatPrecision: 16 // Better precision for graphics
     });
     
     // Add header
@@ -516,11 +544,17 @@ export async function generateEnhancedPDF(request: PurchaseRequestWithRelations,
     // Add Basic Information section
     yPos = addSection(doc, 'Basic Information', yPos);
     
+    // Use settings from PDF settings if available
+    const fontSize = pdfSettings?.fontSize || 9;
+    const cellPadding = pdfSettings?.cellPadding || 3;
+    const marginLeft = pdfSettings?.marginLeft || 15;
+    const marginRight = pdfSettings?.marginRight || 15;
+    
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 3 },
-      margin: { left: 15, right: 15 },
+      styles: { fontSize: fontSize, cellPadding: cellPadding },
+      margin: { left: marginLeft, right: marginRight },
       columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
       body: [
         [
