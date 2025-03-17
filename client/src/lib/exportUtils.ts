@@ -327,10 +327,19 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       const response = await fetch('/api/pdf/print-settings');
       if (response.ok) {
         pdfSettings = await response.json();
+        console.log('PDF API response structure:', Object.keys(response));
       }
     } catch (error) {
       console.error('Error fetching PDF settings:', error);
     }
+    
+    console.log('Generating PDF from data...');
+    
+    // Import our validation function to ensure settings are properly formatted
+    const { validatePdfBrandingSettings, applySecurityWatermark } = await import('./pdfAuditUtils');
+    
+    // Validate and normalize PDF settings - this ensures all required properties exist
+    const validatedSettings = validatePdfBrandingSettings(pdfSettings);
     
     // Generate the PDF document using our new generator
     const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
@@ -341,10 +350,12 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       showSignatures: type === 'admin' || type === 'approver',
       headerImage: pdfSettings?.headerImage || null,
       footerImage: pdfSettings?.footerImage || null,
-      headerColor: pdfSettings?.headerColor || '#6F2AE6',
-      footerColor: pdfSettings?.footerColor || '#6F2AE6',
-      footerText: pdfSettings?.footerText || 'ALL RIGHTS RESERVED BY E3',
-      pageNumbering: pdfSettings?.pageNumbering !== false,
+      headerColor: validatedSettings.headerColor,
+      footerColor: validatedSettings.footerColor,
+      footerText: validatedSettings.footerText,
+      pageNumbering: validatedSettings.pageNumbering,
+      // Add watermark and security settings
+      securityLevel: validatedSettings.securityLevel || 'internal',
       companyInfo: {
         phone: pdfSettings?.companyPhone || '+974 44332340 / 55255417',
         email: pdfSettings?.companyEmail || 'info@e3corp.com',

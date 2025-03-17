@@ -53,6 +53,8 @@ function formatCurrency(amount: number, currency = 'QAR') {
 }
 
 // =========== PDF GENERATOR MAIN FUNCTION =========== //
+import { applyPdfWatermark, applySecurityWatermark } from './pdfAuditUtils';
+
 export async function generatePurchaseRequestPDF(
   request: PurchaseRequest,
   options?: {
@@ -72,6 +74,10 @@ export async function generatePurchaseRequestPDF(
     headerColor?: string;       // header color
     footerColor?: string;       // footer color
     type?: 'user' | 'approver' | 'admin'; // pdf type
+    showWatermark?: boolean;    // whether to show watermark
+    watermarkText?: string;     // watermark text content
+    watermarkOpacity?: number;  // watermark opacity (0-1)
+    securityLevel?: 'confidential' | 'internal' | 'restricted' | 'public'; // document security
   }
 ) {
   const doc = new jsPDF({
@@ -93,7 +99,11 @@ export async function generatePurchaseRequestPDF(
     companyInfo: options?.companyInfo || {},
     headerColor: options?.headerColor || '#6F2AE6', // E3 purple
     footerColor: options?.footerColor || '#6F2AE6', // E3 purple
-    type: options?.type || 'user'
+    type: options?.type || 'user',
+    showWatermark: options?.showWatermark ?? true,
+    watermarkText: options?.watermarkText || 'E3 CONFIDENTIAL',
+    watermarkOpacity: options?.watermarkOpacity || 0.1,
+    securityLevel: options?.securityLevel || 'internal'
   };
 
   let cursorY = 10; // tracks vertical position
@@ -136,6 +146,15 @@ export async function generatePurchaseRequestPDF(
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     addFooter(doc, i, pageCount, cfg);
+  }
+  
+  // Apply security watermark if enabled
+  if (cfg.securityLevel && cfg.securityLevel !== 'public') {
+    applySecurityWatermark(doc, cfg.securityLevel);
+  } 
+  // Apply custom watermark if security watermark is not used but watermark is enabled
+  else if (cfg.showWatermark && cfg.watermarkText) {
+    applyPdfWatermark(doc, cfg.watermarkText, cfg.watermarkOpacity);
   }
 
   return doc;

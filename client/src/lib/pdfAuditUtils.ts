@@ -301,6 +301,7 @@ export function validatePdfBrandingSettings(settings: any = {}): {
   watermarkText: string;
   watermarkOpacity: number;
   logoAlignment: 'left' | 'center' | 'right';
+  securityLevel: 'confidential' | 'internal' | 'restricted' | 'public';
 } {
   // Define default values
   const defaults = {
@@ -314,7 +315,8 @@ export function validatePdfBrandingSettings(settings: any = {}): {
     showWatermark: true,
     watermarkText: 'E3 CONFIDENTIAL',
     watermarkOpacity: 0.1,
-    logoAlignment: 'left' as 'left' | 'center' | 'right'
+    logoAlignment: 'left' as 'left' | 'center' | 'right',
+    securityLevel: 'internal' as 'confidential' | 'internal' | 'restricted' | 'public'
   };
   
   // Create a new settings object
@@ -364,6 +366,12 @@ export function validatePdfBrandingSettings(settings: any = {}): {
   // Validate logo alignment
   if (settings.logoAlignment && ['left', 'center', 'right'].includes(settings.logoAlignment)) {
     validatedSettings.logoAlignment = settings.logoAlignment as 'left' | 'center' | 'right';
+  }
+  
+  // Validate security level
+  const validSecurityLevels = ['confidential', 'internal', 'restricted', 'public'];
+  if (settings.securityLevel && validSecurityLevels.includes(settings.securityLevel)) {
+    validatedSettings.securityLevel = settings.securityLevel as 'confidential' | 'internal' | 'restricted' | 'public';
   }
   
   return validatedSettings;
