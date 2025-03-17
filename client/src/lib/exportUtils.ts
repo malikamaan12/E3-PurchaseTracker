@@ -320,8 +320,37 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
   try {
     console.log(`Starting PDF export for request #${request.id}`);
     
-    // Generate the PDF document using our enhanced generator
-    const doc = await generateEnhancedPDF(request, type);
+    // Try to fetch PDF settings
+    let pdfSettings = null;
+    try {
+      const response = await fetch('/api/pdf/print-settings');
+      if (response.ok) {
+        pdfSettings = await response.json();
+      }
+    } catch (error) {
+      console.error('Error fetching PDF settings:', error);
+    }
+    
+    // Generate the PDF document using our new generator
+    const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
+    const doc = await generatePurchaseRequestPDF(request, {
+      type,
+      showApprovals: true,
+      showAttachments: true,
+      showSignatures: type === 'admin' || type === 'approver',
+      headerImage: pdfSettings?.headerImage || null,
+      footerImage: pdfSettings?.footerImage || null,
+      headerColor: pdfSettings?.headerColor || '#6F2AE6',
+      footerColor: pdfSettings?.footerColor || '#6F2AE6',
+      footerText: pdfSettings?.footerText || 'ALL RIGHTS RESERVED BY E3',
+      pageNumbering: pdfSettings?.pageNumbering !== false,
+      companyInfo: {
+        phone: pdfSettings?.companyPhone || '+974 44332340 / 55255417',
+        email: pdfSettings?.companyEmail || 'info@e3corp.com',
+        website: pdfSettings?.companyWebsite || 'www.e3corp.com',
+        address: pdfSettings?.companyAddress || 'Floor 36, Office 3602, Palm Tower B, Marina 41, Port Area, P.O.Box 55821, Doha'
+      }
+    });
     
     // Generate the PDF
     const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
