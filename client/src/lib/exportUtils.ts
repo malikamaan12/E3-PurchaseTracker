@@ -335,8 +335,8 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     
     console.log('Generating PDF from data...');
     
-    // Import our validation function to ensure settings are properly formatted
-    const { validatePdfBrandingSettings, applySecurityWatermark } = await import('./pdfAuditUtils');
+    // Import our validation function and watermarking functions
+    const { validatePdfBrandingSettings, applySecurityWatermark, generatePdfTrackingId } = await import('./pdfAuditUtils');
     
     // Validate and normalize PDF settings - this ensures all required properties exist
     const validatedSettings = validatePdfBrandingSettings(pdfSettings);
@@ -379,6 +379,7 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
         {
           trackingId,
           pdfType: type,
+          securityLevel: validatedSettings.securityLevel || 'internal',
           fileName,
           fileSize: pdfOutput.size,
           timestamp: new Date().toISOString()

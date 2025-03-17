@@ -760,15 +760,23 @@ export async function generateEnhancedPDF(
       await addFooter(doc, i, pageCount, pdfSettings);
     }
     
-    // Apply watermark if enabled in settings
-    if (pdfSettings?.watermarkEnabled !== false) {
+    // Generate tracking ID for this PDF
+    const trackingId = generatePdfTrackingId(request.id);
+
+    // Get security level from settings, defaulting to 'internal' if not specified
+    const securityLevel = pdfSettings?.securityLevel || 'internal';
+    
+    // Apply security watermark based on security level if not public
+    if (securityLevel !== 'public') {
+      // Apply security watermark with specific styling based on security level
+      applySecurityWatermark(doc, securityLevel, undefined, trackingId);
+    }
+    // Apply standard watermark if security watermark is not used but watermark is enabled
+    else if (pdfSettings?.watermarkEnabled !== false) {
       const watermarkText = pdfSettings?.watermarkText || `CONFIDENTIAL - ${request.requestNumber || ''}`;
       const watermarkOpacity = pdfSettings?.watermarkOpacity || 0.08;
       applyPdfWatermark(doc, watermarkText, watermarkOpacity);
     }
-    
-    // Generate tracking ID for this PDF
-    const trackingId = generatePdfTrackingId(request.id);
     
     // Log audit event for PDF generation (non-blocking async)
     logPdfAuditEvent(
@@ -777,6 +785,7 @@ export async function generateEnhancedPDF(
       {
         trackingId,
         pdfType: type,
+        securityLevel,
         pageCount,
         timestamp: new Date().toISOString(),
         ipAddress: '127.0.0.1' // In a real app, this would come from the request
