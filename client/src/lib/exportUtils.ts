@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
-import { logPdfAuditEvent } from './pdfAuditUtils';
+import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
 
 /**
  * Safely download a file using FileSaver with fallbacks
@@ -358,10 +358,36 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
     const pdfOutput = doc.output('blob');
     
-    const downloadResult = await safeDownload(pdfOutput, fileName);
-    console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
-    
-    return fileName;
+    // Log the download audit event before actually downloading
+    const trackingId = generatePdfTrackingId(request.id);
+    try {
+      // Log audit event for PDF download (await this one to ensure it completes)
+      await logPdfAuditEvent(
+        request.id, 
+        'pdf_downloaded', 
+        {
+          trackingId,
+          pdfType: type,
+          fileName,
+          fileSize: pdfOutput.size,
+          timestamp: new Date().toISOString()
+        },
+        type
+      );
+      
+      // Now perform the actual download
+      const downloadResult = await safeDownload(pdfOutput, fileName);
+      console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
+      
+      return fileName;
+    } catch (auditError) {
+      console.error('Error logging PDF download audit:', auditError);
+      // Continue with the download even if audit logging fails
+      const downloadResult = await safeDownload(pdfOutput, fileName);
+      console.log(`PDF export download result (audit failed): ${downloadResult ? 'success' : 'failed'}`);
+      
+      return fileName;
+    }
   } catch (error) {
     console.error('PDF export error:', error);
     
