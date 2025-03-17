@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
 import { PurchaseRequestWithRelations } from '../types/requests';
-import { applyPdfWatermark, generatePdfTrackingId, logPdfAuditEvent } from './pdfAuditUtils';
+import { applyPdfWatermark, applySecurityWatermark, generatePdfTrackingId, logPdfAuditEvent } from './pdfAuditUtils';
 
 /**
  * RGB color tuple type with normalized values (0-1)
