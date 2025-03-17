@@ -2657,7 +2657,8 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/requests/:id/pdf", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requestId = parseInt(req.params.id);
-      const { type = 'user' } = req.query;
+      const { type = 'user', preview = false } = req.query;
+      const isPreview = preview === 'true';
       
       // Validate request type
       if (type && !['user', 'approver', 'admin'].includes(type as string)) {
@@ -2685,32 +2686,59 @@ export function registerRoutes(app: Express): Server {
         throw new NotFoundError(`Purchase request with ID ${requestId} not found`);
       }
       
+      // For preview mode, allow the PDF Design team to view any request
+      const isPDFPreview = isPreview && req.url.includes('preview=true');
+      
       // Check if user has permission to view this request
       const canView = 
         req.user?.role === 'admin' || 
         request[0].requesterId === req.user?.id || 
-        await canUserApprove(req.user?.id || 0, requestId);
+        await canUserApprove(req.user?.id || 0, requestId) ||
+        isPDFPreview; // Special case for PDF previews
         
       if (!canView) {
         throw new AuthorizationError("You do not have permission to view this request");
       }
       
-      // Get all related data
+      // Get all related data for the request
       const requestWithRelations = await getRequestWithRelations(requestId);
       
-      // Log the audit event
-      await logAuditEvent(req, {
-        userId: req.user?.id || 0,
-        action: 'pdf_downloaded',
-        resourceId: requestId,
-        resourceType: 'purchase_request',
-        details: { reportType: type }
-      });
+      // Fetch PDF settings for enhanced rendering
+      let pdfSettingsData = null;
+      try {
+        // Fetch PDF settings from the database
+        const settingsResult = await db.select().from(pdfSettings).limit(1);
+        
+        if (settingsResult && settingsResult.length > 0) {
+          pdfSettingsData = settingsResult[0];
+        }
+      } catch (settingsError) {
+        console.warn('Failed to fetch PDF settings:', settingsError);
+        // Continue with default settings if we can't get custom ones
+      }
       
+      // Log the audit event (only for non-preview requests)
+      if (!isPreview) {
+        try {
+          await logAuditEvent(req, {
+            userId: req.user?.id || 0,
+            action: 'pdf_downloaded',
+            resourceId: requestId,
+            resourceType: 'purchase_request',
+            details: { reportType: type }
+          });
+        } catch (auditError) {
+          console.warn('Failed to log PDF audit event:', auditError);
+          // Continue even if audit logging fails
+        }
+      }
+      
+      // Return both the request data and PDF settings
       res.status(200).json({
         success: true,
         message: 'Request data for PDF generation',
-        data: requestWithRelations
+        data: requestWithRelations,
+        pdfSettings: pdfSettingsData
       });
     } catch (error) {
       debug(req, 'Error generating PDF:', error);

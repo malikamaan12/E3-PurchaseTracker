@@ -312,7 +312,7 @@ export async function exportRequestToExcel(request: any): Promise<string> {
 }
 
 /**
- * Export a purchase request to PDF format
+ * Export a purchase request to PDF format with enhanced approval status visualization
  */
 import { generateEnhancedPDF } from './enhancedPdfGenerator';
 

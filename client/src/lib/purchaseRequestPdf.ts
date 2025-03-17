@@ -679,7 +679,7 @@ function addApprovalsTable(
     (autoTable as any)(doc, {
       startY,
       theme: 'plain',
-      body: [['No approvals']]
+      body: [['No approvals found for this request']]
     });
     return (doc as any).lastAutoTable.finalY + 5;
   }
@@ -690,72 +690,188 @@ function addApprovalsTable(
   for (const app of approvals) {
     const status = (app.status || 'PENDING').toUpperCase();
     let statusStyle = {};
+    let statusIcon = '';
     
-    // Apply color styling based on approval status
+    // Apply color styling based on approval status with icons
     if (status === 'APPROVED') {
-      statusStyle = { fillColor: [240, 255, 240], textColor: [0, 128, 0] };
+      statusStyle = { fillColor: [230, 255, 230], textColor: [0, 128, 0], fontStyle: 'bold' };
+      statusIcon = '✓ ';
     } else if (status === 'REJECTED') {
-      statusStyle = { fillColor: [255, 240, 240], textColor: [192, 0, 0] };
+      statusStyle = { fillColor: [255, 230, 230], textColor: [192, 0, 0], fontStyle: 'bold' };
+      statusIcon = '✗ ';
     } else if (status === 'PENDING') {
       statusStyle = { fillColor: [240, 248, 255], textColor: [0, 102, 204] };
+      statusIcon = '⋯ ';
+    } else if (status === 'CHANGES') {
+      statusStyle = { fillColor: [255, 248, 225], textColor: [186, 104, 0] };
+      statusIcon = '! ';
     }
+    
+    // Format the date in a more readable way
+    const processedDate = app.processedAt ? formatDate(app.processedAt) : 'Awaiting';
     
     rows.push([
       app.approver?.username || 'N/A',
       app.department || 'N/A',
-      { content: status, styles: statusStyle },
-      app.comments || 'N/A',
-      app.processedAt ? formatDate(app.processedAt) : 'Not processed'
+      { content: statusIcon + status, styles: statusStyle },
+      { content: app.comments || 'No comments', styles: { fontSize: 8 } },
+      processedDate
     ]);
   }
 
-  // Add approver summary section
+  // Calculate approval statistics for summary visualization
   const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
   const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
   const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
+  const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes').length;
   
+  // Add the main approvals table with enhanced styling
   (autoTable as any)(doc, {
     startY,
-    head: [['Approver', 'Department', 'Status', 'Comments', 'Processed At']],
+    head: [['Approver', 'Department', 'Status', 'Comments', 'Processed Date']],
     body: rows,
-    theme: 'striped',
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+    headStyles: { 
+      fillColor: [240, 240, 245], 
+      textColor: [50, 50, 50], 
+      fontStyle: 'bold',
+      halign: 'center'
+    },
     columnStyles: {
-      2: { halign: 'center', cellWidth: 25 },
+      0: { fontStyle: 'bold' },
+      2: { halign: 'center', cellWidth: 30 },
+      3: { cellWidth: 'auto' },
       4: { halign: 'right', cellWidth: 30 }
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
     }
   });
   
-  // Add approval summary with colored boxes
-  const endY = (doc as any).lastAutoTable.finalY + 5;
+  // Add a visual approval flow summary with progress indicators
+  const endY = (doc as any).lastAutoTable.finalY + 8;
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   
-  doc.setFontSize(9);
+  // Add the approval flow summary section title
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Approval Summary:', margin, endY);
+  doc.text('Approval Progress Summary', margin, endY);
   
-  const boxSize = 6;
-  const boxY = endY + 5;
+  // Draw approval flow visualization
+  const boxSize = 8;
+  const textY = endY + 5;
+  const boxY = textY + 3;
+  const textPadding = 4;
   
-  // Approved box
-  doc.setFillColor(0, 128, 0);
+  // Calculate total width for progress bar
+  const progressBarWidth = pageWidth - (margin * 2);
+  const progressBarHeight = 5;
+  const progressBarY = boxY + boxSize + 8;
+  
+  // First draw background progress bar
+  doc.setFillColor(235, 235, 235);
+  doc.roundedRect(margin, progressBarY, progressBarWidth, progressBarHeight, 2, 2, 'F');
+  
+  // Calculate progress percentage based on approvals
+  const totalApprovers = approvals.length;
+  let progressPercentage = approvedCount / totalApprovers;
+  
+  // Draw the colored progress indicator
+  if (progressPercentage > 0) {
+    // Green progress for approved
+    doc.setFillColor(46, 174, 52);
+    doc.roundedRect(
+      margin, 
+      progressBarY, 
+      progressBarWidth * progressPercentage, 
+      progressBarHeight, 
+      2, 2, 'F'
+    );
+  }
+  
+  if (rejectedCount > 0) {
+    // Red indicator for rejected above the progress bar
+    const rejectX = margin + (progressBarWidth * (approvedCount / totalApprovers));
+    doc.setFillColor(220, 53, 69);
+    doc.circle(rejectX, progressBarY + (progressBarHeight / 2), 3, 'F');
+  }
+  
+  // Summary boxes with counts and labels
+  doc.setFontSize(9);
+  
+  // Approved summary
+  doc.setFillColor(46, 174, 52); // Green
   doc.rect(margin, boxY, boxSize, boxSize, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(46, 174, 52);
+  doc.text(`${approvedCount}`, margin + boxSize + textPadding, boxY + 6);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Approved: ${approvedCount}`, margin + boxSize + 4, boxY + 5);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Approved', margin + boxSize + textPadding + 8, boxY + 6);
   
-  // Rejected box
-  doc.setFillColor(192, 0, 0);
-  doc.rect(margin + 70, boxY, boxSize, boxSize, 'F');
-  doc.text(`Rejected: ${rejectedCount}`, margin + 70 + boxSize + 4, boxY + 5);
+  // Pending summary
+  const pendingX = margin + 70;
+  doc.setFillColor(0, 123, 255); // Blue
+  doc.rect(pendingX, boxY, boxSize, boxSize, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 123, 255);
+  doc.text(`${pendingCount}`, pendingX + boxSize + textPadding, boxY + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text('Pending', pendingX + boxSize + textPadding + 8, boxY + 6);
   
-  // Pending box
-  doc.setFillColor(0, 102, 204);
-  doc.rect(margin + 140, boxY, boxSize, boxSize, 'F');
-  doc.text(`Pending: ${pendingCount}`, margin + 140 + boxSize + 4, boxY + 5);
+  // Rejected summary
+  const rejectedX = margin + 140;
+  doc.setFillColor(220, 53, 69); // Red
+  doc.rect(rejectedX, boxY, boxSize, boxSize, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(220, 53, 69);
+  doc.text(`${rejectedCount}`, rejectedX + boxSize + textPadding, boxY + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text('Rejected', rejectedX + boxSize + textPadding + 8, boxY + 6);
   
-  return endY + 15;
+  // Changes requested summary (if applicable)
+  if (changesCount > 0) {
+    const changesX = margin + 210;
+    doc.setFillColor(255, 193, 7); // Amber
+    doc.rect(changesX, boxY, boxSize, boxSize, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 193, 7);
+    doc.text(`${changesCount}`, changesX + boxSize + textPadding, boxY + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text('Changes Requested', changesX + boxSize + textPadding + 8, boxY + 6);
+  }
+  
+  // Add overall approval status
+  const statusTextY = progressBarY + progressBarHeight + 10;
+  let overallStatus = 'In Progress';
+  let statusColor = [0, 123, 255]; // Blue for in progress
+  
+  if (rejectedCount > 0) {
+    overallStatus = 'Rejected';
+    statusColor = [220, 53, 69]; // Red
+  } else if (pendingCount === 0 && approvedCount === totalApprovers) {
+    overallStatus = 'Fully Approved';
+    statusColor = [46, 174, 52]; // Green
+  } else if (changesCount > 0) {
+    overallStatus = 'Changes Requested';
+    statusColor = [255, 193, 7]; // Amber
+  }
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+  doc.text(`Overall Status: ${overallStatus}`, margin, statusTextY);
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  
+  return statusTextY + 5;
 }
 
 // =========== SIGNATURE LINES =========== //
