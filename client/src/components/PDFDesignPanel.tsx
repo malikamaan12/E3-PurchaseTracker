@@ -236,16 +236,21 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
       await saveMutation.mutateAsync(formData);
       
       // Log the preview generation action
-      await axios.post('/api/pdf/audit', {
-        action: 'pdf_viewed',
-        resourceId: 1, // Sample request ID
-        details: { preview: true, source: 'design_panel' }
-      }, {
-        withCredentials: true, // Important for auth sessions
-      });
+      try {
+        await axios.post('/api/pdf/audit', {
+          action: 'pdf_viewed',
+          resourceId: 167, // Use a known existing request ID
+          details: { preview: true, source: 'design_panel' }
+        }, {
+          withCredentials: true, // Important for auth sessions
+        });
+      } catch (err) {
+        // Continue even if audit fails
+        console.warn('Audit log failure:', err);
+      }
       
       // Open a sample PDF in a new tab
-      window.open('/api/requests/1/pdf?preview=true', '_blank');
+      window.open('/api/requests/167/pdf?preview=true', '_blank');
       
     } catch (error) {
       console.error('Failed to generate preview:', error);
