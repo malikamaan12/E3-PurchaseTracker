@@ -225,13 +225,57 @@ Return your response as a JSON object with the following structure:
       ]
     });
     
-    // Parse the response JSON
-    const content = response.content[0].text;
-    const jsonStartIndex = content.indexOf('{');
-    const jsonEndIndex = content.lastIndexOf('}') + 1;
-    const jsonString = content.substring(jsonStartIndex, jsonEndIndex);
+    // Parse the response JSON from the first content block
+    let jsonResult;
+    if (response.content && response.content.length > 0) {
+      // Get the first content block - could be text or other block type
+      const firstContent = response.content[0];
+      // Extract the text regardless of block type
+      let contentText = '';
+      
+      if ('text' in firstContent) {
+        // It's a text block
+        contentText = firstContent.text;
+      } else {
+        // Handle other types or convert to string
+        contentText = JSON.stringify(firstContent);
+      }
+      
+      // Find JSON object in the response text
+      const jsonStartIndex = contentText.indexOf('{');
+      const jsonEndIndex = contentText.lastIndexOf('}') + 1;
+      
+      if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
+        const jsonString = contentText.substring(jsonStartIndex, jsonEndIndex);
+        try {
+          jsonResult = JSON.parse(jsonString);
+        } catch (e) {
+          console.error('Failed to parse JSON from Anthropic response:', e);
+          // Fallback to a basic result
+          jsonResult = {
+            analysis: 'Failed to parse AI analysis result.',
+            fixedTemplate: { ...template },
+            recommendations: ['Try again with a clearer error message.']
+          };
+        }
+      } else {
+        console.warn('Could not find JSON in Anthropic response');
+        jsonResult = {
+          analysis: 'The AI did not return a structured analysis.',
+          fixedTemplate: { ...template },
+          recommendations: ['Check template structure manually.']
+        };
+      }
+    } else {
+      console.warn('Anthropic response had no content blocks');
+      jsonResult = {
+        analysis: 'The AI response was empty.',
+        fixedTemplate: { ...template },
+        recommendations: ['Try again later.']
+      };
+    }
     
-    return JSON.parse(jsonString);
+    return jsonResult;
   } catch (error) {
     console.error('Error analyzing template with Anthropic:', error);
     // Fallback to local analysis if Anthropic fails

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { 
   Form,
@@ -20,9 +20,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
-import { Loader2, Upload } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Loader2, Upload, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PDFImageUploader } from '../components/PDFImageUploader';
 import { useToast } from '../hooks/use-toast';
+import pdfTemplateService, { 
+  PdfTemplateConfig, 
+  PDF_TEMPLATE_TYPES, 
+  PDF_LAYOUT_TYPES,
+  SECURITY_LEVELS,
+  DEFAULT_TEMPLATES 
+} from '../services/pdfTemplateService';
 
 // Define the PDF settings schema
 const pdfSettingsSchema = z.object({
@@ -82,6 +90,14 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const { toast } = useToast();
+  
+  // State for template configuration
+  const [templateConfig, setTemplateConfig] = useState<PdfTemplateConfig>(
+    DEFAULT_TEMPLATES[PDF_TEMPLATE_TYPES.STANDARD]
+  );
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const queryClient = useQueryClient();
   
   // Initialize form with the settings schema
   const form = useForm<PDFSettings>({
@@ -275,12 +291,142 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
     <div className="space-y-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Tabs defaultValue="header">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="templates">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="templates">Templates</TabsTrigger>
               <TabsTrigger value="header">Header</TabsTrigger>
               <TabsTrigger value="footer">Footer</TabsTrigger>
               <TabsTrigger value="layout">Layout & Margins</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="templates" className="space-y-4 py-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Template Selection</CardTitle>
+                  <CardDescription>
+                    Choose a template to define the appearance of your PDF documents
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(DEFAULT_TEMPLATES).map(([key, template]) => (
+                      <div 
+                        key={key}
+                        className={`p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors ${
+                          templateConfig.type === key ? 'border-primary bg-primary/5' : 'border-border'
+                        }`}
+                        onClick={() => setTemplateConfig(template)}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="font-medium">{template.name}</h3>
+                          {templateConfig.type === key && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                        </div>
+                        <div className="aspect-video bg-card rounded-md border relative mb-2 overflow-hidden">
+                          {/* Template preview */}
+                          <div 
+                            className="absolute top-0 left-0 w-full h-1/4"
+                            style={{ 
+                              backgroundColor: `rgb(${template.headerColor?.join(',') || '111, 42, 230'})`,
+                              opacity: 0.8
+                            }}
+                          />
+                          
+                          {template.showLogo && (
+                            <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center">
+                              <div className="w-6 h-6 rounded-full bg-primary" />
+                            </div>
+                          )}
+                          
+                          {/* Content preview */}
+                          <div className="absolute top-1/4 pt-2 px-3 w-full">
+                            <div className="h-2 w-3/4 bg-muted rounded-full mb-2" />
+                            <div className="h-2 w-1/2 bg-muted rounded-full mb-2" />
+                            <div className="h-2 w-5/6 bg-muted rounded-full" />
+                          </div>
+                          
+                          {/* Table preview */}
+                          <div className="absolute bottom-8 left-0 w-full px-3">
+                            <div className="h-1 w-full bg-muted/50 mb-1" />
+                            <div className="h-1 w-full bg-muted/50 mb-1" />
+                            <div className="h-1 w-full bg-muted/50" />
+                          </div>
+                          
+                          {/* Footer preview */}
+                          <div className="absolute bottom-0 left-0 w-full h-6 px-3 flex items-center">
+                            <div className="h-1 w-1/3 bg-muted/70" />
+                            <div className="ml-auto h-1 w-8 bg-muted/70" />
+                          </div>
+                          
+                          {/* Security watermark preview */}
+                          {template.showWatermark && (
+                            <div 
+                              className="absolute inset-0 flex items-center justify-center text-xs font-bold text-red-500 uppercase transform rotate-45"
+                              style={{ 
+                                opacity: template.watermarkOpacity || 0.1,
+                                color: template.securityLevel === SECURITY_LEVELS.CONFIDENTIAL ? 'rgb(220, 38, 38)' : 
+                                       template.securityLevel === SECURITY_LEVELS.RESTRICTED ? 'rgb(234, 88, 12)' : 
+                                       'rgb(59, 130, 246)'
+                              }}
+                            >
+                              {template.watermarkText || template.securityLevel}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium mr-2">Layout:</span>
+                          <span className="capitalize">{template.layout}</span>
+                          {template.securityLevel !== SECURITY_LEVELS.PUBLIC && (
+                            <span className="ml-2 inline-flex items-center text-xs font-medium rounded-full px-2 py-0.5"
+                              style={{ 
+                                backgroundColor: template.securityLevel === SECURITY_LEVELS.CONFIDENTIAL ? 'rgb(254, 226, 226)' : 
+                                                template.securityLevel === SECURITY_LEVELS.RESTRICTED ? 'rgb(255, 237, 213)' : 
+                                                'rgb(219, 234, 254)',
+                                color: template.securityLevel === SECURITY_LEVELS.CONFIDENTIAL ? 'rgb(185, 28, 28)' : 
+                                        template.securityLevel === SECURITY_LEVELS.RESTRICTED ? 'rgb(194, 65, 12)' : 
+                                        'rgb(37, 99, 235)'
+                              }}
+                            >
+                              {template.securityLevel}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {templateError && (
+                    <div className="bg-destructive/10 text-destructive rounded-md p-3 flex items-start">
+                      <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium mb-1">Template Error</h4>
+                        <p className="text-sm">{templateError}</p>
+                        {analysisResult && (
+                          <div className="mt-2">
+                            <details className="text-sm">
+                              <summary className="cursor-pointer font-medium hover:text-destructive/80">Show Analysis</summary>
+                              <div className="mt-2 ml-2 space-y-1">
+                                <p>{analysisResult.analysis}</p>
+                                {analysisResult.recommendations?.length > 0 && (
+                                  <div className="mt-2">
+                                    <h5 className="font-medium">Recommendations:</h5>
+                                    <ul className="list-disc list-inside">
+                                      {analysisResult.recommendations.map((rec: string, i: number) => (
+                                        <li key={i}>{rec}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
             
             <TabsContent value="header" className="space-y-4 py-4">
               <Card>
