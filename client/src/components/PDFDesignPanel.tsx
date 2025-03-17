@@ -239,7 +239,7 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
       try {
         await axios.post('/api/pdf/audit', {
           action: 'pdf_viewed',
-          resourceId: 167, // Use a known existing request ID
+          resourceId: 150, // Use a request with many approvals
           details: { preview: true, source: 'design_panel' }
         }, {
           withCredentials: true, // Important for auth sessions
@@ -250,7 +250,7 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
       }
       
       // Open a sample PDF in a new tab
-      window.open('/api/requests/167/pdf?preview=true', '_blank');
+      window.open('/api/requests/150/pdf?preview=true', '_blank');
       
     } catch (error) {
       console.error('Failed to generate preview:', error);

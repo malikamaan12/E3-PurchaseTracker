@@ -44,7 +44,7 @@ export default function PDFDesignPage() {
               <h2 className="text-xl font-semibold">Branding Settings</h2>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/requests/167/pdf" target="_blank">
+              <Link href="/requests/150/pdf" target="_blank">
                 <Button variant="outline" size="sm">
                   <FileText className="h-4 w-4 mr-1" />
                   View Sample PDF
