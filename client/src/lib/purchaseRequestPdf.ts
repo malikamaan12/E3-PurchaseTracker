@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { applyPdfWatermark } from './pdfAuditUtils';
 
 // =========== Utility Types & Functions =========== //
 
@@ -53,7 +54,7 @@ function formatCurrency(amount: number, currency = 'QAR') {
 }
 
 // =========== PDF GENERATOR MAIN FUNCTION =========== //
-import { applyPdfWatermark, applySecurityWatermark } from './pdfAuditUtils';
+import { applySecurityWatermark } from './pdfAuditUtils';
 
 export async function generatePurchaseRequestPDF(
   request: PurchaseRequest,
