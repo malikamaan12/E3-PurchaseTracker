@@ -452,9 +452,9 @@ function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
 }
 
 // If we're too close to the bottom, add a page
-function maybeAddNewPage(doc: jsPDF, yPos: number) {
+function maybeAddNewPage(doc: jsPDF, yPos: number, minSpace: number = 40) {
   const pageHeight = doc.internal.pageSize.getHeight();
-  if (yPos > pageHeight - 30) {
+  if (yPos > pageHeight - minSpace) {
     doc.addPage();
     return true;
   }
@@ -602,17 +602,39 @@ function addItemsTable(
     ];
   });
 
+  // Check if we have space for the table, otherwise start a new page
+  maybeAddNewPage(doc, startY, 60);
+  
   (autoTable as any)(doc, {
     startY,
     head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
     body: rows,
     theme: 'striped',
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 3,
+      overflow: 'linebreak',  // Enable text wrapping
+      cellWidth: 'auto'       // Auto-size cells
+    },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 'auto', overflow: 'linebreak' }, // Make sure description wraps
       2: { halign: 'center', cellWidth: 15 },
       3: { halign: 'right', cellWidth: 25 },
       4: { halign: 'right', cellWidth: 25 }
+    },
+    // Handle page breaks automatically and repeat the header
+    didDrawPage: (data: any) => {
+      // Each time a page is drawn, we can add custom headers or footers
+    },
+    willDrawCell: (data: any) => {
+      // We can customize each cell here if needed
+      const { column, row } = data;
+      // Apply special styling for descriptions if needed
+      if (column.index === 1) {
+        // Description column - can apply custom styling
+      }
     }
   });
 
