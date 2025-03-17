@@ -728,6 +728,7 @@ export const pdfSettings = pgTable("pdf_settings", {
   loginLogo: text("login_logo"),
   headerHeight: integer("header_height").notNull().default(100),
   footerHeight: integer("footer_height").notNull().default(50),
+  templateConfig: text("template_config"), // Store template configuration as JSON
   userId: integer("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -753,6 +754,7 @@ export const insertPdfSettingsSchema = createInsertSchema(pdfSettings, {
   loginLogo: z.string().optional().nullable(),
   headerHeight: z.number().min(20).max(200).default(100),
   footerHeight: z.number().min(20).max(200).default(50),
+  templateConfig: z.string().optional().nullable(), // JSON string for template configuration
   userId: z.number().optional(),
 });
 

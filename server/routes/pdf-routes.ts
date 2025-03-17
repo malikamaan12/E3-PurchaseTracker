@@ -39,18 +39,38 @@ export function registerPdfRoutes(app: Express) {
         return next(new AppError('Not authenticated', 401));
       }
       
+      // Check if requesting template configuration specifically
+      const requestType = req.query.type;
+      
       // Fetch the latest PDF settings
       const settings = await db.query.pdfSettings.findMany({
         orderBy: [desc(pdfSettings.updatedAt)],
         limit: 1
       });
       
-      // Return settings or default values
+      // Return settings or default values based on request type
       if (settings.length > 0) {
-        res.json(settings[0]);
+        const settingsData = settings[0];
+        
+        // If templateConfig is requested and exists, parse and return it
+        if (requestType === 'template' && settingsData.templateConfig) {
+          try {
+            const templateConfig = JSON.parse(settingsData.templateConfig);
+            return res.json({
+              ...settingsData,
+              templateConfig
+            });
+          } catch (parseError) {
+            console.error('Failed to parse template configuration:', parseError);
+            // Continue to return regular settings
+          }
+        }
+        
+        // Return all settings
+        res.json(settingsData);
       } else {
-        // Return default settings if none exist
-        res.json({
+        // Default settings
+        const defaultSettings = {
           headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
           headerSubtitle: 'PURCHASE REQUEST',
           headerColor: '#1a365d',
@@ -67,7 +87,34 @@ export function registerPdfRoutes(app: Express) {
           headerImage: null,
           footerImage: null,
           logo: null
-        });
+        };
+        
+        // Add templateConfig if requested
+        if (requestType === 'template') {
+          const defaultTemplateConfig = {
+            name: 'Standard',
+            type: 'standard',
+            layout: 'classic',
+            showHeader: true,
+            showFooter: true,
+            showLogo: true,
+            showWatermark: false,
+            securityLevel: 'public',
+            headerColor: [26, 54, 93],
+            accentColor: [79, 70, 229],
+            showApprovalFlow: true,
+            showSignatureLines: true,
+            showAttachments: true,
+            showTotalsTable: true
+          };
+          
+          return res.json({
+            ...defaultSettings,
+            templateConfig: defaultTemplateConfig
+          });
+        }
+        
+        res.json(defaultSettings);
       }
     } catch (error) {
       next(error);

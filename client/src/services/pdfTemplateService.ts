@@ -207,72 +207,99 @@ export async function analyzeTemplateIssue(
   errorMessage: string
 ): Promise<TemplateAnalysisResult> {
   try {
-    // Try to use Anthropic Claude API for analysis
+    // Try to use Anthropic Claude API for analysis if available
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     
     if (anthropicApiKey) {
-      const anthropic = new Anthropic({
-        apiKey: anthropicApiKey
-      });
-      
-      const message = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 1000,
-        system: "You're an expert in PDF template configuration and generation issues. Analyze the provided template configuration and error message, then provide a concise explanation of the issue and practical recommendations to fix it.",
-        messages: [
-          {
-            role: 'user',
-            content: `
-              I'm having an issue with a PDF template configuration. Here's the configuration:
-              ${JSON.stringify(templateConfig, null, 2)}
-              
-              And here's the error message:
-              ${errorMessage}
-              
-              Please analyze what might be causing this issue and provide specific recommendations to fix it.
-              Format your response with two sections:
-              1. Brief analysis of the problem
-              2. A bulleted list of specific recommendations to fix the issue
-              
-              Also, provide a fixed version of the configuration if possible.
-            `
+      try {
+        const anthropic = new Anthropic({
+          apiKey: anthropicApiKey
+        });
+        
+        const message = await anthropic.messages.create({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1000,
+          system: "You're an expert in PDF template configuration and generation issues. Analyze the provided template configuration and error message, then provide a concise explanation of the issue and practical recommendations to fix it.",
+          messages: [
+            {
+              role: 'user',
+              content: `
+                I'm having an issue with a PDF template configuration. Here's the configuration:
+                ${JSON.stringify(templateConfig, null, 2)}
+                
+                And here's the error message:
+                ${errorMessage}
+                
+                Please analyze what might be causing this issue and provide specific recommendations to fix it.
+                Format your response with two sections:
+                1. Brief analysis of the problem
+                2. A bulleted list of specific recommendations to fix the issue
+                
+                Also, provide a fixed version of the configuration if possible.
+              `
+            }
+          ]
+        });
+        
+        // Type-safe content access
+        let responseText = '';
+        for (const item of message.content) {
+          if ('type' in item && item.type === 'text' && 'text' in item) {
+            responseText = item.text;
+            break;
           }
-        ]
-      });
-      
-      const responseText = message.content[0].text;
-      
-      // Extract analysis, recommendations, and fixed template
-      const analysisMatch = responseText.match(/(?:Analysis|Problem):(.*?)(?=Recommendations:|$)/is);
-      const recommendationsMatch = responseText.match(/Recommendations:(.*?)(?=Fixed Template:|$)/is);
-      const fixedTemplateMatch = responseText.match(/Fixed Template:(.*?)(?=$)/is);
-      
-      const analysis = analysisMatch ? analysisMatch[1].trim() : 'Could not determine the issue.';
-      
-      let recommendations: string[] = [];
-      if (recommendationsMatch) {
-        const recText = recommendationsMatch[1].trim();
-        recommendations = recText.split(/(?:\r?\n|\r)-/).filter(r => r.trim()).map(r => r.trim().replace(/^[•*\s]+/, ''));
-      }
-      
-      let fixedTemplate: PdfTemplateConfig | undefined = undefined;
-      if (fixedTemplateMatch) {
-        try {
-          const jsonMatch = fixedTemplateMatch[1].match(/```json([\s\S]*?)```|{[\s\S]*?}/);
-          if (jsonMatch) {
-            const jsonText = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
-            fixedTemplate = JSON.parse(jsonText) as PdfTemplateConfig;
-          }
-        } catch (parseError) {
-          console.error('Failed to parse fixed template JSON:', parseError);
         }
+        
+        if (!responseText) {
+          throw new Error('No text response from Claude API');
+        }
+        
+        // Extract analysis, recommendations, and fixed template with simpler regex
+        const analysisMatch = responseText.match(/(?:Analysis|Problem):([^]*?)(?=Recommendations:|$)/i);
+        const recommendationsMatch = responseText.match(/Recommendations:([^]*?)(?=Fixed Template:|$)/i);
+        const fixedTemplateMatch = responseText.match(/Fixed Template:([^]*?)(?=$)/i);
+        
+        const analysis = analysisMatch ? analysisMatch[1].trim() : 'Could not determine the issue.';
+        
+        let recommendations: string[] = [];
+        if (recommendationsMatch) {
+          const recText = recommendationsMatch[1].trim();
+          recommendations = recText
+            .split(/[\r\n]+[-•*]\s*/)
+            .filter(Boolean)
+            .map((r: string) => r.trim());
+          
+          // Remove empty first item if present
+          if (recommendations.length > 0 && recommendations[0] === '') {
+            recommendations.shift();
+          }
+        }
+        
+        let fixedTemplate: PdfTemplateConfig | undefined = undefined;
+        if (fixedTemplateMatch) {
+          try {
+            // Try to extract JSON from the response
+            const jsonRegex = /```json([^]*?)```|{[^]*?}/;
+            const jsonMatch = fixedTemplateMatch[1].match(jsonRegex);
+            if (jsonMatch) {
+              const jsonText = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
+              fixedTemplate = JSON.parse(jsonText) as PdfTemplateConfig;
+            }
+          } catch (parseError) {
+            console.error('Failed to parse fixed template JSON:', parseError);
+          }
+        }
+        
+        return {
+          analysis,
+          recommendations,
+          fixedTemplate
+        };
+      } catch (anthropicError) {
+        console.error('Error using Anthropic API:', anthropicError);
+        // Fall back to local analysis
+        return performLocalAnalysis(templateConfig, errorMessage);
       }
-      
-      return {
-        analysis,
-        recommendations,
-        fixedTemplate
-      };
     }
     
     // Fallback to local analysis if Anthropic API is not available
