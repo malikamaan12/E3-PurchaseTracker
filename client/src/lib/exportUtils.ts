@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
+import { logPdfAuditEvent } from './pdfAuditUtils';
 
 /**
  * Safely download a file using FileSaver with fallbacks

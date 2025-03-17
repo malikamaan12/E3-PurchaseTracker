@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
 import { PurchaseRequestWithRelations } from '../types/requests';
+import { applyPdfWatermark, generatePdfTrackingId, logPdfAuditEvent } from './pdfAuditUtils';
 
 /**
  * RGB color tuple type with normalized values (0-1)
@@ -758,6 +759,30 @@ export async function generateEnhancedPDF(
       doc.setPage(i);
       await addFooter(doc, i, pageCount, pdfSettings);
     }
+    
+    // Apply watermark if enabled in settings
+    if (pdfSettings?.watermarkEnabled !== false) {
+      const watermarkText = pdfSettings?.watermarkText || `CONFIDENTIAL - ${request.requestNumber || ''}`;
+      const watermarkOpacity = pdfSettings?.watermarkOpacity || 0.08;
+      applyPdfWatermark(doc, watermarkText, watermarkOpacity);
+    }
+    
+    // Generate tracking ID for this PDF
+    const trackingId = generatePdfTrackingId(request.id);
+    
+    // Log audit event for PDF generation (non-blocking async)
+    logPdfAuditEvent(
+      request.id, 
+      'pdf_generated', 
+      {
+        trackingId,
+        pdfType: type,
+        pageCount,
+        timestamp: new Date().toISOString(),
+        ipAddress: '127.0.0.1' // In a real app, this would come from the request
+      },
+      type
+    ).catch(err => console.error('Error logging PDF generation:', err));
     
     return doc;
   } catch (error) {
