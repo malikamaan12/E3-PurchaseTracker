@@ -105,14 +105,62 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
     defaultValues: defaultSettings,
   });
 
+  // Template mutation for saving template config
+  const saveTemplateMutation = useMutation({
+    mutationFn: async (config: PdfTemplateConfig) => {
+      try {
+        const response = await pdfTemplateService.saveTemplateConfig(config);
+        return response;
+      } catch (error) {
+        console.error('Error saving template configuration:', error);
+        // Analyze template issue with Anthropic if there's an error
+        if (error instanceof Error) {
+          const analysis = await pdfTemplateService.analyzeTemplateIssue(
+            config,
+            error.message
+          );
+          setAnalysisResult(analysis);
+          setTemplateError(analysis.analysis);
+          // Return the fixed template from analysis
+          return analysis.fixedTemplate;
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      setTemplateError(null);
+      setAnalysisResult(null);
+      toast({
+        title: 'Template Saved',
+        description: 'PDF template configuration has been updated successfully.',
+        variant: 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['pdf-settings'] });
+    },
+    onError: (error) => {
+      if (!templateError) {
+        toast({
+          title: 'Error',
+          description: 'Failed to save template configuration. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    },
+  });
+  
   // Fetch existing PDF settings
   const { data: settings, isLoading } = useQuery({
     queryKey: ['pdf-settings'],
     queryFn: async () => {
-      const response = await axios.get('/api/pdf/print-settings', {
-        withCredentials: true,
-      });
-      return response.data;
+      try {
+        const response = await axios.get('/api/pdf/print-settings', {
+          withCredentials: true,
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching PDF settings:', error);
+        return defaultSettings;
+      }
     },
   });
   
@@ -655,6 +703,188 @@ export default function PDFDesignPanel({ onSave }: PDFDesignPanelProps) {
                     <p className="text-sm text-muted-foreground">
                       Upload a JPG or PNG image for the footer (max 5MB)
                     </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="security" className="space-y-4 py-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Settings</CardTitle>
+                  <CardDescription>
+                    Configure document security and watermarking options
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted/40 rounded-md">
+                      <h3 className="text-lg font-medium mb-2">Security Classification</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex space-x-8">
+                          {Object.entries(SECURITY_LEVELS).map(([key, value]) => (
+                            <div 
+                              key={key} 
+                              className={`flex items-center space-x-2 cursor-pointer`}
+                              onClick={() => {
+                                setTemplateConfig({
+                                  ...templateConfig,
+                                  securityLevel: value,
+                                  showWatermark: value !== SECURITY_LEVELS.PUBLIC,
+                                  watermarkText: value !== SECURITY_LEVELS.PUBLIC ? value.toUpperCase() : undefined,
+                                  watermarkOpacity: value === SECURITY_LEVELS.CONFIDENTIAL ? 0.15 : 
+                                                   value === SECURITY_LEVELS.RESTRICTED ? 0.12 : 
+                                                   value === SECURITY_LEVELS.INTERNAL ? 0.08 : 0
+                                });
+                              }}
+                            >
+                              <div className={`h-4 w-4 rounded-full border ${
+                                templateConfig.securityLevel === value 
+                                  ? 'bg-primary border-primary' 
+                                  : 'border-muted-foreground'
+                              }`}>
+                                {templateConfig.securityLevel === value && (
+                                  <div className="h-2 w-2 rounded-full bg-white m-[3px]"></div>
+                                )}
+                              </div>
+                              <span 
+                                className={`capitalize ${templateConfig.securityLevel === value ? 'text-primary font-medium' : ''}`}
+                                style={{
+                                  color: value === SECURITY_LEVELS.CONFIDENTIAL ? 'rgb(220, 38, 38)' : 
+                                          value === SECURITY_LEVELS.RESTRICTED ? 'rgb(234, 88, 12)' : 
+                                          value === SECURITY_LEVELS.INTERNAL ? 'rgb(59, 130, 246)' :
+                                          templateConfig.securityLevel === value ? 'var(--primary)' : 'inherit'
+                                }}
+                              >
+                                {value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-2">
+                          <p className="text-sm text-muted-foreground">
+                            {templateConfig.securityLevel === SECURITY_LEVELS.PUBLIC && 
+                              "Public documents have no special security markings or watermarks."}
+                            {templateConfig.securityLevel === SECURITY_LEVELS.INTERNAL && 
+                              "Internal documents have a subtle watermark and are intended for company use only."}
+                            {templateConfig.securityLevel === SECURITY_LEVELS.RESTRICTED && 
+                              "Restricted documents have clear watermarks and are for limited distribution only."}
+                            {templateConfig.securityLevel === SECURITY_LEVELS.CONFIDENTIAL && 
+                              "Confidential documents have prominent watermarks and require special handling."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {templateConfig.securityLevel !== SECURITY_LEVELS.PUBLIC && (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="watermarkText">Watermark Text</Label>
+                            <Input 
+                              id="watermarkText"
+                              value={templateConfig.watermarkText || templateConfig.securityLevel.toUpperCase()} 
+                              onChange={(e) => setTemplateConfig({
+                                ...templateConfig,
+                                watermarkText: e.target.value
+                              })}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Text that will appear as a watermark on all pages
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="watermarkOpacity">
+                              Watermark Opacity: {Math.round((templateConfig.watermarkOpacity || 0) * 100)}%
+                            </Label>
+                            <Slider
+                              id="watermarkOpacity"
+                              value={[(templateConfig.watermarkOpacity || 0) * 100]}
+                              min={5}
+                              max={25}
+                              step={1}
+                              onValueChange={(values) => {
+                                setTemplateConfig({
+                                  ...templateConfig,
+                                  watermarkOpacity: values[0] / 100
+                                });
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Adjust how visible the watermark appears on documents
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="p-4 rounded-md border">
+                          <h4 className="text-sm font-medium mb-2">Watermark Preview</h4>
+                          <div className="bg-white h-32 rounded-md border border-dashed relative overflow-hidden">
+                            <div 
+                              className="absolute inset-0 flex items-center justify-center font-bold text-base uppercase transform rotate-45"
+                              style={{ 
+                                opacity: templateConfig.watermarkOpacity || 0.1,
+                                color: templateConfig.securityLevel === SECURITY_LEVELS.CONFIDENTIAL ? 'rgb(220, 38, 38)' : 
+                                       templateConfig.securityLevel === SECURITY_LEVELS.RESTRICTED ? 'rgb(234, 88, 12)' : 
+                                       'rgb(59, 130, 246)'
+                              }}
+                            >
+                              {templateConfig.watermarkText || templateConfig.securityLevel.toUpperCase()}
+                            </div>
+                            <div className="absolute inset-0 p-4 pointer-events-none">
+                              <div className="h-2 w-3/4 bg-muted rounded-full mb-2" />
+                              <div className="h-2 w-1/2 bg-muted rounded-full mb-2" />
+                              <div className="h-2 w-5/6 bg-muted rounded-full" />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="showFooterSecurity"
+                            checked={templateConfig.showFooter !== false}
+                            onCheckedChange={(checked) => 
+                              setTemplateConfig({
+                                ...templateConfig,
+                                showFooter: checked
+                              })
+                            }
+                          />
+                          <div className="grid gap-1.5 leading-none">
+                            <Label
+                              htmlFor="showFooterSecurity"
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              Show Security Footer
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Display security classification in document footer
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div className="space-y-4 mt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => saveTemplateMutation.mutate(templateConfig)}
+                        disabled={saveTemplateMutation.isPending}
+                        className="w-full"
+                      >
+                        {saveTemplateMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving Security Settings...
+                          </>
+                        ) : (
+                          <>Save Security Settings</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

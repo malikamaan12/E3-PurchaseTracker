@@ -85,7 +85,46 @@ export function registerPdfRoutes(app: Express) {
         return next(new AuthorizationError('Only administrators can modify PDF settings'));
       }
       
-      // Get the settings data from the request body
+      // Check if this is a template configuration
+      if (req.body.type === 'template' && req.body.templateConfig) {
+        // Get the template configuration from the request body
+        const templateConfig = req.body.templateConfig;
+        
+        // Find existing settings
+        const existingSettings = await db.query.pdfSettings.findMany({
+          orderBy: [desc(pdfSettings.updatedAt)],
+          limit: 1
+        });
+        
+        let result;
+        
+        if (existingSettings.length > 0) {
+          // Update existing settings with template configuration
+          const settingId = existingSettings[0].id;
+          [result] = await db.update(pdfSettings)
+            .set({
+              templateConfig: JSON.stringify(templateConfig),
+              updatedAt: new Date()
+            })
+            .where(eq(pdfSettings.id, settingId))
+            .returning();
+        } else {
+          // Create new settings with template configuration
+          [result] = await db.insert(pdfSettings).values({
+            templateConfig: JSON.stringify(templateConfig),
+            userId: req.user!.id,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }).returning();
+        }
+        
+        return res.status(201).json({
+          success: true,
+          templateConfig: JSON.parse(result.templateConfig || '{}')
+        });
+      }
+      
+      // Regular PDF settings handling
       const settingsData = req.body;
       
       // Find existing settings
