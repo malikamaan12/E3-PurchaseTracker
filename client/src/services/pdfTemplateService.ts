@@ -365,13 +365,80 @@ function performLocalAnalysis(
   };
 }
 
+/**
+ * Apply security settings to a template configuration
+ * based on specified security level
+ * @param templateConfig Base template configuration
+ * @param securityLevel Security classification level
+ * @returns Updated template configuration with security settings
+ */
+export function applySecuritySettings(
+  templateConfig: PdfTemplateConfig,
+  securityLevel: string = SECURITY_LEVELS.INTERNAL
+): PdfTemplateConfig {
+  // Start with a copy of the original template
+  const updatedConfig = { ...templateConfig };
+  
+  // Update security level
+  updatedConfig.securityLevel = securityLevel;
+  
+  // Apply watermark settings based on security level
+  switch (securityLevel) {
+    case SECURITY_LEVELS.CONFIDENTIAL:
+      updatedConfig.showWatermark = true;
+      updatedConfig.watermarkText = 'CONFIDENTIAL';
+      updatedConfig.watermarkOpacity = 0.15;
+      break;
+      
+    case SECURITY_LEVELS.RESTRICTED:
+      updatedConfig.showWatermark = true;
+      updatedConfig.watermarkText = 'RESTRICTED';
+      updatedConfig.watermarkOpacity = 0.12;
+      break;
+      
+    case SECURITY_LEVELS.INTERNAL:
+      updatedConfig.showWatermark = true;
+      updatedConfig.watermarkText = 'INTERNAL USE';
+      updatedConfig.watermarkOpacity = 0.08;
+      break;
+      
+    case SECURITY_LEVELS.PUBLIC:
+    default:
+      updatedConfig.showWatermark = false;
+      updatedConfig.watermarkText = undefined;
+      updatedConfig.watermarkOpacity = 0;
+      break;
+  }
+  
+  return updatedConfig;
+}
+
+/**
+ * Get appropriate template based on document type and security requirements
+ * @param templateType The type of template to use
+ * @param securityLevel Security classification level
+ * @returns The appropriate template configuration
+ */
+export function getTemplateByTypeAndSecurity(
+  templateType: string = PDF_TEMPLATE_TYPES.STANDARD,
+  securityLevel: string = SECURITY_LEVELS.INTERNAL
+): PdfTemplateConfig {
+  // Get the base template by type or default to standard
+  const baseTemplate = DEFAULT_TEMPLATES[templateType] || DEFAULT_TEMPLATES[PDF_TEMPLATE_TYPES.STANDARD];
+  
+  // Apply security settings
+  return applySecuritySettings(baseTemplate, securityLevel);
+}
+
 // Export a default object with all the functions
 const pdfTemplateService = {
   saveTemplateConfig,
   getTemplateConfig,
   analyzeTemplateIssue,
   colorToHex,
-  hexToRgb
+  hexToRgb,
+  applySecuritySettings,
+  getTemplateByTypeAndSecurity
 };
 
 export default pdfTemplateService;
