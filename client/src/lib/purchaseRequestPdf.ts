@@ -198,7 +198,74 @@ async function addHeader(
   doc.text(`PR #${request.requestNumber || '---'}`, pageWidth - margin, startY + 7, { align: 'right' });
   doc.text(`Date: ${formatDate(request.createdAt)}`, pageWidth - margin, startY + 12, { align: 'right' });
 
-  return startY + headerHeight + 5;
+  // Add a clean divider below header
+  const dividerY = startY + headerHeight;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(margin, dividerY, pageWidth - margin, dividerY);
+
+  // Add requester info box
+  const reqBoxY = dividerY + 3;
+  const reqBoxHeight = 20;
+  
+  // Clean subtle background for requester info
+  doc.setFillColor(248, 249, 250);
+  doc.roundedRect(margin, reqBoxY, pageWidth - (margin * 2), reqBoxHeight, 1, 1, 'F');
+  
+  // Draw light border
+  doc.setDrawColor(230, 230, 230); 
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin, reqBoxY, pageWidth - (margin * 2), reqBoxHeight, 1, 1, 'S');
+  
+  // Add requester details
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  
+  // First row - left column
+  doc.setFont('helvetica', 'bold');
+  doc.text("Requester:", margin + 5, reqBoxY + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(request.requester?.username || "N/A", margin + 35, reqBoxY + 7);
+  
+  // First row - right column
+  doc.setFont('helvetica', 'bold');
+  const midPoint = pageWidth / 2;
+  doc.text("Department:", midPoint, reqBoxY + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(request.requester?.department || "N/A", midPoint + 35, reqBoxY + 7);
+  
+  // Second row - left column
+  doc.setFont('helvetica', 'bold');
+  doc.text("Status:", margin + 5, reqBoxY + 16);
+  
+  // Add status with color
+  doc.setFont('helvetica', 'normal');
+  const status = request.status?.toUpperCase() || "PENDING";
+  
+  // Set status color based on status value
+  if (status === "APPROVED") {
+    doc.setTextColor(0, 128, 0); // Green
+  } else if (status === "REJECTED") {
+    doc.setTextColor(192, 0, 0); // Red
+  } else if (status === "PENDING") {
+    doc.setTextColor(0, 102, 204); // Blue
+  } else {
+    doc.setTextColor(80, 80, 80); // Default gray
+  }
+  
+  doc.text(status, margin + 35, reqBoxY + 16);
+  
+  // Second row - right column
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Priority:", midPoint, reqBoxY + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.text(request.priority?.toUpperCase() || "N/A", midPoint + 35, reqBoxY + 16);
+  
+  // Reset text color to black
+  doc.setTextColor(0, 0, 0);
+  
+  return reqBoxY + reqBoxHeight + 5;
 }
 
 // Convert hex color to RGB
@@ -383,6 +450,7 @@ function addBasicInfoTable(
 ): number {
   maybeAddNewPage(doc, startY);
 
+  // Enhanced body with requester details
   const body = [
     [
       { content: 'Title:', styles: { fontStyle: 'bold' } },
@@ -397,6 +465,12 @@ function addBasicInfoTable(
       formatDate(request.createdAt)
     ],
     [
+      { content: 'Requester:', styles: { fontStyle: 'bold' } },
+      request.requester?.username || 'N/A',
+      { content: 'Department:', styles: { fontStyle: 'bold' } },
+      request.requester?.department || 'N/A'
+    ],
+    [
       { content: 'Description:', styles: { fontStyle: 'bold' } },
       { content: request.description || 'N/A', colSpan: 3 }
     ],
@@ -407,6 +481,17 @@ function addBasicInfoTable(
       request.subPurpose?.name || 'N/A'
     ]
   ];
+
+  // Add contact information if available
+  if (request.requester?.email || request.requester?.contactNumber) {
+    body.push([
+      { content: 'Contact Info:', styles: { fontStyle: 'bold' } },
+      { content: [
+        request.requester?.email ? `Email: ${request.requester.email}` : '',
+        request.requester?.contactNumber ? `Phone: ${request.requester.contactNumber}` : ''
+      ].filter(Boolean).join(' | '), colSpan: 3 }
+    ]);
+  }
 
   (autoTable as any)(doc, {
     startY,
@@ -599,14 +684,36 @@ function addApprovalsTable(
     return (doc as any).lastAutoTable.finalY + 5;
   }
 
-  const rows = approvals.map((app: any) => [
-    app.approver?.username || 'N/A',
-    app.department || 'N/A',
-    (app.status || 'PENDING').toUpperCase(),
-    app.comments || 'N/A',
-    app.processedAt ? formatDate(app.processedAt) : 'Not processed'
-  ]);
+  // Enhanced approval rows with style customization for status
+  const rows = [];
+  
+  for (const app of approvals) {
+    const status = (app.status || 'PENDING').toUpperCase();
+    let statusStyle = {};
+    
+    // Apply color styling based on approval status
+    if (status === 'APPROVED') {
+      statusStyle = { fillColor: [240, 255, 240], textColor: [0, 128, 0] };
+    } else if (status === 'REJECTED') {
+      statusStyle = { fillColor: [255, 240, 240], textColor: [192, 0, 0] };
+    } else if (status === 'PENDING') {
+      statusStyle = { fillColor: [240, 248, 255], textColor: [0, 102, 204] };
+    }
+    
+    rows.push([
+      app.approver?.username || 'N/A',
+      app.department || 'N/A',
+      { content: status, styles: statusStyle },
+      app.comments || 'N/A',
+      app.processedAt ? formatDate(app.processedAt) : 'Not processed'
+    ]);
+  }
 
+  // Add approver summary section
+  const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
+  const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
+  const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
+  
   (autoTable as any)(doc, {
     startY,
     head: [['Approver', 'Department', 'Status', 'Comments', 'Processed At']],
@@ -619,8 +726,36 @@ function addApprovalsTable(
       4: { halign: 'right', cellWidth: 30 }
     }
   });
-
-  return (doc as any).lastAutoTable.finalY + 5;
+  
+  // Add approval summary with colored boxes
+  const endY = (doc as any).lastAutoTable.finalY + 5;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Approval Summary:', margin, endY);
+  
+  const boxSize = 6;
+  const boxY = endY + 5;
+  
+  // Approved box
+  doc.setFillColor(0, 128, 0);
+  doc.rect(margin, boxY, boxSize, boxSize, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Approved: ${approvedCount}`, margin + boxSize + 4, boxY + 5);
+  
+  // Rejected box
+  doc.setFillColor(192, 0, 0);
+  doc.rect(margin + 70, boxY, boxSize, boxSize, 'F');
+  doc.text(`Rejected: ${rejectedCount}`, margin + 70 + boxSize + 4, boxY + 5);
+  
+  // Pending box
+  doc.setFillColor(0, 102, 204);
+  doc.rect(margin + 140, boxY, boxSize, boxSize, 'F');
+  doc.text(`Pending: ${pendingCount}`, margin + 140 + boxSize + 4, boxY + 5);
+  
+  return endY + 15;
 }
 
 // =========== SIGNATURE LINES =========== //
