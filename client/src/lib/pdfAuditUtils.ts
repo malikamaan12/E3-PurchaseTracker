@@ -214,12 +214,14 @@ export function applySecurityWatermark(
  * @param requestId - The ID of the request being viewed
  * @param viewContext - Context about where/how the PDF is being viewed
  * @param userType - Type of user viewing the PDF
+ * @param securityLevel - Security classification level of the document
  * @returns Promise that resolves when logging is complete
  */
 export async function logPdfViewEvent(
   requestId: number, 
   viewContext: 'preview' | 'detail' | 'download' | 'export' = 'preview',
-  userType: 'user' | 'approver' | 'admin' = 'user'
+  userType: 'user' | 'approver' | 'admin' = 'user',
+  securityLevel: 'confidential' | 'internal' | 'restricted' | 'public' = 'internal'
 ): Promise<void> {
   try {
     const trackingId = generatePdfTrackingId(requestId);
@@ -231,6 +233,7 @@ export async function logPdfViewEvent(
       {
         trackingId,
         viewContext,
+        securityLevel,
         viewTimestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         screenResolution: `${window.screen.width}x${window.screen.height}`
@@ -251,13 +254,15 @@ export async function logPdfViewEvent(
  * @param fileName - Name of the downloaded file
  * @param fileSize - Size of the file in bytes
  * @param userType - Type of user downloading the PDF
+ * @param securityLevel - Security classification level of the document
  * @returns Promise that resolves when logging is complete
  */
 export async function logPdfDownloadEvent(
   requestId: number,
   fileName: string,
   fileSize: number,
-  userType: 'user' | 'approver' | 'admin' = 'user'
+  userType: 'user' | 'approver' | 'admin' = 'user',
+  securityLevel: 'confidential' | 'internal' | 'restricted' | 'public' = 'internal'
 ): Promise<void> {
   try {
     const trackingId = generatePdfTrackingId(requestId);
@@ -270,6 +275,7 @@ export async function logPdfDownloadEvent(
         trackingId,
         fileName,
         fileSize,
+        securityLevel,
         downloadTimestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         downloadMethod: 'ui-button'
@@ -375,4 +381,178 @@ export function validatePdfBrandingSettings(settings: any = {}): {
   }
   
   return validatedSettings;
+}
+
+/**
+ * Check if a security level requires MFA or special approvals
+ * Used to enforce stronger security requirements for high-security documents
+ * 
+ * @param securityLevel - The security level to check
+ * @param userType - The type of user requesting access
+ * @returns Object with requirements and reason
+ */
+export function checkSecurityRequirements(
+  securityLevel: 'confidential' | 'internal' | 'restricted' | 'public' = 'internal',
+  userType: 'user' | 'approver' | 'admin' = 'user'
+): { 
+  requiresMfa: boolean; 
+  requiresApproval: boolean; 
+  canDownload: boolean;
+  canPrint: boolean;
+  restrictedTo: string[];
+  reason: string;
+} {
+  // Default settings for all security levels
+  const requirements = {
+    requiresMfa: false,
+    requiresApproval: false,
+    canDownload: true,
+    canPrint: true,
+    restrictedTo: [] as string[],
+    reason: ''
+  };
+  
+  // Apply security policies based on level and user type
+  switch (securityLevel) {
+    case 'confidential':
+      // Confidential documents have the strictest policies
+      requirements.requiresMfa = true;
+      requirements.canPrint = userType !== 'user'; // Only approvers and admins can print
+      
+      if (userType === 'user') {
+        requirements.requiresApproval = true;
+        requirements.restrictedTo = ['approver', 'admin'];
+        requirements.reason = 'Confidential documents require manager approval before downloading';
+      }
+      break;
+      
+    case 'restricted':
+      // Restricted documents have medium security
+      requirements.requiresMfa = userType === 'user'; // Only users need MFA, approvers and admins are trusted
+      requirements.canPrint = true;
+      break;
+      
+    case 'internal':
+      // Internal documents have basic security
+      requirements.requiresMfa = false;
+      requirements.canPrint = true;
+      break;
+      
+    case 'public':
+      // Public documents have no restrictions
+      requirements.requiresMfa = false;
+      requirements.canPrint = true;
+      break;
+  }
+  
+  return requirements;
+}
+
+/**
+ * Apply detailed security classification information to the PDF
+ * This adds a standardized security banner to documents based on their classification level
+ * 
+ * @param doc - jsPDF document instance 
+ * @param securityLevel - Security level of the document
+ * @param companyName - Company name to include in the security banner
+ * @param trackingId - Optional tracking ID for the document
+ */
+export function applySecurityClassificationBanner(
+  doc: any,
+  securityLevel: 'confidential' | 'internal' | 'restricted' | 'public' = 'internal',
+  companyName: string = 'E3 CORPORATION',
+  trackingId?: string
+): void {
+  try {
+    if (securityLevel === 'public') {
+      // No security banner needed for public documents
+      return;
+    }
+    
+    const pageCount = doc.getNumberOfPages();
+    
+    // Configuration for different security levels
+    const securityConfig = {
+      confidential: {
+        color: [0.8, 0, 0], // Red
+        text: 'CONFIDENTIAL',
+        handling: 'Authorized personnel only. Do not distribute.',
+        footer: 'This document contains confidential information. Unauthorized access, disclosure, copying, distribution, or use is prohibited.'
+      },
+      restricted: {
+        color: [0.8, 0.4, 0], // Orange
+        text: 'RESTRICTED',
+        handling: 'For internal business use only.',
+        footer: 'This document contains restricted business information. Sharing outside the organization is prohibited.'
+      },
+      internal: {
+        color: [0, 0, 0.8], // Blue
+        text: 'INTERNAL USE',
+        handling: 'Internal distribution only.',
+        footer: 'This document is for internal use only. Not for external distribution.'
+      }
+    };
+    
+    const config = securityConfig[securityLevel];
+    
+    // Add to each page
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      
+      // Save state
+      doc.saveGraphicsState();
+      
+      // Draw security classification header
+      doc.setFillColor(config.color[0], config.color[1], config.color[2]);
+      doc.rect(0, 0, pageWidth, 12, 'F');
+      
+      doc.setTextColor(1, 1, 1); // White text
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      
+      const headerText = `${config.text} - ${companyName} - ${config.handling}`;
+      doc.text(headerText, pageWidth / 2, 8, { align: 'center' });
+      
+      // Draw security classification footer
+      doc.setFillColor(config.color[0], config.color[1], config.color[2]);
+      doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+      
+      let footerText = config.footer;
+      if (trackingId) {
+        footerText += ` | ID: ${trackingId}`;
+      }
+      
+      doc.text(footerText, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      
+      // Add diagonal security classification watermark
+      const isLastPage = i === pageCount;
+      if (isLastPage && securityLevel === 'confidential') {
+        // Add detailed security disclaimer on the last page for confidential docs
+        doc.setPage(pageCount);
+        doc.setTextColor(config.color[0], config.color[1], config.color[2]);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        
+        const disclaimer = [
+          'SECURITY NOTICE:',
+          'This document is classified CONFIDENTIAL and contains sensitive information.',
+          'It must be stored securely when not in use. Do not share electronically outside secure channels.',
+          'Printed copies must be logged and stored in a locked container when not in use.',
+          'If found, please contact the Security Officer immediately.',
+          '',
+          `Document ID: ${trackingId || 'Unregistered'}`
+        ];
+        
+        doc.text(disclaimer, 14, pageHeight - 35, { align: 'left' });
+      }
+      
+      // Restore state
+      doc.restoreGraphicsState();
+    }
+  } catch (error) {
+    console.error('Error applying security classification banner:', error);
+  }
 }
