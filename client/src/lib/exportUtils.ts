@@ -341,12 +341,15 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     // Validate and normalize PDF settings - this ensures all required properties exist
     const validatedSettings = validatePdfBrandingSettings(pdfSettings);
     
-    // Generate the PDF document using our new generator
+    // Generate the PDF document using our consolidated format
     const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
     const doc = await generatePurchaseRequestPDF(request, {
+      // Pass the type but we always use the same consolidated format
       type,
+      // Always show approvals and attachments in our consolidated PDF format
       showApprovals: true,
       showAttachments: true,
+      // Still preserve the signature lines logic for appropriate roles
       showSignatures: type === 'admin' || type === 'approver',
       headerImage: pdfSettings?.headerImage || null,
       footerImage: pdfSettings?.footerImage || null,
@@ -364,7 +367,7 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       }
     });
     
-    // Generate the PDF
+    // Generate the PDF - using consistent file naming without PDF type
     const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
     const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
     const pdfOutput = doc.output('blob');
