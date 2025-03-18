@@ -606,6 +606,16 @@ export async function generateEnhancedPDF(
     const marginLeft = pdfSettings?.marginLeft || 15;
     const marginRight = pdfSettings?.marginRight || 15;
     
+    // Extract requester information directly from request
+    const requesterName = request.requester?.username || 'N/A';
+    const requesterDepartment = request.requester?.department || 'N/A';
+    
+    console.log("PDF generation - Requester details:", { 
+      name: requesterName, 
+      department: requesterDepartment,
+      requesterId: request.requesterId
+    });
+    
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
@@ -621,9 +631,9 @@ export async function generateEnhancedPDF(
         ],
         [
           'Requester:',
-          request.requester?.username || 'N/A',
+          requesterName,
           'Department:',
-          request.requester?.department || 'N/A'
+          requesterDepartment
         ],
         [
           'Description:',
@@ -807,9 +817,11 @@ export async function generateEnhancedPDF(
       // Requester signature - include requester name and department
       doc.line(margin, yPos + 15, margin + lineWidth, yPos + 15);
       doc.setFontSize(9);
-      const requesterName = request.requester?.username || 'Requester';
-      const requesterDept = request.requester?.department ? ` (${request.requester.department})` : '';
-      doc.text(`${requesterName}${requesterDept}`, margin, yPos + 20);
+      // Use the same requester name variables we defined earlier to ensure consistency
+      const requesterSignature = requesterName !== 'N/A' ? 
+        `${requesterName}${requesterDepartment !== 'N/A' ? ` (${requesterDepartment})` : ''}` : 
+        'Requester Signature';
+      doc.text(requesterSignature, margin, yPos + 20);
       
       // Approver signature
       doc.line(margin + lineWidth + 20, yPos + 15, pageWidth - margin, yPos + 15);

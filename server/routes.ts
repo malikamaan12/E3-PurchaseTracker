@@ -5436,9 +5436,26 @@ async function getRequestWithRelations(requestId: number) {
     }
   }
   
-  // Get approvals for this request
+  // Get requester details if requesterId exists
+  let requester = null;
+  if (request.requesterId) {
+    const requesterResults = await db.query.users.findMany({
+      where: eq(users.id, request.requesterId),
+      limit: 1
+    });
+    
+    if (requesterResults.length > 0) {
+      requester = requesterResults[0];
+      console.log("[getRequestWithRelations] Found requester:", requester.username, "department:", requester.department);
+    }
+  }
+
+  // Get approvals for this request with approver details
   const approvalsList = await db.query.approvals.findMany({
-    where: eq(approvals.requestId, requestId)
+    where: eq(approvals.requestId, requestId),
+    with: {
+      approver: true
+    }
   });
   
   // Get attachments
@@ -5455,6 +5472,7 @@ async function getRequestWithRelations(requestId: number) {
     items,
     vendor,
     subPurpose,
+    requester,
     approvals: approvalsList,
     attachments: attachmentsList
   };
