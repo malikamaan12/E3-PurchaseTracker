@@ -545,11 +545,28 @@ export async function generateEnhancedPDF(
         
         // If no settings from enhanced endpoint, fall back to general settings
         if (pdfSettings === defaultSettings) {
-          const response = await fetch('/api/pdf/print-settings');
+          const response = await fetch('/api/pdf/print-settings?type=template');
           if (response.ok) {
             const data = await response.json();
             if (data && Object.keys(data).length > 0) {
               pdfSettings = data;
+              
+              // Parse templateConfig if it exists as a string
+              if (typeof pdfSettings.templateConfig === 'string') {
+                try {
+                  pdfSettings.templateConfig = JSON.parse(pdfSettings.templateConfig);
+                  console.log('Parsed template configuration from string');
+                } catch (parseError) {
+                  console.error('Error parsing template configuration:', parseError);
+                  // Use default template config
+                  pdfSettings.templateConfig = JSON.parse(defaultSettings.templateConfig);
+                }
+              } else if (!pdfSettings.templateConfig) {
+                // If templateConfig is missing, use default
+                console.log('Using default template configuration');
+                pdfSettings.templateConfig = JSON.parse(defaultSettings.templateConfig);
+              }
+              
               console.log('Using general PDF settings');
             }
           }
@@ -558,6 +575,12 @@ export async function generateEnhancedPDF(
         console.error('Error fetching PDF settings:', error);
         // Continue with default settings
       }
+    }
+    
+    // Ensure templateConfig always exists
+    if (!pdfSettings.templateConfig) {
+      console.log('No template config found, using default');
+      pdfSettings.templateConfig = JSON.parse(defaultSettings.templateConfig);
     }
     
     // Create new PDF document with settings from PDF settings if available
@@ -798,16 +821,36 @@ export async function generateEnhancedPDF(
     // Get security level from settings, defaulting to 'internal' if not specified
     const securityLevel = pdfSettings?.securityLevel || 'internal';
     
+    // Apply security watermark based on security level and template configuration
+    const templateConfig = pdfSettings.templateConfig || {};
+    const showWatermark = templateConfig.showWatermark !== false;
+    
+    // Get security level from template config or fall back to settings
+    const templateSecurityLevel = templateConfig.securityLevel || securityLevel;
+    
     // Apply security watermark based on security level if not public
-    if (securityLevel !== 'public') {
+    if (showWatermark && templateSecurityLevel !== 'public') {
       // Apply security watermark with specific styling based on security level
-      applySecurityWatermark(doc, securityLevel, undefined, trackingId);
+      // Pass user ID if available for tracking
+      const userId = request.requesterId || undefined;
+      applySecurityWatermark(doc, templateSecurityLevel, userId, trackingId);
+      
+      console.log(`Applied ${templateSecurityLevel} security watermark to PDF`);
     }
     // Apply standard watermark if security watermark is not used but watermark is enabled
-    else if (pdfSettings?.watermarkEnabled !== false) {
-      const watermarkText = pdfSettings?.watermarkText || `CONFIDENTIAL - ${request.requestNumber || ''}`;
-      const watermarkOpacity = pdfSettings?.watermarkOpacity || 0.08;
+    else if (showWatermark && pdfSettings?.watermarkEnabled !== false) {
+      // Use watermark text from template config if available
+      const watermarkText = templateConfig.watermarkText || 
+                          pdfSettings?.watermarkText || 
+                          `CONFIDENTIAL - ${request.requestNumber || ''}`;
+      
+      // Use watermark opacity from template config if available
+      const watermarkOpacity = templateConfig.watermarkOpacity || 
+                            pdfSettings?.watermarkOpacity || 
+                            0.08;
+      
       applyPdfWatermark(doc, watermarkText, watermarkOpacity);
+      console.log(`Applied standard watermark with opacity ${watermarkOpacity}`);
     }
     
     // Log audit event for PDF generation (non-blocking async)

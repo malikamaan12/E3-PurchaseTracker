@@ -81,21 +81,68 @@ export function registerPdfRoutes(app: Express) {
       if (settings.length > 0) {
         const settingsData = settings[0];
         
-        // If templateConfig is requested and exists, parse and return it
-        if (requestType === 'template' && settingsData.templateConfig) {
+        // If templateConfig is requested, try to parse it or return default
+        if (requestType === 'template') {
           try {
-            const templateConfig = JSON.parse(settingsData.templateConfig);
-            return res.json({
-              ...settingsData,
-              templateConfig
-            });
+            // Check if templateConfig exists and is valid JSON
+            if (settingsData.templateConfig) {
+              const templateConfig = JSON.parse(settingsData.templateConfig);
+              return res.json({
+                ...settingsData,
+                templateConfig
+              });
+            } else {
+              // If templateConfig is missing, add default template configuration
+              return res.json({
+                ...settingsData,
+                templateConfig: {
+                  name: 'Standard Template',
+                  type: 'standard',
+                  layout: 'portrait',
+                  showHeader: true,
+                  showFooter: true,
+                  showLogo: true,
+                  showWatermark: true,
+                  securityLevel: 'internal',
+                  headerColor: [111, 42, 230],
+                  accentColor: [31, 211, 219],
+                  watermarkOpacity: 0.08,
+                  watermarkText: 'INTERNAL USE',
+                  showApprovalFlow: true,
+                  showSignatureLines: true,
+                  showAttachments: true,
+                  showTotalsTable: true
+                }
+              });
+            }
           } catch (parseError) {
             console.error('Failed to parse template configuration:', parseError);
-            // Continue to return regular settings
+            // Return settings with default template configuration
+            return res.json({
+              ...settingsData,
+              templateConfig: {
+                name: 'Standard Template',
+                type: 'standard',
+                layout: 'portrait',
+                showHeader: true,
+                showFooter: true,
+                showLogo: true,
+                showWatermark: true,
+                securityLevel: 'internal',
+                headerColor: [111, 42, 230],
+                accentColor: [31, 211, 219],
+                watermarkOpacity: 0.08,
+                watermarkText: 'INTERNAL USE',
+                showApprovalFlow: true,
+                showSignatureLines: true,
+                showAttachments: true,
+                showTotalsTable: true
+              }
+            });
           }
         }
         
-        // Return all settings
+        // Return all settings for regular requests
         res.json(settingsData);
       } else {
         // Default settings
@@ -538,12 +585,12 @@ export function registerPdfRoutes(app: Express) {
   // Add PDF audit endpoint
   app.post("/api/pdf/audit", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.isAuthenticated()) {
-        return next(new AppError('Not authenticated', 401));
-      }
+      // Accept audit logs even from unauthenticated users
+      // This allows tracking PDF views from external sources
       
-      const { action, resourceId, details } = req.body;
+      const { action, resourceId, details, type } = req.body;
       
+      // Validate required fields
       if (!action || !resourceId) {
         return next(new ValidationError('Missing required fields', { 
           action: !action ? 'Required' : undefined,
@@ -551,37 +598,66 @@ export function registerPdfRoutes(app: Express) {
         }));
       }
       
+      // Validate action type is one of the allowed values
+      const validActions = ['pdf_generated', 'pdf_downloaded', 'pdf_viewed'];
+      if (!validActions.includes(action)) {
+        return next(new ValidationError('Invalid action type', {
+          action: `Must be one of: ${validActions.join(', ')}`
+        }));
+      }
+      
+      // Add timestamp to details if not provided
+      const enrichedDetails = {
+        ...details,
+        timestamp: details?.timestamp || new Date().toISOString(),
+        userType: type || 'user',
+        trackingSource: details?.trackingId ? 'tracked' : 'untracked'
+      };
+      
       try {
-        // Try to insert audit log entry, but don't fail if it doesn't work
-        if (req.user) {
+        // Try to insert audit log entry with the user ID if authenticated
+        if (req.isAuthenticated() && req.user) {
           await db.insert(auditLogs).values({
             userId: req.user.id,
             action,
             resourceId,
             resourceType: 'pdf',
-            details: details || {},
+            details: enrichedDetails,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent'] || '',
             timestamp: new Date()
           });
+          
+          console.log(`[PDF Audit] Authenticated user ${req.user.id} ${action} for request ${resourceId}`);
         } else {
+          // Handle anonymous users - try to get user ID from details if provided
+          const userIdFromDetails = details?.userId ? 
+            parseInt(details.userId as string, 10) : null;
+          
           await db.insert(auditLogs).values({
+            userId: userIdFromDetails, // May be null for anonymous access
             action,
             resourceId,
             resourceType: 'pdf',
-            details: details || {},
+            details: enrichedDetails,
             ipAddress: req.ip,
             userAgent: req.headers['user-agent'] || '',
             timestamp: new Date()
           });
+          
+          console.log(`[PDF Audit] Anonymous ${action} for request ${resourceId}, implied user: ${userIdFromDetails || 'none'}`);
         }
       } catch (auditError) {
         // Just log the error but don't fail the request
-        console.log('[POST /api/pdf/audit] PDF audit logged:', action, 'for request', resourceId);
+        console.error('[PDF Audit] Failed to save audit log:', auditError);
       }
       
       // Always return success even if audit logging fails
-      return res.status(201).json({ success: true });
+      return res.status(201).json({ 
+        success: true, 
+        timestamp: new Date().toISOString(),
+        message: `PDF ${action} audit logged successfully`
+      });
     } catch (error) {
       // Don't let audit errors block the API - just log and continue
       console.error('PDF Audit Error:', error);
