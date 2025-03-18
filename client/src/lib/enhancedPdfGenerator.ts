@@ -496,11 +496,40 @@ export async function generateEnhancedPDF(
   customSettings?: any // Allow passing custom settings
 ): Promise<jsPDF> {
   try {
+    // Default fallback settings in case API calls fail
+    const defaultSettings = {
+      headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
+      headerSubtitle: 'PURCHASE REQUEST',
+      headerColor: '#6F2AE6', // Purple
+      footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
+      footerColor: '#6F2AE6',
+      pageNumbering: true,
+      watermarkOpacity: 10,
+      templateConfig: JSON.stringify({
+        name: 'Standard Template',
+        type: 'standard',
+        layout: 'portrait',
+        showHeader: true,
+        showFooter: true,
+        showLogo: true,
+        showWatermark: true,
+        securityLevel: 'internal',
+        headerColor: [111, 42, 230],
+        accentColor: [31, 211, 219],
+        watermarkOpacity: 0.08,
+        watermarkText: 'INTERNAL USE',
+        showApprovalFlow: true,
+        showSignatureLines: true,
+        showAttachments: true,
+        showTotalsTable: true
+      })
+    };
+    
     // Use provided settings if passed, otherwise fetch from API
-    let pdfSettings = customSettings || null;
+    let pdfSettings = customSettings || defaultSettings;
     
     // If no custom settings provided, fetch settings from API
-    if (!pdfSettings) {
+    if (!customSettings) {
       try {
         // First try to fetch PDF settings from the API that includes request-specific settings
         const requestSettingsResponse = await fetch(`/api/requests/${request.id}/pdf?type=${type}&preview=true`);
@@ -515,16 +544,19 @@ export async function generateEnhancedPDF(
         }
         
         // If no settings from enhanced endpoint, fall back to general settings
-        if (!pdfSettings) {
+        if (pdfSettings === defaultSettings) {
           const response = await fetch('/api/pdf/print-settings');
           if (response.ok) {
             const data = await response.json();
-            pdfSettings = data;
-            console.log('Using general PDF settings');
+            if (data && Object.keys(data).length > 0) {
+              pdfSettings = data;
+              console.log('Using general PDF settings');
+            }
           }
         }
       } catch (error) {
         console.error('Error fetching PDF settings:', error);
+        // Continue with default settings
       }
     }
     
