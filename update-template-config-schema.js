@@ -1,6 +1,6 @@
 // Update the PDF settings schema to add templateConfig field
-import { db } from './db/index.js';
-import * as schema from './db/schema.js';
+import { db } from './db/index';
+import * as schema from './db/schema';
 
 async function updatePdfTemplateConfigSchema() {
   console.log('Updating PDF settings schema to add templateConfig field...');

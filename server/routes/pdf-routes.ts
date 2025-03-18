@@ -42,6 +42,35 @@ export function registerPdfRoutes(app: Express) {
       // Check if requesting template configuration specifically
       const requestType = req.query.type;
       
+      // Define default settings with template configuration as a fallback
+      const defaultSettings = {
+        headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
+        headerSubtitle: 'PURCHASE REQUEST',
+        headerColor: '#6F2AE6', // Purple
+        footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
+        footerColor: '#6F2AE6',
+        pageNumbering: true,
+        watermarkOpacity: 10,
+        templateConfig: JSON.stringify({
+          name: 'Standard Template',
+          type: 'standard',
+          layout: 'portrait',
+          showHeader: true,
+          showFooter: true,
+          showLogo: true,
+          showWatermark: true,
+          securityLevel: 'internal',
+          headerColor: [111, 42, 230],
+          accentColor: [31, 211, 219],
+          watermarkOpacity: 0.08,
+          watermarkText: 'INTERNAL USE',
+          showApprovalFlow: true,
+          showSignatureLines: true,
+          showAttachments: true,
+          showTotalsTable: true
+        })
+      };
+      
       // Fetch the latest PDF settings
       const settings = await db.query.pdfSettings.findMany({
         orderBy: [desc(pdfSettings.updatedAt)],
@@ -156,8 +185,14 @@ export function registerPdfRoutes(app: Express) {
             .where(eq(pdfSettings.id, settingId))
             .returning();
         } else {
-          // Create new settings with template configuration
+          // Create new settings with template configuration and required fields
           [result] = await db.insert(pdfSettings).values({
+            headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
+            headerSubtitle: 'PURCHASE REQUEST',
+            headerColor: '#6F2AE6', // Purple
+            footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
+            footerColor: '#6F2AE6',
+            pageNumbering: true,
             templateConfig: JSON.stringify(templateConfig),
             userId: req.user!.id,
             createdAt: new Date(),
