@@ -461,6 +461,24 @@ function maybeAddNewPage(doc: jsPDF, yPos: number, minSpace: number = 40) {
   return false;
 }
 
+/**
+ * Checks if the content will fit on the current page, if not adds a new page.
+ * This is an enhanced version that is more precise about content height.
+ */
+function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const footerSpace = 20; // Reserve space for footer
+  const availableSpace = pageHeight - yPos - margin - footerSpace;
+  
+  if (contentHeight > availableSpace) {
+    doc.addPage();
+    return margin; // Return the starting Y position on the new page
+  }
+  
+  return yPos; // Return the original position if content fits
+}
+
 // =========== BASIC INFO TABLE =========== //
 
 function addBasicInfoTable(
@@ -468,7 +486,9 @@ function addBasicInfoTable(
   request: PurchaseRequest,
   startY: number
 ): number {
-  maybeAddNewPage(doc, startY);
+  // Calculate the table height to make sure it fits on the page
+  const tableHeight = 60; // Approximate height based on content
+  startY = ensureContentFits(doc, startY, tableHeight);
 
   // Enhanced body without duplicated requester details, status, and priority
   // which are already shown in the header section
@@ -506,7 +526,9 @@ function addBasicInfoTable(
     startY,
     theme: 'plain',
     styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-    body
+    body,
+    margin: { top: 15, right: 15, bottom: 15, left: 15 },
+    tableWidth: 'auto'
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -519,7 +541,10 @@ function addVendorInfoTable(
   request: PurchaseRequest,
   startY: number
 ): number {
-  maybeAddNewPage(doc, startY);
+  // Calculate the table height to make sure it fits on the page
+  const tableHeight = 30; // Approximate height based on content
+  startY = ensureContentFits(doc, startY, tableHeight);
+  
   const vendor = request.vendor || {};
 
   const body = [
@@ -540,8 +565,10 @@ function addVendorInfoTable(
   (autoTable as any)(doc, {
     startY,
     theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2 },
-    body
+    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    body,
+    margin: { top: 15, right: 15, bottom: 15, left: 15 },
+    tableWidth: 'auto'
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -554,8 +581,6 @@ function addItemsTable(
   request: PurchaseRequest,
   startY: number
 ): number {
-  maybeAddNewPage(doc, startY);
-
   // Parse items safely
   let items = [];
   try {
@@ -591,8 +616,12 @@ function addItemsTable(
     ];
   });
 
-  // Check if we have space for the table, otherwise start a new page
-  maybeAddNewPage(doc, startY, 60);
+  // Calculate approximate table height (rows + header + totals) to check page fit
+  const rowHeight = 12; // Approximate height per row in points
+  const tableHeight = (rows.length * rowHeight) + 40; // Header height + margin
+  
+  // Use our enhanced page fitting method
+  startY = ensureContentFits(doc, startY, tableHeight);
   
   (autoTable as any)(doc, {
     startY,
@@ -613,28 +642,25 @@ function addItemsTable(
       3: { halign: 'right', cellWidth: 25 },
       4: { halign: 'right', cellWidth: 25 }
     },
-    // Handle page breaks automatically and repeat the header
+    // Enable built-in page break support for long tables
+    margin: { top: 15, right: 15, bottom: 15, left: 15 },
     didDrawPage: (data: any) => {
-      // Each time a page is drawn, we can add custom headers or footers
-    },
-    willDrawCell: (data: any) => {
-      // We can customize each cell here if needed
-      const { column, row } = data;
-      // Apply special styling for descriptions if needed
-      if (column.index === 1) {
-        // Description column - can apply custom styling
-      }
+      // Reset table header on each new page
     }
   });
 
   let yPos = (doc as any).lastAutoTable.finalY;
   
-  // Totals
+  // Calculate totals
   const itemsTotal = items.reduce(
     (sum: number, i: any) => sum + (Number(i.quantity) || 0) * (Number(i.estimatedCost) || 0), 0
   );
   const freightAmount = Number(request.freightAmount) || 0;
   const totalCost = itemsTotal + freightAmount;
+
+  // Check if we have enough space for the totals table
+  const totalsHeight = 30; // Approximate height for the totals section
+  yPos = ensureContentFits(doc, yPos, totalsHeight);
 
   (autoTable as any)(doc, {
     startY: yPos,
@@ -648,7 +674,8 @@ function addItemsTable(
       ['', '', '', 'Items Total:', formatCurrency(itemsTotal, request.currency)],
       ['', '', '', 'Freight:', formatCurrency(freightAmount, request.currency)],
       ['', '', '', 'Total Cost:', formatCurrency(totalCost, request.currency)]
-    ]
+    ],
+    margin: { top: 15, right: 15, bottom: 15, left: 15 }
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -661,7 +688,6 @@ function addAttachmentsTable(
   request: PurchaseRequest,
   startY: number
 ): number {
-  maybeAddNewPage(doc, startY);
   const attachments = request.attachments || [];
 
   if (attachments.length === 0) {
@@ -672,6 +698,13 @@ function addAttachmentsTable(
     });
     return (doc as any).lastAutoTable.finalY + 5;
   }
+
+  // Calculate approximate table height to check page fit
+  const rowHeight = 12; // Approximate height per row in points
+  const tableHeight = (attachments.length * rowHeight) + 20; // Header height + margin
+  
+  // Use our enhanced page fitting method
+  startY = ensureContentFits(doc, startY, tableHeight);
 
   const rows = attachments.map((file: any) => [
     file.fileName || file.name || 'N/A',
@@ -684,13 +717,14 @@ function addAttachmentsTable(
     head: [['Document Name', 'Type', 'Size']],
     body: rows,
     theme: 'striped',
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
-      0: { cellWidth: 80 },
+      0: { cellWidth: 80, overflow: 'linebreak' },
       1: { cellWidth: 40, halign: 'center' },
       2: { cellWidth: 20, halign: 'right' }
-    }
+    },
+    margin: { top: 15, right: 15, bottom: 15, left: 15 }
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
