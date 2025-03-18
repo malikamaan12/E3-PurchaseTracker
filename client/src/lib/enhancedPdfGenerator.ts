@@ -597,8 +597,8 @@ export async function generateEnhancedPDF(
     // Add header
     let yPos = await addHeader(doc, request, pdfSettings);
     
-    // Add Basic Information section
-    yPos = addSection(doc, 'Basic Information', yPos);
+    // Add Request Information section
+    yPos = addSection(doc, 'Request Information', yPos);
     
     // Use settings from PDF settings if available
     const fontSize = pdfSettings?.fontSize || 9;
@@ -616,37 +616,28 @@ export async function generateEnhancedPDF(
       requesterId: request.requesterId
     });
     
+    // Format dates
+    const createdAtFormatted = request.createdAt 
+      ? new Date(request.createdAt).toLocaleDateString() 
+      : 'N/A';
+    
+    // Create a more optimized layout without duplicates
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
       styles: { fontSize: fontSize, cellPadding: cellPadding },
       margin: { left: marginLeft, right: marginRight },
-      columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } },
       body: [
-        [
-          'Title:',
-          request.title || 'N/A',
-          'Status:',
-          request.status?.toUpperCase() || 'N/A'
-        ],
-        [
-          'Requester:',
-          requesterName,
-          'Department:',
-          requesterDepartment
-        ],
-        [
-          'Description:',
-          request.description || 'N/A',
-          'Priority:',
-          request.priority?.toUpperCase() || 'N/A'
-        ],
-        [
-          'Purpose Type:',
-          request.purposeType || 'N/A',
-          'Sub-purpose:',
-          request.subPurpose?.name || 'N/A'
-        ]
+        ['Request Number:', request.requestNumber || 'N/A'],
+        ['Title:', request.title || 'N/A'],
+        ['Status:', request.status?.toUpperCase() || 'N/A'],
+        ['Requester:', `${requesterName} (${requesterDepartment})`],
+        ['Created Date:', createdAtFormatted],
+        ['Priority:', request.priority?.toUpperCase() || 'N/A'],
+        ['Description:', request.description || 'N/A'],
+        ['Purpose Type:', request.purposeType || 'N/A'],
+        ['Sub-purpose:', request.subPurpose?.name || 'N/A']
       ]
     });
     
