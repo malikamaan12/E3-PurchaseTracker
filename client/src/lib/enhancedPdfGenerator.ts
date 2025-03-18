@@ -620,6 +620,12 @@ export async function generateEnhancedPDF(
           request.status?.toUpperCase() || 'N/A'
         ],
         [
+          'Requester:',
+          request.requester?.username || 'N/A',
+          'Department:',
+          request.requester?.department || 'N/A'
+        ],
+        [
           'Description:',
           request.description || 'N/A',
           'Priority:',
@@ -798,14 +804,24 @@ export async function generateEnhancedPDF(
       const margin = 15;
       const lineWidth = (pageWidth - (margin * 2) - 20) / 2;
       
-      // Requester signature
+      // Requester signature - include requester name and department
       doc.line(margin, yPos + 15, margin + lineWidth, yPos + 15);
       doc.setFontSize(9);
-      doc.text('Requester Signature', margin, yPos + 20);
+      const requesterName = request.requester?.username || 'Requester';
+      const requesterDept = request.requester?.department ? ` (${request.requester.department})` : '';
+      doc.text(`${requesterName}${requesterDept}`, margin, yPos + 20);
       
       // Approver signature
       doc.line(margin + lineWidth + 20, yPos + 15, pageWidth - margin, yPos + 15);
-      doc.text('Approver Signature', margin + lineWidth + 20, yPos + 20);
+      // If we have approval info, show the last approver in the chain
+      let approverText = 'Approver Signature';
+      if (request.approvals && request.approvals.length > 0) {
+        const lastApproval = request.approvals[request.approvals.length - 1];
+        if (lastApproval.approver?.username) {
+          approverText = `${lastApproval.approver.username} (${lastApproval.department || 'Approver'})`;
+        }
+      }
+      doc.text(approverText, margin + lineWidth + 20, yPos + 20);
     }
     
     // Add footer to all pages
