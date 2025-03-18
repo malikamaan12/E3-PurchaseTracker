@@ -471,13 +471,31 @@ function maybeAddNewPage(doc: jsPDF, yPos: number, minSpace: number = 40) {
  * Checks if the content will fit on the current page, if not adds a new page.
  * This is an enhanced version that is more precise about content height.
  */
-function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number) {
+/**
+ * Ensures content fits on the current page, adds a new page if needed
+ * This function prevents empty pages and handles content placement correctly
+ * 
+ * @param doc PDF document
+ * @param yPos Current Y position
+ * @param contentHeight Approximate height of the content to add
+ * @param minRemainingSpace Minimum space required to start content on current page
+ * @returns Updated Y position (either on current page or at top of new page)
+ */
+function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number, minRemainingSpace: number = 30) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const footerSpace = 20; // Reserve space for footer
   const availableSpace = pageHeight - yPos - margin - footerSpace;
   
-  if (contentHeight > availableSpace) {
+  // If content won't fit, or there's very little space left on the page
+  if (contentHeight > availableSpace || availableSpace < minRemainingSpace) {
+    // Check if we're at the top of a page - if so, don't add another page
+    // This prevents empty pages when a content section would never fit on one page
+    if (yPos <= margin + 5) {
+      return yPos; // Already at top of page, don't add a new one
+    }
+    
+    // Add a new page and return the top position
     doc.addPage();
     return margin; // Return the starting Y position on the new page
   }
@@ -622,11 +640,29 @@ function addItemsTable(
   });
 
   // Calculate approximate table height (rows + header + totals) to check page fit
-  const rowHeight = 12; // Approximate height per row in points
-  const tableHeight = (rows.length * rowHeight) + 40; // Header height + margin
+  // Adjust row height calculation based on text content that might wrap
+  const rowHeight = 12; // Base height per row in points
+  let tableHeight = 40; // Start with header + margins
+  
+  // More accurate height calculation that accounts for content length and wrapping
+  rows.forEach((row: any[]) => {
+    // Add base height for each row
+    let thisRowHeight = rowHeight;
+    
+    // If description is longer, increase estimated height for text wrapping
+    const description = row[1].toString();
+    if (description.length > 30) {
+      // Add extra height based on content length for wrapping
+      const extraLines = Math.ceil(description.length / 30) - 1;
+      thisRowHeight += extraLines * 8; // 8 points per extra line
+    }
+    
+    tableHeight += thisRowHeight;
+  });
   
   // Use our enhanced page fitting method
-  startY = ensureContentFits(doc, startY, tableHeight);
+  // Use a larger minimum space parameter for tables as they require more layout space
+  startY = ensureContentFits(doc, startY, tableHeight, 40);
   
   (autoTable as any)(doc, {
     startY,
@@ -705,17 +741,32 @@ function addAttachmentsTable(
   }
 
   // Calculate approximate table height to check page fit
-  const rowHeight = 12; // Approximate height per row in points
-  const tableHeight = (attachments.length * rowHeight) + 20; // Header height + margin
+  const rowHeight = 12; // Base height per row in points
+  let tableHeight = 20; // Start with header + margins
   
-  // Use our enhanced page fitting method
-  startY = ensureContentFits(doc, startY, tableHeight);
-
-  const rows = attachments.map((file: any) => [
-    file.fileName || file.name || 'N/A',
-    file.fileType || 'N/A',
-    file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
-  ]);
+  // Generate rows with more accurate height estimation
+  const rows = attachments.map((file: any) => {
+    // Add extra height for longer filenames that will wrap
+    const filename = file.fileName || file.name || 'N/A';
+    let thisRowHeight = rowHeight;
+    
+    if (filename.length > 40) {
+      // Add extra height based on filename length for wrapping
+      const extraLines = Math.ceil(filename.length / 40) - 1;
+      thisRowHeight += extraLines * 8; // 8 points per extra line
+    }
+    
+    tableHeight += thisRowHeight;
+    
+    return [
+      filename,
+      file.fileType || 'N/A',
+      file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
+    ];
+  });
+  
+  // Use our enhanced page fitting method with larger min space for tables
+  startY = ensureContentFits(doc, startY, tableHeight, 40);
 
   (autoTable as any)(doc, {
     startY,
@@ -788,12 +839,30 @@ function addApprovalsTable(
     ]);
   }
 
-  // Calculate approximate table height to check page fit
-  const rowHeight = 14; // Approximate height per row in points
-  const tableHeight = (approvals.length * rowHeight) + 30; // Header height + margin
+  // Calculate a more accurate table height for comments that might wrap
+  const rowHeight = 14; // Base height per row in points
+  let tableHeight = 30; // Start with header + margins
   
-  // Use our enhanced page fitting method
-  startY = ensureContentFits(doc, startY, tableHeight);
+  // Add height for each row, accounting for comments that might wrap
+  rows.forEach(row => {
+    let thisRowHeight = rowHeight;
+    
+    // If comment content is longer, increase estimated height for text wrapping
+    const comment = typeof row[3] === 'object' ? 
+      (row[3].content || '').toString() : 
+      (row[3] || '').toString();
+    
+    if (comment.length > 30) {
+      // Add extra height based on content length for wrapping
+      const extraLines = Math.ceil(comment.length / 30) - 1;
+      thisRowHeight += extraLines * 6; // 6 points per extra line for comments
+    }
+    
+    tableHeight += thisRowHeight;
+  });
+  
+  // Use our enhanced page fitting method with larger min space for tables
+  startY = ensureContentFits(doc, startY, tableHeight, 40);
 
   // Calculate approval statistics for summary visualization
   const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
