@@ -496,14 +496,13 @@ function addBasicInfoTable(
   const tableHeight = 60; // Approximate height based on content
   startY = ensureContentFits(doc, startY, tableHeight);
 
-  // Enhanced body without duplicated requester details, status, and priority
-  // which are already shown in the header section
+  // Only include information that's NOT already shown in the header section
+  // We've already displayed: Requester name, Department, Status, Priority, PR#, and Date
+  // Only include essential details that aren't shown elsewhere
   const body = [
     [
       { content: 'Title:', styles: { fontStyle: 'bold' } },
-      request.title || 'N/A',
-      { content: 'Date Created:', styles: { fontStyle: 'bold' } },
-      formatDate(request.createdAt)
+      { content: request.title || 'N/A', colSpan: 3 }
     ],
     [
       { content: 'Description:', styles: { fontStyle: 'bold' } },
@@ -517,7 +516,7 @@ function addBasicInfoTable(
     ]
   ];
 
-  // Add contact information if available
+  // Only add contact info if it's not displayed elsewhere and is available
   if (request.requester?.email || request.requester?.contactNumber) {
     body.push([
       { content: 'Contact Info:', styles: { fontStyle: 'bold' } },

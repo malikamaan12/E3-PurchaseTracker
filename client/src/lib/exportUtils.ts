@@ -313,13 +313,16 @@ export async function exportRequestToExcel(request: any): Promise<string> {
 }
 
 /**
- * Export a purchase request to PDF format with enhanced approval status visualization
+ * Export a purchase request to PDF format with consolidated format for all user types
+ * 
+ * This function uses a single consolidated PDF format that eliminates duplicate fields
+ * and produces consistent, well-formatted PDFs regardless of user type.
  */
 import { generateEnhancedPDF } from './enhancedPdfGenerator';
 
 export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
-    console.log(`Starting PDF export for request #${request.id}`);
+    console.log(`Starting PDF export with consolidated format for request #${request.id}`);
     
     // Try to fetch PDF settings
     let pdfSettings = null;
@@ -327,13 +330,12 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       const response = await fetch('/api/pdf/print-settings');
       if (response.ok) {
         pdfSettings = await response.json();
-        console.log('PDF API response structure:', Object.keys(response));
       }
     } catch (error) {
       console.error('Error fetching PDF settings:', error);
     }
     
-    console.log('Generating PDF from data...');
+    console.log('Generating PDF from data using consolidated format...');
     
     // Import our validation function and watermarking functions
     const { validatePdfBrandingSettings, applySecurityWatermark, generatePdfTrackingId } = await import('./pdfAuditUtils');
@@ -341,12 +343,12 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
     // Validate and normalize PDF settings - this ensures all required properties exist
     const validatedSettings = validatePdfBrandingSettings(pdfSettings);
     
-    // Generate the PDF document using our consolidated format
+    // Generate the PDF document using our consolidated format that works for all user types
     const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
     const doc = await generatePurchaseRequestPDF(request, {
-      // Pass the type but we always use the same consolidated format
+      // The type parameter is only used for audit logging, the PDF format is the same for all types
       type,
-      // Always show approvals and attachments in our consolidated PDF format
+      // Our consolidated format always includes these sections with no duplicates
       showApprovals: true,
       showAttachments: true,
       // Still preserve the signature lines logic for appropriate roles
@@ -367,9 +369,10 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       }
     });
     
-    // Generate the PDF - using consistent file naming without PDF type
+    // Generate the PDF - using consistent file naming with no type-specific suffixes
     const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-    const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
+    const requestNumber = request.requestNumber || `PR-${request.id}`;
+    const fileName = `${requestNumber}-${timestamp}.pdf`;
     const pdfOutput = doc.output('blob');
     
     // Log the download audit event before actually downloading
@@ -421,7 +424,8 @@ export async function exportRequestToPDF(request: any, type: 'user' | 'approver'
       doc.text(`Error: ${error instanceof Error ? error.message : String(error)}`, 14, 40);
       
       const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-      const fileName = `purchase-request-${request.id}-${timestamp}-error.pdf`;
+      const requestNumber = request.requestNumber || `PR-${request.id}`;
+      const fileName = `${requestNumber}-${timestamp}-error.pdf`;
       const pdfOutput = doc.output('blob');
       
       await safeDownload(pdfOutput, fileName);

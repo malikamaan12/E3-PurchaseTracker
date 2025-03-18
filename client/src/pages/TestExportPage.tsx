@@ -274,15 +274,18 @@ export default function TestExportPage() {
     }
   };
   
-  // Test enhanced export utilities
+  // Test enhanced export utilities with consolidated PDF format
   const testEnhancedPdfExport = async () => {
-    addLog('Starting enhanced PDF export test...');
+    addLog('Starting enhanced PDF export test with consolidated format...');
     updateTestResult('enhanced-pdf', 'pending');
     
     try {
-      addLog('Using exportRequestToPDF utility...');
+      // Test our consolidated PDF format that works for all user types
+      addLog('Using exportRequestToPDF utility with consolidated format...');
+      
+      // Using single consolidated format with type parameter just for audit purposes
       const fileName = await exportRequestToPDF(mockPurchaseRequest, 'user');
-      addLog(`PDF export successful: ${fileName}`);
+      addLog(`PDF export successful with consolidated format: ${fileName}`);
       updateTestResult('enhanced-pdf', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced PDF export: ${error.message || 'Unknown error'}`);
