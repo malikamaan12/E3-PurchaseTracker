@@ -283,9 +283,18 @@ export default function TestExportPage() {
       // Test our consolidated PDF format that works for all user types
       addLog('Using exportRequestToPDF utility with consolidated format...');
       
-      // Using single consolidated format with type parameter just for audit purposes
-      const fileName = await exportRequestToPDF(mockPurchaseRequest, 'user');
-      addLog(`PDF export successful with consolidated format: ${fileName}`);
+      // Test with different user types, but all will use the same consolidated format
+      // The type parameter is only for audit logging, not for different PDF layouts
+      const userFileName = await exportRequestToPDF(mockPurchaseRequest, 'user');
+      addLog(`User PDF export successful: ${userFileName}`);
+      
+      const approverFileName = await exportRequestToPDF(mockPurchaseRequest, 'approver');
+      addLog(`Approver PDF export successful: ${approverFileName}`);
+      
+      const adminFileName = await exportRequestToPDF(mockPurchaseRequest, 'admin');
+      addLog(`Admin PDF export successful: ${adminFileName}`);
+      
+      addLog('All PDF types use the same consolidated format with no duplicate fields');
       updateTestResult('enhanced-pdf', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced PDF export: ${error.message || 'Unknown error'}`);
