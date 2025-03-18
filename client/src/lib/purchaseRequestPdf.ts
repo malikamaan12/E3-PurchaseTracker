@@ -88,11 +88,14 @@ export async function generatePurchaseRequestPDF(
     compress: true
   });
 
-  // Defaults
+  // Defaults with consolidated PDF type logic
   const cfg = {
-    showApprovals: options?.showApprovals ?? true,
-    showAttachments: options?.showAttachments ?? true,
-    showSignatures: options?.showSignatures ?? false,
+    // Always show approvals for all user types - consolidated PDF format
+    showApprovals: true,
+    // Always include attachments if they exist
+    showAttachments: true,
+    // Only show signatures for admin or approver users
+    showSignatures: options?.showSignatures ?? (options?.type === 'admin' || options?.type === 'approver'),
     headerImage: options?.headerImage || '',
     footerImage: options?.footerImage || '',
     footerText: options?.footerText || 'Designed by Team E3',
@@ -109,35 +112,37 @@ export async function generatePurchaseRequestPDF(
 
   let cursorY = 10; // tracks vertical position
 
-  // 1) Add the Header
+  // 1) Add the Header - Always includes requester, department, status and priority
   cursorY = await addHeader(doc, request, cursorY, cfg);
 
-  // 2) Basic Information
+  // 2) Basic Information - Displays core request information
   cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY);
   cursorY = addBasicInfoTable(doc, request, cursorY);
 
-  // 3) Vendor Information
-  cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY);
-  cursorY = addVendorInfoTable(doc, request, cursorY);
+  // 3) Vendor Information - If available
+  if (request.vendor) {
+    cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY);
+    cursorY = addVendorInfoTable(doc, request, cursorY);
+  }
 
-  // 4) Items
+  // 4) Items - Main purchase request items with proper content fitting
   cursorY = addSectionTitle(doc, "ITEMS", cursorY);
   cursorY = addItemsTable(doc, request, cursorY);
 
-  // 5) Attachments (optional)
-  if (cfg.showAttachments && request.attachments && request.attachments.length > 0) {
+  // 5) Attachments - Always include if they exist
+  if (request.attachments && request.attachments.length > 0) {
     cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY);
     cursorY = addAttachmentsTable(doc, request, cursorY);
   }
 
-  // 6) Approvals (optional)
-  if (cfg.showApprovals && request.approvals && request.approvals.length > 0) {
+  // 6) Approvals - Always include if they exist (consolidating PDF types)
+  if (request.approvals && request.approvals.length > 0) {
     cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY);
     cursorY = addApprovalsTable(doc, request, cursorY);
   }
 
-  // 7) Signatures (optional)
-  if (cfg.showSignatures || cfg.type === 'admin' || cfg.type === 'approver') {
+  // 7) Signatures - Only for admin or approver roles
+  if (cfg.showSignatures) {
     cursorY = addSectionTitle(doc, "SIGNATURES", cursorY);
     cursorY = addSignatureLines(doc, cursorY);
   }
@@ -427,8 +432,9 @@ function addFooter(
 // =========== SECTION TITLES =========== //
 
 function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
-  // If close to bottom, create a new page
-  maybeAddNewPage(doc, yPos);
+  // Better approach using ensureContentFits instead of maybeAddNewPage
+  const titleSectionHeight = 15; // Section title height with margin
+  yPos = ensureContentFits(doc, yPos, titleSectionHeight);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
@@ -737,7 +743,6 @@ function addApprovalsTable(
   request: PurchaseRequest,
   startY: number
 ): number {
-  maybeAddNewPage(doc, startY);
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
 
   if (approvals.length === 0) {
@@ -784,6 +789,13 @@ function addApprovalsTable(
     ]);
   }
 
+  // Calculate approximate table height to check page fit
+  const rowHeight = 14; // Approximate height per row in points
+  const tableHeight = (approvals.length * rowHeight) + 30; // Header height + margin
+  
+  // Use our enhanced page fitting method
+  startY = ensureContentFits(doc, startY, tableHeight);
+
   // Calculate approval statistics for summary visualization
   const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
   const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
@@ -806,18 +818,23 @@ function addApprovalsTable(
     columnStyles: {
       0: { fontStyle: 'bold' },
       2: { halign: 'center', cellWidth: 30 },
-      3: { cellWidth: 'auto' },
+      3: { cellWidth: 'auto', overflow: 'linebreak' }, // Ensure comments wrap properly
       4: { halign: 'right', cellWidth: 30 }
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252]
-    }
+    },
+    margin: { top: 15, right: 15, bottom: 15, left: 15 }
   });
   
   // Add a visual approval flow summary with progress indicators
-  const endY = (doc as any).lastAutoTable.finalY + 8;
+  let endY = (doc as any).lastAutoTable.finalY + 8;
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
+  
+  // Check if we need a new page for the approval summary
+  const summaryHeight = 60; // Approximate height for approval summary
+  endY = ensureContentFits(doc, endY, summaryHeight);
   
   // Add the approval flow summary section title
   doc.setFontSize(10);
@@ -942,7 +959,11 @@ function addApprovalsTable(
 // =========== SIGNATURE LINES =========== //
 
 function addSignatureLines(doc: jsPDF, startY: number): number {
-  maybeAddNewPage(doc, startY);
+  // Calculate approximate height needed for signature lines
+  const signatureHeight = 30; // Height needed for signature lines
+  
+  // Use our enhanced page fitting method
+  startY = ensureContentFits(doc, startY, signatureHeight);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
