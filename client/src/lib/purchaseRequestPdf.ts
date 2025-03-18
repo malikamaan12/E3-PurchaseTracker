@@ -470,25 +470,14 @@ function addBasicInfoTable(
 ): number {
   maybeAddNewPage(doc, startY);
 
-  // Enhanced body with requester details
+  // Enhanced body without duplicated requester details, status, and priority
+  // which are already shown in the header section
   const body = [
     [
       { content: 'Title:', styles: { fontStyle: 'bold' } },
       request.title || 'N/A',
-      { content: 'Status:', styles: { fontStyle: 'bold' } },
-      request.status?.toUpperCase() || 'N/A'
-    ],
-    [
-      { content: 'Priority:', styles: { fontStyle: 'bold' } },
-      request.priority?.toUpperCase() || 'N/A',
       { content: 'Date Created:', styles: { fontStyle: 'bold' } },
       formatDate(request.createdAt)
-    ],
-    [
-      { content: 'Requester:', styles: { fontStyle: 'bold' } },
-      request.requester?.username || 'N/A',
-      { content: 'Department:', styles: { fontStyle: 'bold' } },
-      request.requester?.department || 'N/A'
     ],
     [
       { content: 'Description:', styles: { fontStyle: 'bold' } },
