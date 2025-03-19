@@ -364,7 +364,6 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  * This function uses a single consolidated PDF format that eliminates duplicate fields
  * and produces consistent, well-formatted PDFs regardless of user type.
  */
-import { generateEnhancedPDF } from './enhancedPdfGenerator';
 
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   // roleForAudit is only used for logging and analytics purposes, not for content selection
@@ -487,7 +486,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
 /**
  * Export multiple purchase requests to a combined Excel file
  */
-export async function exportMultipleRequestsToExcel(requests: any[]): Promise<string> {
+export async function exportMultipleRequestsToExcel(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
   }
@@ -585,6 +584,31 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
+    // Generate a tracking ID for audit purposes - using the first request ID as reference
+    const referenceId = requests[0]?.id || 0;
+    const trackingId = generatePdfTrackingId(referenceId);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        referenceId,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'bulk_excel',
+          fileName,
+          fileSize: excelBuffer.length,
+          timestamp: new Date().toISOString(),
+          recordCount: requests.length,
+          sheetCount: Object.keys(wb.Sheets || {}).length || 1
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log bulk Excel export audit event:', auditError);
+    }
+    
     const downloadResult = await safeDownload(blob, fileName);
     console.log(`Excel export download result: ${downloadResult ? 'success' : 'failed'}`);
     
@@ -598,7 +622,7 @@ export async function exportMultipleRequestsToExcel(requests: any[]): Promise<st
 /**
  * Export multiple purchase requests to a combined CSV file
  */
-export async function exportMultipleRequestsToCSV(requests: any[]): Promise<string> {
+export async function exportMultipleRequestsToCSV(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
   }
@@ -634,6 +658,31 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
     const fileName = `purchase-requests-export-${timestamp}.csv`;
     const blob = new Blob([finalContent], { type: 'text/csv;charset=utf-8;' });
     
+    // Generate a tracking ID for audit purposes - using the first request ID as reference
+    const referenceId = requests[0]?.id || 0;
+    const trackingId = generatePdfTrackingId(referenceId);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        referenceId,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'bulk_csv',
+          fileName,
+          fileSize: finalContent.length,
+          timestamp: new Date().toISOString(),
+          recordCount: requests.length,
+          fields: Object.keys(formattedRequests[0] || {}).length
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log bulk CSV export audit event:', auditError);
+    }
+    
     const downloadResult = await safeDownload(blob, fileName);
     console.log(`CSV export download result: ${downloadResult ? 'success' : 'failed'}`);
     
@@ -647,7 +696,7 @@ export async function exportMultipleRequestsToCSV(requests: any[]): Promise<stri
 /**
  * Export multiple purchase requests as PDFs in a combined ZIP
  */
-export async function exportMultipleRequestsToPDF(requests: any[]): Promise<string> {
+export async function exportMultipleRequestsToPDF(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
   }
@@ -781,6 +830,31 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
     const fileName = `purchase-requests-pdf-export-${timestamp}.zip`;
     const content = await zip.generateAsync({ type: 'blob' });
     
+    // Generate a tracking ID for audit purposes - using the first request ID as reference
+    const referenceId = requests[0]?.id || 0;
+    const trackingId = generatePdfTrackingId(referenceId);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        referenceId,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'bulk_pdf_zip',
+          fileName,
+          fileSize: content.size,
+          timestamp: new Date().toISOString(),
+          recordCount: requests.length,
+          compressionType: 'zip'
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log bulk PDF export audit event:', auditError);
+    }
+    
     const downloadResult = await safeDownload(content, fileName);
     console.log(`PDF export download result: ${downloadResult ? 'success' : 'failed'}`);
     
@@ -794,7 +868,11 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
 /**
  * Export multiple purchase requests as individual ZIP files in a combined ZIP
  */
-export async function exportMultipleRequestsAsZip(requests: any[], includeAttachments: boolean = true): Promise<string> {
+export async function exportMultipleRequestsAsZip(
+  requests: any[], 
+  includeAttachments: boolean = true, 
+  roleForAudit: 'user' | 'approver' | 'admin' = 'user'
+): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
   }
@@ -966,6 +1044,32 @@ export async function exportMultipleRequestsAsZip(requests: any[], includeAttach
     const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
     const fileName = `purchase-requests-export-${timestamp}.zip`;
     const content = await zip.generateAsync({ type: 'blob' });
+    
+    // Generate a tracking ID for audit purposes - using the first request ID as reference
+    const referenceId = requests[0]?.id || 0;
+    const trackingId = generatePdfTrackingId(referenceId);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        referenceId,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'complete_export_zip',
+          fileName,
+          fileSize: content.size,
+          timestamp: new Date().toISOString(),
+          recordCount: requests.length,
+          includesAttachments: includeAttachments,
+          formatTypes: ['json', 'csv', 'pdf', ...(includeAttachments ? ['attachments'] : [])]
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log complete ZIP export audit event:', auditError);
+    }
     
     const downloadResult = await safeDownload(content, fileName);
     console.log(`ZIP export download result: ${downloadResult ? 'success' : 'failed'}`);
