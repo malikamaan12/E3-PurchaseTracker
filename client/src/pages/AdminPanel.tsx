@@ -35,7 +35,8 @@ import {
   Loader2,
   FileText,
   Settings,
-  Wrench
+  Wrench,
+  ActivitySquare
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -489,16 +490,7 @@ export default function AdminPanel() {
               </div>
             )}
           </TabsTrigger>
-          <TabsTrigger value="diagnostics">
-            {isMobile ? (
-              <Wrench className="h-5 w-5" />
-            ) : (
-              <div className="flex items-center">
-                <Wrench className="h-4 w-4 mr-2" />
-                <span>Diagnostics</span>
-              </div>
-            )}
-          </TabsTrigger>
+
         </TabsList>
 
         {/* Account Requests Tab */}
