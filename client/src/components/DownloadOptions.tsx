@@ -54,7 +54,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: `pdf_${success ? 'downloaded' : 'failed'}`,
+          action: success ? 'pdf_downloaded' : 'pdf_viewed',
           requestId: request.id,
           details: {
             fileType,
