@@ -6,7 +6,7 @@
 
 import { Parser } from '@json2csv/plainjs';
 import { saveAs } from 'file-saver';
-import { logPdfAuditEvent } from './pdfAuditUtils';
+import { logDiagnosticExport } from './exportAuditUtils';
 
 /**
  * Diagnostics result interface
@@ -234,25 +234,12 @@ export async function runCsvExportDiagnostics(testData: Record<string, any>): Pr
     
     // Stage 5: Audit logging test (optional)
     try {
-      // Use a special test ID for diagnostics that's explicitly allowed in our validation
-      const mockRequestId = 999999; // Special diagnostic test ID that's handled by our validation
-      const trackingId = `diagnostics-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      
       console.log('Testing audit logging with special diagnostic ID...');
       
-      const auditResult = await logPdfAuditEvent(
-        mockRequestId,
-        'pdf_downloaded', // We use this consistently across export types
-        {
-          trackingId,
-          exportType: 'csv',
-          fileName: 'diagnostics-test.csv',
-          fileSize: csvContent.length,
-          isDiagnosticTest: true,
-          timestamp: new Date().toISOString(),
-          testType: 'csv-diagnostics'
-        },
-        'admin' // Use admin role for diagnostics
+      // Use our new consolidated audit logging utility for export diagnostics
+      const auditResult = await logDiagnosticExport(
+        'csv', 
+        csvContent.length
       );
       
       if (!auditResult) {

@@ -12,6 +12,14 @@ import {
   exportMultipleRequestsToPDF
 } from '../lib/exportUtils';
 import { runCsvExportDiagnostics, CsvDiagnosticsResult } from '../lib/csvExportDiagnostics';
+import { 
+  validateResourceId, 
+  logExportEvent, 
+  logCsvExport, 
+  logExcelExport, 
+  logZipExport, 
+  logDiagnosticExport 
+} from '../lib/exportAuditUtils';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
