@@ -402,11 +402,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Create a proper export URL with request ID if available
-      const exportUrl = request?.id 
-        ? `/api/requests/export?id=${request.id}&format=csv` 
+      // Ensure ID is passed as a number and properly formatted for API
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      const exportUrl = requestId && !isNaN(requestId) 
+        ? `/api/requests/export?id=${requestId}&format=csv` 
         : `/api/requests/export?format=csv`;
       
-      console.log(`Direct CSV export URL: ${exportUrl}`);
+      console.log(`Direct CSV export URL: ${exportUrl} for request ID: ${requestId}`);
       
       // Fetch CSV file directly from server
       const response = await fetch(exportUrl, {
