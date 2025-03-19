@@ -184,12 +184,23 @@ export default function TestExportPage() {
     vendor: 'Test Vendor Inc.'
   };
 
-  // Test function for CSV export
-  const testCsvExport = () => {
-    addLog('Starting CSV export test...');
+  // Test function for CSV export with unified audit logging
+  const testCsvExport = async () => { // Changed to async for audit logging
+    addLog('Starting CSV export test with unified audit logging...');
     updateTestResult('basic-csv', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(999999); // Special diagnostic ID
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - resource ID failed validation');
+        updateTestResult('basic-csv', 'failed');
+        return;
+      }
+      
       // Create CSV with basic configuration
       const parser = new Parser({
         header: true,
@@ -202,11 +213,34 @@ export default function TestExportPage() {
       
       // Create blob for download
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const fileName = 'test-export.csv';
       
       // Try to force download
       try {
-        saveAs(blob, 'test-export.csv');
+        saveAs(blob, fileName);
         addLog('SaveAs called successfully');
+        
+        // Log the export event
+        try {
+          addLog('Logging CSV export event using unified audit system...');
+          const auditResult = await logCsvExport(
+            validatedId,
+            fileName,
+            blob.size,
+            'admin'
+          );
+          
+          if (auditResult) {
+            addLog('✓ CSV Audit logging successful');
+          } else {
+            addLog('⚠️ CSV Audit logging partial failure (export still succeeded)');
+          }
+        } catch (auditError: any) {
+          addLog(`❌ Error logging CSV export: ${auditError.message || 'Unknown error'}`);
+          console.error('CSV export audit error:', auditError);
+          // Don't fail the test just because of audit logging issues
+        }
+        
         updateTestResult('basic-csv', 'success');
       } catch (saveError: any) {
         addLog(`Error in saveAs function: ${saveError.message || 'Unknown error'}`);
@@ -220,12 +254,23 @@ export default function TestExportPage() {
     }
   };
 
-  // Test function for alternative download method
-  const testAlternativeDownload = () => {
-    addLog('Starting alternative download test...');
+  // Test function for alternative download method with unified audit logging
+  const testAlternativeDownload = async () => { // Changed to async for audit logging
+    addLog('Starting alternative download test with unified audit logging...');
     updateTestResult('basic-alternative', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(999999); // Special diagnostic ID
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - resource ID failed validation');
+        updateTestResult('basic-alternative', 'failed');
+        return;
+      }
+      
       // Create CSV with basic configuration
       const parser = new Parser({
         header: true,
@@ -236,15 +281,38 @@ export default function TestExportPage() {
       addLog('CSV generated successfully');
       
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const fileName = 'test-export-alternative.csv';
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'test-export-alternative.csv';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       addLog('Alternative download method executed');
+      
+      // Log the export event
+      try {
+        addLog('Logging CSV export event using unified audit system...');
+        const auditResult = await logCsvExport(
+          validatedId,
+          fileName,
+          blob.size,
+          'user'
+        );
+        
+        if (auditResult) {
+          addLog('✓ CSV Audit logging successful');
+        } else {
+          addLog('⚠️ CSV Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging CSV export: ${auditError.message || 'Unknown error'}`);
+        console.error('CSV export audit error:', auditError);
+        // Don't fail the test just because of audit logging issues
+      }
+      
       updateTestResult('basic-alternative', 'success');
     } catch (error: any) {
       addLog(`Error in alternative download method: ${error.message || 'Unknown error'}`);
@@ -253,12 +321,23 @@ export default function TestExportPage() {
     }
   };
 
-  // Test function for Excel export
-  const testExcelExport = () => {
-    addLog('Starting Excel export test...');
+  // Test function for Excel export with unified audit logging
+  const testExcelExport = async () => { // Changed to async for audit logging
+    addLog('Starting Excel export test with unified audit logging...');
     updateTestResult('basic-excel', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(999999); // Special diagnostic ID
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - resource ID failed validation');
+        updateTestResult('basic-excel', 'failed');
+        return;
+      }
+      
       // Create a simple workbook
       const wb = XLSX.utils.book_new();
       
@@ -273,6 +352,28 @@ export default function TestExportPage() {
         const fileName = 'test-excel-export.xlsx';
         XLSX.writeFile(wb, fileName);
         addLog('Excel file generated and download initiated');
+        
+        // Log the export event
+        try {
+          addLog('Logging Excel export event using unified audit system...');
+          const auditResult = await logExcelExport(
+            validatedId,
+            fileName,
+            1024 * 5, // Example file size (5KB)
+            'approver'
+          );
+          
+          if (auditResult) {
+            addLog('✓ Excel Audit logging successful');
+          } else {
+            addLog('⚠️ Excel Audit logging partial failure (export still succeeded)');
+          }
+        } catch (auditError: any) {
+          addLog(`❌ Error logging Excel export: ${auditError.message || 'Unknown error'}`);
+          console.error('Excel export audit error:', auditError);
+          // Don't fail the test just because of audit logging issues
+        }
+        
         updateTestResult('basic-excel', 'success');
       } catch (saveError: any) {
         addLog(`Error saving Excel file: ${saveError.message || 'Unknown error'}`);
@@ -457,11 +558,44 @@ export default function TestExportPage() {
     updateTestResult('enhanced-excel', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(mockPurchaseRequest.id);
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - request ID failed validation');
+        updateTestResult('enhanced-excel', 'failed');
+        return;
+      }
+      
       addLog('Using exportRequestToExcel utility...');
       console.log('Mock request data:', mockPurchaseRequest);
       
       const fileName = await exportRequestToExcel(mockPurchaseRequest);
       addLog(`Excel export successful: ${fileName}`);
+      
+      // Log the export event using our specialized Excel export function
+      try {
+        addLog('Logging Excel export event using unified audit system...');
+        const auditResult = await logExcelExport(
+          mockPurchaseRequest.id,
+          fileName,
+          1024 * 3, // Example file size
+          'user'
+        );
+        
+        if (auditResult) {
+          addLog('✓ Excel Audit logging successful');
+        } else {
+          addLog('⚠️ Excel Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging Excel export: ${auditError.message || 'Unknown error'}`);
+        console.error('Excel export audit error:', auditError);
+        // Don't fail the test just because of audit logging issues
+      }
+      
       updateTestResult('enhanced-excel', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced Excel export: ${error.message || 'Unknown error'}`);
