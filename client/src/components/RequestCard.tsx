@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
+import { DownloadOptions } from "@/components/DownloadOptions";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -307,84 +308,9 @@ export default function RequestCard({
     }
   };
 
-  const handleDownloadPDF = async () => {
-    try {
-      toast({
-        description: "Generating PDF...",
-        variant: "default"
-      });
-
-      console.log("Starting PDF export with consolidated format for request #" + request.id);
-
-      // Fetch request data with full details for better PDF generation
-      const response = await fetch(`/api/requests/${request.id}/pdf`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to download PDF');
-      }
-      
-      const jsonData = await response.json();
-      
-      if (!jsonData || !jsonData.data) {
-        throw new Error('Invalid response format from PDF API');
-      }
-      
-      const { data } = jsonData;
-      
-      // Use the consolidated PDF format for all user types
-      console.log("Generating PDF from data using consolidated format...");
-      
-      // Use the user role from props or context instead of calling the hook here
-      // This prevents React hook violations
-      const userRoleForAudit = user?.role === 'admin' ? 'admin' : 
-                    (user?.role === 'approver' ? 'approver' : 'user');
-
-      // Use the streamlined PDF generation with consolidated format
-      const doc = await generateRequestPDF(data, userRoleForAudit);
-      
-      if (!doc) {
-        throw new Error('Failed to generate PDF');
-      }
-
-      doc.save(`${request.requestNumber}.pdf`);
-
-      console.log("PDF export download result: success");
-      toast({
-        title: "Success",
-        description: "PDF downloaded successfully",
-        variant: "default"
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "PDF Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate PDF",
-        variant: "destructive",
-      });
-      
-      // For detailed error analysis, log to console
-      try {
-        const { analyzeExportIssue } = await import('@/services/export-analyzer');
-        const analysis = await analyzeExportIssue(error, {
-          operation: 'pdf_export',
-          requestId: request.id,
-          exportType: 'unified'
-        });
-        
-        console.log('PDF export error analysis:', analysis);
-      } catch (analysisError) {
-        // AI analysis failed, but we already showed error toast
-        console.error('Error analyzing PDF export error:', analysisError);
-      }
-    }
-  };
+  // Removed direct PDF download function to prevent React hooks issues
+  // We'll use the DownloadOptions component instead which is properly implemented
+  // and avoids the React hooks violations
 
   const handleApproval = async (status: "approved" | "rejected" | "changes_requested") => {
     if (!user?.department) {
