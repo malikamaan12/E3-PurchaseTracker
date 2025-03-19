@@ -427,10 +427,25 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Create a proper export URL with request ID if available
-      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      // Ensure we have a valid request ID by doing strict validation
+      let requestId = null;
       
-      // Use the actual request ID from the request object
-      const exportUrl = requestId && !isNaN(requestId)
+      if (request?.id) {
+        // Make sure we have a clean integer
+        const idStr = String(request.id).trim();
+        const parsedId = parseInt(idStr, 10);
+        
+        // Only use if it's a valid positive integer that exactly matches the input
+        if (!isNaN(parsedId) && parsedId > 0 && String(parsedId) === idStr) {
+          requestId = parsedId;
+          console.log(`Valid request ID for export: ${requestId}`);
+        } else {
+          console.warn(`Invalid request ID format: ${idStr}, parsed as: ${parsedId}`);
+        }
+      }
+      
+      // Use the validated request ID for the URL
+      const exportUrl = requestId 
         ? `/api/requests/export?id=${requestId}&format=csv`
         : `/api/requests/export?format=csv`;
       
