@@ -30,13 +30,11 @@ export function createSafeCsvWithBom(data: Record<string, any>[]): Uint8Array {
       throw new Error('Invalid data for CSV export: must be a non-empty array');
     }
     
-    // Use a more robust parser configuration with escape options
+    // Use a more robust parser configuration with specific options
+    // Note: This version of Parser only supports certain options
     const parser = new Parser({
       delimiter: ',',
-      header: true,
-      quote: '"',
-      escape: '"',
-      doubleQuote: true
+      header: true
     });
     
     // Generate CSV
