@@ -1028,12 +1028,53 @@ export async function exportMultipleRequestsAsZip(
           // For each attachment, fetch and add to zip
           for (const attachment of request.attachments) {
             try {
-              const response = await fetch(attachment.fileUrl);
+              // Skip attachments with missing fileUrl
+              if (!attachment.fileUrl) {
+                console.warn(`Skipping attachment with missing URL: ${attachment.fileName}`);
+                
+                // Add a placeholder file explaining the missing attachment
+                const placeholderText = `This attachment (${attachment.fileName}) could not be included because the file URL was missing or invalid.
+File details:
+- Name: ${attachment.fileName}
+- Size: ${attachment.fileSize} bytes
+- Type: ${attachment.fileType}
+- Upload date: ${attachment.uploadedAt || 'Unknown'}`;
+                
+                attachmentsFolder.file(`${attachment.fileName}.missing.txt`, placeholderText);
+                continue;
+              }
+              
+              // Check if the URL is relative (starts with /) or absolute
+              const fileUrl = attachment.fileUrl.startsWith('/') 
+                ? window.location.origin + attachment.fileUrl 
+                : attachment.fileUrl;
+                
+              // Fetch with proper error handling
+              const response = await fetch(fileUrl, { 
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                  'Accept': '*/*',
+                }
+              });
+              
+              if (!response.ok) {
+                throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
+              }
+              
               const blob = await response.blob();
               const arrayBuffer = await blob.arrayBuffer();
               attachmentsFolder.file(attachment.fileName, arrayBuffer);
             } catch (err) {
               console.warn(`Failed to include attachment ${attachment.fileName}:`, err);
+              
+              // Add a placeholder explaining the error
+              const errorText = `This attachment could not be included due to an error.
+File name: ${attachment.fileName}
+Error: ${err instanceof Error ? err.message : String(err)}
+Please download this attachment individually from the request details page.`;
+              
+              attachmentsFolder.file(`${attachment.fileName}.error.txt`, errorText);
             }
           }
         }
