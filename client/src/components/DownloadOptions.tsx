@@ -82,15 +82,16 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         description: "Getting request data for download...",
       });
       
-      // Ensure we're using a valid request ID (we know these exist from the DB query)
-      const validIds = [148, 149, 150, 151, 152, 153, 154, 155, 156, 158]; // Known valid IDs from the database
+      // Get the request ID from the current request
       const requestId = request?.id ? parseInt(String(request.id)) : null;
       
-      // Check if the request ID exists in our valid IDs list
-      const useValidId = requestId && !isNaN(requestId) && validIds.includes(requestId);
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
       
-      // If request ID is not valid, use ID 148 (which we know exists)
-      const useId = useValidId ? requestId : 148;
+      // Use the actual request ID from the current request
+      const useId = requestId;
       
       // Fetch request data with full details
       console.log(`Fetching PDF data for request ${useId}`);
@@ -313,15 +314,16 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         description: "Getting request data for download...",
       });
       
-      // Ensure we're using a valid request ID (we know these exist from the DB query)
-      const validIds = [148, 149, 150, 151, 152, 153, 154, 155, 156, 158]; // Known valid IDs from the database
+      // Get the request ID from the current request
       const requestId = request?.id ? parseInt(String(request.id)) : null;
       
-      // Check if the request ID exists in our valid IDs list
-      const useValidId = requestId && !isNaN(requestId) && validIds.includes(requestId);
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
       
-      // If request ID is not valid, use ID 148 (which we know exists)
-      const useId = useValidId ? requestId : 148;
+      // Use the actual request ID from the current request
+      const useId = requestId;
       
       // Fetch request data with full details
       console.log(`Fetching Excel data for request ${useId}`);
@@ -532,7 +534,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   };
   
   // Original client-side CSV export method as backup
-  const handleCsvDownload = async (exportType: 'basic' | 'items' | 'approvals' | 'all' = 'all') => {
+  const handleCsvDownload = async () => {
     try {
       setIsLoading(true);
       setCurrentExportType('csv');
@@ -541,12 +543,23 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       // Show toast for starting the download process
       toast({
         title: "Preparing CSV",
-        description: `Getting ${exportType} data for download...`,
+        description: "Getting request data for download...",
       });
       
-      // Fetch request data
-      console.log(`Fetching CSV data for request ${request?.id} with type ${exportType}`);
-      const response = await fetch(`/api/requests/${request?.id}`, {
+      // Get the request ID from the current request
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+      
+      // Use the actual request ID from the current request
+      const useId = requestId;
+      
+      // Fetch request data with full details
+      console.log(`Fetching CSV data for request ${useId}`);
+      const response = await fetch(`/api/requests/${useId}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -575,13 +588,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       toast({
         title: "Success",
-        description: `CSV file${exportType === 'all' ? 's' : ''} downloaded successfully`
+        description: "CSV file downloaded successfully"
       });
     } catch (error) {
       console.error('Error downloading CSV:', error);
       setExportError(error instanceof Error ? error.message : "Failed to download CSV file");
       
-      // If client-side method fails, try the direct export 
+      // If client-side method fails, try the direct export
       console.log('Client-side CSV export failed, trying direct export...');
       try {
         await handleDirectCsvExport();
@@ -598,7 +611,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       const quickDiagnosis = quickDiagnoseExportError(error, {
         operation: 'csv_export',
         entityType: 'request',
-        dataSize: request?.items?.length || 0
+        dataSize: request?.attachments?.length || 0
       });
       
       // Show toast with quick diagnosis
@@ -614,7 +627,6 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         const analysis = await analyzeExportIssue(error, {
           operation: 'csv_export',
           requestId: request?.id,
-          exportFormat: exportType
         });
         
         console.log('CSV export error analysis:', analysis);
@@ -631,9 +643,9 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       setIsLoading(false);
     }
   };
-
+  
   // Handle ZIP download
-  const handleZipDownload = async (includeAttachments: boolean = true) => {
+  const handleZipDownload = async () => {
     try {
       setIsLoading(true);
       setCurrentExportType('zip');
@@ -642,12 +654,23 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       // Show toast for starting the download process
       toast({
         title: "Preparing ZIP",
-        description: `Getting request data${includeAttachments ? ' and attachments' : ''}...`,
+        description: "Getting request data for download...",
       });
       
-      // Fetch request data with attachments
-      console.log(`Fetching ZIP data for request ${request.id}, includeAttachments: ${includeAttachments}`);
-      const response = await fetch(`/api/requests/${request.id}/zip?includeAttachments=${includeAttachments}`, {
+      // Get the request ID from the current request
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+      
+      // Use the actual request ID from the current request
+      const useId = requestId;
+      
+      // Fetch request data with full details
+      console.log(`Fetching ZIP data for request ${useId}`);
+      const response = await fetch(`/api/requests/${useId}/zip`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -657,32 +680,45 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to download ZIP');
+        throw new Error(errorData.message || 'Failed to download ZIP archive');
       }
       
-      const jsonData = await response.json();
-      console.log('ZIP API response structure:', Object.keys(jsonData));
+      const data = await response.json();
+      console.log('ZIP API response structure:', Object.keys(data));
       
-      if (!jsonData || !jsonData.data) {
-        throw new Error('Invalid response format from ZIP API');
+      if (!data) {
+        throw new Error('Invalid response format from request API');
       }
       
-      const { data } = jsonData;
+      // Extract ZIP URL
+      const zipUrl = data.url;
+      if (!zipUrl) {
+        throw new Error('No ZIP URL returned from server');
+      }
       
-      // Generate and download ZIP
-      console.log('Generating ZIP from data...');
-      await exportMultipleRequestsAsZip([data], includeAttachments);
+      // Create an anchor element to trigger download
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = zipUrl;
+      a.download = `Purchase_Request_${request.requestNumber || request.id}_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 100);
       
       // Track successful download
       await trackDownload('zip', true);
       
       toast({
         title: "Success",
-        description: `ZIP file ${includeAttachments ? 'with attachments ' : ''}downloaded successfully`
+        description: "ZIP file downloaded successfully"
       });
     } catch (error) {
       console.error('Error downloading ZIP:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download ZIP file");
+      setExportError(error instanceof Error ? error.message : "Failed to download ZIP archive");
       
       // Track failed download
       await trackDownload('zip', false);
@@ -691,7 +727,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       const quickDiagnosis = quickDiagnoseExportError(error, {
         operation: 'zip_export',
         entityType: 'request',
-        dataSize: request.attachments?.length || 0
+        dataSize: request?.attachments?.length || 0
       });
       
       // Show toast with quick diagnosis
@@ -707,15 +743,17 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         const analysis = await analyzeExportIssue(error, {
           operation: 'zip_export',
           requestId: request.id,
-          exportType: 'unified', // Using unified export type for all roles
-          includeAttachments
         });
         
         console.log('ZIP export error analysis:', analysis);
         
-        // Log the solutions to console for developers
-        if (analysis.fixes?.immediate?.length > 0) {
-          console.info('Suggested fixes for ZIP export issue:', analysis.fixes.immediate);
+        // If the analysis offers more insight than quick diagnosis, show it
+        if (analysis.issue.description !== quickDiagnosis.message) {
+          toast({
+            title: "Export Error Analysis",
+            description: analysis.issue.description,
+            variant: "destructive",
+          });
         }
       } catch (analysisError) {
         // AI analysis failed but we already showed quick diagnosis
@@ -726,196 +764,112 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
     }
   };
   
-  if (compact) {
-    // Single button with dropdown menu for compact layout
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Downloading...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </>
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => handlePdfDownload()}>
-            <FileText className="mr-2 h-4 w-4" />
-            <span>Download as PDF</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleDirectExcelExport()}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            <span>Download as Excel</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleDirectCsvExport()}>
-            <Table className="mr-2 h-4 w-4" />
-            <span>Download as CSV</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleZipDownload(true)}>
-            <FileArchive className="mr-2 h-4 w-4" />
-            <span>Download as ZIP with attachments</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleZipDownload(false)}>
-            <FileArchive className="mr-2 h-4 w-4" />
-            <span>Download as ZIP (data only)</span>
-          </DropdownMenuItem>
-          
-          {/* Admin-only option for all CSV data */}
-          {user?.role === 'admin' && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleCsvDownload('all')}>
-                <Table className="mr-2 h-4 w-4" />
-                <span>Download All CSV Data</span>
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-  
-  // Full layout with separate buttons
   return (
-    <div className="flex flex-col gap-2 sm:flex-row flex-wrap">
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => handlePdfDownload()}
-        disabled={isLoading}
-      >
-        {isLoading && currentExportType === 'pdf' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FileText className="mr-2 h-4 w-4" />
-        )}
-        PDF
-      </Button>
+    <div className="flex flex-col space-y-4">
+      {exportError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {exportError}
+          </AlertDescription>
+        </Alert>
+      )}
       
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => handleDirectExcelExport()}
-        disabled={isLoading}
-      >
-        {isLoading && currentExportType === 'excel' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-        )}
-        Excel
-      </Button>
-      
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => handleDirectCsvExport()}
-        disabled={isLoading}
-      >
-        {isLoading && currentExportType === 'csv' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Table className="mr-2 h-4 w-4" />
-        )}
-        CSV
-      </Button>
-      
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => handleZipDownload(true)}
-        disabled={isLoading}
-      >
-        {isLoading && currentExportType === 'zip' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FileArchive className="mr-2 h-4 w-4" />
-        )}
-        ZIP
-      </Button>
-      
-      {/* For admin, show a dropdown with all options */}
-      {user?.role === 'admin' && (
+      {compact ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm"
-              disabled={isLoading}
-            >
+            <Button variant="outline" size="sm" className="w-full">
               {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Exporting {currentExportType}...
+                </>
               ) : (
-                <FileDown className="mr-2 h-4 w-4" />
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </>
               )}
-              More Options
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => handlePdfDownload()}>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handlePdfDownload} disabled={isLoading}>
               <FileText className="mr-2 h-4 w-4" />
-              <span>Download PDF</span>
+              <span>PDF Document</span>
             </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => handleExcelDownload(true)}>
+            <DropdownMenuItem onClick={() => handleDirectExcelExport()} disabled={isLoading}>
               <FileSpreadsheet className="mr-2 h-4 w-4" />
-              <span>Download Excel (with details)</span>
+              <span>Excel File</span>
             </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handleExcelDownload(false)}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              <span>Download Excel (basic)</span>
+            <DropdownMenuItem onClick={() => handleDirectCsvExport()} disabled={isLoading}>
+              <Table className="mr-2 h-4 w-4" />
+              <span>CSV File</span>
             </DropdownMenuItem>
-            
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => handleCsvDownload('basic')}>
-              <Table className="mr-2 h-4 w-4" />
-              <span>Download Basic CSV</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handleCsvDownload('items')}>
-              <Table className="mr-2 h-4 w-4" />
-              <span>Download Items CSV</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handleCsvDownload('approvals')}>
-              <Table className="mr-2 h-4 w-4" />
-              <span>Download Approvals CSV</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handleCsvDownload('all')}>
-              <Table className="mr-2 h-4 w-4" />
-              <span>Download All CSV Data</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => handleZipDownload(false)}>
+            <DropdownMenuItem onClick={handleZipDownload} disabled={isLoading}>
               <FileArchive className="mr-2 h-4 w-4" />
-              <span>Download ZIP (data only)</span>
+              <span>ZIP (All Files)</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePdfDownload}
+            disabled={isLoading}
+          >
+            {isLoading && currentExportType === 'pdf' ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="mr-2 h-4 w-4" />
+            )}
+            PDF
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDirectExcelExport()}
+            disabled={isLoading}
+          >
+            {isLoading && currentExportType === 'excel' ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+            )}
+            Excel
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDirectCsvExport()}
+            disabled={isLoading}
+          >
+            {isLoading && currentExportType === 'csv' ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Table className="mr-2 h-4 w-4" />
+            )}
+            CSV
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleZipDownload}
+            disabled={isLoading}
+          >
+            {isLoading && currentExportType === 'zip' ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileArchive className="mr-2 h-4 w-4" />
+            )}
+            ZIP
+          </Button>
+        </div>
       )}
     </div>
   );
