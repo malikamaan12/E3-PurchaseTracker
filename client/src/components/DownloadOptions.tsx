@@ -184,11 +184,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Create a proper export URL with request ID if available
-      const exportUrl = request?.id 
-        ? `/api/requests/export?id=${request.id}&format=xlsx` 
+      // Ensure ID is passed as a number and properly formatted for API
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      const exportUrl = requestId && !isNaN(requestId)
+        ? `/api/requests/export?id=${requestId}&format=xlsx` 
         : `/api/requests/export?format=xlsx`;
       
-      console.log(`Direct Excel export URL: ${exportUrl}`);
+      console.log(`Direct Excel export URL: ${exportUrl} for request ID: ${requestId}`);
       
       // Fetch Excel file directly from server
       const response = await fetch(exportUrl, {

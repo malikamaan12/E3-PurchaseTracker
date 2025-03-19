@@ -5143,19 +5143,27 @@ export function registerRoutes(app: Express): Server {
       // Check if we're exporting a specific request or all requests
       let requestId = null;
       
-      // More robust ID validation with detailed logging
+      // Enhanced robust ID validation with detailed logging
       if (req.query.id && req.query.id !== 'undefined' && req.query.id !== 'null') {
         console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}"`);
         const idString = req.query.id as string;
-        const idValue = parseInt(idString);
         
-        // Only set requestId if it's a valid positive number
-        if (!isNaN(idValue) && idValue > 0) {
-          requestId = idValue;
-          console.log(`[GET /api/requests/export] Valid request ID: ${requestId}`);
-        } else {
-          console.log(`[GET /api/requests/export] Invalid request ID format: "${idString}", parsed as: ${idValue}`);
-          throw new ValidationError('Invalid request ID', { id: `"${idString}" is not a valid positive number` });
+        // Try to parse as integer with more strict validation
+        let idValue: number;
+        try {
+          idValue = parseInt(idString.trim());
+          
+          // Only set requestId if it's a valid positive number
+          if (!isNaN(idValue) && idValue > 0 && String(idValue) === idString.trim()) {
+            requestId = idValue;
+            console.log(`[GET /api/requests/export] Valid request ID: ${requestId}`);
+          } else {
+            console.log(`[GET /api/requests/export] Invalid request ID format: "${idString}", parsed as: ${idValue}`);
+            throw new ValidationError('Invalid request ID', { id: `"${idString}" is not a valid positive number` });
+          }
+        } catch (parseError) {
+          console.log(`[GET /api/requests/export] Error parsing ID: "${idString}", error:`, parseError);
+          throw new ValidationError('Invalid request ID format', { id: `"${idString}" cannot be parsed as a number` });
         }
       } else {
         // If no ID provided or it's 'undefined'/'null', we'll export all requests
