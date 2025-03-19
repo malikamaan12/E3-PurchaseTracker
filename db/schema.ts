@@ -693,7 +693,8 @@ export const vendorPerformanceRelations = relations(vendorPerformance, ({one, ma
 }))
 
 // Update AuditAction type to include PDF operations
-export type AuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed';
+export type AuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 
+  'csv_downloaded' | 'excel_downloaded' | 'zip_downloaded' | 'pdf_analyzed';
 
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),

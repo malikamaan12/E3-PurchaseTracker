@@ -4475,11 +4475,22 @@ export function registerRoutes(app: Express): Server {
         }
   
         // Validate action type
-        const validActions = ['pdf_viewed', 'pdf_downloaded', 'pdf_generated'];
+        const validActions = [
+          'pdf_viewed', 'pdf_downloaded', 'pdf_generated',
+          'csv_downloaded', 'excel_downloaded', 'zip_downloaded'
+        ];
         if (!validActions.includes(action)) {
-          return next(new ValidationError('Invalid action', {
-            action: [`Action must be one of: ${validActions.join(', ')}`]
-          }));
+          // Special case for backward compatibility:
+          // If action doesn't match exactly but details indicate export type, accept it with warning
+          if (action === 'pdf_downloaded' && details.exportType && 
+              ['csv', 'excel', 'zip'].includes(details.exportType)) {
+            console.log(`[Audit] Legacy format detected - using pdf_downloaded with exportType: ${details.exportType}`);
+            // Continue with the request using pdf_downloaded as the action
+          } else {
+            return next(new ValidationError('Invalid action', {
+              action: [`Action must be one of: ${validActions.join(', ')}`]
+            }));
+          }
         }
         
         // Enhanced request ID validation
@@ -4525,19 +4536,40 @@ export function registerRoutes(app: Express): Server {
           return next(validationError);
         }
   
-        // Log the PDF event with validated ID
+        // Determine resource type from action
+        let resourceType = 'purchase_request';
+        
+        // Update action log message for clarity
+        let actionDescription = '';
+        
+        if (action.startsWith('pdf_')) {
+          actionDescription = 'PDF ' + action.replace('pdf_', '');
+        } else if (action.startsWith('csv_')) {
+          actionDescription = 'CSV ' + action.replace('csv_', '');
+          resourceType = 'csv_export';
+        } else if (action.startsWith('excel_')) {
+          actionDescription = 'Excel ' + action.replace('excel_', '');
+          resourceType = 'excel_export';
+        } else if (action.startsWith('zip_')) {
+          actionDescription = 'ZIP ' + action.replace('zip_', '');
+          resourceType = 'zip_export';
+        }
+        
+        // Log the export event with validated ID
         await logAuditEvent(req, {
           userId: req.user!.id,
           action: action as AuditAction,
           resourceId: validatedRequestId,
-          resourceType: 'purchase_request',
+          resourceType: resourceType,
           details: {
             timestamp: new Date().toISOString(),
+            exportFormat: action.split('_')[0],
+            actionType: action.split('_')[1] || 'unknown',
             ...details
           }
         });
   
-        debug(req, `PDF audit logged: ${action} for request ${validatedRequestId}`);
+        debug(req, `Export audit logged: ${actionDescription} for request ${validatedRequestId}`);
         return res.json({ success: true });
       }
     } catch (error) {

@@ -358,8 +358,11 @@ export default function TestExportPage() {
           addLog('Logging Excel export event using unified audit system...');
           const auditResult = await logExcelExport(
             validatedId,
-            fileName,
-            1024 * 5, // Example file size (5KB)
+            {
+              fileName: fileName,
+              fileSize: 1024 * 5, // Example file size (5KB)
+              exportType: 'test'
+            },
             'approver'
           );
           
