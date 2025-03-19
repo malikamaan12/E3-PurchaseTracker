@@ -341,8 +341,8 @@ export default function RequestCard({
       // Use the consolidated PDF format for all user types
       console.log("Generating PDF from data using consolidated format...");
       
-      // For audit logging only, determine user role
-      const { user } = useUser();
+      // Use the user role from props or context instead of calling the hook here
+      // This prevents React hook violations
       const userRoleForAudit = user?.role === 'admin' ? 'admin' : 
                     (user?.role === 'approver' ? 'approver' : 'user');
 
