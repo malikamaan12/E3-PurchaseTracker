@@ -4464,12 +4464,13 @@ export function registerRoutes(app: Express): Server {
         }
       } else {
         // This is a regular audit logging request
-        const { action, requestId } = req.body;
+        const { action, requestId, details = {} } = req.body;
   
-        if (!action || !requestId) {
+        // Basic validation
+        if (!action || requestId === undefined) {
           return next(new ValidationError('Invalid input', {
             action: !action ? ['Action is required'] : [],
-            requestId: !requestId ? ['Request ID is required'] : []
+            requestId: requestId === undefined ? ['Request ID is required'] : []
           }));
         }
   
@@ -4480,19 +4481,63 @@ export function registerRoutes(app: Express): Server {
             action: [`Action must be one of: ${validActions.join(', ')}`]
           }));
         }
+        
+        // Enhanced request ID validation
+        let validatedRequestId: number | null = null;
+        console.log(`[PDF Audit] Validating request ID: ${requestId} (type: ${typeof requestId})`);
+        
+        try {
+          // Handle different types of input
+          if (requestId === null) {
+            throw new ValidationError('RequestId cannot be null', { requestId: ['RequestId cannot be null'] });
+          }
+          
+          // Convert to number if string
+          const parsedId = typeof requestId === 'string' ? parseInt(requestId.trim(), 10) : requestId;
+          
+          // Ensure it's a valid number
+          if (isNaN(Number(parsedId))) {
+            throw new ValidationError('RequestId must be a valid number', { 
+              requestId: [`"${requestId}" is not a valid number`] 
+            });
+          }
+          
+          // Ensure it's positive
+          if (Number(parsedId) <= 0) {
+            throw new ValidationError('RequestId must be a positive number', { 
+              requestId: [`Value ${parsedId} is not a positive number`] 
+            });
+          }
+          
+          validatedRequestId = Number(parsedId);
+          
+          // Check if request exists (optional validation)
+          const requestExists = await db.query.purchaseRequests.findFirst({
+            where: eq(purchaseRequests.id, validatedRequestId)
+          });
+          
+          if (!requestExists) {
+            console.warn(`[PDF Audit] Warning: Request ID ${validatedRequestId} does not exist in database`);
+            // We log the warning but still proceed - this is to handle legitimate PDF views of deleted requests
+          }
+        } catch (validationError) {
+          console.error(`[PDF Audit] Request ID validation error:`, validationError);
+          return next(validationError);
+        }
   
-        // Log the PDF event
+        // Log the PDF event with validated ID
         await logAuditEvent(req, {
           userId: req.user!.id,
           action: action as AuditAction,
-          resourceId: requestId,
+          resourceId: validatedRequestId,
           resourceType: 'purchase_request',
           details: {
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            ...details
           }
         });
   
-        debug(req, `PDF audit logged: ${action} for request ${requestId}`);
+        debug(req, `PDF audit logged: ${action} for request ${validatedRequestId}`);
         return res.json({ success: true });
       }
     } catch (error) {

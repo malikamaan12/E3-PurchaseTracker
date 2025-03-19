@@ -5,9 +5,9 @@
  * resource IDs before logging audit events.
  */
 
-const { db } = require('./db');
-const { auditLogs } = require('./db/schema');
-const { eq } = require('drizzle-orm');
+import { db } from './db/index.js';
+import { auditLogs } from './db/schema.js';
+import { eq } from 'drizzle-orm';
 
 /**
  * Main function to fix audit logging resource ID validation issues
@@ -78,17 +78,15 @@ async function fixAuditResourceIdValidation() {
   }
 }
 
-// Run the function if this script is executed directly
-if (require.main === module) {
-  fixAuditResourceIdValidation()
-    .then(() => {
-      console.log('Audit validation fix script completed.');
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('Error running audit validation fix script:', error);
-      process.exit(1);
-    });
-}
+// Run the script directly
+fixAuditResourceIdValidation()
+  .then(() => {
+    console.log('Audit validation fix script completed.');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('Error running audit validation fix script:', error);
+    process.exit(1);
+  });
 
-module.exports = { fixAuditResourceIdValidation };
+export { fixAuditResourceIdValidation };
