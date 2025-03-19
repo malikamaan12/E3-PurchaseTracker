@@ -168,7 +168,8 @@ function getApprovalSummary(request: any): string {
 /**
  * Export a purchase request to CSV format
  */
-export async function exportRequestToCSV(request: any): Promise<string> {
+
+export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting CSV export for request #${request.id}`);
     const formattedRequest = formatRequestForExport(request);
@@ -199,6 +200,28 @@ export async function exportRequestToCSV(request: any): Promise<string> {
     // Create a blob with the BOM-prefixed content
     const blob = new Blob([finalContent], { type: 'text/csv;charset=utf-8;' });
     
+    // Generate a tracking ID for audit purposes
+    const trackingId = generatePdfTrackingId(request.id);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        request.id,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'csv',
+          fileName,
+          fileSize: finalContent.length,
+          timestamp: new Date().toISOString()
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log CSV export audit event:', auditError);
+    }
+    
     const downloadResult = await safeDownload(blob, fileName);
     console.log(`CSV export download result: ${downloadResult ? 'success' : 'failed'}`);
     
@@ -212,7 +235,7 @@ export async function exportRequestToCSV(request: any): Promise<string> {
 /**
  * Export a purchase request to Excel format with multiple sheets
  */
-export async function exportRequestToExcel(request: any): Promise<string> {
+export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting Excel export for request #${request.id}`);
     
@@ -301,6 +324,29 @@ export async function exportRequestToExcel(request: any): Promise<string> {
     const fileName = `purchase-request-${request.id}-${timestamp}.xlsx`;
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Generate a tracking ID for audit purposes
+    const trackingId = generatePdfTrackingId(request.id);
+    
+    // Log the export for audit tracking purposes
+    try {
+      await logPdfAuditEvent(
+        request.id,
+        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        {
+          trackingId,
+          exportType: 'excel',
+          fileName,
+          fileSize: excelBuffer.length,
+          timestamp: new Date().toISOString(),
+          sheetCount: Object.keys(wb.Sheets || {}).length || 1
+        },
+        roleForAudit
+      );
+    } catch (auditError) {
+      // Don't block export if audit logging fails
+      console.error('Failed to log Excel export audit event:', auditError);
+    }
     
     const downloadResult = await safeDownload(blob, fileName);
     console.log(`Excel export download result: ${downloadResult ? 'success' : 'failed'}`);

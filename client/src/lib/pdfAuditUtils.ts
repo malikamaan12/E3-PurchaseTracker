@@ -63,8 +63,9 @@ export async function logPdfAuditEvent(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        requestId: validatedRequestId,
+        requestId: validatedRequestId,  // Server expects requestId parameter
         action,
+        type,
         details: auditDetails,
       }),
     });
