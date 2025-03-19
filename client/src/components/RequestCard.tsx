@@ -945,13 +945,8 @@ export default function RequestCard({
                 </AlertDialogContent>
               </AlertDialog>
 
-              <Button
-                variant="outline"
-                className="bg-blue-50 text-blue-600 hover:bg-blue-100"
-                onClick={handleDownloadPDF}
-              >
-                <FileText className="h-4 w-4 mr2" /> Download PDF
-              </Button>
+              {/* Using DownloadOptions component instead of direct PDF button to avoid React hooks violations */}
+              <DownloadOptions request={request} />
 
               <Button
                 onClick={handleEdit}
