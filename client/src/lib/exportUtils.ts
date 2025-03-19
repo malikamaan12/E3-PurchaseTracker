@@ -347,13 +347,13 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     // Generate the PDF document using our consolidated format that works for all user types
     const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
     const doc = await generatePurchaseRequestPDF(request, {
-      // The type parameter is only used for audit logging, the PDF format is the same for all types
-      type,
+      // The roleForAudit parameter is only used for audit logging, the PDF format is the same for all roles
+      type: roleForAudit, // Passing role for audit purposes only
       // Our consolidated format always includes these sections with no duplicates
       showApprovals: true,
       showAttachments: true,
       // Still preserve the signature lines logic for appropriate roles
-      showSignatures: type === 'admin' || type === 'approver',
+      showSignatures: roleForAudit === 'admin' || roleForAudit === 'approver',
       headerImage: pdfSettings?.headerImage || null,
       footerImage: pdfSettings?.footerImage || null,
       headerColor: validatedSettings.headerColor,
@@ -385,13 +385,13 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         'pdf_downloaded', 
         {
           trackingId,
-          pdfType: type,
+          pdfType: roleForAudit,
           securityLevel: validatedSettings.securityLevel || 'internal',
           fileName,
           fileSize: pdfOutput.size,
           timestamp: new Date().toISOString()
         },
-        type
+        roleForAudit // This is only for audit purposes
       );
       
       // Now perform the actual download
