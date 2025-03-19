@@ -17,7 +17,6 @@ import {
   logExportEvent, 
   logCsvExport, 
   logExcelExport,
-  logPdfExport,
   logZipExport,
   logDiagnosticExport
 } from '../lib/exportAuditUtils';
@@ -307,6 +306,31 @@ export default function TestExportPage() {
       const adminFileName = await exportRequestToPDF(mockPurchaseRequest, 'admin');
       addLog(`Admin PDF export successful: ${adminFileName}`);
       
+      // Log PDF export using the general logExportEvent function since there's no specific PDF export log function
+      try {
+        addLog('Logging PDF export event using unified audit system...');
+        const auditResult = await logExportEvent(
+          mockPurchaseRequest.id,
+          'pdf',
+          {
+            fileName: adminFileName,
+            fileSize: 1024 * 5, // Example file size
+            exportType: 'consolidated'
+          },
+          'admin'
+        );
+        
+        if (auditResult) {
+          addLog('✓ PDF Audit logging successful');
+        } else {
+          addLog('⚠️ PDF Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging PDF export: ${auditError.message || 'Unknown error'}`);
+        console.error('PDF export audit error:', auditError);
+        // Don't fail the test just because of audit logging issues
+      }
+      
       addLog('All PDF types use the same consolidated format with no duplicate fields');
       updateTestResult('enhanced-pdf', 'success');
     } catch (error: any) {
@@ -513,9 +537,42 @@ export default function TestExportPage() {
     updateTestResult('enhanced-zip', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(mockPurchaseRequest.id);
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - request ID failed validation');
+        updateTestResult('enhanced-zip', 'failed');
+        return;
+      }
+      
       addLog('Using exportMultipleRequestsAsZip utility...');
       const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], true);
       addLog(`ZIP export successful: ${fileName}`);
+      
+      // Log the export event using our specialized zip export function
+      try {
+        addLog('Logging ZIP export event using unified audit system...');
+        const auditResult = await logZipExport(
+          mockPurchaseRequest.id,
+          fileName,
+          1024 * 10, // Example file size
+          'admin'
+        );
+        
+        if (auditResult) {
+          addLog('✓ ZIP Audit logging successful');
+        } else {
+          addLog('⚠️ ZIP Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging ZIP export: ${auditError.message || 'Unknown error'}`);
+        console.error('ZIP export audit error:', auditError);
+        // Don't fail the test just because of audit logging issues
+      }
+      
       updateTestResult('enhanced-zip', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced ZIP export: ${error.message || 'Unknown error'}`);
