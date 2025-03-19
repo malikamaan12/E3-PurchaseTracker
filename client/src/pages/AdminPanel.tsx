@@ -469,6 +469,16 @@ export default function AdminPanel() {
               </div>
             )}
           </TabsTrigger>
+          <TabsTrigger value="diagnostics">
+            {isMobile ? (
+              <ActivitySquare className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <ActivitySquare className="h-4 w-4 mr-2" />
+                <span>Diagnostics</span>
+              </div>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="department-analytics">
             {isMobile ? (
               <BarChart className="h-5 w-5" />
@@ -1037,6 +1047,21 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <PDFSettingsPanel />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Diagnostics Tab */}
+        <TabsContent value="diagnostics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Export Diagnostics</CardTitle>
+              <CardDescription>
+                Test and diagnose export functionality and audit logging
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TestExportPage />
             </CardContent>
           </Card>
         </TabsContent>
