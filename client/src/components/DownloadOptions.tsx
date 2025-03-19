@@ -70,22 +70,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
     }
   };
   
-  // Handle PDF download
-  const handlePdfDownload = async (type: 'user' | 'approver' | 'admin' = 'user') => {
+  // Handle unified PDF download - type is only used for audit logging
+  const handlePdfDownload = async () => {
     try {
       setIsLoading(true);
-      setCurrentExportType(type === 'admin' ? 'pdf-admin' : type === 'approver' ? 'pdf-approver' : 'pdf');
+      setCurrentExportType('pdf');
       setExportError(null);
-      
-      // Only allow admin to download admin PDF
-      if (type === 'admin' && user?.role !== 'admin') {
-        throw new Error('You do not have permission to download this report');
-      }
-      
-      // Only allow approver or admin to download approver PDF
-      if (type === 'approver' && !['approver', 'admin'].includes(user?.role || '')) {
-        throw new Error('You do not have permission to download this report');
-      }
       
       // Show toast for starting the download process
       toast({
@@ -94,8 +84,8 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Fetch request data with full details
-      console.log(`Fetching PDF data for request ${request.id} with type ${type}`);
-      const response = await fetch(`/api/requests/${request.id}/pdf?type=${type}`, {
+      console.log(`Fetching PDF data for request ${request.id}`);
+      const response = await fetch(`/api/requests/${request.id}/pdf`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -117,9 +107,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       
       const { data } = jsonData;
       
-      // Generate and download PDF
+      // Use the consolidated PDF format that works for all user types
       console.log('Generating PDF from data...');
-      await exportRequestToPDF(data, type);
+      // Use the user role for audit logging purposes only
+      const userType = user?.role === 'admin' ? 'admin' : 
+                      (user?.role === 'approver' ? 'approver' : 'user');
+      await exportRequestToPDF(data, userType);
       
       // Track successful download
       await trackDownload('pdf', true);
@@ -155,7 +148,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         const analysis = await analyzeExportIssue(error, {
           operation: 'pdf_export',
           requestId: request.id,
-          exportType: type
+          exportType: 'unified'
         });
         
         console.log('PDF export error analysis:', analysis);
@@ -732,7 +725,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => handlePdfDownload('user')}>
+          <DropdownMenuItem onClick={() => handlePdfDownload()}>
             <FileText className="mr-2 h-4 w-4" />
             <span>Download as PDF</span>
           </DropdownMenuItem>
@@ -759,24 +752,9 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
             <span>Download as ZIP (data only)</span>
           </DropdownMenuItem>
           
-          {/* Show approver option for approvers and admins */}
-          {['approver', 'admin'].includes(user?.role || '') && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handlePdfDownload('approver')}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>Download Approver PDF</span>
-              </DropdownMenuItem>
-            </>
-          )}
-          
-          {/* Show admin option for admins only */}
+          {/* Admin-only option for all CSV data */}
           {user?.role === 'admin' && (
             <>
-              <DropdownMenuItem onClick={() => handlePdfDownload('admin')}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>Download Admin PDF</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleCsvDownload('all')}>
                 <Table className="mr-2 h-4 w-4" />
@@ -795,7 +773,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       <Button 
         variant="outline" 
         size="sm" 
-        onClick={() => handlePdfDownload(userType)}
+        onClick={() => handlePdfDownload()}
         disabled={isLoading}
       >
         {isLoading && currentExportType === 'pdf' ? (
@@ -866,19 +844,9 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => handlePdfDownload('user')}>
+            <DropdownMenuItem onClick={() => handlePdfDownload()}>
               <FileText className="mr-2 h-4 w-4" />
-              <span>Download User PDF</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handlePdfDownload('approver')}>
-              <FileText className="mr-2 h-4 w-4" />
-              <span>Download Approver PDF</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => handlePdfDownload('admin')}>
-              <FileText className="mr-2 h-4 w-4" />
-              <span>Download Admin PDF</span>
+              <span>Download PDF</span>
             </DropdownMenuItem>
             
             <DropdownMenuSeparator />

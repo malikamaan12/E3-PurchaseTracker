@@ -2653,27 +2653,12 @@ export function registerRoutes(app: Express): Server {
   // app.get("/api/branding", ...); // Removed
   // app.post("/api/branding", ...); // Removed
   
-  // PDF download API endpoint
+  // PDF download API endpoint - Consolidated format
   app.get("/api/requests/:id/pdf", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requestId = parseInt(req.params.id);
-      const { type = 'user', preview = false } = req.query;
+      const { preview = false } = req.query;
       const isPreview = preview === 'true';
-      
-      // Validate request type
-      if (type && !['user', 'approver', 'admin'].includes(type as string)) {
-        throw new ValidationError("Invalid request type. Must be 'user', 'approver', or 'admin'");
-      }
-      
-      // Only admins can access admin reports
-      if (type === 'admin' && req.user?.role !== 'admin') {
-        throw new AuthorizationError("You do not have permission to access admin reports");
-      }
-      
-      // Only approvers or admins can access approver reports
-      if (type === 'approver' && !['approver', 'admin'].includes(req.user?.role || '')) {
-        throw new AuthorizationError("You do not have permission to access approver reports");
-      }
       
       // Fetch the request with all related data
       const request = await db
@@ -2725,7 +2710,7 @@ export function registerRoutes(app: Express): Server {
             action: 'pdf_downloaded',
             resourceId: requestId,
             resourceType: 'purchase_request',
-            details: { reportType: type }
+            details: { reportType: 'consolidated' }
           });
         } catch (auditError) {
           console.warn('Failed to log PDF audit event:', auditError);
@@ -2746,26 +2731,11 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-  // ZIP download API endpoint for a single request with attachments
+  // ZIP download API endpoint for a single request with attachments - Consolidated format
   app.get("/api/requests/:id/zip", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const requestId = parseInt(req.params.id);
-      const { includeAttachments = 'true', type = 'user' } = req.query;
-      
-      // Validate request type
-      if (type && !['user', 'approver', 'admin'].includes(type as string)) {
-        throw new ValidationError("Invalid request type. Must be 'user', 'approver', or 'admin'");
-      }
-      
-      // Only admins can access admin reports
-      if (type === 'admin' && req.user?.role !== 'admin') {
-        throw new AuthorizationError("You do not have permission to access admin reports");
-      }
-      
-      // Only approvers or admins can access approver reports
-      if (type === 'approver' && !['approver', 'admin'].includes(req.user?.role || '')) {
-        throw new AuthorizationError("You do not have permission to access approver reports");
-      }
+      const { includeAttachments = 'true' } = req.query;
       
       // Fetch the request with all related data
       const request = await db
