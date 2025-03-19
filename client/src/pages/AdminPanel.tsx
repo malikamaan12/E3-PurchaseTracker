@@ -4,6 +4,7 @@ import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
 import PDFSettingsPanel from "@/components/PDFSettingsPanel";
+import TestExportPage from "@/pages/TestExportPage";
 import {
   Card,
   CardContent,
@@ -33,7 +34,8 @@ import {
   Trash2,
   Loader2,
   FileText,
-  Settings
+  Settings,
+  Wrench
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -416,7 +418,7 @@ export default function AdminPanel() {
       </Button>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="users">
             {isMobile ? (
               <Users className="h-5 w-5" />
@@ -474,6 +476,16 @@ export default function AdminPanel() {
               <div className="flex items-center">
                 <BarChart className="h-4 w-4 mr-2" />
                 <span>Analytics</span>
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics">
+            {isMobile ? (
+              <Wrench className="h-5 w-5" />
+            ) : (
+              <div className="flex items-center">
+                <Wrench className="h-4 w-4 mr-2" />
+                <span>Diagnostics</span>
               </div>
             )}
           </TabsTrigger>
