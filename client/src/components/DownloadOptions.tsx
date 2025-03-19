@@ -40,10 +40,9 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   const { toast } = useToast();
   const { user } = useUser();
   
-  // Determine user type based on role for appropriate export options
-  const userType = user?.role === 'admin' 
-    ? 'admin' 
-    : (user?.role === 'approver' ? 'approver' : 'user');
+  // Note: Previously determined user type - now using consolidated format
+  // Keeping user role for analytics tracking only
+  const userRole = user?.role;
   
   // Track analytics for download
   const trackDownload = async (fileType: string, success: boolean) => {
@@ -59,7 +58,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
           requestId: request.id,
           details: {
             fileType,
-            userType,
+            userRole,
             timestamp: new Date().toISOString()
           }
         }),
@@ -621,8 +620,8 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Fetch request data with attachments
-      console.log(`Fetching ZIP data for request ${request.id} with type ${userType}, includeAttachments: ${includeAttachments}`);
-      const response = await fetch(`/api/requests/${request.id}/zip?type=${userType}&includeAttachments=${includeAttachments}`, {
+      console.log(`Fetching ZIP data for request ${request.id}, includeAttachments: ${includeAttachments}`);
+      const response = await fetch(`/api/requests/${request.id}/zip?includeAttachments=${includeAttachments}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',

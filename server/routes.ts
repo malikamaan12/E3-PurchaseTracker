@@ -2782,7 +2782,7 @@ export function registerRoutes(app: Express): Server {
         resourceId: requestId,
         resourceType: 'purchase_request',
         details: { 
-          reportType: type,
+          reportType: 'consolidated',
           includeAttachments: includeAttachments === 'true'
         }
       });
