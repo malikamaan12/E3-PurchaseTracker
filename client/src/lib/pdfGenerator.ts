@@ -700,7 +700,9 @@ function getTemplateConfig(templateId: string = 'standard'): TemplateConfig {
   }
 }
 
-export async function generateRequestPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user') {
+export async function generateRequestPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user') {
+  // We now use consolidated format regardless of user role
+  // roleForAudit parameter is only used for audit logging purposes
   try {
     // Get template configuration
     const templateId = request?.pdfSettings?.templateMode || 'standard';
@@ -1076,7 +1078,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Approvals Section
-    if (templateConfig.showApprovals === true && (type === 'approver' || type === 'admin' || request.approvals?.length > 0)) {
+    if (templateConfig.showApprovals === true && (roleForAudit === 'approver' || roleForAudit === 'admin' || request.approvals?.length > 0)) {
       yPos = (doc as any).lastAutoTable?.finalY + 5 || yPos + 5;
       
       // Approvers Section
@@ -1145,7 +1147,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
     }
     
     // Audit Information Section
-    if (templateConfig.showAuditInfo === true && (type === 'admin' || request.pdfSettings?.showAuditInfo === true)) {
+    if (templateConfig.showAuditInfo === true && (roleForAudit === 'admin' || request.pdfSettings?.showAuditInfo === true)) {
       yPos = addSection(doc, "Audit Information", yPos);
       
       const auditInfo = [
@@ -1225,7 +1227,7 @@ export async function generateRequestPDF(request: any, type: 'user' | 'approver'
       drawSignatureBox('Final Approver Signature', margin + signatureWidth + 10, yPos, signatureWidth, signatureHeight);
       
       // Draw signature boxes for finance and management if needed
-      if (type === 'admin' || request.purposeType === 'Finance') {
+      if (roleForAudit === 'admin' || request.purposeType === 'Finance') {
         drawSignatureBox('Finance Department', margin, yPos + signatureHeight + 10, signatureWidth, signatureHeight);
         drawSignatureBox('CEO Office / Management', margin + signatureWidth + 10, yPos + signatureHeight + 10, signatureWidth, signatureHeight);
         
