@@ -320,7 +320,8 @@ export async function exportRequestToExcel(request: any): Promise<string> {
  */
 import { generateEnhancedPDF } from './enhancedPdfGenerator';
 
-export async function exportRequestToPDF(request: any, type: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
+export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
+  // roleForAudit is only used for logging and analytics purposes, not for content selection
   try {
     console.log(`Starting PDF export with consolidated format for request #${request.id}`);
     
