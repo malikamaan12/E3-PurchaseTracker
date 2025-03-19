@@ -16,9 +16,10 @@ import {
   validateResourceId, 
   logExportEvent, 
   logCsvExport, 
-  logExcelExport, 
-  logZipExport, 
-  logDiagnosticExport 
+  logExcelExport,
+  logPdfExport,
+  logZipExport,
+  logDiagnosticExport
 } from '../lib/exportAuditUtils';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -451,15 +452,49 @@ export default function TestExportPage() {
   };
   
   const testEnhancedCsvExport = async () => {
-    addLog('Starting enhanced CSV export test...');
+    addLog('Starting enhanced CSV export test with improved audit logging...');
     updateTestResult('enhanced-csv', 'pending');
     
     try {
+      // Test ID validation before export
+      const validatedId = validateResourceId(mockPurchaseRequest.id);
+      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      
+      // If ID is invalid, we won't proceed with export
+      if (validatedId === null) {
+        addLog('Cannot proceed with export - request ID failed validation');
+        updateTestResult('enhanced-csv', 'failed');
+        return;
+      }
+      
       addLog('Using exportRequestToCSV utility...');
       console.log('Mock request data for CSV:', mockPurchaseRequest);
       
+      // Run the actual export
       const fileName = await exportRequestToCSV(mockPurchaseRequest);
       addLog(`CSV export successful: ${fileName}`);
+      
+      // Log the export event using our unified audit logging
+      try {
+        addLog('Logging export event using unified audit system...');
+        const auditResult = await logCsvExport(
+          mockPurchaseRequest.id,
+          fileName,
+          1024, // Example file size
+          'user'
+        );
+        
+        if (auditResult) {
+          addLog('✓ Audit logging successful');
+        } else {
+          addLog('⚠️ Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        // Don't fail the test if audit logging fails
+        addLog(`⚠️ Audit logging error: ${auditError.message || 'Unknown audit error'}`);
+        console.warn('Audit logging error (non-critical):', auditError);
+      }
+      
       updateTestResult('enhanced-csv', 'success');
     } catch (error: any) {
       addLog(`Error during enhanced CSV export: ${error.message || 'Unknown error'}`);
@@ -496,8 +531,29 @@ export default function TestExportPage() {
     setDiagnosticResult(null);
     
     try {
-      // Run the detailed diagnostic tests
-      addLog('Running step-by-step CSV diagnostics with enhanced validation and error handling...');
+      // Test ID validation directly
+      addLog('Testing unified resource ID validation...');
+      
+      // Test different ID formats to ensure our validation is robust
+      const testIds = [
+        999999,                // Special diagnostic ID - should pass
+        12345,                 // Regular numeric ID - should pass
+        '12345',               // String numeric ID - should pass
+        'REQ-12345',           // String with numeric component - should pass
+        'request-12345',       // Another string format - should pass
+        null,                  // Invalid - should fail
+        undefined,             // Invalid - should fail
+        'not-a-number',        // Invalid - should fail
+        -1,                    // Invalid negative - should fail
+        0                      // Invalid zero - should fail
+      ];
+      
+      // Run validation tests
+      addLog('Testing multiple ID formats with unified validator:');
+      testIds.forEach(id => {
+        const validatedId = validateResourceId(id);
+        addLog(`  • ID "${id}" → ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
+      });
       
       // Create a test data object with a numeric request ID for enhanced validation
       const diagnosticData = {
@@ -508,8 +564,27 @@ export default function TestExportPage() {
         testMode: true
       };
       
+      // Test direct audit logging
+      addLog('Testing direct diagnostic export logging for different formats...');
+      
+      // Test CSV audit logging
+      const csvAuditResult = await logDiagnosticExport('csv');
+      addLog(`CSV audit test: ${csvAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
+      
+      // Test Excel audit logging
+      const excelAuditResult = await logDiagnosticExport('excel');
+      addLog(`Excel audit test: ${excelAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
+      
+      // Test PDF audit logging
+      const pdfAuditResult = await logDiagnosticExport('pdf');
+      addLog(`PDF audit test: ${pdfAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
+      
+      // Test ZIP audit logging
+      const zipAuditResult = await logDiagnosticExport('zip');
+      addLog(`ZIP audit test: ${zipAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
+      
       // Use our enhanced diagnostics utility with improved testing data
-      addLog('Using enhanced request ID validation to prevent audit logging failures...');
+      addLog('Running step-by-step CSV diagnostics with enhanced validation and error handling...');
       const result = await runCsvExportDiagnostics(diagnosticData);
       setDiagnosticResult(result);
       
