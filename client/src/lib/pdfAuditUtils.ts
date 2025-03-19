@@ -22,12 +22,33 @@
  * @returns Promise resolving to the audit log entry
  */
 export async function logPdfAuditEvent(
-  requestId: number,
+  requestId: number | string | null | undefined,
   action: 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed',
   details: Record<string, any> = {},
   type: 'user' | 'approver' | 'admin' = 'user'
 ): Promise<any> {
   try {
+    // Validate requestId
+    let validatedRequestId: number | null = null;
+    
+    if (requestId !== null && requestId !== undefined) {
+      // Convert to number if string
+      const numericId = typeof requestId === 'string' ? parseInt(requestId.trim(), 10) : requestId;
+      
+      // Verify it's a valid positive number
+      if (!isNaN(Number(numericId)) && Number(numericId) > 0) {
+        validatedRequestId = Number(numericId);
+      } else {
+        console.error(`Invalid request ID for audit logging: ${requestId}`);
+        // Don't proceed with invalid ID
+        return null;
+      }
+    } else {
+      console.error('Missing request ID for audit logging');
+      // Don't proceed with missing ID
+      return null;
+    }
+    
     // Add user type to details
     const auditDetails = {
       ...details,
@@ -42,7 +63,7 @@ export async function logPdfAuditEvent(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        requestId,
+        requestId: validatedRequestId,
         action,
         details: auditDetails,
       }),
