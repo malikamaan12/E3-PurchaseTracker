@@ -11,9 +11,11 @@ import {
   exportMultipleRequestsAsZip,
   exportMultipleRequestsToPDF
 } from '../lib/exportUtils';
+import { runCsvExportDiagnostics, CsvDiagnosticsResult } from '../lib/csvExportDiagnostics';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 
 export default function TestExportPage() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -27,8 +29,10 @@ export default function TestExportPage() {
     'enhanced-zip': 'not-run',
     'bulk-excel': 'not-run',
     'bulk-zip': 'not-run',
-    'bulk-pdf': 'not-run'
+    'bulk-pdf': 'not-run',
+    'csv-diagnostics': 'not-run'
   });
+  const [diagnosticResult, setDiagnosticResult] = useState<CsvDiagnosticsResult | null>(null);
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `${new Date().toISOString().slice(11, 23)} - ${message}`]);
@@ -477,6 +481,43 @@ export default function TestExportPage() {
     }
   };
 
+  // Advanced CSV diagnostics with detailed reporting
+  const runCsvDiagnostics = async () => {
+    addLog('Starting comprehensive CSV export diagnostics...');
+    updateTestResult('csv-diagnostics', 'pending');
+    setDiagnosticResult(null);
+    
+    try {
+      // Run the detailed diagnostic tests
+      addLog('Running step-by-step CSV diagnostics with detailed analysis...');
+      
+      // Use our enhanced diagnostics utility
+      const result = await runCsvExportDiagnostics(testData);
+      setDiagnosticResult(result);
+      
+      if (result.success) {
+        addLog(`CSV diagnostics completed successfully at stage: ${result.stage}`);
+        if (result.details) {
+          Object.entries(result.details).forEach(([key, value]) => {
+            addLog(`- ${key}: ${value}`);
+          });
+        }
+        updateTestResult('csv-diagnostics', 'success');
+      } else {
+        addLog(`CSV diagnostics failed at stage: ${result.stage}`);
+        addLog(`Error: ${result.error}`);
+        if (result.recommendedFix) {
+          addLog(`Recommended fix: ${result.recommendedFix}`);
+        }
+        updateTestResult('csv-diagnostics', 'failed');
+      }
+    } catch (error: any) {
+      addLog(`Error during CSV diagnostics: ${error.message || 'Unknown error'}`);
+      console.error('CSV diagnostics error:', error);
+      updateTestResult('csv-diagnostics', 'failed');
+    }
+  };
+  
   // Clear logs
   const clearLogs = () => setLogs([]);
 
@@ -576,6 +617,69 @@ export default function TestExportPage() {
           >
             Test Bulk PDF Export
           </Button>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-3">Advanced Diagnostics</h2>
+        <div className="grid grid-cols-1 gap-4 mb-4">
+          <Button 
+            variant="destructive" 
+            onClick={runCsvDiagnostics}
+            className="w-full"
+          >
+            Run Comprehensive CSV Diagnostics
+          </Button>
+          
+          {diagnosticResult && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  CSV Diagnostics Result
+                  <Badge variant={diagnosticResult.success ? 'success' : 'destructive'}>
+                    {diagnosticResult.success ? 'Success' : 'Failed'}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Stage:</span>
+                    <span>{diagnosticResult.stage}</span>
+                  </div>
+                  
+                  {diagnosticResult.error && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertTitle>Error Detected</AlertTitle>
+                      <AlertDescription>
+                        {diagnosticResult.error}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {diagnosticResult.recommendedFix && (
+                    <Alert variant="default" className="mb-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+                      <AlertTitle>Recommended Fix</AlertTitle>
+                      <AlertDescription>
+                        {diagnosticResult.recommendedFix}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {diagnosticResult.details && (
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Details:</h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {Object.entries(diagnosticResult.details).map(([key, value]) => (
+                          <li key={key}><span className="font-medium">{key}:</span> {String(value)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       
@@ -742,6 +846,24 @@ export default function TestExportPage() {
                 </div>
               </div>
             </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
+              <h3 className="text-sm font-medium mb-2">Advanced Diagnostics</h3>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs">CSV Diagnostics</span>
+                  <Badge variant={
+                    testResults['csv-diagnostics'] === 'success' ? 'success' : 
+                    testResults['csv-diagnostics'] === 'pending' ? 'outline' :
+                    testResults['csv-diagnostics'] === 'failed' ? 'destructive' : 'secondary'
+                  }>
+                    {testResults['csv-diagnostics'] === 'not-run' ? 'Not Run' : 
+                     testResults['csv-diagnostics'] === 'pending' ? 'Running...' :
+                     testResults['csv-diagnostics'] === 'success' ? 'Success' : 'Failed'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -756,9 +878,11 @@ export default function TestExportPage() {
           <li>The Basic Tests use direct library calls (saveAs, createObjectURL, etc.)</li>
           <li>The Enhanced Tests use our improved utilities from exportUtils.ts</li>
           <li>The Bulk Tests verify multiple-request exports with proper file formatting</li>
+          <li>The Advanced Diagnostics run comprehensive analysis with detailed reporting</li>
           <li>All exports use the UTF-8 encoding with proper BOM implementation</li>
           <li>Enhanced exports include better error handling, validation, and fallbacks</li>
-          <li>All downloads use the same safeDownload method with multiple fallback mechanisms</li>
+          <li>CSV Diagnostics use step-by-step analysis with multiple fallback mechanisms</li>
+          <li>All exports include proper audit logging with the PDF audit endpoint</li>
           <li>All logs are displayed above for debugging and troubleshooting</li>
         </ul>
       </div>
