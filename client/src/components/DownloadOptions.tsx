@@ -194,17 +194,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Create a proper export URL with request ID if available
-      // Ensure we're using a valid request ID (we know these exist from the DB query)
-      const validIds = [148, 149, 150, 151, 152, 153, 154, 155, 156, 158]; // Known valid IDs from the database
       const requestId = request?.id ? parseInt(String(request.id)) : null;
       
-      // Check if the request ID exists in our valid IDs list
-      const useValidId = requestId && !isNaN(requestId) && validIds.includes(requestId);
-      
-      // If request ID is not valid, use ID 148 (which we know exists) or don't specify ID for all requests
-      const exportUrl = useValidId
+      // Use the actual request ID from the request object
+      const exportUrl = requestId && !isNaN(requestId)
         ? `/api/requests/export?id=${requestId}&format=xlsx`
-        : request ? `/api/requests/export?id=148&format=xlsx` : `/api/requests/export?format=xlsx`;
+        : `/api/requests/export?format=xlsx`;
       
       console.log(`Direct Excel export URL: ${exportUrl} for request ID: ${requestId}`);
       
@@ -430,17 +425,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
       
       // Create a proper export URL with request ID if available
-      // Ensure we're using a valid request ID (we know these exist from the DB query)
-      const validIds = [148, 149, 150, 151, 152, 153, 154, 155, 156, 158]; // Known valid IDs from the database
       const requestId = request?.id ? parseInt(String(request.id)) : null;
       
-      // Check if the request ID exists in our valid IDs list
-      const useValidId = requestId && !isNaN(requestId) && validIds.includes(requestId);
-      
-      // If request ID is not valid, use ID 148 (which we know exists) or don't specify ID for all requests
-      const exportUrl = useValidId
+      // Use the actual request ID from the request object
+      const exportUrl = requestId && !isNaN(requestId)
         ? `/api/requests/export?id=${requestId}&format=csv`
-        : request ? `/api/requests/export?id=148&format=csv` : `/api/requests/export?format=csv`;
+        : `/api/requests/export?format=csv`;
       
       console.log(`Direct CSV export URL: ${exportUrl} for request ID: ${requestId}`);
       
