@@ -109,9 +109,9 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       // Use the consolidated PDF format that works for all user types
       console.log('Generating PDF from data...');
       // Use the user role for audit logging purposes only
-      const userType = user?.role === 'admin' ? 'admin' : 
+      const userRoleForAudit = user?.role === 'admin' ? 'admin' : 
                       (user?.role === 'approver' ? 'approver' : 'user');
-      await exportRequestToPDF(data, userType);
+      await exportRequestToPDF(data, userRoleForAudit);
       
       // Track successful download
       await trackDownload('pdf', true);
@@ -681,7 +681,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         const analysis = await analyzeExportIssue(error, {
           operation: 'zip_export',
           requestId: request.id,
-          exportType: userType,
+          exportType: 'unified', // Using unified export type for all roles
           includeAttachments
         });
         
