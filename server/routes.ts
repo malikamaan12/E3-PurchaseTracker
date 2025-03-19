@@ -5179,6 +5179,16 @@ export function registerRoutes(app: Express): Server {
       if (requestId) {
         // Export a single request
         try {
+          // Check if the purchase request exists in the database
+          const checkRequest = await db.query.purchaseRequests.findFirst({
+            where: eq(purchaseRequests.id, requestId)
+          });
+          
+          if (!checkRequest) {
+            console.log(`[GET /api/requests/export] Request with ID ${requestId} not found in database`);
+            throw new NotFoundError(`Purchase request with ID ${requestId} not found`);
+          }
+          
           const requestWithRelations = await getRequestWithRelations(requestId);
           
           // Transform the request for export
@@ -5198,8 +5208,17 @@ export function registerRoutes(app: Express): Server {
             'Items Count': Array.isArray(requestWithRelations.items) ? requestWithRelations.items.length : 0
           }];
         } catch (error) {
+          console.error(`[GET /api/requests/export] Error fetching purchase request:`, error);
           debug(req, `[GET /api/requests/export] Error fetching purchase request: ${JSON.stringify(error)}`);
-          throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+          
+          if (error instanceof NotFoundError) {
+            throw error; // Pass through NotFoundError
+          } else {
+            throw new ValidationError('Invalid request ID or unable to fetch request data', { 
+              id: requestId,
+              error: error instanceof Error ? error.message : String(error) 
+            });
+          }
         }
       } else {
         // Export all requests (default behavior)
