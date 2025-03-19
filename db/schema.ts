@@ -697,13 +697,13 @@ export type AuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed';
 
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: integer("userid").references(() => users.id),
   action: text("action").notNull(),
-  resourceId: integer("resource_id"),
-  resourceType: text("resource_type"),
+  resourceId: integer("resourceid"),
+  resourceType: text("resourcetype"),
   details: jsonb("details").$type<Record<string, any>>(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
+  ipAddress: text("ipaddress"),
+  userAgent: text("useragent"),
   timestamp: timestamp("timestamp").defaultNow()
 });
 

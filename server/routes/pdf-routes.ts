@@ -588,19 +588,33 @@ export function registerPdfRoutes(app: Express) {
       // Accept audit logs even from unauthenticated users
       // This allows tracking PDF views from external sources
       
-      const { action, resourceId, details, type } = req.body;
+      const { action, requestId, details, type } = req.body;
       
-      // Validate required fields
-      if (!action || !resourceId) {
+      // Validate and convert requestId to a valid resourceId 
+      let validatedResourceId: number | null = null;
+      
+      if (requestId !== null && requestId !== undefined) {
+        // Convert to number if string
+        const numericId = typeof requestId === 'string' ? parseInt(requestId.trim(), 10) : requestId;
+        
+        // Verify it's a valid positive number
+        if (!isNaN(Number(numericId)) && Number(numericId) > 0) {
+          validatedResourceId = Number(numericId);
+        } else {
+          return next(new ValidationError('Invalid request ID', { 
+            requestId: 'Must be a positive number'
+          }));
+        }
+      } else {
         return next(new ValidationError('Missing required fields', { 
           action: !action ? 'Required' : undefined,
-          resourceId: !resourceId ? 'Required' : undefined
+          requestId: 'Required'
         }));
       }
       
       // Validate action type is one of the allowed values
       const validActions = ['pdf_generated', 'pdf_downloaded', 'pdf_viewed'];
-      if (!validActions.includes(action)) {
+      if (!action || !validActions.includes(action)) {
         return next(new ValidationError('Invalid action type', {
           action: `Must be one of: ${validActions.join(', ')}`
         }));
@@ -620,7 +634,7 @@ export function registerPdfRoutes(app: Express) {
           await db.insert(auditLogs).values({
             userId: req.user.id,
             action,
-            resourceId,
+            resourceId: validatedResourceId,
             resourceType: 'pdf',
             details: enrichedDetails,
             ipAddress: req.ip,
@@ -628,7 +642,7 @@ export function registerPdfRoutes(app: Express) {
             timestamp: new Date()
           });
           
-          console.log(`[PDF Audit] Authenticated user ${req.user.id} ${action} for request ${resourceId}`);
+          console.log(`[PDF Audit] Authenticated user ${req.user.id} ${action} for request ${validatedResourceId}`);
         } else {
           // Handle anonymous users - try to get user ID from details if provided
           const userIdFromDetails = details?.userId ? 
@@ -637,7 +651,7 @@ export function registerPdfRoutes(app: Express) {
           await db.insert(auditLogs).values({
             userId: userIdFromDetails, // May be null for anonymous access
             action,
-            resourceId,
+            resourceId: validatedResourceId,
             resourceType: 'pdf',
             details: enrichedDetails,
             ipAddress: req.ip,
@@ -645,7 +659,7 @@ export function registerPdfRoutes(app: Express) {
             timestamp: new Date()
           });
           
-          console.log(`[PDF Audit] Anonymous ${action} for request ${resourceId}, implied user: ${userIdFromDetails || 'none'}`);
+          console.log(`[PDF Audit] Anonymous ${action} for request ${validatedResourceId}, implied user: ${userIdFromDetails || 'none'}`);
         }
       } catch (auditError) {
         // Just log the error but don't fail the request
