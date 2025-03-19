@@ -225,8 +225,11 @@ export default function TestExportPage() {
           addLog('Logging CSV export event using unified audit system...');
           const auditResult = await logCsvExport(
             validatedId,
-            fileName,
-            blob.size,
+            {
+              fileName: fileName,
+              fileSize: blob.size,
+              exportType: 'test'
+            },
             'admin'
           );
           
@@ -583,8 +586,11 @@ export default function TestExportPage() {
         addLog('Logging Excel export event using unified audit system...');
         const auditResult = await logExcelExport(
           mockPurchaseRequest.id,
-          fileName,
-          1024 * 3, // Example file size
+          {
+            fileName: fileName,
+            fileSize: 1024 * 3, // Example file size
+            exportType: 'test'
+          },
           'user'
         );
         
@@ -640,8 +646,11 @@ export default function TestExportPage() {
         addLog('Logging export event using unified audit system...');
         const auditResult = await logCsvExport(
           mockPurchaseRequest.id,
-          fileName,
-          1024, // Example file size
+          {
+            fileName: fileName,
+            fileSize: 1024, // Example file size
+            exportType: 'test'
+          },
           'user'
         );
         
@@ -694,8 +703,11 @@ export default function TestExportPage() {
         addLog('Logging ZIP export event using unified audit system...');
         const auditResult = await logZipExport(
           mockPurchaseRequest.id,
-          fileName,
-          1024 * 10, // Example file size
+          {
+            fileName: fileName,
+            fileSize: 1024 * 10, // Example file size
+            exportType: 'test'
+          },
           'admin'
         );
         
