@@ -300,8 +300,11 @@ export default function TestExportPage() {
         addLog('Logging CSV export event using unified audit system...');
         const auditResult = await logCsvExport(
           validatedId,
-          fileName,
-          blob.size,
+          {
+            fileName: fileName,
+            fileSize: blob.size,
+            exportType: 'test'
+          },
           'user'
         );
         
