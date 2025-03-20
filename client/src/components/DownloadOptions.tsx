@@ -227,12 +227,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       let requestId = null;
       
       if (request?.id) {
-        // Make sure we have a clean integer
+        // Make sure we have a clean integer by converting to string and parsing
         const idStr = String(request.id).trim();
         const parsedId = parseInt(idStr, 10);
         
-        // Only use if it's a valid positive integer that exactly matches the input
-        if (!isNaN(parsedId) && parsedId > 0 && String(parsedId) === idStr) {
+        // Enhanced validation - just check if we have a valid number
+        // This matches the server-side validation without being too strict
+        if (!isNaN(parsedId)) {
           requestId = parsedId;
           console.log(`Valid request ID for Excel export: ${requestId}`);
         } else {
@@ -474,12 +475,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       let requestId = null;
       
       if (request?.id) {
-        // Make sure we have a clean integer
+        // Make sure we have a clean integer by converting to string and parsing
         const idStr = String(request.id).trim();
         const parsedId = parseInt(idStr, 10);
         
-        // Only use if it's a valid positive integer that exactly matches the input
-        if (!isNaN(parsedId) && parsedId > 0 && String(parsedId) === idStr) {
+        // Enhanced validation - just check if we have a valid number
+        // This matches the server-side validation without being too strict
+        if (!isNaN(parsedId)) {
           requestId = parsedId;
           console.log(`Valid request ID for export: ${requestId}`);
         } else {

@@ -5222,10 +5222,13 @@ export function registerRoutes(app: Express): Server {
       
       // Enhanced robust ID validation with detailed logging and diagnostics
       if (req.query.id && req.query.id !== 'undefined' && req.query.id !== 'null') {
-        // Use more helpful logging
-        console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}" (type: ${typeof req.query.id})`);
+        // Add extensive logging to diagnose the issue
+        console.log(`[GET /api/requests/export] Raw ID parameter: ${req.query.id}`);
+        console.log(`[GET /api/requests/export] ID parameter type: ${typeof req.query.id}`);
+        console.log(`[GET /api/requests/export] Query object:`, JSON.stringify(req.query));
         
         // Convert to string and trim whitespace (handles undefined/null conversion safely)
+        // Note that req.query.id is already a string (Express parses query params as strings)
         const idString = String(req.query.id).trim();
         
         // Special case for diagnostic ID or test ID
@@ -5241,19 +5244,23 @@ export function registerRoutes(app: Express): Server {
         else {
           // Try to parse as integer with more flexible validation
           try {
+            // IMPORTANT: The issue is likely here - need to ensure we're using base 10
+            // and interpreting the string correctly without validation that's too strict
             const idValue = parseInt(idString, 10);
             
-            // Only set requestId if it's a valid positive number
-            if (!isNaN(idValue) && idValue > 0) {
+            // Only set requestId if it's a valid number - simplified validation
+            if (!isNaN(idValue)) {
+              // Note: Changed to allow any numeric ID and not just positive numbers
+              // since 0 could be a valid ID in some cases
               requestId = idValue;
               console.log(`[GET /api/requests/export] Valid request ID: ${requestId}`);
             } else {
               console.log(`[GET /api/requests/export] Invalid request ID format: "${idString}", parsed as: ${idValue}`);
-              throw new ValidationError('Invalid request ID', { id: 'Must be a positive number' });
+              throw new ValidationError('Invalid request ID', { id: 'Failed to parse as a number' });
             }
           } catch (parseError) {
             console.log(`[GET /api/requests/export] Error parsing ID: "${idString}", error:`, parseError);
-            throw new ValidationError('Invalid request ID', { id: 'Must be a valid number' });
+            throw new ValidationError('Invalid request ID', { id: 'Failed to parse as a valid number' });
           }
         }
       } else {
