@@ -44,27 +44,55 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
   // Keeping user role for analytics tracking only
   const userRole = user?.role;
   
-  // Track analytics for download
+  // Track analytics for download using export audit utilities
   const trackDownload = async (fileType: string, success: boolean) => {
     try {
-      // Log audit for tracking download activity
-      await fetch('/api/pdf/audit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: success ? 'pdf_downloaded' : 'pdf_viewed',
-          requestId: request.id,
-          details: {
-            fileType,
-            userRole,
-            timestamp: new Date().toISOString()
-          }
-        }),
-      });
+      // Import the validation and logging functions
+      const { 
+        validateResourceId,
+        logPdfExport, 
+        logCsvExport, 
+        logExcelExport, 
+        logZipExport 
+      } = await import('@/lib/exportAuditUtils');
+      
+      // Validate the request ID first
+      const validatedId = validateResourceId(request?.id);
+      if (validatedId === null) {
+        console.warn(`Invalid request ID for tracking ${fileType} download: ${request?.id}`);
+        return; // Skip tracking for invalid IDs
+      }
+      
+      // Prepare common details
+      const details = {
+        success,
+        userRole: userRole || 'user',
+        operation: success ? 'download' : 'view',
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log(`Tracking ${fileType} ${success ? 'download' : 'view'} for request ID: ${validatedId}`);
+      
+      // Use the appropriate specialized logging function based on file type
+      switch (fileType) {
+        case 'pdf':
+          await logPdfExport(validatedId, details, userRole as any || 'user');
+          break;
+        case 'csv':
+          await logCsvExport(validatedId, details, userRole as any || 'user');
+          break;
+        case 'excel':
+          await logExcelExport(validatedId, details, userRole as any || 'user');
+          break;
+        case 'zip':
+          await logZipExport(validatedId, details, userRole as any || 'user');
+          break;
+        default:
+          // For backwards compatibility, use PDF export logging
+          await logPdfExport(validatedId, { ...details, fileType }, userRole as any || 'user');
+      }
     } catch (error) {
-      console.error('Failed to track download event:', error);
+      console.error(`Failed to track ${fileType} ${success ? 'download' : 'view'} event:`, error);
       // Non-critical error, don't display to user
     }
   };

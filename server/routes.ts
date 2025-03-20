@@ -5220,19 +5220,28 @@ export function registerRoutes(app: Express): Server {
       // Check if we're exporting a specific request or all requests
       let requestId = null;
       
-      // Enhanced robust ID validation with detailed logging
+      // Enhanced robust ID validation with detailed logging and diagnostics
       if (req.query.id && req.query.id !== 'undefined' && req.query.id !== 'null') {
-        console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}"`);
+        // Use more helpful logging
+        console.log(`[GET /api/requests/export] Parsing ID parameter: "${req.query.id}" (type: ${typeof req.query.id})`);
+        
+        // Convert to string and trim whitespace (handles undefined/null conversion safely)
         const idString = String(req.query.id).trim();
         
         // Special case for diagnostic ID or test ID
         if (idString === '999999') {
           requestId = 999999;
           console.log(`[GET /api/requests/export] Using special diagnostic ID: ${requestId}`);
-        } else {
+        } 
+        // Support other special IDs if needed in the future
+        else if (idString === '000000') {
+          requestId = 0; // Special case for system-wide export
+          console.log(`[GET /api/requests/export] Using system-wide export ID: ${requestId}`);
+        }
+        else {
           // Try to parse as integer with more flexible validation
           try {
-            const idValue = parseInt(idString);
+            const idValue = parseInt(idString, 10);
             
             // Only set requestId if it's a valid positive number
             if (!isNaN(idValue) && idValue > 0) {
@@ -5240,11 +5249,11 @@ export function registerRoutes(app: Express): Server {
               console.log(`[GET /api/requests/export] Valid request ID: ${requestId}`);
             } else {
               console.log(`[GET /api/requests/export] Invalid request ID format: "${idString}", parsed as: ${idValue}`);
-              throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+              throw new ValidationError('Invalid request ID', { id: 'Must be a positive number' });
             }
           } catch (parseError) {
             console.log(`[GET /api/requests/export] Error parsing ID: "${idString}", error:`, parseError);
-            throw new ValidationError('Invalid request ID', { id: 'Must be a number' });
+            throw new ValidationError('Invalid request ID', { id: 'Must be a valid number' });
           }
         }
       } else {
