@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "../components/ui/button";
 import { saveAs } from 'file-saver';
 import { 
@@ -8,9 +8,9 @@ import {
 } from '../lib/exportUtils';
 import { 
   validateResourceId, 
-  logExportEvent, 
+  logExportEvent,
   logZipExport,
-  logDiagnosticExport
+  logPdfExport
 } from '../lib/exportAuditUtils';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -20,19 +20,11 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 export default function TestExportPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [testResults, setTestResults] = useState<{[key: string]: 'success' | 'pending' | 'failed' | 'not-run'}>({
-    'basic-csv': 'not-run',
-    'basic-excel': 'not-run',
-    'basic-alternative': 'not-run',
     'enhanced-pdf': 'not-run',
-    'enhanced-excel': 'not-run',
-    'enhanced-csv': 'not-run',
     'enhanced-zip': 'not-run',
-    'bulk-excel': 'not-run',
     'bulk-zip': 'not-run',
-    'bulk-pdf': 'not-run',
-    'csv-diagnostics': 'not-run'
+    'bulk-pdf': 'not-run'
   });
-  const [diagnosticResult, setDiagnosticResult] = useState<CsvDiagnosticsResult | null>(null);
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `${new Date().toISOString().slice(11, 23)} - ${message}`]);
@@ -120,32 +112,6 @@ export default function TestExportPage() {
         },
         comments: 'Approved with the latest timestamp',
         processedAt: new Date().toISOString()
-      },
-      {
-        id: 3,
-        status: 'approved',
-        department: 'CEO Office',
-        approverId: 3,
-        approver: {
-          id: 3,
-          username: 'CEO Approver',
-          department: 'CEO Office'
-        },
-        comments: 'This is a duplicate CEO approval with an older timestamp',
-        processedAt: new Date(Date.now() - 3600000).toISOString() // 1 hour ago
-      },
-      {
-        id: 4,
-        status: 'approved',
-        department: 'CEO Office',
-        approverId: 3,
-        approver: {
-          id: 3,
-          username: 'CEO Approver',
-          department: 'CEO Office'
-        },
-        comments: 'This is another duplicate CEO approval with an even older timestamp',
-        processedAt: new Date(Date.now() - 7200000).toISOString() // 2 hours ago
       }
     ],
     attachments: [
@@ -158,237 +124,8 @@ export default function TestExportPage() {
       }
     ]
   };
-
-  // Test data for CSV export
-  const testData = {
-    request_number: 'REQ-TEST-123',
-    title: 'Test Request for CSV Export',
-    status: 'draft',
-    priority: 'high',
-    created_date: new Date().toISOString(),
-    requester: 'Test User',
-    department: 'Testing Department',
-    purpose_type: 'Software',
-    sub_purpose: 'Development Tools',
-    description: 'This is a test request for CSV export functionality',
-    total_estimated_cost: 1500,
-    currency: 'USD',
-    vendor: 'Test Vendor Inc.'
-  };
-
-  // Test function for CSV export with unified audit logging
-  const testCsvExport = async () => { // Changed to async for audit logging
-    addLog('Starting CSV export test with unified audit logging...');
-    updateTestResult('basic-csv', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(999999); // Special diagnostic ID
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - resource ID failed validation');
-        updateTestResult('basic-csv', 'failed');
-        return;
-      }
-      
-      // Create CSV with basic configuration
-      const parser = new Parser({
-        header: true,
-        delimiter: ','
-      });
-      
-      // Parse data - must be in array format
-      const csv = parser.parse([testData]);
-      addLog('CSV generated successfully');
-      
-      // Create blob for download
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const fileName = 'test-export.csv';
-      
-      // Try to force download
-      try {
-        saveAs(blob, fileName);
-        addLog('SaveAs called successfully');
-        
-        // Log the export event
-        try {
-          addLog('Logging CSV export event using unified audit system...');
-          const auditResult = await logCsvExport(
-            validatedId,
-            {
-              fileName: fileName,
-              fileSize: blob.size,
-              exportType: 'test'
-            },
-            'admin'
-          );
-          
-          if (auditResult) {
-            addLog('✓ CSV Audit logging successful');
-          } else {
-            addLog('⚠️ CSV Audit logging partial failure (export still succeeded)');
-          }
-        } catch (auditError: any) {
-          addLog(`❌ Error logging CSV export: ${auditError.message || 'Unknown error'}`);
-          console.error('CSV export audit error:', auditError);
-          // Don't fail the test just because of audit logging issues
-        }
-        
-        updateTestResult('basic-csv', 'success');
-      } catch (saveError: any) {
-        addLog(`Error in saveAs function: ${saveError.message || 'Unknown error'}`);
-        console.error('Error in saveAs function:', saveError);
-        updateTestResult('basic-csv', 'failed');
-      }
-    } catch (error: any) {
-      addLog(`Error during CSV generation: ${error.message || 'Unknown error'}`);
-      console.error('Error during CSV generation:', error);
-      updateTestResult('basic-csv', 'failed');
-    }
-  };
-
-  // Test function for alternative download method with unified audit logging
-  const testAlternativeDownload = async () => { // Changed to async for audit logging
-    addLog('Starting alternative download test with unified audit logging...');
-    updateTestResult('basic-alternative', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(999999); // Special diagnostic ID
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - resource ID failed validation');
-        updateTestResult('basic-alternative', 'failed');
-        return;
-      }
-      
-      // Create CSV with basic configuration
-      const parser = new Parser({
-        header: true,
-        delimiter: ','
-      });
-      
-      const csv = parser.parse([testData]);
-      addLog('CSV generated successfully');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const fileName = 'test-export-alternative.csv';
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      addLog('Alternative download method executed');
-      
-      // Log the export event
-      try {
-        addLog('Logging CSV export event using unified audit system...');
-        const auditResult = await logCsvExport(
-          validatedId,
-          {
-            fileName: fileName,
-            fileSize: blob.size,
-            exportType: 'test'
-          },
-          'user'
-        );
-        
-        if (auditResult) {
-          addLog('✓ CSV Audit logging successful');
-        } else {
-          addLog('⚠️ CSV Audit logging partial failure (export still succeeded)');
-        }
-      } catch (auditError: any) {
-        addLog(`❌ Error logging CSV export: ${auditError.message || 'Unknown error'}`);
-        console.error('CSV export audit error:', auditError);
-        // Don't fail the test just because of audit logging issues
-      }
-      
-      updateTestResult('basic-alternative', 'success');
-    } catch (error: any) {
-      addLog(`Error in alternative download method: ${error.message || 'Unknown error'}`);
-      console.error('Error in alternative download method:', error);
-      updateTestResult('basic-alternative', 'failed');
-    }
-  };
-
-  // Test function for Excel export with unified audit logging
-  const testExcelExport = async () => { // Changed to async for audit logging
-    addLog('Starting Excel export test with unified audit logging...');
-    updateTestResult('basic-excel', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(999999); // Special diagnostic ID
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - resource ID failed validation');
-        updateTestResult('basic-excel', 'failed');
-        return;
-      }
-      
-      // Create a simple workbook
-      const wb = XLSX.utils.book_new();
-      
-      // Convert our data to worksheet format
-      const ws = XLSX.utils.json_to_sheet([testData]);
-      
-      // Add the worksheet to the workbook
-      XLSX.utils.book_append_sheet(wb, ws, 'TestData');
-      
-      // Generate file and attempt to save
-      try {
-        const fileName = 'test-excel-export.xlsx';
-        XLSX.writeFile(wb, fileName);
-        addLog('Excel file generated and download initiated');
-        
-        // Log the export event
-        try {
-          addLog('Logging Excel export event using unified audit system...');
-          const auditResult = await logExcelExport(
-            validatedId,
-            {
-              fileName: fileName,
-              fileSize: 1024 * 5, // Example file size (5KB)
-              exportType: 'test'
-            },
-            'approver'
-          );
-          
-          if (auditResult) {
-            addLog('✓ Excel Audit logging successful');
-          } else {
-            addLog('⚠️ Excel Audit logging partial failure (export still succeeded)');
-          }
-        } catch (auditError: any) {
-          addLog(`❌ Error logging Excel export: ${auditError.message || 'Unknown error'}`);
-          console.error('Excel export audit error:', auditError);
-          // Don't fail the test just because of audit logging issues
-        }
-        
-        updateTestResult('basic-excel', 'success');
-      } catch (saveError: any) {
-        addLog(`Error saving Excel file: ${saveError.message || 'Unknown error'}`);
-        console.error('Error saving Excel file:', saveError);
-        updateTestResult('basic-excel', 'failed');
-      }
-    } catch (error: any) {
-      addLog(`Error during Excel generation: ${error.message || 'Unknown error'}`);
-      console.error('Error during Excel generation:', error);
-      updateTestResult('basic-excel', 'failed');
-    }
-  };
   
-  // Test enhanced export utilities with consolidated PDF format
+  // Test enhanced PDF export
   const testEnhancedPdfExport = async () => {
     addLog('Starting enhanced PDF export test with consolidated format...');
     updateTestResult('enhanced-pdf', 'pending');
@@ -408,12 +145,11 @@ export default function TestExportPage() {
       const adminFileName = await exportRequestToPDF(mockPurchaseRequest, 'admin');
       addLog(`Admin PDF export successful: ${adminFileName}`);
       
-      // Log PDF export using the general logExportEvent function since there's no specific PDF export log function
+      // Log PDF export 
       try {
         addLog('Logging PDF export event using unified audit system...');
-        const auditResult = await logExportEvent(
+        const auditResult = await logPdfExport(
           mockPurchaseRequest.id,
-          'pdf',
           {
             fileName: adminFileName,
             fileSize: 1024 * 5, // Example file size
@@ -430,7 +166,6 @@ export default function TestExportPage() {
       } catch (auditError: any) {
         addLog(`❌ Error logging PDF export: ${auditError.message || 'Unknown error'}`);
         console.error('PDF export audit error:', auditError);
-        // Don't fail the test just because of audit logging issues
       }
       
       addLog('All PDF types use the same consolidated format with no duplicate fields');
@@ -442,48 +177,50 @@ export default function TestExportPage() {
     }
   };
   
-  // Test bulk export utilities
-  const testBulkExcelExport = async () => {
-    addLog('Starting bulk Excel export test...');
-    updateTestResult('bulk-excel', 'pending');
+  const testEnhancedZipExport = async () => {
+    addLog('Starting enhanced ZIP export test...');
+    updateTestResult('enhanced-zip', 'pending');
     
     try {
-      // Create an array of mock requests for bulk export
-      const mockRequests = [
-        mockPurchaseRequest,
-        {
-          ...mockPurchaseRequest,
-          id: 12346,
-          requestNumber: 'REQ-TEST-12346',
-          title: 'Second Test Request'
-        },
-        {
-          ...mockPurchaseRequest,
-          id: 12347,
-          requestNumber: 'REQ-TEST-12347',
-          title: 'Third Test Request',
-          status: 'approved'
+      // Test our ZIP export utility with the sample request
+      addLog('Using exportMultipleRequestsAsZip utility...');
+      
+      // Create a single-request ZIP export
+      const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], 'test-single');
+      addLog(`ZIP export successful: ${fileName}`);
+      
+      // Log the export event
+      try {
+        addLog('Logging ZIP export event using unified audit system...');
+        const auditResult = await logZipExport(
+          mockPurchaseRequest.id,
+          {
+            fileName: fileName,
+            fileSize: 1024 * 10, // Example file size
+            exportType: 'single'
+          },
+          'admin'
+        );
+        
+        if (auditResult) {
+          addLog('✓ ZIP Audit logging successful');
+        } else {
+          addLog('⚠️ ZIP Audit logging partial failure (export still succeeded)');
         }
-      ];
-      
-      addLog(`Preparing bulk Excel export for ${mockRequests.length} requests...`);
-      console.log('Mock requests for bulk export:', mockRequests);
-      
-      const fileName = await exportMultipleRequestsToExcel(mockRequests);
-      addLog(`Bulk Excel export successful: ${fileName}`);
-      updateTestResult('bulk-excel', 'success');
-    } catch (error: any) {
-      addLog(`Error during bulk Excel export: ${error.message || 'Unknown error'}`);
-      console.error('Bulk Excel export error:', error);
-      
-      // More detailed error logging
-      if (error.stack) {
-        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
+      } catch (auditError: any) {
+        addLog(`❌ Error logging ZIP export: ${auditError.message || 'Unknown error'}`);
+        console.error('ZIP export audit error:', auditError);
       }
-      updateTestResult('bulk-excel', 'failed');
+      
+      updateTestResult('enhanced-zip', 'success');
+    } catch (error: any) {
+      addLog(`Error during enhanced ZIP export: ${error.message || 'Unknown error'}`);
+      console.error('Enhanced ZIP export error:', error);
+      updateTestResult('enhanced-zip', 'failed');
     }
   };
   
+  // Test bulk exports
   const testBulkZipExport = async () => {
     addLog('Starting bulk ZIP export test...');
     updateTestResult('bulk-zip', 'pending');
@@ -502,15 +239,41 @@ export default function TestExportPage() {
           ...mockPurchaseRequest,
           id: 12347,
           requestNumber: 'REQ-TEST-12347',
-          title: 'Third Test Request',
-          status: 'approved'
+          title: 'Third Test Request'
         }
       ];
       
-      addLog(`Preparing bulk ZIP export for ${mockRequests.length} requests...`);
+      addLog(`Created ${mockRequests.length} mock requests for bulk export`);
       
-      const fileName = await exportMultipleRequestsAsZip(mockRequests, true);
+      // Use the ZIP export utility
+      const fileName = await exportMultipleRequestsAsZip(mockRequests, 'bulk-test');
       addLog(`Bulk ZIP export successful: ${fileName}`);
+      
+      // Log bulk export since we're using multiple requests
+      try {
+        addLog('Logging bulk ZIP export with diagnostic export ID...');
+        const auditResult = await logExportEvent(
+          999999, // Special diagnostic ID for bulk export
+          'zip', 
+          {
+            fileName: fileName,
+            fileSize: 1024 * 30, // Example file size for bulk export
+            exportType: 'bulk',
+            count: mockRequests.length
+          },
+          'admin'
+        );
+        
+        if (auditResult) {
+          addLog('✓ Bulk ZIP Audit logging successful');
+        } else {
+          addLog('⚠️ Bulk ZIP Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging bulk ZIP export: ${auditError.message || 'Unknown error'}`);
+        console.error('Bulk ZIP export audit error:', auditError);
+      }
+      
       updateTestResult('bulk-zip', 'success');
     } catch (error: any) {
       addLog(`Error during bulk ZIP export: ${error.message || 'Unknown error'}`);
@@ -532,20 +295,40 @@ export default function TestExportPage() {
           id: 12346,
           requestNumber: 'REQ-TEST-12346',
           title: 'Second Test Request'
-        },
-        {
-          ...mockPurchaseRequest,
-          id: 12347,
-          requestNumber: 'REQ-TEST-12347',
-          title: 'Third Test Request',
-          status: 'approved'
         }
       ];
       
-      addLog(`Preparing bulk PDF export for ${mockRequests.length} requests...`);
+      addLog(`Created ${mockRequests.length} mock requests for bulk PDF export`);
       
-      const fileName = await exportMultipleRequestsToPDF(mockRequests);
+      // Use the bulk PDF export utility which creates a combined PDF
+      const fileName = await exportMultipleRequestsToPDF(mockRequests, 'bulk-pdf-test');
       addLog(`Bulk PDF export successful: ${fileName}`);
+      
+      // Log bulk export
+      try {
+        addLog('Logging bulk PDF export with diagnostic export ID...');
+        const auditResult = await logExportEvent(
+          999999, // Special diagnostic ID for bulk export
+          'pdf', 
+          {
+            fileName: fileName,
+            fileSize: 1024 * 20, // Example file size
+            exportType: 'bulk',
+            count: mockRequests.length
+          },
+          'admin'
+        );
+        
+        if (auditResult) {
+          addLog('✓ Bulk PDF Audit logging successful');
+        } else {
+          addLog('⚠️ Bulk PDF Audit logging partial failure (export still succeeded)');
+        }
+      } catch (auditError: any) {
+        addLog(`❌ Error logging bulk PDF export: ${auditError.message || 'Unknown error'}`);
+        console.error('Bulk PDF export audit error:', auditError);
+      }
+      
       updateTestResult('bulk-pdf', 'success');
     } catch (error: any) {
       addLog(`Error during bulk PDF export: ${error.message || 'Unknown error'}`);
@@ -554,308 +337,22 @@ export default function TestExportPage() {
     }
   };
   
-  const testEnhancedExcelExport = async () => {
-    addLog('Starting enhanced Excel export test...');
-    updateTestResult('enhanced-excel', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(mockPurchaseRequest.id);
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - request ID failed validation');
-        updateTestResult('enhanced-excel', 'failed');
-        return;
-      }
-      
-      addLog('Using exportRequestToExcel utility...');
-      console.log('Mock request data:', mockPurchaseRequest);
-      
-      const fileName = await exportRequestToExcel(mockPurchaseRequest);
-      addLog(`Excel export successful: ${fileName}`);
-      
-      // Log the export event using our specialized Excel export function
-      try {
-        addLog('Logging Excel export event using unified audit system...');
-        const auditResult = await logExcelExport(
-          mockPurchaseRequest.id,
-          {
-            fileName: fileName,
-            fileSize: 1024 * 3, // Example file size
-            exportType: 'test'
-          },
-          'user'
-        );
-        
-        if (auditResult) {
-          addLog('✓ Excel Audit logging successful');
-        } else {
-          addLog('⚠️ Excel Audit logging partial failure (export still succeeded)');
-        }
-      } catch (auditError: any) {
-        addLog(`❌ Error logging Excel export: ${auditError.message || 'Unknown error'}`);
-        console.error('Excel export audit error:', auditError);
-        // Don't fail the test just because of audit logging issues
-      }
-      
-      updateTestResult('enhanced-excel', 'success');
-    } catch (error: any) {
-      addLog(`Error during enhanced Excel export: ${error.message || 'Unknown error'}`);
-      console.error('Enhanced Excel export error:', error);
-      
-      // More detailed error logging
-      if (error.stack) {
-        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
-      }
-      updateTestResult('enhanced-excel', 'failed');
-    }
+  const clearLogs = () => {
+    setLogs([]);
   };
-  
-  const testEnhancedCsvExport = async () => {
-    addLog('Starting enhanced CSV export test with improved audit logging...');
-    updateTestResult('enhanced-csv', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(mockPurchaseRequest.id);
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - request ID failed validation');
-        updateTestResult('enhanced-csv', 'failed');
-        return;
-      }
-      
-      addLog('Using exportRequestToCSV utility...');
-      console.log('Mock request data for CSV:', mockPurchaseRequest);
-      
-      // Run the actual export
-      const fileName = await exportRequestToCSV(mockPurchaseRequest);
-      addLog(`CSV export successful: ${fileName}`);
-      
-      // Log the export event using our unified audit logging
-      try {
-        addLog('Logging export event using unified audit system...');
-        const auditResult = await logCsvExport(
-          mockPurchaseRequest.id,
-          {
-            fileName: fileName,
-            fileSize: 1024, // Example file size
-            exportType: 'test'
-          },
-          'user'
-        );
-        
-        if (auditResult) {
-          addLog('✓ Audit logging successful');
-        } else {
-          addLog('⚠️ Audit logging partial failure (export still succeeded)');
-        }
-      } catch (auditError: any) {
-        // Don't fail the test if audit logging fails
-        addLog(`⚠️ Audit logging error: ${auditError.message || 'Unknown audit error'}`);
-        console.warn('Audit logging error (non-critical):', auditError);
-      }
-      
-      updateTestResult('enhanced-csv', 'success');
-    } catch (error: any) {
-      addLog(`Error during enhanced CSV export: ${error.message || 'Unknown error'}`);
-      console.error('Enhanced CSV export error:', error);
-      
-      // More detailed error logging
-      if (error.stack) {
-        addLog(`Error stack: ${error.stack.split('\n')[0]}`);
-      }
-      updateTestResult('enhanced-csv', 'failed');
-    }
-  };
-  
-  const testEnhancedZipExport = async () => {
-    addLog('Starting enhanced ZIP export test...');
-    updateTestResult('enhanced-zip', 'pending');
-    
-    try {
-      // Test ID validation before export
-      const validatedId = validateResourceId(mockPurchaseRequest.id);
-      addLog(`ID validation result: ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      
-      // If ID is invalid, we won't proceed with export
-      if (validatedId === null) {
-        addLog('Cannot proceed with export - request ID failed validation');
-        updateTestResult('enhanced-zip', 'failed');
-        return;
-      }
-      
-      addLog('Using exportMultipleRequestsAsZip utility...');
-      const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], true);
-      addLog(`ZIP export successful: ${fileName}`);
-      
-      // Log the export event using our specialized zip export function
-      try {
-        addLog('Logging ZIP export event using unified audit system...');
-        const auditResult = await logZipExport(
-          mockPurchaseRequest.id,
-          {
-            fileName: fileName,
-            fileSize: 1024 * 10, // Example file size
-            exportType: 'test'
-          },
-          'admin'
-        );
-        
-        if (auditResult) {
-          addLog('✓ ZIP Audit logging successful');
-        } else {
-          addLog('⚠️ ZIP Audit logging partial failure (export still succeeded)');
-        }
-      } catch (auditError: any) {
-        addLog(`❌ Error logging ZIP export: ${auditError.message || 'Unknown error'}`);
-        console.error('ZIP export audit error:', auditError);
-        // Don't fail the test just because of audit logging issues
-      }
-      
-      updateTestResult('enhanced-zip', 'success');
-    } catch (error: any) {
-      addLog(`Error during enhanced ZIP export: ${error.message || 'Unknown error'}`);
-      console.error('Enhanced ZIP export error:', error);
-      updateTestResult('enhanced-zip', 'failed');
-    }
-  };
-
-  // Advanced CSV diagnostics with detailed reporting
-  const runCsvDiagnostics = async () => {
-    addLog('Starting comprehensive CSV export diagnostics...');
-    updateTestResult('csv-diagnostics', 'pending');
-    setDiagnosticResult(null);
-    
-    try {
-      // Test ID validation directly
-      addLog('Testing unified resource ID validation...');
-      
-      // Test different ID formats to ensure our validation is robust
-      const testIds = [
-        999999,                // Special diagnostic ID - should pass
-        12345,                 // Regular numeric ID - should pass
-        '12345',               // String numeric ID - should pass
-        'REQ-12345',           // String with numeric component - should pass
-        'request-12345',       // Another string format - should pass
-        null,                  // Invalid - should fail
-        undefined,             // Invalid - should fail
-        'not-a-number',        // Invalid - should fail
-        -1,                    // Invalid negative - should fail
-        0                      // Invalid zero - should fail
-      ];
-      
-      // Run validation tests
-      addLog('Testing multiple ID formats with unified validator:');
-      testIds.forEach(id => {
-        const validatedId = validateResourceId(id);
-        addLog(`  • ID "${id}" → ${validatedId !== null ? `✓ VALID (${validatedId})` : '✗ INVALID'}`);
-      });
-      
-      // Create a test data object with a numeric request ID for enhanced validation
-      const diagnosticData = {
-        ...testData,
-        id: 999999, // Special diagnostic ID that's handled by our validation
-        request_id: 999999,
-        requestId: 999999,
-        testMode: true
-      };
-      
-      // Test direct audit logging
-      addLog('Testing direct diagnostic export logging for different formats...');
-      
-      // Test CSV audit logging
-      const csvAuditResult = await logDiagnosticExport('csv');
-      addLog(`CSV audit test: ${csvAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
-      
-      // Test Excel audit logging
-      const excelAuditResult = await logDiagnosticExport('excel');
-      addLog(`Excel audit test: ${excelAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
-      
-      // Test PDF audit logging
-      const pdfAuditResult = await logDiagnosticExport('pdf');
-      addLog(`PDF audit test: ${pdfAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
-      
-      // Test ZIP audit logging
-      const zipAuditResult = await logDiagnosticExport('zip');
-      addLog(`ZIP audit test: ${zipAuditResult ? '✓ SUCCESS' : '✗ FAILED'}`);
-      
-      // Use our enhanced diagnostics utility with improved testing data
-      addLog('Running step-by-step CSV diagnostics with enhanced validation and error handling...');
-      const result = await runCsvExportDiagnostics(diagnosticData);
-      setDiagnosticResult(result);
-      
-      if (result.success) {
-        addLog(`CSV diagnostics completed successfully at stage: ${result.stage}`);
-        if (result.details) {
-          Object.entries(result.details).forEach(([key, value]) => {
-            addLog(`- ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
-          });
-        }
-        
-        // If audit logging stage had issues, note it but still mark as success
-        if (result.stage === 'audit-logging' && result.error) {
-          addLog(`Note: Audit logging had issues: ${result.error}`);
-          addLog(`This is a partial issue but doesn't affect file generation`);
-        }
-        
-        updateTestResult('csv-diagnostics', 'success');
-      } else {
-        addLog(`CSV diagnostics failed at stage: ${result.stage}`);
-        addLog(`Error: ${result.error}`);
-        
-        // Add details if available
-        if (result.details) {
-          addLog('Additional details:');
-          Object.entries(result.details).forEach(([key, value]) => {
-            addLog(`- ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
-          });
-        }
-        
-        if (result.recommendedFix) {
-          addLog(`Recommended fix: ${result.recommendedFix}`);
-        }
-        
-        updateTestResult('csv-diagnostics', 'failed');
-      }
-    } catch (error: any) {
-      addLog(`Error during CSV diagnostics: ${error.message || 'Unknown error'}`);
-      console.error('CSV diagnostics error:', error);
-      
-      // Provide more detailed error information if available
-      if (error.stack) {
-        const firstLine = error.stack.split('\n')[0];
-        addLog(`Error details: ${firstLine}`);
-      }
-      
-      updateTestResult('csv-diagnostics', 'failed');
-    }
-  };
-  
-  // Clear logs
-  const clearLogs = () => setLogs([]);
 
   return (
     <div className="container py-8">
       <h1 className="text-2xl font-bold mb-6">Export Functionality Test Page</h1>
       
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-3">Basic Export Tests</h2>
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
-          <Alert className="bg-amber-50 text-amber-800 border-amber-200">
-            <AlertTitle>CSV and Excel export options removed</AlertTitle>
-            <AlertDescription>
-              Per requirements, Excel and CSV export functionality has been removed.
-              Only PDF and ZIP export options are now supported.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-      
+      <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+        <AlertTitle>Export Functionality Updated</AlertTitle>
+        <AlertDescription>
+          Excel and CSV export options have been removed to standardize on PDF and ZIP formats only, per the project requirements.
+          This test page has been updated to focus on the PDF and ZIP export workflows with enhanced audit logging.
+        </AlertDescription>
+      </Alert>
+
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Enhanced Export Utilities</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -865,22 +362,6 @@ export default function TestExportPage() {
             className="w-full"
           >
             Test Enhanced PDF Export
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={testEnhancedExcelExport}
-            className="w-full"
-          >
-            Test Enhanced Excel Export
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={testEnhancedCsvExport}
-            className="w-full"
-          >
-            Test Enhanced CSV Export
           </Button>
           
           <Button 
@@ -895,15 +376,7 @@ export default function TestExportPage() {
       
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Bulk Export Tests</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <Button 
-            variant="secondary" 
-            onClick={testBulkExcelExport}
-            className="w-full"
-          >
-            Test Bulk Excel Export
-          </Button>
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <Button 
             variant="secondary" 
             onClick={testBulkZipExport}
@@ -925,63 +398,13 @@ export default function TestExportPage() {
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Advanced Diagnostics</h2>
         <div className="grid grid-cols-1 gap-4 mb-4">
-          <Button 
-            variant="destructive" 
-            onClick={runCsvDiagnostics}
-            className="w-full"
-          >
-            Run Comprehensive CSV Diagnostics
-          </Button>
-          
-          {diagnosticResult && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  CSV Diagnostics Result
-                  <Badge variant={diagnosticResult.success ? 'success' : 'destructive'}>
-                    {diagnosticResult.success ? 'Success' : 'Failed'}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Stage:</span>
-                    <span>{diagnosticResult.stage}</span>
-                  </div>
-                  
-                  {diagnosticResult.error && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertTitle>Error Detected</AlertTitle>
-                      <AlertDescription>
-                        {diagnosticResult.error}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {diagnosticResult.recommendedFix && (
-                    <Alert variant="default" className="mb-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-                      <AlertTitle>Recommended Fix</AlertTitle>
-                      <AlertDescription>
-                        {diagnosticResult.recommendedFix}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {diagnosticResult.details && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Details:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm">
-                        {Object.entries(diagnosticResult.details).map(([key, value]) => (
-                          <li key={key}><span className="font-medium">{key}:</span> {String(value)}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+            <AlertTitle>Export Diagnostics Updated</AlertTitle>
+            <AlertDescription>
+              Per the standardization requirements, we have shifted to PDF and ZIP-only exports with enhanced audit validation.
+              Advanced diagnostics have been updated to focus on these standardized formats.
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
       
@@ -1012,48 +435,6 @@ export default function TestExportPage() {
           <h2 className="font-semibold mb-2">Test Results</h2>
           <div className="space-y-2">
             <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
-              <h3 className="text-sm font-medium mb-2">Basic Export Tests</h3>
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">CSV Export (SaveAs)</span>
-                  <Badge variant={
-                    testResults['basic-csv'] === 'success' ? 'success' : 
-                    testResults['basic-csv'] === 'pending' ? 'outline' :
-                    testResults['basic-csv'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['basic-csv'] === 'not-run' ? 'Not Run' : 
-                     testResults['basic-csv'] === 'pending' ? 'Running...' :
-                     testResults['basic-csv'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">CSV Export (Alternative)</span>
-                  <Badge variant={
-                    testResults['basic-alternative'] === 'success' ? 'success' : 
-                    testResults['basic-alternative'] === 'pending' ? 'outline' :
-                    testResults['basic-alternative'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['basic-alternative'] === 'not-run' ? 'Not Run' : 
-                     testResults['basic-alternative'] === 'pending' ? 'Running...' :
-                     testResults['basic-alternative'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">Excel Export</span>
-                  <Badge variant={
-                    testResults['basic-excel'] === 'success' ? 'success' : 
-                    testResults['basic-excel'] === 'pending' ? 'outline' :
-                    testResults['basic-excel'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['basic-excel'] === 'not-run' ? 'Not Run' : 
-                     testResults['basic-excel'] === 'pending' ? 'Running...' :
-                     testResults['basic-excel'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
               <h3 className="text-sm font-medium mb-2">Enhanced Export Tests</h3>
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
@@ -1066,30 +447,6 @@ export default function TestExportPage() {
                     {testResults['enhanced-pdf'] === 'not-run' ? 'Not Run' : 
                      testResults['enhanced-pdf'] === 'pending' ? 'Running...' :
                      testResults['enhanced-pdf'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">Excel Export</span>
-                  <Badge variant={
-                    testResults['enhanced-excel'] === 'success' ? 'success' : 
-                    testResults['enhanced-excel'] === 'pending' ? 'outline' :
-                    testResults['enhanced-excel'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['enhanced-excel'] === 'not-run' ? 'Not Run' : 
-                     testResults['enhanced-excel'] === 'pending' ? 'Running...' :
-                     testResults['enhanced-excel'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">CSV Export</span>
-                  <Badge variant={
-                    testResults['enhanced-csv'] === 'success' ? 'success' : 
-                    testResults['enhanced-csv'] === 'pending' ? 'outline' :
-                    testResults['enhanced-csv'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['enhanced-csv'] === 'not-run' ? 'Not Run' : 
-                     testResults['enhanced-csv'] === 'pending' ? 'Running...' :
-                     testResults['enhanced-csv'] === 'success' ? 'Success' : 'Failed'}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1110,18 +467,6 @@ export default function TestExportPage() {
             <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
               <h3 className="text-sm font-medium mb-2">Bulk Export Tests</h3>
               <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">Bulk Excel Export</span>
-                  <Badge variant={
-                    testResults['bulk-excel'] === 'success' ? 'success' : 
-                    testResults['bulk-excel'] === 'pending' ? 'outline' :
-                    testResults['bulk-excel'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['bulk-excel'] === 'not-run' ? 'Not Run' : 
-                     testResults['bulk-excel'] === 'pending' ? 'Running...' :
-                     testResults['bulk-excel'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs">Bulk ZIP Export</span>
                   <Badge variant={
@@ -1148,24 +493,6 @@ export default function TestExportPage() {
                 </div>
               </div>
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-3 rounded-md">
-              <h3 className="text-sm font-medium mb-2">Advanced Diagnostics</h3>
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">CSV Diagnostics</span>
-                  <Badge variant={
-                    testResults['csv-diagnostics'] === 'success' ? 'success' : 
-                    testResults['csv-diagnostics'] === 'pending' ? 'outline' :
-                    testResults['csv-diagnostics'] === 'failed' ? 'destructive' : 'secondary'
-                  }>
-                    {testResults['csv-diagnostics'] === 'not-run' ? 'Not Run' : 
-                     testResults['csv-diagnostics'] === 'pending' ? 'Running...' :
-                     testResults['csv-diagnostics'] === 'success' ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1174,17 +501,14 @@ export default function TestExportPage() {
         <h3 className="font-semibold mb-2">How This Works</h3>
         <p className="text-sm mb-2">
           This test page implements different methods of generating and downloading export files to help diagnose download issues. 
-          It includes both basic direct implementations and our enhanced export utilities.
+          It focuses exclusively on PDF and ZIP exports per standardization requirements.
         </p>
         <ul className="list-disc list-inside text-sm space-y-1">
-          <li>The Basic Tests use direct library calls (saveAs, createObjectURL, etc.)</li>
           <li>The Enhanced Tests use our improved utilities from exportUtils.ts</li>
           <li>The Bulk Tests verify multiple-request exports with proper file formatting</li>
-          <li>The Advanced Diagnostics run comprehensive analysis with detailed reporting</li>
-          <li>All exports use the UTF-8 encoding with proper BOM implementation</li>
-          <li>Enhanced exports include better error handling, validation, and fallbacks</li>
-          <li>CSV Diagnostics use step-by-step analysis with multiple fallback mechanisms</li>
+          <li>All exports include better error handling, validation, and fallbacks</li>
           <li>All exports include proper audit logging with the PDF audit endpoint</li>
+          <li>Special diagnostic IDs (999999) are handled for bulk export validation</li>
           <li>All logs are displayed above for debugging and troubleshooting</li>
         </ul>
       </div>
