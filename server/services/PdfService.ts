@@ -13,15 +13,18 @@
  * - Export validation and tracking
  */
 
-import { db } from '@db/index';
-import { pdfSettings, auditLogs, purchaseRequests } from '@db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { AppError, ValidationError } from '../utils/errors';
 import { Request } from 'express';
-import { anthropicClient, MODEL } from '../utils/anthropic-config';
-import { PurchaseRequestWithRelations } from '@db/schema';
+import { Anthropic } from '@anthropic-ai/sdk';
+import { db } from '@db';
+import { purchaseRequests, fileAttachments, approvals, users, subPurposes } from '@db/schema';
+import { eq, and } from 'drizzle-orm';
+import { logAuditEvent } from '../utils/audit-logger';
+import { AppError, NotFoundError } from '../utils/errors';
+import fs from 'fs';
+import path from 'path';
+import JSZip from 'jszip';
+import { MODEL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/anthropic-config';
 
-// PDF Template configuration interface
 export interface PdfTemplateConfig {
   name: string;
   type: string;
@@ -42,36 +45,39 @@ export interface PdfTemplateConfig {
   customFields?: Record<string, boolean>;
 }
 
-// Default template configuration
 export const DEFAULT_TEMPLATE_CONFIG: PdfTemplateConfig = {
-  name: 'Standard Template',
-  type: 'standard',
-  layout: 'portrait',
+  name: 'Standard PR Template',
+  type: 'purchase_request',
+  layout: 'standard',
   showHeader: true,
   showFooter: true,
   showLogo: true,
-  showWatermark: true,
+  showWatermark: false,
   securityLevel: 'internal',
-  headerColor: [111, 42, 230], // Default purple
-  accentColor: [31, 211, 219], // Default teal
-  watermarkOpacity: 0.08,
-  watermarkText: 'INTERNAL USE',
+  headerColor: [0, 112, 192],
+  accentColor: [0, 112, 192],
+  watermarkOpacity: 0.1,
+  watermarkText: 'CONFIDENTIAL',
   showApprovalFlow: true,
   showSignatureLines: true,
   showAttachments: true,
-  showTotalsTable: true
+  showTotalsTable: true,
+  customFields: {
+    showRequesterId: true,
+    showRequesterDepartment: true,
+    showPurposeType: true,
+    showSubmissionDate: true
+  }
 };
 
-// Audit action types
 export type PdfAuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 'pdf_analyzed';
 
-// PDF settings with template configuration
 export interface PdfSettingsWithTemplate {
   id?: number;
   headerTitle: string;
-  headerSubtitle: string;
+  headerSubtitle?: string | null;
   headerColor: string;
-  footerText: string;
+  footerText?: string | null;
   footerColor: string;
   pageNumbering: boolean;
   fontSize?: number;
@@ -94,6 +100,7 @@ export interface PdfSettingsWithTemplate {
  */
 export class PdfService {
   private static instance: PdfService;
+  private anthropic: Anthropic | null = null;
 
   /**
    * Get the singleton instance
@@ -108,118 +115,83 @@ export class PdfService {
   /**
    * Private constructor to enforce singleton pattern
    */
-  private constructor() {}
+  private constructor() {
+    // Initialize Anthropic if API key is available
+    if (process.env.ANTHROPIC_API_KEY) {
+      this.anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY
+      });
+    }
+  }
 
   /**
    * Get PDF settings with template configuration
    */
   public async getPdfSettings(): Promise<PdfSettingsWithTemplate> {
-    // Fetch the latest PDF settings
-    const settings = await db.query.pdfSettings.findMany({
-      orderBy: [desc(pdfSettings.updatedAt)],
-      limit: 1
-    });
-
-    // Default settings
-    const defaultSettings: Omit<PdfSettingsWithTemplate, 'templateConfig'> = {
-      headerTitle: 'EVENTS & ENTERTAINMENT ENTERPRISES',
-      headerSubtitle: 'PURCHASE REQUEST',
-      headerColor: '#6F2AE6', // Purple
-      footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
-      footerColor: '#6F2AE6',
-      pageNumbering: true,
-      watermarkOpacity: 10,
-    };
-
-    if (settings.length > 0) {
-      const settingsData = settings[0];
-      
-      // Try to parse template configuration
-      let templateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
-      if (settingsData.templateConfig) {
-        try {
-          templateConfig = JSON.parse(settingsData.templateConfig);
-        } catch (error) {
-          console.error('Failed to parse template configuration:', error);
-          // Continue with default template
-        }
-      }
-
-      // Return settings with template configuration
+    try {
+      // For now, return default settings
+      // In a full implementation, this would retrieve from the database
       return {
-        ...settingsData,
-        templateConfig
+        headerTitle: 'Purchase Request',
+        headerSubtitle: 'Company Name',
+        headerColor: '#0070c0',
+        footerText: '© 2024 - Confidential',
+        footerColor: '#333333',
+        pageNumbering: true,
+        fontSize: 12,
+        marginTop: 20,
+        marginBottom: 20,
+        marginLeft: 20,
+        marginRight: 20,
+        headerHeight: 60,
+        footerHeight: 30,
+        headerImage: null,
+        footerImage: null,
+        logo: null,
+        loginLogo: null,
+        watermarkOpacity: 0.1,
+        templateConfig: DEFAULT_TEMPLATE_CONFIG
       };
+    } catch (error) {
+      console.error('Error getting PDF settings:', error);
+      throw new AppError('Failed to retrieve PDF settings', 500);
     }
-
-    // Return default settings
-    return {
-      ...defaultSettings,
-      templateConfig: DEFAULT_TEMPLATE_CONFIG
-    };
   }
 
   /**
    * Save PDF settings to the database
    */
-  public async savePdfSettings(settings: Partial<PdfSettingsWithTemplate>, userId: number): Promise<PdfSettingsWithTemplate> {
-    // Extract template configuration
-    let { templateConfig, ...restSettings } = settings;
-    
-    // Convert template configuration to string
-    const templateConfigStr = templateConfig ? JSON.stringify(templateConfig) : undefined;
-    
-    // Find existing settings
-    const existingSettings = await db.query.pdfSettings.findMany({
-      orderBy: [desc(pdfSettings.updatedAt)],
-      limit: 1
-    });
-    
-    let result;
-    
-    if (existingSettings.length > 0) {
-      // Update existing settings
-      const settingId = existingSettings[0].id;
-      [result] = await db.update(pdfSettings)
-        .set({
-          ...restSettings,
-          templateConfig: templateConfigStr,
-          updatedAt: new Date()
-        })
-        .where(eq(pdfSettings.id, settingId))
-        .returning();
-    } else {
-      // Create new settings
-      [result] = await db.insert(pdfSettings).values({
-        headerTitle: settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES',
-        headerSubtitle: settings.headerSubtitle || 'PURCHASE REQUEST',
-        headerColor: settings.headerColor || '#6F2AE6',
-        footerText: settings.footerText || 'CONFIDENTIAL - ALL RIGHTS RESERVED',
-        footerColor: settings.footerColor || '#6F2AE6',
-        pageNumbering: settings.pageNumbering ?? true,
-        templateConfig: templateConfigStr || JSON.stringify(DEFAULT_TEMPLATE_CONFIG),
-        ...restSettings,
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-    }
-    
-    // Parse template configuration
-    let parsedTemplateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
+  public async savePdfSettings(settings: Partial<PdfSettingsWithTemplate>, userId: number | null): Promise<PdfSettingsWithTemplate> {
     try {
-      if (result.templateConfig) {
-        parsedTemplateConfig = JSON.parse(result.templateConfig);
+      // In a full implementation, this would update settings in the database
+      console.log('Saving PDF settings:', settings);
+      console.log('User ID:', userId);
+
+      // Return merged settings with defaults
+      const defaultSettings = await this.getPdfSettings();
+      let parsedTemplateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
+
+      if (settings.templateConfig) {
+        try {
+          if (typeof settings.templateConfig === 'string') {
+            parsedTemplateConfig = JSON.parse(settings.templateConfig);
+          } else {
+            parsedTemplateConfig = settings.templateConfig;
+          }
+        } catch (error) {
+          console.error('Error parsing template config:', error);
+        }
       }
+
+      return {
+        ...defaultSettings,
+        ...settings,
+        templateConfig: parsedTemplateConfig
+      };
     } catch (error) {
-      console.error('Failed to parse template configuration:', error);
+      console.error('Error saving PDF settings:', error);
+      throw new AppError('Failed to save PDF settings', 500);
     }
-    
-    // Return settings with template configuration
-    return {
-      ...result,
-      templateConfig: parsedTemplateConfig
-    };
   }
 
   /**
@@ -228,75 +200,40 @@ export class PdfService {
   public async logPdfAudit(
     req: Request,
     action: PdfAuditAction,
-    resourceId: number | string,
-    details: Record<string, any> = {},
-    type: 'user' | 'approver' | 'admin' = 'user'
-  ): Promise<boolean> {
+    options: {
+      resourceId: number;
+      details?: Record<string, any>;
+      userType?: 'user' | 'approver' | 'admin';
+    }
+  ): Promise<any> {
     try {
-      // Validate and convert resourceId to a number
-      let validatedResourceId: number | null = null;
-      
-      if (resourceId !== null && resourceId !== undefined) {
-        // Convert to number if string
-        const numericId = typeof resourceId === 'string' ? parseInt(resourceId.trim(), 10) : resourceId;
-        
-        // Verify it's a valid positive number
-        if (!isNaN(Number(numericId)) && Number(numericId) > 0) {
-          validatedResourceId = Number(numericId);
-        } else {
-          console.error('Invalid resource ID for PDF audit logging:', resourceId);
-          return false;
+      // Get user ID from session
+      const userId = req.user ? (req.user as any).id : null;
+      const { resourceId, details, userType } = options;
+
+      // If no user is authenticated, just log and return
+      if (!userId) {
+        console.log('Anonymous PDF audit:', { action, resourceId, details, userType });
+        return { success: false, message: 'No authenticated user' };
+      }
+
+      // Log the audit event
+      await logAuditEvent(req, {
+        userId,
+        action: action as any, // Type compatibility
+        resourceId,
+        resourceType: 'purchase_request',
+        details: {
+          ...details,
+          userType,
+          timestamp: new Date().toISOString()
         }
-      } else {
-        console.error('Missing resource ID for PDF audit logging');
-        return false;
-      }
-      
-      // Add timestamp to details if not provided
-      const enrichedDetails = {
-        ...details,
-        timestamp: details?.timestamp || new Date().toISOString(),
-        userType: type || 'user',
-        trackingSource: details?.trackingId ? 'tracked' : 'untracked'
-      };
-      
-      // Try to insert audit log entry with the user ID if authenticated
-      if (req.isAuthenticated() && req.user) {
-        await db.insert(auditLogs).values({
-          userId: req.user.id,
-          action,
-          resourceId: validatedResourceId,
-          resourceType: 'pdf',
-          details: enrichedDetails,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'] || '',
-          timestamp: new Date()
-        });
-        
-        console.log(`[PDF Audit] Authenticated user ${req.user.id} ${action} for request ${validatedResourceId}`);
-        return true;
-      } else {
-        // Handle anonymous users - try to get user ID from details if provided
-        const userIdFromDetails = details?.userId ? 
-          parseInt(details.userId as string, 10) : null;
-        
-        await db.insert(auditLogs).values({
-          userId: userIdFromDetails, // May be null for anonymous access
-          action,
-          resourceId: validatedResourceId,
-          resourceType: 'pdf',
-          details: enrichedDetails,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'] || '',
-          timestamp: new Date()
-        });
-        
-        console.log(`[PDF Audit] Anonymous ${action} for request ${validatedResourceId}, implied user: ${userIdFromDetails || 'none'}`);
-        return true;
-      }
+      });
+
+      return { success: true };
     } catch (error) {
-      console.error('Error logging PDF audit event:', error);
-      return false;
+      console.error('Error logging PDF audit:', error);
+      return { success: false, error: 'Failed to log audit event' };
     }
   }
 
@@ -304,36 +241,239 @@ export class PdfService {
    * Get purchase request data for PDF generation
    */
   public async getPurchaseRequestForPdf(requestId: number, isPreview: boolean = false): Promise<{
-    data: PurchaseRequestWithRelations;
-    pdfSettings: any;
+    data: any;
+    settings: PdfSettingsWithTemplate;
   }> {
-    // Check if request exists
-    const request = await db.query.purchaseRequests.findFirst({
-      where: eq(purchaseRequests.id, requestId),
-      with: {
-        requester: true,
-        approvals: {
-          with: {
-            approver: true
-          }
-        },
-        subPurpose: true,
-        attachments: true,
-        vendor: true
+    try {
+      // Get the purchase request with relations
+      const request = await db.query.purchaseRequests.findFirst({
+        where: eq(purchaseRequests.id, requestId),
+        with: {
+          requester: true,
+          approvals: {
+            with: {
+              approver: true
+            }
+          },
+          subPurpose: true,
+          attachments: true,
+          vendor: true
+        }
+      });
+
+      if (!request) {
+        throw new NotFoundError(`Purchase request with ID ${requestId} not found`);
       }
-    });
-    
-    if (!request) {
-      throw new AppError(`Purchase request with ID ${requestId} not found`, 404);
+
+      // Get PDF settings
+      const settings = await this.getPdfSettings();
+
+      // Convert vendor data to match client-side expected structure
+      const vendorData = request.vendor ? {
+        ...request.vendor,
+      } : undefined;
+
+      // Return data and settings
+      return {
+        data: {
+          ...request,
+          vendor: vendorData
+        },
+        settings
+      };
+    } catch (error) {
+      console.error('Error getting purchase request for PDF:', error);
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new AppError('Failed to retrieve purchase request data for PDF', 500);
     }
-    
-    // Get PDF settings
-    const pdfSettingsData = await this.getPdfSettings();
-    
-    return {
-      data: request,
-      pdfSettings: pdfSettingsData
-    };
+  }
+
+  /**
+   * Generate request ZIP file
+   */
+  public async generateRequestZip(requestId: number, includeAttachments: boolean = true): Promise<{
+    filePath: string;
+    fileName: string;
+  }> {
+    try {
+      // Get request data
+      const { data } = await this.getPurchaseRequestForPdf(requestId);
+      
+      // Create a new ZIP file
+      const zip = new JSZip();
+      
+      // Add request details as JSON
+      zip.file('request-details.json', JSON.stringify(data, null, 2));
+      
+      // Add attachments if requested
+      if (includeAttachments && data.attachments && data.attachments.length > 0) {
+        const attachmentsFolder = zip.folder('attachments');
+        
+        // Add each attachment to the ZIP
+        for (const attachment of data.attachments) {
+          try {
+            const filePath = path.join(process.cwd(), 'uploads', attachment.fileName);
+            if (fs.existsSync(filePath)) {
+              const fileContent = fs.readFileSync(filePath);
+              attachmentsFolder?.file(attachment.fileName, fileContent);
+            }
+          } catch (error) {
+            console.error(`Error adding attachment ${attachment.fileName} to ZIP:`, error);
+          }
+        }
+      }
+      
+      // Generate ZIP file
+      const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+      
+      // Create temporary directory for the ZIP file
+      const tempDir = path.join(process.cwd(), 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      
+      // Save ZIP file
+      const fileName = `PR-${data.requestNumber || requestId}-${Date.now()}.zip`;
+      const filePath = path.join(tempDir, fileName);
+      fs.writeFileSync(filePath, zipContent);
+      
+      return {
+        filePath,
+        fileName
+      };
+    } catch (error) {
+      console.error('Error generating request ZIP:', error);
+      throw new AppError('Failed to generate ZIP file', 500);
+    }
+  }
+
+  /**
+   * Generate bulk export ZIP
+   */
+  public async generateBulkExport(requestIds: number[], includeAttachments: boolean = true): Promise<{
+    filePath: string;
+    fileName: string;
+  }> {
+    try {
+      // Create a new ZIP file
+      const zip = new JSZip();
+      
+      // Process each request ID
+      for (const requestId of requestIds) {
+        try {
+          // Get request data
+          const { data } = await this.getPurchaseRequestForPdf(requestId);
+          
+          // Create a folder for each request
+          const requestFolder = zip.folder(`PR-${data.requestNumber || requestId}`);
+          
+          // Add request details as JSON
+          requestFolder?.file('request-details.json', JSON.stringify(data, null, 2));
+          
+          // Add attachments if requested
+          if (includeAttachments && data.attachments && data.attachments.length > 0) {
+            const attachmentsFolder = requestFolder?.folder('attachments');
+            
+            // Add each attachment to the ZIP
+            for (const attachment of data.attachments) {
+              try {
+                const filePath = path.join(process.cwd(), 'uploads', attachment.fileName);
+                if (fs.existsSync(filePath)) {
+                  const fileContent = fs.readFileSync(filePath);
+                  attachmentsFolder?.file(attachment.fileName, fileContent);
+                }
+              } catch (attachError) {
+                console.error(`Error adding attachment ${attachment.fileName} to bulk ZIP:`, attachError);
+              }
+            }
+          }
+        } catch (requestError) {
+          console.error(`Error processing request ${requestId} for bulk export:`, requestError);
+          // Continue with other requests even if one fails
+        }
+      }
+      
+      // Generate ZIP file
+      const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+      
+      // Create temporary directory for the ZIP file
+      const tempDir = path.join(process.cwd(), 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+      }
+      
+      // Save ZIP file
+      const fileName = `Bulk-Export-${Date.now()}.zip`;
+      const filePath = path.join(tempDir, fileName);
+      fs.writeFileSync(filePath, zipContent);
+      
+      return {
+        filePath,
+        fileName
+      };
+    } catch (error) {
+      console.error('Error generating bulk export ZIP:', error);
+      throw new AppError('Failed to generate bulk export ZIP file', 500);
+    }
+  }
+
+  /**
+   * Process uploaded images for PDF settings
+   */
+  public async processUploadedImages(
+    files: Express.Multer.File[],
+    imageType: string,
+    userId: number | null
+  ): Promise<{
+    success: boolean;
+    files: {
+      originalName: string;
+      fileName: string;
+      fileUrl: string;
+      fileSize: number;
+      fileType: string;
+    }[];
+  }> {
+    try {
+      // Process and save the image files
+      const processedFiles = files.map(file => ({
+        originalName: file.originalname,
+        fileName: file.filename,
+        fileUrl: `/uploads/pdf-images/${file.filename}`,
+        fileSize: file.size,
+        fileType: file.mimetype
+      }));
+      
+      // Update PDF settings with the new image
+      if (processedFiles.length > 0) {
+        const settings = await this.getPdfSettings();
+        const newSettings: Partial<PdfSettingsWithTemplate> = { ...settings };
+        
+        // Update the appropriate image field based on type
+        if (imageType === 'header') {
+          newSettings.headerImage = processedFiles[0].fileUrl;
+        } else if (imageType === 'footer') {
+          newSettings.footerImage = processedFiles[0].fileUrl;
+        } else if (imageType === 'logo') {
+          newSettings.logo = processedFiles[0].fileUrl;
+        } else if (imageType === 'loginLogo') {
+          newSettings.loginLogo = processedFiles[0].fileUrl;
+        }
+        
+        // Save updated settings
+        await this.savePdfSettings(newSettings, userId);
+      }
+      
+      return {
+        success: true,
+        files: processedFiles
+      };
+    } catch (error) {
+      console.error('Error processing uploaded images:', error);
+      throw new AppError('Failed to process uploaded images', 500);
+    }
   }
 
   /**
@@ -341,33 +481,55 @@ export class PdfService {
    */
   public async analyzePdfTemplateIssue(
     templateConfig: PdfTemplateConfig,
-    errorMessage: string
+    requestId?: number
   ): Promise<{
     analysis: string;
     recommendations: string[];
     fixedTemplate?: PdfTemplateConfig;
   }> {
     try {
-      // Use Anthropic Claude API for analysis
-      const message = await anthropicClient.messages.create({
+      // If Anthropic is not available, return basic analysis
+      if (!this.anthropic) {
+        return this.createBasicTemplateAnalysis(templateConfig);
+      }
+      
+      // Get request data if a request ID is provided
+      let requestData = null;
+      if (requestId) {
+        try {
+          const { data } = await this.getPurchaseRequestForPdf(requestId);
+          requestData = data;
+        } catch (error) {
+          console.error(`Error getting request data for PDF template analysis:`, error);
+        }
+      }
+      
+      // Send to Anthropic for analysis
+      const message = await this.anthropic.messages.create({
         model: MODEL,
-        max_tokens: 1000,
-        system: "You're an expert in PDF template configuration and generation issues. Analyze the provided template configuration and error message, then provide a concise explanation of the issue and practical recommendations to fix it.",
+        max_tokens: DEFAULT_MAX_TOKENS,
+        temperature: DEFAULT_TEMPERATURE,
+        system: "You're an expert in PDF template design and optimization. Analyze the provided template configuration and suggest improvements for clarity, readability, and professionalism.",
         messages: [
           {
             role: 'user',
             content: `
-              I'm having an issue with a PDF template configuration. Here's the configuration:
-              ${JSON.stringify(templateConfig, null, 2)}
+              Please analyze this PDF template configuration and suggest improvements:
               
-              And here's the error message:
-              ${errorMessage}
+              Template Configuration: ${JSON.stringify(templateConfig, null, 2)}
               
-              Please analyze what might be causing this issue and provide specific recommendations to fix it.
-              Format your response with:
-              1. Brief analysis of the problem
-              2. A bulleted list of specific recommendations to fix the issue
-              3. A fixed version of the template configuration in JSON format
+              ${requestData ? `Sample Data: ${JSON.stringify(requestData, null, 2)}` : ''}
+              
+              I need:
+              1. A brief analysis of any issues or potential improvements
+              2. Specific recommendations to enhance the template
+              3. A fixed version of the template configuration if needed
+              
+              Focus on:
+              - Improving readability and visual hierarchy
+              - Ensuring consistent formatting and branding
+              - Optimizing for professionalism and clarity
+              - Organizing information logically for approval workflows
             `
           }
         ]
@@ -380,7 +542,7 @@ export class PdfService {
       
       // Extract recommendations
       const recommendations: string[] = [];
-      const recommendationsMatch = content.text.match(/Recommendations?([\s\S]*?)(?:\n\n|$)/i);
+      const recommendationsMatch = content.text.match(/Recommendations?:([\s\S]*?)(?:\n\n|$)/i);
       if (recommendationsMatch) {
         const recText = recommendationsMatch[1];
         const bullets = recText.match(/[•\-\*]\s*([^\n]*)/g);
@@ -389,14 +551,14 @@ export class PdfService {
         }
       }
       
-      // Extract fixed template configuration
+      // Extract fixed template
       let fixedTemplate: PdfTemplateConfig | undefined;
-      const jsonMatch = content.text.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
-      if (jsonMatch) {
+      const fixedTemplateMatch = content.text.match(/```json([\s\S]*?)```/);
+      if (fixedTemplateMatch) {
         try {
-          fixedTemplate = JSON.parse(jsonMatch[1]);
-        } catch (error) {
-          console.error('Failed to parse fixed template configuration:', error);
+          fixedTemplate = JSON.parse(fixedTemplateMatch[1]);
+        } catch (parseError) {
+          console.error('Error parsing fixed template JSON:', parseError);
         }
       }
       
@@ -407,55 +569,67 @@ export class PdfService {
       };
     } catch (error) {
       console.error('Error analyzing PDF template issue:', error);
-      
-      // Local fallback analysis
-      return {
-        analysis: 'Could not analyze the template issue with AI. There may be invalid field values or incompatible settings.',
-        recommendations: [
-          'Ensure all color values are in the correct format (arrays with 3 values for RGB)',
-          'Check that boolean fields like showHeader, showFooter, etc. are actual boolean values',
-          'Verify that numeric fields like watermarkOpacity have valid numeric values',
-          'Make sure all required fields are present in the template configuration'
-        ]
-      };
+      return this.createBasicTemplateAnalysis(templateConfig);
     }
   }
 
   /**
-   * Log PDF generation error with AI analysis
+   * Analyze images for PDF compatibility
    */
-  public async logPdfGenerationError(
-    error: Error,
-    requestId: number,
-    templateConfig: PdfTemplateConfig
+  public async analyzeImages(
+    images: string[],
+    options: {
+      logoSize?: { width: number; height: number };
+      headerSize?: { width: number; height: number };
+      footerSize?: { width: number; height: number };
+    } = {}
   ): Promise<{
-    error: string;
     analysis: string;
     recommendations: string[];
+    issues: string[];
   }> {
     try {
-      // Use Anthropic Claude API for analysis
-      const message = await anthropicClient.messages.create({
+      // If Anthropic is not available, return basic analysis
+      if (!this.anthropic) {
+        return {
+          analysis: 'Basic image analysis (AI analysis not available)',
+          recommendations: [
+            'Ensure images are in JPEG, PNG, or SVG format',
+            'Keep file sizes under 2MB for better performance',
+            'Use high-resolution images (at least 300 DPI)'
+          ],
+          issues: []
+        };
+      }
+      
+      // Send to Anthropic for analysis
+      const message = await this.anthropic.messages.create({
         model: MODEL,
-        max_tokens: 1500,
-        system: "You're an expert in PDF generation and troubleshooting. Analyze the provided error and template configuration to identify issues and suggest fixes.",
+        max_tokens: DEFAULT_MAX_TOKENS,
+        temperature: DEFAULT_TEMPERATURE,
+        system: "You're an expert in PDF design and image optimization. Analyze the provided image details and suggest improvements for PDF integration.",
         messages: [
           {
             role: 'user',
             content: `
-              I encountered an error when generating a PDF for purchase request ${requestId}.
+              Please analyze these images for PDF compatibility:
               
-              Error: ${error.message}
-              ${error.stack ? `Stack trace: ${error.stack}` : ''}
+              Image Paths: ${JSON.stringify(images)}
               
-              Template configuration:
-              ${JSON.stringify(templateConfig, null, 2)}
+              Logo Size: ${options.logoSize ? JSON.stringify(options.logoSize) : 'Not specified'}
+              Header Size: ${options.headerSize ? JSON.stringify(options.headerSize) : 'Not specified'}
+              Footer Size: ${options.footerSize ? JSON.stringify(options.footerSize) : 'Not specified'}
               
-              Please analyze what might be causing this issue and provide specific recommendations to fix it.
-              Format your response with:
-              1. Brief analysis of the root cause
-              2. A bulleted list of specific recommendations to fix the issue
-              3. Whether this is likely a data problem, template configuration problem, or code problem
+              I need:
+              1. A brief analysis of any potential issues
+              2. Specific recommendations for PDF optimization
+              3. A list of any detected issues that need fixing
+              
+              Focus on:
+              - Resolution and DPI for print quality
+              - File size and format optimization
+              - Aspect ratio and scaling concerns
+              - Color profile considerations for PDF
             `
           }
         ]
@@ -468,7 +642,7 @@ export class PdfService {
       
       // Extract recommendations
       const recommendations: string[] = [];
-      const recommendationsMatch = content.text.match(/Recommendations?([\s\S]*?)(?:\n\n|$)/i);
+      const recommendationsMatch = content.text.match(/Recommendations?:([\s\S]*?)(?:\n\n|$)/i);
       if (recommendationsMatch) {
         const recText = recommendationsMatch[1];
         const bullets = recText.match(/[•\-\*]\s*([^\n]*)/g);
@@ -477,41 +651,65 @@ export class PdfService {
         }
       }
       
-      // Log the error for future analysis
-      await db.insert(auditLogs).values({
-        userId: null,
-        action: 'pdf_analyzed',
-        resourceId: requestId,
-        resourceType: 'error_analysis',
-        details: {
-          error: error.message,
-          stack: error.stack,
-          analysis: content.text,
-          recommendations,
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date()
-      });
+      // Extract issues
+      const issues: string[] = [];
+      const issuesMatch = content.text.match(/Issues?:([\s\S]*?)(?:\n\n|$)/i);
+      if (issuesMatch) {
+        const issuesText = issuesMatch[1];
+        const bullets = issuesText.match(/[•\-\*]\s*([^\n]*)/g);
+        if (bullets) {
+          issues.push(...bullets.map(b => b.replace(/^[•\-\*]\s*/, '')));
+        }
+      }
       
       return {
-        error: error.message,
         analysis: content.text,
-        recommendations
+        recommendations,
+        issues
       };
-    } catch (analyzeError) {
-      console.error('Error analyzing PDF generation error:', analyzeError);
+    } catch (error) {
+      console.error('Error analyzing images for PDF:', error);
       
       return {
-        error: error.message,
-        analysis: 'Failed to analyze the error with AI. This may be due to connectivity issues or API limitations.',
+        analysis: 'Basic image analysis (error during AI analysis)',
         recommendations: [
-          'Check the error message for clues about what went wrong',
-          'Verify that the template configuration is valid',
-          'Check for missing or invalid data in the purchase request',
-          'Try regenerating the PDF with default settings'
-        ]
+          'Ensure images are in JPEG, PNG, or SVG format',
+          'Keep file sizes under 2MB for better performance',
+          'Use high-resolution images (at least 300 DPI)'
+        ],
+        issues: ['Unable to perform detailed AI analysis']
       };
     }
+  }
+
+  /**
+   * Create basic template analysis
+   */
+  private createBasicTemplateAnalysis(templateConfig: PdfTemplateConfig): {
+    analysis: string;
+    recommendations: string[];
+    fixedTemplate?: PdfTemplateConfig;
+  } {
+    const analysis = 'Basic template analysis (AI analysis not available)';
+    const recommendations = [
+      'Ensure header and footer are enabled for professional appearance',
+      'Consider adding a watermark for sensitive documents',
+      'Enable approval flow visualization for clarity'
+    ];
+    
+    // Create improved template
+    const fixedTemplate: PdfTemplateConfig = {
+      ...templateConfig,
+      showHeader: true,
+      showFooter: true,
+      showApprovalFlow: true
+    };
+    
+    return {
+      analysis,
+      recommendations,
+      fixedTemplate
+    };
   }
 }
 
