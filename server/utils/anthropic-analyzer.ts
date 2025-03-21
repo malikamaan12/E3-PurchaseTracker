@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { MODEL } from './anthropic-config';
 
-// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+// Use the standardized Anthropic client
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -57,7 +58,7 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
     }`;
 
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: MODEL,
       max_tokens: 1024,
       messages: [{ role: "user", content: prompt }],
     });

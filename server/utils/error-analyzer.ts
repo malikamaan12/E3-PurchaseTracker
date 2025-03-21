@@ -17,6 +17,9 @@ const errorAnalysisSchema = z.object({
 
 type ErrorAnalysis = z.infer<typeof errorAnalysisSchema>;
 
+// Use the latest Claude model
+const MODEL = 'claude-3-5-sonnet-20241022';
+
 // Initialize Anthropic client with error handling
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
@@ -55,7 +58,7 @@ Format as JSON:
 }`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: MODEL,
       max_tokens: 1024,
       temperature: 0.7,
       messages: [{ 
