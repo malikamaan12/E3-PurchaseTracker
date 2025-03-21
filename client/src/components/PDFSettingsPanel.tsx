@@ -146,7 +146,7 @@ export default function PDFSettingsPanel() {
         toast({
           title: 'Failed to load settings',
           description: 'Could not load PDF template settings. Using defaults instead.',
-          variant: 'error',
+          variant: 'destructive',
         });
       } finally {
         setLoading(false);
@@ -183,14 +183,14 @@ export default function PDFSettingsPanel() {
       toast({
         title: 'Settings saved',
         description: 'PDF template settings have been updated successfully.',
-        variant: 'success',
+        variant: 'default',
       });
     } catch (error) {
       console.error('Failed to save PDF settings:', error);
       toast({
         title: 'Save failed',
         description: 'Could not save PDF template settings. Please try again.',
-        variant: 'error',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
