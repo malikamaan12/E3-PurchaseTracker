@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import { Download, Settings, AlertCircle, FileText, FileArchive } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, FileText, FileArchive, Download, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -70,7 +70,7 @@ export default function EnhancedPdfExport({
       toast({
         title: "PDF Export Successful",
         description: "Your document has been exported successfully.",
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -138,7 +138,7 @@ export default function EnhancedPdfExport({
       toast({
         title: "ZIP Export Successful",
         description: "Your files have been exported successfully.",
-        variant: "success"
+        variant: "default"
       });
     } catch (error) {
       console.error('Error exporting ZIP:', error);
