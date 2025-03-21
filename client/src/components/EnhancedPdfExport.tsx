@@ -1,374 +1,201 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle 
-} from '@/components/ui/dialog';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue 
-} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileDown, FileSearch, Check, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { pdfService } from '../services/pdfService';
-import { pdfAnalysisService } from '../services/pdfAnalysisService';
 
 interface EnhancedPdfExportProps {
   requestId: number;
-  userRole?: 'user' | 'approver' | 'admin';
-  disabled?: boolean;
-  label?: string;
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
-  showDialog?: boolean;
+  userType?: 'user' | 'approver' | 'admin';
+  showOptions?: boolean;
+  title?: string;
+  description?: string;
+  variant?: 'default' | 'compact' | 'minimal';
+  className?: string;
 }
 
 /**
- * Enhanced PDF Export Button with AI-powered analysis
+ * Enhanced PDF Export Component
  * 
- * This component provides a unified interface for exporting PDFs with
- * intelligent error handling and optimization suggestions.
+ * This component provides an improved PDF export experience with:
+ * - Unified format across all exports
+ * - AI-powered error analysis
+ * - Progress indicators
+ * - Export options
  */
 export function EnhancedPdfExport({
   requestId,
-  userRole = 'user',
-  disabled = false,
-  label = 'Export PDF',
+  userType = 'user',
+  showOptions = true,
+  title = 'Export to PDF',
+  description = 'Download the purchase request as a PDF file',
   variant = 'default',
-  size = 'default',
-  showDialog = true
+  className
 }: EnhancedPdfExportProps) {
-  const [isExporting, setIsExporting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [exportOption, setExportOption] = useState<'pdf' | 'zip'>('pdf');
+  const [loading, setLoading] = useState(false);
   const [includeAttachments, setIncludeAttachments] = useState(true);
-  const [exportResult, setExportResult] = useState<{
-    success: boolean;
-    message: string;
-    recommendations?: string[];
-  } | null>(null);
-  
   const { toast } = useToast();
-  
-  // Handle direct export (no dialog)
-  const handleDirectExport = async () => {
-    if (disabled || isExporting) return;
-    
-    setIsExporting(true);
-    
+
+  const handleExport = async () => {
+    setLoading(true);
     try {
-      const fileName = await pdfService.exportRequestToPdf(requestId, userRole);
+      // Export the PDF using the service
+      const fileName = await pdfService.exportRequestToPdf(requestId, userType);
       
+      // Show success message
       toast({
-        title: 'PDF Exported',
-        description: `Successfully exported ${fileName}`,
-      });
-      
-      setExportResult({
-        success: true,
-        message: `Successfully exported ${fileName}`
+        title: 'PDF Generated',
+        description: `${fileName} has been downloaded successfully.`,
+        variant: 'default'
       });
     } catch (error) {
       console.error('PDF export error:', error);
       
-      // Analyze the error with AI
+      // Show error toast
+      toast({
+        title: 'PDF Export Failed',
+        description: error instanceof Error 
+          ? error.message 
+          : 'An error occurred while generating the PDF.',
+        variant: 'destructive'
+      });
+      
+      // Try to get error analysis and show recommendations if available
       try {
-        const analysis = await pdfAnalysisService.analyzePdfError(error, requestId);
-        
-        setExportResult({
-          success: false,
-          message: error instanceof Error ? error.message : String(error),
-          recommendations: analysis.recommendations
-        });
+        const errorAnalysis = await pdfService.analyzePdfError?.(error, requestId);
+        if (errorAnalysis?.recommendations?.length > 0) {
+          toast({
+            title: 'Suggested Fix',
+            description: errorAnalysis.recommendations[0],
+            variant: 'default'
+          });
+        }
       } catch (analysisError) {
         console.error('Error analyzing PDF error:', analysisError);
-        
-        setExportResult({
-          success: false,
-          message: error instanceof Error ? error.message : String(error)
-        });
       }
     } finally {
-      setIsExporting(false);
+      setLoading(false);
     }
   };
-  
-  // Handle dialog-based export
-  const handleDialogExport = async () => {
-    setIsExporting(true);
-    
-    try {
-      if (exportOption === 'pdf') {
-        const fileName = await pdfService.exportRequestToPdf(requestId, userRole);
-        
-        toast({
-          title: 'PDF Exported',
-          description: `Successfully exported ${fileName}`,
-        });
-        
-        setExportResult({
-          success: true,
-          message: `Successfully exported ${fileName}`
-        });
-      } else { // zip
-        const fileName = await pdfService.exportRequestsAsZip([requestId], includeAttachments);
-        
-        toast({
-          title: 'ZIP Exported',
-          description: `Successfully exported ${fileName}`,
-        });
-        
-        setExportResult({
-          success: true,
-          message: `Successfully exported ${fileName}`
-        });
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      
-      // Analyze the error with AI
-      try {
-        const analysis = await pdfAnalysisService.analyzePdfError(error, requestId);
-        
-        setExportResult({
-          success: false,
-          message: error instanceof Error ? error.message : String(error),
-          recommendations: analysis.recommendations
-        });
-      } catch (analysisError) {
-        console.error('Error analyzing export error:', analysisError);
-        
-        setExportResult({
-          success: false,
-          message: error instanceof Error ? error.message : String(error)
-        });
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  };
-  
-  // Handle click based on dialog setting
-  const handleClick = () => {
-    if (showDialog) {
-      setDialogOpen(true);
-      setExportResult(null);
-    } else {
-      handleDirectExport();
-    }
-  };
-  
-  return (
-    <>
-      <Button
-        variant={variant}
-        size={size}
-        disabled={disabled || isExporting}
-        onClick={handleClick}
-      >
-        {isExporting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Exporting...
-          </>
-        ) : (
-          <>
-            <FileDown className="mr-2 h-4 w-4" />
-            {label}
-          </>
-        )}
-      </Button>
-      
-      {showDialog && (
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Export Request</DialogTitle>
-              <DialogDescription>
-                Choose your export options for this request.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="export-type" className="text-right">
-                  Format
-                </Label>
-                <Select
-                  value={exportOption}
-                  onValueChange={(value) => setExportOption(value as 'pdf' | 'zip')}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pdf">PDF Document</SelectItem>
-                    <SelectItem value="zip">ZIP Archive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {exportOption === 'zip' && (
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="include-attachments" className="text-right">
-                    Include Attachments
-                  </Label>
-                  <div className="col-span-3 flex items-center space-x-2">
-                    <Switch
-                      id="include-attachments"
-                      checked={includeAttachments}
-                      onCheckedChange={setIncludeAttachments}
-                    />
-                    <Label htmlFor="include-attachments">
-                      {includeAttachments ? 'Yes' : 'No'}
-                    </Label>
-                  </div>
-                </div>
-              )}
-              
-              {exportResult && (
-                <div className={`p-4 rounded-md ${
-                  exportResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                }`}>
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      {exportResult.success ? (
-                        <Check className="h-5 w-5 text-green-400" />
-                      ) : (
-                        <AlertTriangle className="h-5 w-5 text-red-400" />
-                      )}
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium">
-                        {exportResult.success ? 'Export successful' : 'Export failed'}
-                      </h3>
-                      <div className="mt-2 text-sm">
-                        <p>{exportResult.message}</p>
-                        
-                        {exportResult.recommendations && exportResult.recommendations.length > 0 && (
-                          <div className="mt-2">
-                            <p className="font-medium">Recommendations:</p>
-                            <ul className="list-disc pl-5 space-y-1 mt-1">
-                              {exportResult.recommendations.slice(0, 3).map((rec, i) => (
-                                <li key={i}>{rec}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-                disabled={isExporting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleDialogExport}
-                disabled={isExporting}
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Export
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  );
-}
 
-/**
- * PDF Preview Button Component
- */
-export function PdfPreviewButton({
-  requestId,
-  userRole = 'user',
-  disabled = false,
-  label = 'Preview PDF',
-  variant = 'outline',
-  size = 'default'
-}: Omit<EnhancedPdfExportProps, 'showDialog'>) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  
-  const handlePreview = async () => {
-    if (disabled || isLoading) return;
-    
-    setIsLoading(true);
-    
+  const handleExportZip = async () => {
+    setLoading(true);
     try {
-      // Log the audit event first
-      await pdfService.logPdfAudit(
-        requestId,
-        'pdf_viewed',
-        {
-          previewType: 'browser',
-          timestamp: new Date().toISOString()
-        },
-        userRole
-      );
+      // Export as ZIP
+      const fileName = await pdfService.exportRequestsAsZip([requestId], includeAttachments);
       
-      // Open preview in new tab
-      window.open(`/api/requests/${requestId}/pdf?preview=true`, '_blank');
-    } catch (error) {
-      console.error('PDF preview error:', error);
-      
+      // Show success message
       toast({
-        title: 'Preview Failed',
-        description: error instanceof Error ? error.message : 'Failed to generate PDF preview',
+        title: 'ZIP Generated',
+        description: `${fileName} has been downloaded successfully.`,
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error('ZIP export error:', error);
+      
+      // Show error toast
+      toast({
+        title: 'ZIP Export Failed',
+        description: error instanceof Error 
+          ? error.message 
+          : 'An error occurred while generating the ZIP file.',
         variant: 'destructive'
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
+
+  // Minimal variant is just a simple button
+  if (variant === 'minimal') {
+    return (
+      <Button 
+        onClick={handleExport} 
+        disabled={loading}
+        className={className}
+        size="sm"
+      >
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        {loading ? 'Generating...' : title}
+      </Button>
+    );
+  }
+
+  // Compact variant is a button with limited options
+  if (variant === 'compact') {
+    return (
+      <div className={`flex gap-2 ${className}`}>
+        <Button 
+          onClick={handleExport} 
+          disabled={loading}
+          variant="default"
+          size="sm"
+        >
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {loading ? 'Generating PDF...' : 'Export PDF'}
+        </Button>
+        {showOptions && (
+          <Button 
+            onClick={handleExportZip}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {loading ? 'Generating ZIP...' : 'Export ZIP'}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Default variant is a full card with options
   return (
-    <Button
-      variant={variant}
-      size={size}
-      disabled={disabled || isLoading}
-      onClick={handlePreview}
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading...
-        </>
-      ) : (
-        <>
-          <FileSearch className="mr-2 h-4 w-4" />
-          {label}
-        </>
-      )}
-    </Button>
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {showOptions && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="include-attachments" 
+                checked={includeAttachments}
+                onCheckedChange={setIncludeAttachments}
+              />
+              <Label htmlFor="include-attachments">Include attachments</Label>
+            </div>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex gap-2">
+        <Button 
+          onClick={handleExport} 
+          disabled={loading}
+          className="flex-1"
+        >
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {loading ? 'Generating PDF...' : 'Export PDF'}
+        </Button>
+        {showOptions && (
+          <Button 
+            onClick={handleExportZip}
+            disabled={loading}
+            variant="outline"
+            className="flex-1"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {loading ? 'Generating ZIP...' : 'Export ZIP'}
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
   );
 }
+
+// No need for module declaration now since analyzePdfError is now a public method

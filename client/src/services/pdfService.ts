@@ -9,7 +9,7 @@ import axios from 'axios';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { toast } from '../hooks/use-toast';
+import { useToast } from '../hooks/use-toast';
 
 // PDF Template configuration interface
 export interface PdfTemplateConfig {
@@ -221,26 +221,15 @@ class PdfService {
       // Analyze the error and try to provide helpful feedback
       const errorMessage = this.getPdfErrorMessage(error);
       
-      toast({
-        title: 'PDF Export Failed',
-        description: errorMessage,
-        variant: 'destructive'
-      });
+      // Log the error but don't show toast here - the component using this service should handle UI feedback
+      console.error('PDF export failed:', errorMessage);
       
       // If we have Anthropic, analyze the error
       if (this.anthropic) {
         this.analyzePdfError(error, requestId)
           .then(analysis => {
             console.log('PDF error analysis:', analysis);
-            
-            // Show suggested fix if available
-            if (analysis.recommendations && analysis.recommendations.length > 0) {
-              toast({
-                title: 'Suggested Fix',
-                description: analysis.recommendations[0],
-                variant: 'default'
-              });
-            }
+            // Analysis is returned to the caller for display
           })
           .catch(analysisError => {
             console.error('Error analyzing PDF error:', analysisError);
@@ -278,12 +267,8 @@ class PdfService {
     } catch (error) {
       console.error('Error exporting ZIP:', error);
       
-      // Show error message
-      toast({
-        title: 'ZIP Export Failed',
-        description: this.getPdfErrorMessage(error),
-        variant: 'destructive'
-      });
+      // Log the error but don't show toast here - the component using this service should handle UI feedback
+      console.error('ZIP export failed:', this.getPdfErrorMessage(error));
       
       throw error;
     }
@@ -315,8 +300,9 @@ class PdfService {
   
   /**
    * Analyze PDF generation error using Anthropic
+   * Public version of the analyzePdfError method for components to use
    */
-  private async analyzePdfError(
+  public async analyzePdfError(
     error: any,
     requestId: number
   ): Promise<{
