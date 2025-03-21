@@ -8,20 +8,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { 
-  FileDown, 
   FileText, 
   FileArchive, 
   Download, 
   Loader2, 
-  AlertTriangle, 
-  Table, 
-  FileSpreadsheet 
+  AlertTriangle
 } from "lucide-react";
 import { 
   exportRequestToPDF, 
-  exportMultipleRequestsAsZip,
-  exportRequestToExcel,
-  exportRequestToCSV 
+  exportMultipleRequestsAsZip
 } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
@@ -35,7 +30,7 @@ interface DownloadOptionsProps {
 
 export function DownloadOptions({ request, compact = false }: DownloadOptionsProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [currentExportType, setCurrentExportType] = useState<'pdf' | 'pdf-admin' | 'pdf-approver' | 'zip' | 'zip-data' | 'excel' | 'csv' | null>(null);
+  const [currentExportType, setCurrentExportType] = useState<'pdf' | 'pdf-admin' | 'pdf-approver' | 'zip' | 'zip-data' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useUser();
@@ -51,8 +46,6 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       const { 
         validateResourceId,
         logPdfExport, 
-        logCsvExport, 
-        logExcelExport, 
         logZipExport 
       } = await import('@/lib/exportAuditUtils');
       
@@ -77,12 +70,6 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       switch (fileType) {
         case 'pdf':
           await logPdfExport(validatedId, details, userRole as any || 'user');
-          break;
-        case 'csv':
-          await logCsvExport(validatedId, details, userRole as any || 'user');
-          break;
-        case 'excel':
-          await logExcelExport(validatedId, details, userRole as any || 'user');
           break;
         case 'zip':
           await logZipExport(validatedId, details, userRole as any || 'user');
@@ -208,515 +195,19 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
     }
   };
   
-  // Handle Excel download
-  // Use the server-side export endpoint directly
-  const handleDirectExcelExport = async () => {
-    try {
-      setIsLoading(true);
-      setCurrentExportType('excel');
-      setExportError(null);
-      
-      // Show toast for starting the download process
-      toast({
-        title: "Preparing Excel",
-        description: "Generating Excel file...",
-      });
-      
-      // Create a proper export URL with request ID if available
-      // Ensure we have a valid request ID by doing strict validation
-      let requestId = null;
-      
-      if (request?.id) {
-        // Make sure we have a clean integer by converting to string and parsing
-        const idStr = String(request.id).trim();
-        const parsedId = parseInt(idStr, 10);
-        
-        // Enhanced validation - just check if we have a valid number
-        // This matches the server-side validation without being too strict
-        if (!isNaN(parsedId)) {
-          requestId = parsedId;
-          console.log(`Valid request ID for Excel export: ${requestId}`);
-        } else {
-          console.warn(`Invalid request ID format for Excel: ${idStr}, parsed as: ${parsedId}`);
-        }
-      }
-      
-      // Use the validated request ID for the URL
-      const exportUrl = requestId 
-        ? `/api/requests/export?id=${requestId}&format=xlsx`
-        : `/api/requests/export?format=xlsx`;
-      
-      console.log(`Direct Excel export URL: ${exportUrl} for request ID: ${requestId}`);
-      
-      // Fetch Excel file directly from server
-      const response = await fetch(exportUrl, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
-      });
-      
-      if (!response.ok) {
-        let errorMsg = 'Failed to download Excel file';
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-          } else {
-            errorMsg = await response.text() || errorMsg;
-          }
-        } catch (e) {
-          // Ignore parsing errors and use default message
-        }
-        throw new Error(errorMsg);
-      }
-      
-      // Get the blob data
-      const blob = await response.blob();
-      
-      // Create filename
-      const fileName = `Purchase_Request_${request?.requestNumber || request?.id || 'all'}_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
-      // Directly initiate download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
-      
-      // Track successful download
-      await trackDownload('excel', true);
-      
-      toast({
-        title: "Success",
-        description: "Excel file downloaded successfully"
-      });
-    } catch (error) {
-      console.error('Error downloading Excel:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download Excel file");
-      
-      // Track failed download
-      await trackDownload('excel', false);
-      
-      // Use quick diagnosis first
-      const quickDiagnosis = quickDiagnoseExportError(error, {
-        operation: 'excel_export',
-        entityType: 'request',
-        dataSize: request?.attachments?.length || 0
-      });
-      
-      // Show toast with quick diagnosis
-      toast({
-        title: "Download failed",
-        description: quickDiagnosis.message,
-        variant: "destructive",
-      });
-      
-      // For more detailed analysis, use AI in background
-      try {
-        const { analyzeExportIssue } = await import('@/services/export-analyzer');
-        const analysis = await analyzeExportIssue(error, {
-          operation: 'excel_export',
-          requestId: request?.id,
-          directExport: true
-        });
-        
-        console.log('Excel export error analysis:', analysis);
-        
-        // Log the solutions to console for developers
-        if (analysis.fixes?.immediate?.length > 0) {
-          console.info('Suggested fixes for Excel export issue:', analysis.fixes.immediate);
-        }
-      } catch (analysisError) {
-        // AI analysis failed but we already showed quick diagnosis
-        console.error('Error analyzing Excel export error:', analysisError);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Original client-side Excel export method as backup
-  const handleExcelDownload = async (includeDetails: boolean = true) => {
-    try {
-      setIsLoading(true);
-      setCurrentExportType('excel');
-      setExportError(null);
-      
-      // Show toast for starting the download process
-      toast({
-        title: "Preparing Excel",
-        description: "Getting request data for download...",
-      });
-      
-      // Get the request ID from the current request
-      const requestId = request?.id ? parseInt(String(request.id)) : null;
-      
-      // Validate the request ID is a valid number
-      if (!requestId || isNaN(requestId)) {
-        throw new Error('Invalid request ID');
-      }
-      
-      // Use the actual request ID from the current request
-      const useId = requestId;
-      
-      // Fetch request data with full details
-      console.log(`Fetching Excel data for request ${useId}`);
-      const response = await fetch(`/api/requests/${useId}`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to download Excel');
-      }
-      
-      const data = await response.json();
-      console.log('Excel API response structure:', Object.keys(data));
-      
-      if (!data) {
-        throw new Error('Invalid response format from request API');
-      }
-      
-      // Generate and download Excel
-      console.log('Generating Excel from data...');
-      await exportRequestToExcel(data);
-      
-      // Track successful download
-      await trackDownload('excel', true);
-      
-      toast({
-        title: "Success",
-        description: "Excel file downloaded successfully"
-      });
-    } catch (error) {
-      console.error('Error downloading Excel:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download Excel file");
-      
-      // If client-side method fails, try the direct export 
-      console.log('Client-side Excel export failed, trying direct export...');
-      try {
-        await handleDirectExcelExport();
-        return; // If direct export succeeds, we're done
-      } catch (directExportError) {
-        console.error('Direct Excel export also failed:', directExportError);
-        // Continue with error handling for the original error
-      }
-      
-      // Track failed download
-      await trackDownload('excel', false);
-      
-      // Use quick diagnosis first
-      const quickDiagnosis = quickDiagnoseExportError(error, {
-        operation: 'excel_export',
-        entityType: 'request',
-        dataSize: request?.attachments?.length || 0
-      });
-      
-      // Show toast with quick diagnosis
-      toast({
-        title: "Download failed",
-        description: quickDiagnosis.message,
-        variant: "destructive",
-      });
-      
-      // For more detailed analysis, use AI in background
-      try {
-        const { analyzeExportIssue } = await import('@/services/export-analyzer');
-        const analysis = await analyzeExportIssue(error, {
-          operation: 'excel_export',
-          requestId: request?.id,
-          includeDetails
-        });
-        
-        console.log('Excel export error analysis:', analysis);
-        
-        // Log the solutions to console for developers
-        if (analysis.fixes?.immediate?.length > 0) {
-          console.info('Suggested fixes for Excel export issue:', analysis.fixes.immediate);
-        }
-      } catch (analysisError) {
-        // AI analysis failed but we already showed quick diagnosis
-        console.error('Error analyzing Excel export error:', analysisError);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Use the server-side export endpoint directly for CSV
-  const handleDirectCsvExport = async () => {
-    try {
-      setIsLoading(true);
-      setCurrentExportType('csv');
-      setExportError(null);
-      
-      // Show toast for starting the download process
-      toast({
-        title: "Preparing CSV",
-        description: "Generating CSV file...",
-      });
-      
-      // Create a proper export URL with request ID if available
-      // Ensure we have a valid request ID by doing strict validation
-      let requestId = null;
-      
-      if (request?.id) {
-        // Make sure we have a clean integer by converting to string and parsing
-        const idStr = String(request.id).trim();
-        const parsedId = parseInt(idStr, 10);
-        
-        // Enhanced validation - just check if we have a valid number
-        // This matches the server-side validation without being too strict
-        if (!isNaN(parsedId)) {
-          requestId = parsedId;
-          console.log(`Valid request ID for export: ${requestId}`);
-        } else {
-          console.warn(`Invalid request ID format: ${idStr}, parsed as: ${parsedId}`);
-        }
-      }
-      
-      // Use the validated request ID for the URL
-      const exportUrl = requestId 
-        ? `/api/requests/export?id=${requestId}&format=csv`
-        : `/api/requests/export?format=csv`;
-      
-      console.log(`Direct CSV export URL: ${exportUrl} for request ID: ${requestId}`);
-      
-      // Fetch CSV file directly from server
-      const response = await fetch(exportUrl, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'text/csv'
-        }
-      });
-      
-      if (!response.ok) {
-        let errorMsg = 'Failed to download CSV file';
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-          } else {
-            errorMsg = await response.text() || errorMsg;
-          }
-        } catch (e) {
-          // Ignore parsing errors and use default message
-        }
-        throw new Error(errorMsg);
-      }
-      
-      // Get the blob data
-      const blob = await response.blob();
-      
-      // Create filename
-      const fileName = `Purchase_Request_${request?.requestNumber || request?.id || 'all'}_${new Date().toISOString().split('T')[0]}.csv`;
-      
-      // Directly initiate download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
-      
-      // Track successful download
-      await trackDownload('csv', true);
-      
-      toast({
-        title: "Success",
-        description: "CSV file downloaded successfully"
-      });
-    } catch (error) {
-      console.error('Error downloading CSV:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download CSV file");
-      
-      // Track failed download
-      await trackDownload('csv', false);
-      
-      // Use quick diagnosis first
-      const quickDiagnosis = quickDiagnoseExportError(error, {
-        operation: 'csv_export',
-        entityType: 'request',
-        dataSize: request?.attachments?.length || 0
-      });
-      
-      // Show toast with quick diagnosis
-      toast({
-        title: "Download failed",
-        description: quickDiagnosis.message,
-        variant: "destructive",
-      });
-      
-      // For more detailed analysis, use AI in background
-      try {
-        const { analyzeExportIssue } = await import('@/services/export-analyzer');
-        const analysis = await analyzeExportIssue(error, {
-          operation: 'csv_export',
-          requestId: request?.id,
-          directExport: true
-        });
-        
-        console.log('CSV export error analysis:', analysis);
-        
-        // Log the solutions to console for developers
-        if (analysis.fixes?.immediate?.length > 0) {
-          console.info('Suggested fixes for CSV export issue:', analysis.fixes.immediate);
-        }
-      } catch (analysisError) {
-        // AI analysis failed but we already showed quick diagnosis
-        console.error('Error analyzing CSV export error:', analysisError);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Original client-side CSV export method as backup
-  const handleCsvDownload = async () => {
-    try {
-      setIsLoading(true);
-      setCurrentExportType('csv');
-      setExportError(null);
-      
-      // Show toast for starting the download process
-      toast({
-        title: "Preparing CSV",
-        description: "Getting request data for download...",
-      });
-      
-      // Get the request ID from the current request
-      const requestId = request?.id ? parseInt(String(request.id)) : null;
-      
-      // Validate the request ID is a valid number
-      if (!requestId || isNaN(requestId)) {
-        throw new Error('Invalid request ID');
-      }
-      
-      // Use the actual request ID from the current request
-      const useId = requestId;
-      
-      // Fetch request data with full details
-      console.log(`Fetching CSV data for request ${useId}`);
-      const response = await fetch(`/api/requests/${useId}`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to download CSV');
-      }
-      
-      const data = await response.json();
-      console.log('CSV API response structure:', Object.keys(data));
-      
-      if (!data) {
-        throw new Error('Invalid response format from request API');
-      }
-      
-      // Generate and download CSV
-      console.log('Generating CSV from data...');
-      await exportRequestToCSV(data);
-      
-      // Track successful download
-      await trackDownload('csv', true);
-      
-      toast({
-        title: "Success",
-        description: "CSV file downloaded successfully"
-      });
-    } catch (error) {
-      console.error('Error downloading CSV:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download CSV file");
-      
-      // If client-side method fails, try the direct export
-      console.log('Client-side CSV export failed, trying direct export...');
-      try {
-        await handleDirectCsvExport();
-        return; // If direct export succeeds, we're done
-      } catch (directExportError) {
-        console.error('Direct CSV export also failed:', directExportError);
-        // Continue with error handling for the original error
-      }
-      
-      // Track failed download
-      await trackDownload('csv', false);
-      
-      // Use quick diagnosis first
-      const quickDiagnosis = quickDiagnoseExportError(error, {
-        operation: 'csv_export',
-        entityType: 'request',
-        dataSize: request?.attachments?.length || 0
-      });
-      
-      // Show toast with quick diagnosis
-      toast({
-        title: "Download failed",
-        description: quickDiagnosis.message,
-        variant: "destructive",
-      });
-      
-      // For more detailed analysis, use AI in background
-      try {
-        const { analyzeExportIssue } = await import('@/services/export-analyzer');
-        const analysis = await analyzeExportIssue(error, {
-          operation: 'csv_export',
-          requestId: request?.id,
-        });
-        
-        console.log('CSV export error analysis:', analysis);
-        
-        // Log the solutions to console for developers
-        if (analysis.fixes?.immediate?.length > 0) {
-          console.info('Suggested fixes for CSV export issue:', analysis.fixes.immediate);
-        }
-      } catch (analysisError) {
-        // AI analysis failed but we already showed quick diagnosis
-        console.error('Error analyzing CSV export error:', analysisError);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle ZIP download
+  // Handle ZIP download with attachments
   const handleZipDownload = async () => {
     try {
       setIsLoading(true);
       setCurrentExportType('zip');
       setExportError(null);
-      
+
       // Show toast for starting the download process
       toast({
         title: "Preparing ZIP",
-        description: "Getting request data for download...",
+        description: "Getting request data and attachments for download...",
       });
-      
+
       // Get the request ID from the current request
       const requestId = request?.id ? parseInt(String(request.id)) : null;
       
@@ -725,47 +216,50 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         throw new Error('Invalid request ID');
       }
       
-      // Use the actual request ID from the current request
-      const useId = requestId;
-      
-      // Fetch request data with full details
-      console.log(`Fetching ZIP data for request ${useId}`);
-      const response = await fetch(`/api/requests/${useId}/zip`, {
+      // Fetch ZIP file directly from server
+      console.log(`Fetching ZIP package for request ${requestId}`);
+      const zipUrl = `/api/requests/${requestId}/zip`;
+      const response = await fetch(zipUrl, {
         credentials: 'include',
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Accept': 'application/zip, application/octet-stream'
         }
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to download ZIP archive');
+        let errorMsg = 'Failed to download ZIP package';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorMsg;
+          } else {
+            errorMsg = await response.text() || errorMsg;
+          }
+        } catch (e) {
+          // Ignore parsing errors and use default message
+        }
+        throw new Error(errorMsg);
       }
       
-      const data = await response.json();
-      console.log('ZIP API response structure:', Object.keys(data));
+      // Get the blob data
+      const blob = await response.blob();
       
-      if (!data) {
-        throw new Error('Invalid response format from request API');
-      }
+      // Create filename for the zip file
+      const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
       
-      // Extract ZIP URL
-      const zipUrl = data.url;
-      if (!zipUrl) {
-        throw new Error('No ZIP URL returned from server');
-      }
-      
-      // Create an anchor element to trigger download
+      // Directly initiate download
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
-      a.href = zipUrl;
-      a.download = `Purchase_Request_${request.requestNumber || request.id}_${new Date().toISOString().split('T')[0]}.zip`;
+      a.href = url;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       
       // Clean up
       setTimeout(() => {
+        window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }, 100);
       
@@ -778,12 +272,12 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       });
     } catch (error) {
       console.error('Error downloading ZIP:', error);
-      setExportError(error instanceof Error ? error.message : "Failed to download ZIP archive");
+      setExportError(error instanceof Error ? error.message : "Failed to download ZIP package");
       
       // Track failed download
       await trackDownload('zip', false);
       
-      // Use quick diagnosis first
+      // Quick diagnosis first
       const quickDiagnosis = quickDiagnoseExportError(error, {
         operation: 'zip_export',
         entityType: 'request',
@@ -797,12 +291,13 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         variant: "destructive",
       });
       
-      // For more detailed analysis, use AI in background
+      // For more detailed analysis in background
       try {
         const { analyzeExportIssue } = await import('@/services/export-analyzer');
         const analysis = await analyzeExportIssue(error, {
           operation: 'zip_export',
-          requestId: request.id,
+          requestId: request?.id,
+          attachmentsCount: request?.attachments?.length || 0
         });
         
         console.log('ZIP export error analysis:', analysis);
@@ -823,7 +318,7 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
       setIsLoading(false);
     }
   };
-  
+    
   return (
     <div className="flex flex-col space-y-4">
       {exportError && (
@@ -857,14 +352,6 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
               <FileText className="mr-2 h-4 w-4" />
               <span>PDF Document</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleDirectExcelExport()} disabled={isLoading}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              <span>Excel File</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleDirectCsvExport()} disabled={isLoading}>
-              <Table className="mr-2 h-4 w-4" />
-              <span>CSV File</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleZipDownload} disabled={isLoading}>
               <FileArchive className="mr-2 h-4 w-4" />
@@ -886,34 +373,6 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
               <FileText className="mr-2 h-4 w-4" />
             )}
             PDF
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDirectExcelExport()}
-            disabled={isLoading}
-          >
-            {isLoading && currentExportType === 'excel' ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-            )}
-            Excel
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDirectCsvExport()}
-            disabled={isLoading}
-          >
-            {isLoading && currentExportType === 'csv' ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Table className="mr-2 h-4 w-4" />
-            )}
-            CSV
           </Button>
           
           <Button
