@@ -157,7 +157,7 @@ export async function generateEnhancedPdf(
     }
     
     // Add Approvals section
-    if (getSectionVisibility(pdfSettings, 'ApprovalFlow') && request.approvals?.length > 0) {
+    if (getSectionVisibility(pdfSettings, 'ApprovalFlow') && request.approvals && request.approvals.length > 0) {
       // Check if we need a new page
       if (yPos > doc.internal.pageSize.height - 100) {
         doc.addPage();
@@ -186,7 +186,7 @@ export async function generateEnhancedPdf(
     }
     
     // Add Attachments section
-    if (getSectionVisibility(pdfSettings, 'Attachments') && request.attachments?.length > 0) {
+    if (getSectionVisibility(pdfSettings, 'Attachments') && request.attachments && request.attachments.length > 0) {
       // Check if we need a new page
       if (yPos > doc.internal.pageSize.height - 80) {
         doc.addPage();

@@ -382,50 +382,20 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
   try {
     console.log(`Starting PDF export with consolidated format for request #${request.id}`);
     
-    // Try to fetch PDF settings
-    let pdfSettings = null;
-    try {
-      const response = await fetch('/api/pdf/print-settings');
-      if (response.ok) {
-        pdfSettings = await response.json();
-      }
-    } catch (error) {
-      console.error('Error fetching PDF settings:', error);
+    // Validate the request ID
+    const resourceId = request.id;
+    if (!resourceId) {
+      throw new Error('Missing request ID for PDF export');
     }
     
-    console.log('Generating PDF from data using consolidated format...');
+    console.log('Successfully validated request ID:', resourceId);
     
-    // Import our validation function and watermarking functions
-    const { validatePdfBrandingSettings, applySecurityWatermark, generatePdfTrackingId } = await import('./pdfAuditUtils');
+    // Generate the PDF document using our enhanced PDF renderer
+    const { generateEnhancedPdf } = await import('./enhancedPdfRenderer');
+    const doc = await generateEnhancedPdf(request, roleForAudit);
     
-    // Validate and normalize PDF settings - this ensures all required properties exist
-    const validatedSettings = validatePdfBrandingSettings(pdfSettings);
-    
-    // Generate the PDF document using our consolidated format that works for all user types
-    const { generatePurchaseRequestPDF } = await import('./purchaseRequestPdf');
-    const doc = await generatePurchaseRequestPDF(request, {
-      // The roleForAudit parameter is only used for audit logging, the PDF format is the same for all roles
-      type: roleForAudit, // Passing role for audit purposes only
-      // Our consolidated format always includes these sections with no duplicates
-      showApprovals: true,
-      showAttachments: true,
-      // Still preserve the signature lines logic for appropriate roles
-      showSignatures: roleForAudit === 'admin' || roleForAudit === 'approver',
-      headerImage: pdfSettings?.headerImage || null,
-      footerImage: pdfSettings?.footerImage || null,
-      headerColor: validatedSettings.headerColor,
-      footerColor: validatedSettings.footerColor,
-      footerText: validatedSettings.footerText,
-      pageNumbering: validatedSettings.pageNumbering,
-      // Add watermark and security settings
-      securityLevel: validatedSettings.securityLevel || 'internal',
-      companyInfo: {
-        phone: pdfSettings?.companyPhone || '+974 44332340 / 55255417',
-        email: pdfSettings?.companyEmail || 'info@e3corp.com',
-        website: pdfSettings?.companyWebsite || 'www.e3corp.com',
-        address: pdfSettings?.companyAddress || 'Floor 36, Office 3602, Palm Tower B, Marina 41, Port Area, P.O.Box 55821, Doha'
-      }
-    });
+    // Import our utility functions
+    const { generatePdfTrackingId, logPdfAuditEvent } = await import('./pdfAuditUtils');
     
     // Generate the PDF - using consistent file naming with no type-specific suffixes
     const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
@@ -443,7 +413,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         {
           trackingId,
           pdfType: roleForAudit,
-          securityLevel: validatedSettings.securityLevel || 'internal',
+          securityLevel: 'internal',
           fileName,
           fileSize: pdfOutput.size,
           timestamp: new Date().toISOString()
