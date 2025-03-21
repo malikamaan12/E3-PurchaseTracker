@@ -78,7 +78,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="space-y-2">
               <Label htmlFor="fontFamily">Font Family</Label>
               <Select 
-                value={settings.fontFamily} 
+                value={settings.fontFamily || 'Arial'} 
                 onValueChange={(value) => handleChange('fontFamily', value)}
                 disabled={loading}
               >
@@ -383,7 +383,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="space-y-2">
               <Label htmlFor="logoPositon">Logo Position</Label>
               <Select 
-                value={settings.logoPosition} 
+                value={settings.logoPosition || 'left'} 
                 onValueChange={(value) => handleChange('logoPosition', value as 'left' | 'center' | 'right')}
                 disabled={loading}
               >
@@ -576,7 +576,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="space-y-2">
               <Label htmlFor="watermarkPosition">Watermark Position</Label>
               <Select 
-                value={settings.watermarkPosition} 
+                value={settings.watermarkPosition || 'center'} 
                 onValueChange={(value) => handleChange('watermarkPosition', value as 'center' | 'tile' | 'corner')}
                 disabled={loading || settings.useWatermark !== true}
               >
