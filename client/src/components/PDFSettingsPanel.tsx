@@ -1113,7 +1113,7 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                               <div className="space-y-0.5">
                                 <FormLabel className="text-base">Enable Watermark</FormLabel>
                                 <FormDescription>
-                                  Add diagonal watermark text across all pages
+                                  Add watermark text across all pages
                                 </FormDescription>
                               </div>
                               <FormControl>
@@ -1167,6 +1167,58 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                                 </FormItem>
                               )}
                             />
+                            
+                            <FormField
+                              control={form.control}
+                              name="watermarkPosition"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Watermark Position</FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value || "center"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select position" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="center">Center</SelectItem>
+                                      <SelectItem value="tile">Repeated Tile</SelectItem>
+                                      <SelectItem value="corner">Corners Only</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    How the watermark is positioned on the page
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="watermarkRotation"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Watermark Angle: {field.value || 45}°</FormLabel>
+                                  <FormControl>
+                                    <Slider
+                                      min={0}
+                                      max={90}
+                                      step={5}
+                                      defaultValue={[field.value || 45]}
+                                      onValueChange={(vals) => field.onChange(vals[0])}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Rotation angle for the watermark text
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           </>
                         )}
                       </div>
@@ -1182,15 +1234,20 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                               }}
                             >
                               <div
-                                className="absolute transform rotate-45 select-none"
+                                className="absolute select-none"
                                 style={{
                                   opacity: form.watch("watermarkOpacity") || 0.2,
                                   fontSize: "2rem",
                                   fontFamily: "Arial",
                                   color: "#00000077",
                                   fontWeight: "bold",
-                                  transform: "rotate(-45deg)",
+                                  transform: `rotate(${form.watch("watermarkRotation") || 45}deg)`,
                                   pointerEvents: "none",
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
                                 }}
                               >
                                 {form.watch("watermarkText") || "CONFIDENTIAL"}
