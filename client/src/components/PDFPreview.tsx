@@ -96,25 +96,55 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings, previewData }) => {
                 right: 0,
                 bottom: 0,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: settings.watermarkPosition === 'corner' ? 'flex-start' : 'center',
+                justifyContent: settings.watermarkPosition === 'corner' ? 'flex-end' : 'center',
                 pointerEvents: 'none',
                 opacity: settings.watermarkOpacity || 0.15,
                 zIndex: 10,
                 overflow: 'hidden'
               }}
             >
-              <div 
-                style={{
-                  transform: `rotate(${settings.watermarkRotation || 45}deg)`,
-                  fontSize: '3rem',
-                  fontWeight: 'bold',
-                  color: '#757575',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {settings.watermarkText || 'CONFIDENTIAL'}
-              </div>
+              {settings.watermarkPosition === 'tile' ? (
+                <div className="watermark-tile" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: `repeating-linear-gradient(${settings.watermarkRotation || 45}deg, transparent, transparent 100px, rgba(117, 117, 117, 0.2) 100px, rgba(117, 117, 117, 0.2) 350px)`,
+                  backgroundSize: '400px 400px'
+                }}>
+                  <div className="grid grid-cols-3 gap-x-32 gap-y-40 p-20">
+                    {Array(9).fill(0).map((_, index) => (
+                      <div 
+                        key={index}
+                        style={{
+                          transform: `rotate(${settings.watermarkRotation || 45}deg)`,
+                          fontSize: '1.5rem',
+                          fontWeight: 'bold',
+                          color: '#757575',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {settings.watermarkText || 'CONFIDENTIAL'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  style={{
+                    transform: `rotate(${settings.watermarkRotation || 45}deg)`,
+                    fontSize: settings.watermarkPosition === 'corner' ? '1.5rem' : '3rem',
+                    fontWeight: 'bold',
+                    color: '#757575',
+                    whiteSpace: 'nowrap',
+                    margin: settings.watermarkPosition === 'corner' ? '20px' : '0'
+                  }}
+                >
+                  {settings.watermarkText || 'CONFIDENTIAL'}
+                </div>
+              )}
             </div>
           )}
           
