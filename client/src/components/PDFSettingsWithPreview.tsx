@@ -85,7 +85,7 @@ const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
                 onClick={handleReset}
                 disabled={loading}
               >
-                <ReloadIcon className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
               
@@ -94,9 +94,9 @@ const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
                 disabled={loading}
               >
                 {loading ? (
-                  <ReloadIcon className="w-4 h-4 mr-2 animate-spin" />
+                  <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <SaveIcon className="w-4 h-4 mr-2" />
+                  <Save className="w-4 h-4 mr-2" />
                 )}
                 Save Settings
               </Button>

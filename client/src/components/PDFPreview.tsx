@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PdfSettings } from '../services/pdfService';
 import { Card } from '@/components/ui/card';
-import { Spinner } from '@/components/ui/spinner';
+import { Spinner } from '../components/ui/spinner';
 
 interface PDFPreviewProps {
   settings: Partial<PdfSettings>;
@@ -403,7 +403,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings, previewData }) => {
     <div className="pdf-preview relative">
       {renderPreview()}
       
-      <style jsx>{`
+      <style>{`
         .paper {
           box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
           position: relative;
