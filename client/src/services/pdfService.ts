@@ -5,8 +5,7 @@
  * for PDF generation, export, and analysis.
  */
 
-import axios from 'axios';
-
+// Core PDF template configuration interface
 export interface PdfTemplateConfig {
   name: string;
   type: string;
@@ -27,6 +26,7 @@ export interface PdfTemplateConfig {
   customFields?: Record<string, boolean>;
 }
 
+// PDF settings interface for customizing the PDF output
 export interface PdfSettings {
   id?: number;
   headerTitle: string;
@@ -36,6 +36,7 @@ export interface PdfSettings {
   footerColor: string;
   pageNumbering: boolean;
   fontSize?: number;
+  fontFamily?: string;
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
@@ -46,30 +47,97 @@ export interface PdfSettings {
   footerImage?: string | null;
   logo?: string | null;
   loginLogo?: string | null;
+  
+  // Display settings
+  showHeader?: boolean;
+  showFooter?: boolean;
+  
+  // Logo settings
+  showLogo?: boolean;
+  logoPosition?: 'left' | 'center' | 'right';
+  
+  // Watermark settings
+  useWatermark?: boolean;
+  watermarkText?: string;
   watermarkOpacity?: number;
-  templateConfig: PdfTemplateConfig;
+  watermarkPosition?: 'center' | 'tile' | 'corner';
+  watermarkRotation?: number;
+  
+  // Content visibility settings
+  showBasicInfo?: boolean;
+  showRequesterDetails?: boolean;
+  showDateOfRequest?: boolean;
+  showPurposeInfo?: boolean;
+  showVendorDetails?: boolean;
+  showItems?: boolean;
+  showApprovals?: boolean;
+  showAttachments?: boolean;
+  showAuditInfo?: boolean;
+  showSignatures?: boolean;
+  
+  // Company information
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  
+  // Template configuration
+  templateConfig?: PdfTemplateConfig;
 }
 
+// PDF export options interface
 export interface PdfExportOptions {
   resourceId: number;
   format?: 'pdf' | 'zip';
-  userType?: 'user' | 'approver' | 'admin';
   includeAttachments?: boolean;
-  watermark?: string;
-  fileName?: string;
+  watermarkText?: string;
+  useCustomHeader?: boolean;
+  useCustomFooter?: boolean;
 }
 
-export type PdfAuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 'pdf_analyzed';
+// Default PDF settings
+export const DEFAULT_PDF_SETTINGS: Partial<PdfSettings> = {
+  headerTitle: 'Purchase Request',
+  headerColor: '#0066cc',
+  footerText: 'Confidential - For internal use only',
+  footerColor: '#eeeeee',
+  pageNumbering: true,
+  fontSize: 10,
+  marginTop: 25,
+  marginBottom: 25,
+  marginLeft: 25,
+  marginRight: 25,
+  headerHeight: 60,
+  footerHeight: 30,
+  showHeader: true,
+  showFooter: true,
+  showLogo: true,
+  logoPosition: 'left',
+  useWatermark: false,
+  watermarkText: 'CONFIDENTIAL',
+  watermarkOpacity: 0.15,
+  watermarkPosition: 'center',
+  watermarkRotation: 45,
+  showBasicInfo: true,
+  showRequesterDetails: true,
+  showDateOfRequest: true,
+  showPurposeInfo: true,
+  showVendorDetails: true,
+  showItems: true,
+  showApprovals: true,
+  showAttachments: true,
+  showAuditInfo: false,
+  showSignatures: true
+};
 
 /**
- * PDF Service class
+ * Client-side PDF service class with methods to interact with the backend PDF service
  */
 class PdfService {
   private static instance: PdfService;
-
-  /**
-   * Get the singleton instance
-   */
+  
+  private constructor() {}
+  
   public static getInstance(): PdfService {
     if (!PdfService.instance) {
       PdfService.instance = new PdfService();
@@ -78,234 +146,128 @@ class PdfService {
   }
 
   /**
-   * Private constructor to enforce singleton pattern
-   */
-  private constructor() {}
-
-  /**
    * Get PDF settings from the server
    */
   public async getPdfSettings(): Promise<PdfSettings> {
     try {
-      const response = await axios.get('/api/pdf/print-settings');
-      return response.data;
+      const response = await fetch('/api/pdf/print-settings');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF settings');
+      }
+      
+      const settings = await response.json();
+      return settings;
     } catch (error) {
-      console.error('Error getting PDF settings:', error);
-      throw new Error('Failed to retrieve PDF settings');
+      console.error('Error fetching PDF settings:', error);
+      // Return default settings if there's an error
+      return DEFAULT_PDF_SETTINGS as PdfSettings;
     }
   }
-
+  
   /**
    * Save PDF settings to the server
    */
   public async savePdfSettings(settings: Partial<PdfSettings>): Promise<PdfSettings> {
     try {
-      const response = await axios.post('/api/pdf/settings', settings);
-      return response.data;
+      const response = await fetch('/api/pdf/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save PDF settings');
+      }
+      
+      const updatedSettings = await response.json();
+      return updatedSettings;
     } catch (error) {
       console.error('Error saving PDF settings:', error);
-      throw new Error('Failed to save PDF settings');
+      throw error;
     }
   }
-
+  
   /**
-   * Log PDF audit event to the server
+   * Log PDF audit event
    */
-  public async logPdfAudit(
-    requestId: number,
-    action: PdfAuditAction,
-    details?: Record<string, any>,
-    userType: 'user' | 'approver' | 'admin' = 'user'
-  ): Promise<any> {
+  public async logPdfAudit(action: string, resourceId: number, details?: Record<string, any>): Promise<void> {
     try {
-      const response = await axios.post('/api/pdf/audit', {
-        requestId,
-        action,
-        details,
-        type: userType
+      await fetch('/api/pdf/audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          resourceId,
+          details,
+        }),
       });
-      return response.data;
     } catch (error) {
       console.error('Error logging PDF audit:', error);
-      // Don't throw here, just return the error info
-      return { success: false, error: 'Failed to log audit event' };
     }
   }
-
+  
   /**
-   * Export a purchase request as PDF
+   * Download PDF for a purchase request
    */
-  public async exportRequestToPdf(requestId: number, userType: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
+  public async downloadRequestPdf(requestId: number): Promise<void> {
     try {
-      // Get PDF data
-      const response = await axios.get(`/api/requests/${requestId}/pdf`);
+      // Log the audit event
+      await this.logPdfAudit('pdf_downloaded', requestId);
       
-      // In a real implementation, this would generate the PDF from the data
-      // For now, we'll simulate a download URL
-      return `/api/requests/${requestId}/pdf?download=true`;
+      // Open the PDF in a new tab/window
+      window.open(`/api/requests/${requestId}/pdf`, '_blank');
     } catch (error) {
-      console.error('Error exporting request to PDF:', error);
+      console.error('Error downloading PDF:', error);
       throw error;
     }
   }
-
+  
   /**
-   * Export a purchase request as ZIP
+   * Download attachments ZIP for a purchase request
    */
-  public async exportRequestToZip(requestId: number, includeAttachments: boolean = true): Promise<string> {
+  public async downloadRequestZip(requestId: number): Promise<void> {
     try {
-      // In a real implementation, this would generate the ZIP from the server
-      return `/api/requests/${requestId}/zip?includeAttachments=${includeAttachments}`;
+      // Log the audit event
+      await this.logPdfAudit('zip_downloaded', requestId);
+      
+      // Open the ZIP download in a new tab/window
+      window.open(`/api/requests/${requestId}/zip`, '_blank');
     } catch (error) {
-      console.error('Error exporting request to ZIP:', error);
+      console.error('Error downloading ZIP:', error);
       throw error;
     }
   }
-
+  
   /**
-   * Export multiple requests as a bulk ZIP
+   * Upload images for PDF branding
    */
-  public async exportBulkRequests(requestIds: number[], includeAttachments: boolean = true): Promise<string> {
-    try {
-      const queryParams = requestIds.map(id => `ids=${id}`).join('&');
-      const response = await axios.get(`/api/requests/export/bulk?${queryParams}&includeAttachments=${includeAttachments}`);
-      return response.data.downloadUrl;
-    } catch (error) {
-      console.error('Error generating bulk export:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Upload images for PDF settings (header, footer, logo)
-   */
-  public async uploadPdfImages(files: File[], type: 'header' | 'footer' | 'logo' | 'loginLogo'): Promise<{
-    success: boolean;
-    files: Array<{
-      fileUrl: string;
-      fileName: string;
-    }>;
-  }> {
+  public async uploadBrandingImages(files: File[]): Promise<Record<string, string>> {
     try {
       const formData = new FormData();
+      
       files.forEach(file => {
         formData.append('files', file);
       });
-      formData.append('type', type);
-
-      const response = await axios.post('/api/pdf/upload-images', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      
+      const response = await fetch('/api/pdf/upload-images', {
+        method: 'POST',
+        body: formData,
       });
-
-      return response.data;
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload branding images');
+      }
+      
+      const result = await response.json();
+      return result.files;
     } catch (error) {
-      console.error('Error uploading PDF images:', error);
+      console.error('Error uploading branding images:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Analyze template configuration using AI
-   */
-  public async analyzeTemplateConfig(
-    templateConfig: PdfTemplateConfig,
-    requestId?: number
-  ): Promise<{
-    analysis: string;
-    recommendations: string[];
-    fixedTemplate?: PdfTemplateConfig;
-  }> {
-    try {
-      const response = await axios.post('/api/pdf/analyze-template', {
-        templateConfig,
-        requestId
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error analyzing template config:', error);
-      return {
-        analysis: 'Failed to analyze template configuration',
-        recommendations: [
-          'Check that the template configuration is valid',
-          'Try again later'
-        ]
-      };
-    }
-  }
-
-  /**
-   * Analyze PDF error using AI
-   */
-  public async analyzePdfError(
-    error: any,
-    requestId: number
-  ): Promise<{
-    analysis: string;
-    recommendations: string[];
-  }> {
-    try {
-      // Prepare error data for analysis
-      const errorData = {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        requestId
-      };
-
-      // In a real implementation, this would use the AI to analyze the error
-      // For now, return a simple analysis
-      return {
-        analysis: 'An error occurred during PDF generation. The system could not generate the PDF file.',
-        recommendations: [
-          'Check that the request exists and is accessible',
-          'Verify that all required data is available',
-          'Try again later'
-        ]
-      };
-    } catch (analyzeError) {
-      console.error('Error analyzing PDF error:', analyzeError);
-      return {
-        analysis: 'An error occurred during PDF generation',
-        recommendations: [
-          'Check your network connection',
-          'Try again later'
-        ]
-      };
-    }
-  }
-
-  /**
-   * Analyze uploaded images for PDF compatibility
-   */
-  public async analyzeImages(
-    images: string[],
-    options?: {
-      logoSize?: { width: number; height: number };
-      headerSize?: { width: number; height: number };
-      footerSize?: { width: number; height: number };
-    }
-  ): Promise<{
-    analysis: string;
-    recommendations: string[];
-    issues: string[];
-  }> {
-    try {
-      const response = await axios.post('/api/pdf/analyze-images', {
-        images,
-        ...options
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error analyzing images:', error);
-      return {
-        analysis: 'Failed to analyze images',
-        recommendations: [
-          'Ensure images are in JPEG, PNG, or SVG format',
-          'Keep file sizes under 2MB for better performance'
-        ],
-        issues: ['Unable to perform image analysis']
-      };
     }
   }
 }

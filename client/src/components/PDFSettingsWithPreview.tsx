@@ -1,116 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import PDFSettingsPanel from './PDFSettingsPanel';
-import PDFPreview from './PDFPreview';
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PdfSettings } from '../services/pdfService';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import PDFPreview from './PDFPreview';
+import PDFSettingsPanel from './PDFSettingsPanel';
+import { pdfAnalysisService, TemplateAnalysisResult } from '../services/pdfAnalysisService';
+import { toast } from '@/hooks/use-toast';
 
 interface PDFSettingsWithPreviewProps {
-  requestId?: number;
-  defaultSettings?: Partial<PdfSettings>;
-  onSettingsSaved?: (settings: Partial<PdfSettings>) => void;
+  initialSettings: Partial<PdfSettings>;
+  onSave: (settings: Partial<PdfSettings>) => Promise<void>;
+  onAnalyze?: (settings: Partial<PdfSettings>) => Promise<TemplateAnalysisResult>;
 }
 
-export function PDFSettingsWithPreview({ 
-  requestId, 
-  defaultSettings,
-  onSettingsSaved
-}: PDFSettingsWithPreviewProps) {
-  const [activeTab, setActiveTab] = useState<string>('settings');
-  const [settings, setSettings] = useState<Partial<PdfSettings>>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { toast } = useToast();
-  
-  // Fetch settings on component mount
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-  
-  const fetchSettings = async () => {
-    setIsLoading(true);
+const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
+  initialSettings,
+  onSave,
+  onAnalyze
+}) => {
+  const [settings, setSettings] = useState<Partial<PdfSettings>>(initialSettings);
+  const [originalSettings, setOriginalSettings] = useState<Partial<PdfSettings>>(initialSettings);
+  const [loading, setLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<TemplateAnalysisResult | null>(null);
+  const [previewKey, setPreviewKey] = useState(0); // To force preview refresh
+
+  const handleSettingsChange = (newSettingsPartial: Partial<PdfSettings>) => {
+    setSettings(prevSettings => {
+      const updatedSettings = { ...prevSettings, ...newSettingsPartial };
+      
+      // Force preview to update
+      setTimeout(() => setPreviewKey(prev => prev + 1), 0);
+      
+      return updatedSettings;
+    });
+  };
+
+  const handleSave = async () => {
     try {
-      const response = await fetch('/api/pdf/print-settings');
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
-      } else {
-        throw new Error('Failed to load PDF settings');
-      }
+      setSaveLoading(true);
+      await onSave(settings);
+      setOriginalSettings(settings);
+      toast({
+        title: 'Success',
+        description: 'PDF settings saved successfully',
+        variant: 'default',
+      });
     } catch (error) {
-      console.error('Error fetching PDF settings:', error);
+      console.error('Error saving PDF settings:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load PDF settings. Using default values.',
+        description: 'Failed to save PDF settings',
         variant: 'destructive',
       });
-      // Use default settings if available
-      if (defaultSettings) {
-        setSettings(defaultSettings);
-      }
     } finally {
-      setIsLoading(false);
+      setSaveLoading(false);
     }
   };
-  
-  const handleSettingsChange = (updatedSettings: Partial<PdfSettings>) => {
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      ...updatedSettings
-    }));
+
+  const handleAnalyze = async () => {
+    if (!onAnalyze) return;
     
-    if (onSettingsSaved) {
-      onSettingsSaved(updatedSettings);
+    try {
+      setAnalyzeLoading(true);
+      const result = await onAnalyze(settings);
+      setAnalysisResult(result);
+      
+      if (result.fixedTemplate) {
+        // Apply fixed template to settings
+        handleSettingsChange({
+          templateConfig: result.fixedTemplate
+        });
+        
+        toast({
+          title: 'Analysis Complete',
+          description: 'Recommendations applied to template',
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: 'Analysis Complete',
+          description: 'No changes needed to template',
+          variant: 'default',
+        });
+      }
+    } catch (error) {
+      console.error('Error analyzing PDF template:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to analyze PDF template',
+        variant: 'destructive',
+      });
+    } finally {
+      setAnalyzeLoading(false);
     }
   };
   
+  const handleReset = () => {
+    setSettings(originalSettings);
+    setPreviewKey(prev => prev + 1);
+    setAnalysisResult(null);
+    toast({
+      title: 'Reset',
+      description: 'PDF settings reset to saved values',
+      variant: 'default',
+    });
+  };
+
+  const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-6">PDF Document Settings</h2>
-      
-      <Tabs defaultValue="settings" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="preview">Live Preview</TabsTrigger>
-          <TabsTrigger value="side-by-side">Side by Side</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="settings">
+    <div className="pdf-settings-with-preview grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="settings-panel">
+        <Card className="p-4">
+          {analysisResult && (
+            <Alert className="mb-4">
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Analysis Results:</p>
+                  <p>{analysisResult.analysis}</p>
+                  {analysisResult.recommendations.length > 0 && (
+                    <div>
+                      <p className="font-semibold mt-2">Recommendations:</p>
+                      <ul className="list-disc pl-6">
+                        {analysisResult.recommendations.map((rec, i) => (
+                          <li key={i}>{rec}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <PDFSettingsPanel 
-            onSettingsSaved={handleSettingsChange}
-            defaultSettings={settings}
+            settings={settings} 
+            onSettingsChange={handleSettingsChange}
+            loading={loading || saveLoading} 
           />
-        </TabsContent>
-        
-        <TabsContent value="preview">
-          <PDFPreview 
-            settings={settings}
-            isLoading={isLoading}
-            requestId={requestId}
-            onRefresh={fetchSettings}
-          />
-        </TabsContent>
-        
-        <TabsContent value="side-by-side">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="lg:col-span-1">
-              <PDFSettingsPanel 
-                onSettingsSaved={handleSettingsChange}
-                defaultSettings={settings}
-                compact={true}
-              />
+          
+          <div className="flex justify-between mt-6">
+            <div>
+              {onAnalyze && (
+                <Button 
+                  onClick={handleAnalyze} 
+                  variant="outline" 
+                  disabled={analyzeLoading}
+                >
+                  {analyzeLoading ? 'Analyzing...' : 'Analyze Template'}
+                </Button>
+              )}
             </div>
-            <div className="lg:col-span-1">
-              <PDFPreview 
-                settings={settings}
-                isLoading={isLoading}
-                requestId={requestId}
-                onRefresh={fetchSettings}
-              />
+            <div className="space-x-2">
+              {hasChanges && (
+                <Button 
+                  onClick={handleReset} 
+                  variant="outline" 
+                  disabled={saveLoading}
+                >
+                  Reset
+                </Button>
+              )}
+              <Button 
+                onClick={handleSave} 
+                disabled={!hasChanges || saveLoading}
+              >
+                {saveLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </Card>
+      </div>
+      
+      <div className="preview-panel">
+        <Card className="h-full p-4">
+          <h2 className="text-lg font-bold mb-4">PDF Preview</h2>
+          <div className="h-[calc(100%-2rem)]">
+            <PDFPreview 
+              key={previewKey}
+              settings={settings}
+              loading={loading} 
+            />
+          </div>
+        </Card>
+      </div>
     </div>
   );
-}
+};
+
+export default PDFSettingsWithPreview;
