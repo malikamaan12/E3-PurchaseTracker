@@ -81,6 +81,7 @@ export interface PdfSettingsWithTemplate {
   footerColor: string;
   pageNumbering: boolean;
   fontSize?: number;
+  fontFamily?: string;
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
@@ -90,8 +91,24 @@ export interface PdfSettingsWithTemplate {
   headerImage?: string | null;
   footerImage?: string | null;
   logo?: string | null;
+  logoPosition?: 'left' | 'center' | 'right';
   loginLogo?: string | null;
   watermarkOpacity?: number;
+  watermarkText?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  showBasicInfo?: boolean;
+  showRequesterDetails?: boolean;
+  showDateOfRequest?: boolean;
+  showPurposeInfo?: boolean;
+  showVendorDetails?: boolean;
+  showItems?: boolean;
+  showApprovals?: boolean;
+  showAttachments?: boolean;
+  showAuditInfo?: boolean;
+  showSignatures?: boolean;
   templateConfig: PdfTemplateConfig;
 }
 
