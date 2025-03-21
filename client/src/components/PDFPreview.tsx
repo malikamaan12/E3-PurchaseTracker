@@ -53,7 +53,7 @@ const defaultPreviewData = {
   ]
 };
 
-export function PDFPreview({ settings, previewData = defaultPreviewData, isLoading = false, requestId, onRefresh }: PDFPreviewProps) {
+export default function PDFPreview({ settings, previewData = defaultPreviewData, isLoading = false, requestId, onRefresh }: PDFPreviewProps) {
   const [activePreview, setActivePreview] = useState<'desktop' | 'mobile'>('desktop');
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();

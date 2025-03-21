@@ -94,9 +94,15 @@ type PDFSettingsFormValues = z.infer<typeof pdfSettingsSchema>;
 
 interface PDFSettingsProps {
   onSettingsSaved?: (settings: PDFSettingsFormValues) => void;
+  defaultSettings?: any;
+  compact?: boolean;
 }
 
-export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) {
+export default function PDFSettingsPanel({ 
+  onSettingsSaved, 
+  defaultSettings,
+  compact = false 
+}: PDFSettingsProps) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [footerImageFile, setFooterImageFile] = useState<File | null>(null);
   const [headerColorPickerOpen, setHeaderColorPickerOpen] = useState(false);

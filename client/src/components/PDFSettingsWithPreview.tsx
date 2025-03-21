@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PDFSettingsPanel } from './PDFSettingsPanel';
-import { PDFPreview } from './PDFPreview';
+import PDFSettingsPanel from './PDFSettingsPanel';
+import PDFPreview from './PDFPreview';
 import { PdfSettings } from '../services/pdfService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
