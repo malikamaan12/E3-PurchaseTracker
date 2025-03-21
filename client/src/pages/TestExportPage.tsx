@@ -186,7 +186,7 @@ export default function TestExportPage() {
       addLog('Using exportMultipleRequestsAsZip utility...');
       
       // Create a single-request ZIP export
-      const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], 'test-single');
+      const fileName = await exportMultipleRequestsAsZip([mockPurchaseRequest], true);
       addLog(`ZIP export successful: ${fileName}`);
       
       // Log the export event
@@ -246,7 +246,7 @@ export default function TestExportPage() {
       addLog(`Created ${mockRequests.length} mock requests for bulk export`);
       
       // Use the ZIP export utility
-      const fileName = await exportMultipleRequestsAsZip(mockRequests, 'bulk-test');
+      const fileName = await exportMultipleRequestsAsZip(mockRequests, true);
       addLog(`Bulk ZIP export successful: ${fileName}`);
       
       // Log bulk export since we're using multiple requests
@@ -301,7 +301,7 @@ export default function TestExportPage() {
       addLog(`Created ${mockRequests.length} mock requests for bulk PDF export`);
       
       // Use the bulk PDF export utility which creates a combined PDF
-      const fileName = await exportMultipleRequestsToPDF(mockRequests, 'bulk-pdf-test');
+      const fileName = await exportMultipleRequestsToPDF(mockRequests, 'admin');
       addLog(`Bulk PDF export successful: ${fileName}`);
       
       // Log bulk export

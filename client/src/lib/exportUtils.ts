@@ -176,8 +176,9 @@ function getApprovalSummary(request: any): string {
 
 /**
  * Export a purchase request to CSV format
+ * @deprecated CSV export has been removed as part of standardization on PDF/ZIP only
  */
-
+/* 
 export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting CSV export for request #${request.id}`);
@@ -243,7 +244,9 @@ export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'a
 
 /**
  * Export a purchase request to Excel format with multiple sheets
+ * @deprecated Excel export has been removed as part of standardization on PDF/ZIP only 
  */
+/*
 export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting Excel export for request #${request.id}`);
@@ -494,7 +497,9 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
 
 /**
  * Export multiple purchase requests to a combined Excel file
+ * @deprecated Excel export has been removed as part of standardization on PDF/ZIP only
  */
+/*
 export async function exportMultipleRequestsToExcel(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
@@ -630,7 +635,9 @@ export async function exportMultipleRequestsToExcel(requests: any[], roleForAudi
 
 /**
  * Export multiple purchase requests to a combined CSV file
+ * @deprecated CSV export has been removed as part of standardization on PDF/ZIP only
  */
+/*
 export async function exportMultipleRequestsToCSV(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
@@ -898,14 +905,10 @@ export async function exportMultipleRequestsAsZip(
       const jsonData = JSON.stringify(request, null, 2);
       requestFolder.file(`request-${request.id}.json`, jsonData);
       
-      // Add CSV export
-      const parser = new Parser({
-        delimiter: ',',
-        header: true
-      });
+      // Add request data in JSON format instead of CSV (removed CSV export)
       const formattedRequest = formatRequestForExport(request);
-      const csv = parser.parse([formattedRequest]);
-      requestFolder.file(`request-${request.id}.csv`, csv);
+      const formattedJson = JSON.stringify(formattedRequest, null, 2);
+      requestFolder.file(`request-${request.id}-formatted.json`, formattedJson);
       
       // Add PDF export for each request
       try {
@@ -1141,7 +1144,7 @@ Please download this attachment individually from the request details page.`;
           timestamp: new Date().toISOString(),
           recordCount: requests.length,
           includesAttachments: includeAttachments,
-          formatTypes: ['json', 'csv', 'pdf', ...(includeAttachments ? ['attachments'] : [])]
+          formatTypes: ['json', 'pdf', ...(includeAttachments ? ['attachments'] : [])]
         },
         roleForAudit
       );
