@@ -9,10 +9,10 @@
  * - Footer section displaying content from elsewhere
  */
 
-const { Anthropic } = require('@anthropic-ai/sdk');
-const { db } = require('./db');
-const { pdfSettings } = require('./db/schema');
-const { eq, desc } = require('drizzle-orm');
+import { Anthropic } from '@anthropic-ai/sdk';
+import { db } from './db/index.js';
+import { pdfSettings } from './db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 
 // Initialize Anthropic client with API key
 const anthropic = new Anthropic({
@@ -290,12 +290,12 @@ async function updatePdfSettings(fixedSettings) {
 }
 
 // Export the main function
-module.exports = {
+export {
   analyzeAndFixPdfTemplateIssues
 };
 
 // Run the fix if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   analyzeAndFixPdfTemplateIssues()
     .then(() => {
       console.log('PDF template fixes complete!');

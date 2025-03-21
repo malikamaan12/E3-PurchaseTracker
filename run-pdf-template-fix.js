@@ -4,7 +4,7 @@
  * This script runs the PDF template settings fix
  */
 
-const { analyzeAndFixPdfTemplateIssues } = require('./fix-pdf-template-settings');
+import { analyzeAndFixPdfTemplateIssues } from './fix-pdf-template-settings.js';
 
 console.log('Starting PDF template settings fix...');
 
