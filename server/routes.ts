@@ -4923,29 +4923,29 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      // Update the request status
+      // Instead of updating the status ourselves and then calling updateRequestStatus,
+      // which would cause duplicate updates, just directly update the status properties
+      // other than the status itself, and let updateRequestStatus handle the status
       const [updatedRequest] = await db
         .update(purchaseRequests)
         .set({
-          status,
           updatedAt: new Date(),
           isLocked: status === 'approved' // Lock the request if it's approved
         })
         .where(eq(purchaseRequests.id, requestId))
         .returning();
-
-      // Create notification for the requester
-      if (status === 'approved') {
-        await notificationService.createNotification({
-          userId: existingRequest.requesterId,
-          title: 'Request Approved',
-          message: `Your purchase request "${existingRequest.title}" has been fully approved`,
-          type: 'request_approved',
-          requestId: requestId,
-          priority: 'high',
-          actionType: 'view'
-        });
-      }
+        
+      // Call the centralized function to set the status and handle notifications
+      // Force the status to what was requested (bypass approval checking)
+      await db
+        .update(purchaseRequests)
+        .set({ status })
+        .where(eq(purchaseRequests.id, requestId));
+      
+      // Then trigger notifications with the centralized function
+      await updateRequestStatus(requestId, {
+        triggerSource: 'status_update'
+      });
 
       debug(req, 'Request status updated successfully:', updatedRequest);
       res.json(updatedRequest);
@@ -5125,31 +5125,26 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       // Update the request status based on all approvals
-      await updateRequestStatus(requestId);
+      // This will now automatically handle notifications from one place
+      const newStatus = await updateRequestStatus(requestId, {
+        triggerSource: 'approval'
+      });
+      
+      // Log the status update
+      console.log(`Request ${requestId} status updated to: ${newStatus}`);
 
-      // Get the updated request status
-      const [updatedRequest] = await db
+      // Get the current request to return the status
+      const [currentRequest] = await db
         .select()
         .from(purchaseRequests)
         .where(eq(purchaseRequests.id, requestId))
         .limit(1);
 
-      // Create notification
-      await notificationService.createNotification({
-        userId: existingRequest.requesterId,
-        title: `Request ${status.replace('_', ' ')}`,
-        message: `Your purchase request "${existingRequest.title}" has been ${status.replace('_', ' ')} by ${department}`,
-        type: 'request_status_update',
-        requestId: requestId,
-        priority: status === 'approved' ? 'high' : status === 'rejected' ? 'high' : 'normal',
-        actionType: status === 'approved' ? 'view' : status === 'changes_requested' ? 'update' : 'acknowledge'
-      });
-
       console.log('Approval created successfully:', approval);
       res.json({
         message: "Approval processed successfully",
         approval,
-        currentStatus: updatedRequest.status
+        currentStatus: currentRequest.status
       });
     } catch (error) {
       next(error);
@@ -5550,8 +5545,38 @@ async function getRequestWithRelations(requestId: number) {
   };
 }
 
-async function updateRequestStatus(requestId: number) {
+/**
+ * Updates a request's status based on its approvals and handles notifications
+ * This function now centralizes notification creation to prevent duplicates
+ * 
+ * @param requestId The ID of the request to update
+ * @param options Configuration options
+ * @param options.skipNotification Whether to skip sending notifications (default: false)
+ * @param options.triggerSource Where the update was triggered from ('approval', 'status_update', etc.)
+ * @returns The new status of the request
+ */
+async function updateRequestStatus(
+  requestId: number, 
+  options: { 
+    skipNotification?: boolean;
+    triggerSource?: 'approval' | 'status_update' | 'system';
+  } = {}
+) {
   try {
+    // Get request details first
+    const [request] = await db
+      .select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!request) {
+      throw new Error(`Request with ID ${requestId} not found`);
+    }
+
+    const oldStatus = request.status;
+    
+    // Get all approvals
     const approvalsList = await db
       .select()
       .from(approvals)
@@ -5573,10 +5598,62 @@ async function updateRequestStatus(requestId: number) {
       newStatus = 'pending';
     }
 
-    await db
-      .update(purchaseRequests)
-      .set({ status: newStatus })
-      .where(eq(purchaseRequests.id, requestId));
+    // Only update the status if it's different
+    if (oldStatus !== newStatus) {
+      await db
+        .update(purchaseRequests)
+        .set({ status: newStatus })
+        .where(eq(purchaseRequests.id, requestId));
+      
+      // Handle notifications if not explicitly skipped
+      if (!options.skipNotification) {
+        // Get the requester
+        const [requester] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, request.requesterId))
+          .limit(1);
+        
+        if (requester) {
+          // Get the most recent approval that triggered this change
+          const recentApproval = approvalsList.length > 0 
+            ? approvalsList.sort((a, b) => 
+                new Date(b.processedAt || 0).getTime() - new Date(a.processedAt || 0).getTime()
+              )[0] 
+            : null;
+            
+          // Get approver info if available
+          let approverName = 'the system';
+          let department = '';
+          
+          if (recentApproval) {
+            const [approver] = await db
+              .select()
+              .from(users)
+              .where(eq(users.id, recentApproval.approverId))
+              .limit(1);
+            
+            if (approver) {
+              approverName = approver.username;
+              department = recentApproval.department || approver.department || '';
+            }
+          }
+          
+          // Create appropriate notification based on the new status
+          await notificationService.createNotification({
+            userId: requester.id,
+            title: `Request ${newStatus.replace('_', ' ')}`,
+            message: `Your purchase request "${request.title}" has been ${newStatus.replace('_', ' ')}${department ? ` by ${department}` : ''}`,
+            type: `request_${newStatus}`,
+            requestId,
+            priority: newStatus === 'approved' || newStatus === 'rejected' ? 'high' : 'normal',
+            actionType: newStatus === 'approved' ? 'view' : newStatus === 'changes_requested' ? 'update' : 'acknowledge'
+          });
+        }
+      }
+    }
+    
+    return newStatus;
   } catch (error) {
     console.error('Error updating request status:', error);
     throw error;
