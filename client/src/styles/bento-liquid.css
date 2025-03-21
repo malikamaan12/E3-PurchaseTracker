@@ -114,6 +114,97 @@
 
 /* Additional Liquid Motion Effects */
 
+/* Standalone Polymorphic Liquid Morph Effect */
+.liquid-morph {
+  position: relative;
+}
+
+.liquid-morph:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.7;
+  transition-duration: 2s;
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  animation: morphShape 8s ease-in-out infinite alternate;
+  background: rgba(var(--primary), 0.1);
+}
+
+/* Standalone Liquid Ripple Effect */
+.liquid-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(var(--primary), 0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: liquidRipple 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+}
+
+@keyframes liquidRipple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.8;
+  }
+  100% {
+    width: 200%;
+    height: 200%;
+    opacity: 0;
+  }
+}
+
+/* Standalone Liquid Fill Effect (in addition to the Bento variant) */
+.liquid-fill {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-fill::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  background: rgba(var(--primary), 0.2);
+  animation: liquidFill 2.5s ease-in-out forwards;
+  z-index: -1;
+}
+
+@keyframes liquidFill {
+  0% {
+    height: 0;
+    transform: translateY(0) scaleY(1);
+  }
+  40% {
+    height: 100%;
+    transform: translateY(0) scaleY(1);
+  }
+  60% {
+    height: 100%;
+    transform: translateY(-15%) scaleY(1.1);
+  }
+  80% {
+    height: 100%;
+    transform: translateY(-7%) scaleY(1.05);
+  }
+  100% {
+    height: 100%;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
 /* Liquid Blob */
 .liquid-blob {
   position: relative;
