@@ -68,13 +68,17 @@ Format as JSON:
     });
 
     // Handle the response content properly
-    if (!response.content || !response.content[0] || typeof response.content[0].text !== 'string') {
+    if (!response.content || !response.content[0]) {
       throw new Error('Invalid response format from Anthropic API');
     }
 
-    const analysisText = response.content[0].text;
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
+    }
+    
     // Parse and validate the response
-    const analysis = JSON.parse(analysisText);
+    const analysis = JSON.parse(content.text);
     return errorAnalysisSchema.parse(analysis);
   } catch (analysisError) {
     console.error('Error analysis failed:', analysisError);

@@ -79,8 +79,13 @@ export async function analyzeError(error: Error, context: any = {}) {
       }]
     });
 
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
+    }
+    
     return {
-      analysis: message.content[0].text,
+      analysis: content.text,
       timestamp: new Date().toISOString(),
       originalError: {
         message: error.message,

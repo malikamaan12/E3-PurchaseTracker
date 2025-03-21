@@ -1,10 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { MODEL } from './anthropic-config';
-
-// Use the standardized Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import { anthropicClient as anthropic, MODEL } from './anthropic-config';
 
 interface AnalysisContext {
   formData?: any;
@@ -64,12 +58,16 @@ export async function analyzeFormSubmission(context: AnalysisContext): Promise<A
     });
 
     // Safely extract content from the response
-    let analysisText = '';
-    if (response.content && Array.isArray(response.content)) {
-      analysisText = response.content.find(block => 'text' in block)?.text || '';
+    if (!response.content || !response.content[0]) {
+      throw new Error('Invalid response format from Anthropic API');
     }
 
-    const analysis = JSON.parse(analysisText) as AnalysisResult;
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
+    }
+    
+    const analysis = JSON.parse(content.text) as AnalysisResult;
 
     // Add default autofix suggestions for common issues
     if (!analysis.autofix) {
