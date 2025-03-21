@@ -86,6 +86,8 @@ const pdfSettingsSchema = z.object({
   useWatermark: z.boolean().default(false),
   watermarkText: z.string().optional(),
   watermarkOpacity: z.number().min(0.1).max(1).default(0.2),
+  watermarkPosition: z.enum(['center', 'tile', 'corner']).default('center'),
+  watermarkRotation: z.number().min(0).max(90).default(45),
 });
 
 type PDFSettingsFormValues = z.infer<typeof pdfSettingsSchema>;
@@ -144,6 +146,8 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
       useWatermark: false,
       watermarkText: "CONFIDENTIAL",
       watermarkOpacity: 0.2,
+      watermarkPosition: "center",
+      watermarkRotation: 45,
     }
   });
 
@@ -1168,57 +1172,39 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                               )}
                             />
                             
-                            <FormField
-                              control={form.control}
-                              name="watermarkPosition"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Watermark Position</FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value || "center"}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select position" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="center">Center</SelectItem>
-                                      <SelectItem value="tile">Repeated Tile</SelectItem>
-                                      <SelectItem value="corner">Corners Only</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormDescription>
-                                    How the watermark is positioned on the page
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                            <div className="flex flex-col space-y-2">
+                              <Label>Watermark Position</Label>
+                              <Select
+                                value={form.watch("watermarkPosition") as string || "center"}
+                                onValueChange={(value) => form.setValue("watermarkPosition", value as "center" | "tile" | "corner")}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select position" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="center">Center</SelectItem>
+                                  <SelectItem value="tile">Repeated Tile</SelectItem>
+                                  <SelectItem value="corner">Corners Only</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-sm text-muted-foreground">
+                                How the watermark is positioned on the page
+                              </p>
+                            </div>
                             
-                            <FormField
-                              control={form.control}
-                              name="watermarkRotation"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Watermark Angle: {field.value || 45}°</FormLabel>
-                                  <FormControl>
-                                    <Slider
-                                      min={0}
-                                      max={90}
-                                      step={5}
-                                      defaultValue={[field.value || 45]}
-                                      onValueChange={(vals) => field.onChange(vals[0])}
-                                    />
-                                  </FormControl>
-                                  <FormDescription>
-                                    Rotation angle for the watermark text
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                            <div className="flex flex-col space-y-2">
+                              <Label>Watermark Angle: {form.watch("watermarkRotation") || 45}°</Label>
+                              <Slider
+                                min={0}
+                                max={90}
+                                step={5}
+                                defaultValue={[form.watch("watermarkRotation") as number || 45]}
+                                onValueChange={(vals) => form.setValue("watermarkRotation", vals[0])}
+                              />
+                              <p className="text-sm text-muted-foreground">
+                                Rotation angle for the watermark text
+                              </p>
+                            </div>
                           </>
                         )}
                       </div>
