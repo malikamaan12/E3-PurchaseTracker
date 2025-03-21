@@ -537,6 +537,67 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                           )}
                         />
                         
+                        <h3 className="text-lg font-medium mt-6">Company Information</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          This information may appear in headers, footers, or other sections of your PDF
+                        </p>
+                        
+                        <FormField
+                          control={form.control}
+                          name="companyAddress"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Address</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Company address" {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="companyPhone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Phone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Phone number" {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="companyEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Email</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Email address" {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="companyWebsite"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Company Website</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Website URL" {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
                         <FormField
                           control={form.control}
                           name="footerColor"
@@ -629,70 +690,22 @@ export default function PDFSettingsPanel({ onSettingsSaved }: PDFSettingsProps) 
                       </div>
                       
                       <div className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="companyAddress"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Company Address</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Full address" 
-                                  {...field} 
-                                  className="resize-none"
-                                  rows={3}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Company address shown in footer
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <div className="grid grid-cols-1 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="companyPhone"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Phone Number</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="+974 XXXX XXXX" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                        <div className="border p-4 rounded-md bg-muted/20">
+                          <h3 className="text-lg font-medium">Preview</h3>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Here's how your footer will look in the PDF
+                          </p>
                           
-                          <FormField
-                            control={form.control}
-                            name="companyEmail"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="contact@company.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="companyWebsite"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Website</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="www.company.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <div className="mt-4 border rounded-lg p-3 bg-white">
+                            <div className="flex justify-between items-start">
+                              <div className="text-xs text-muted-foreground">
+                                <p>{form.watch('footerText') || 'Footer Text'}</p>
+                              </div>
+                              <div className="text-xs text-right">
+                                <p className="font-medium">Page 1 of 1</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
