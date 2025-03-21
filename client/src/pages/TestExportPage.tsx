@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "../components/ui/button";
-import { Parser } from '@json2csv/plainjs';
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
 import { 
-  exportRequestToCSV, 
-  exportRequestToExcel, 
   exportRequestToPDF,
-  exportMultipleRequestsToExcel,
   exportMultipleRequestsAsZip,
   exportMultipleRequestsToPDF
 } from '../lib/exportUtils';
-import { runCsvExportDiagnostics, CsvDiagnosticsResult } from '../lib/csvExportDiagnostics';
 import { 
   validateResourceId, 
   logExportEvent, 
-  logCsvExport, 
-  logExcelExport,
   logZipExport,
   logDiagnosticExport
 } from '../lib/exportAuditUtils';
@@ -853,30 +845,14 @@ export default function TestExportPage() {
       
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Basic Export Tests</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <Button 
-            variant="default" 
-            onClick={testCsvExport}
-            className="w-full"
-          >
-            Test CSV Export (SaveAs)
-          </Button>
-          
-          <Button 
-            variant="default" 
-            onClick={testAlternativeDownload}
-            className="w-full"
-          >
-            Test CSV Export (Alternative)
-          </Button>
-          
-          <Button 
-            variant="default" 
-            onClick={testExcelExport}
-            className="w-full"
-          >
-            Test Excel Export
-          </Button>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
+          <Alert className="bg-amber-50 text-amber-800 border-amber-200">
+            <AlertTitle>CSV and Excel export options removed</AlertTitle>
+            <AlertDescription>
+              Per requirements, Excel and CSV export functionality has been removed.
+              Only PDF and ZIP export options are now supported.
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
       

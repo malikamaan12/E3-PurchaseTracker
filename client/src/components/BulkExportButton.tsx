@@ -84,12 +84,6 @@ export function BulkExportButton({
         console.log(`Starting ${selectedFormat} export for ${requests.length} requests`);
         
         switch (selectedFormat) {
-          case "excel":
-            exportedFileName = await exportUtils.exportMultipleRequestsToExcel(requests);
-            break;
-          case "csv":
-            exportedFileName = await exportUtils.exportMultipleRequestsToCSV(requests);
-            break;
           case "pdf":
             exportedFileName = await exportUtils.exportMultipleRequestsToPDF(requests);
             break;
@@ -153,8 +147,6 @@ export function BulkExportButton({
           <>
             {children || (
               <>
-                {format === "excel" && <FileSpreadsheet className="mr-2 h-4 w-4" />}
-                {format === "csv" && <FileText className="mr-2 h-4 w-4" />}
                 {format === "pdf" && <FileText className="mr-2 h-4 w-4" />}
                 {format === "zip" && <Archive className="mr-2 h-4 w-4" />}
                 Export as {format === "pdf" ? "PDF (ZIP)" : format.toUpperCase()}
@@ -192,14 +184,6 @@ export function BulkExportButton({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleExport("excel")}>
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Excel (.xlsx)
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport("csv")}>
-          <FileText className="mr-2 h-4 w-4" />
-          CSV
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport("pdf")}>
           <FileText className="mr-2 h-4 w-4" />
           PDF (ZIP with PDFs)
