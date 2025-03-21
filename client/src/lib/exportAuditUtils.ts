@@ -1,12 +1,15 @@
 /**
  * Export Audit Utilities
  * 
- * A unified approach to audit logging for all export types
- * (PDF, CSV, Excel, ZIP) with consistent validation and error handling.
+ * A unified approach to audit logging for PDF and ZIP export types
+ * with consistent validation and error handling.
+ * 
+ * NOTE: This file has been updated to remove CSV and Excel export functionality
+ * per standardization requirements. Only PDF and ZIP exports are now supported.
  */
 
 // Export Types
-export type ExportFormat = 'pdf' | 'csv' | 'excel' | 'zip';
+export type ExportFormat = 'pdf' | 'zip'; // Removed 'csv' and 'excel' as we now only support PDF and ZIP
 export type UserType = 'user' | 'approver' | 'admin';
 
 // Validation constants
@@ -57,10 +60,6 @@ function getAuditAction(format: ExportFormat): string {
   switch (format) {
     case 'pdf':
       return 'pdf_downloaded';
-    case 'csv':
-      return 'csv_downloaded';
-    case 'excel':
-      return 'excel_downloaded';
     case 'zip':
       return 'zip_downloaded';
     default:
@@ -150,10 +149,6 @@ export function getExportFilename(
   switch (format) {
     case 'pdf':
       return `${filename}.pdf`;
-    case 'csv':
-      return `${filename}.csv`;
-    case 'excel':
-      return `${filename}.xlsx`;
     case 'zip':
       return `${filename}.zip`;
     default:
@@ -162,72 +157,9 @@ export function getExportFilename(
 }
 
 /**
- * Specialized function for CSV export logging
+ * NOTE: CSV and Excel export functions have been removed
+ * as part of the standardization to PDF and ZIP only formats.
  */
-export async function logCsvExport(
-  resourceId: number | string,
-  details: Record<string, any> = {},
-  userType: UserType = 'user'
-): Promise<boolean> {
-  try {
-    // Validate resource ID
-    const validatedId = validateResourceId(resourceId);
-    if (validatedId === null) {
-      console.error(`CSV export audit failed: Invalid resource ID ${resourceId}`);
-      return false;
-    }
-
-    console.log(`Logging CSV export for resource ID: ${validatedId}`);
-    
-    // Log the event with the correct action type
-    return await logExportEvent(
-      validatedId,
-      'csv',
-      {
-        exportTime: new Date().toISOString(),
-        ...details
-      },
-      userType
-    );
-  } catch (error) {
-    console.error('Error logging CSV export:', error);
-    return false;
-  }
-}
-
-/**
- * Specialized function for Excel export logging
- */
-export async function logExcelExport(
-  resourceId: number | string,
-  details: Record<string, any> = {},
-  userType: UserType = 'user'
-): Promise<boolean> {
-  try {
-    // Validate resource ID
-    const validatedId = validateResourceId(resourceId);
-    if (validatedId === null) {
-      console.error(`Excel export audit failed: Invalid resource ID ${resourceId}`);
-      return false;
-    }
-
-    console.log(`Logging Excel export for resource ID: ${validatedId}`);
-    
-    // Log the event with the correct action type
-    return await logExportEvent(
-      validatedId,
-      'excel',
-      {
-        exportTime: new Date().toISOString(),
-        ...details
-      },
-      userType
-    );
-  } catch (error) {
-    console.error('Error logging Excel export:', error);
-    return false;
-  }
-}
 
 /**
  * Specialized function for PDF export logging

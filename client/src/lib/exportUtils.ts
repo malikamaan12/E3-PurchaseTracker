@@ -1,6 +1,15 @@
+/**
+ * Export Utilities
+ * 
+ * NOTE: This file has been updated to use PDF and ZIP exports only
+ * The CSV and Excel export functions have been deprecated and will be removed.
+ * All export functionality is standardized on PDF and ZIP formats.
+ */
+
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
-import { Parser } from '@json2csv/plainjs';
+// Uncomment if needed for backward compatibility testing
+// import * as XLSX from 'xlsx';
+// import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import JSZip from 'jszip';
