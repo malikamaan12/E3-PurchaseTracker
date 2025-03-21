@@ -6,9 +6,9 @@
  * to verify that we've eliminated duplicates.
  */
 
-import { db } from './db/index.js';
-import { eq, ne, and, or, desc, sql } from 'drizzle-orm';
-import { notifications, users, purchaseRequests, approvals } from './db/schema.js';
+const { db } = require('./db');
+const { eq, ne, and, or, desc, sql } = require('drizzle-orm');
+const { notifications, users, purchaseRequests, approvals } = require('./db/schema');
 
 async function testNotificationFixing() {
   console.log('Starting notification fix verification test...');
