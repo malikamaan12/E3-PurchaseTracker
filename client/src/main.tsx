@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ToastProvider } from "@/contexts/ToastContext";
 import App from './App';
 import "./index.css";
+import "./styles/bento-liquid.css"; // Import bento liquid animation styles
 
 // Ensure toast notifications work properly by setting up providers correctly
 createRoot(document.getElementById("root")!).render(

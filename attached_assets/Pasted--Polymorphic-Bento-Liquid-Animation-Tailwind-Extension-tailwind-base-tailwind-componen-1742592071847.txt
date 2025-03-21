@@ -1,0 +1,185 @@
+/* Polymorphic Bento Liquid Animation - Tailwind Extension */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Bento Grid Layout Container */
+  .bento-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl mx-auto p-4;
+  }
+
+  /* Bento Box Card Base */
+  .bento-card {
+    @apply relative overflow-hidden rounded-xl bg-white/5 p-6 backdrop-blur-md transition-all duration-300 border border-white/10;
+  }
+
+  /* Card Size Variants */
+  .bento-card-sm {
+    @apply col-span-1 row-span-1;
+  }
+
+  .bento-card-md {
+    @apply col-span-1 md:col-span-2 row-span-1;
+  }
+
+  .bento-card-lg {
+    @apply col-span-1 md:col-span-2 row-span-2;
+  }
+
+  /* Polymorphic Liquid Effect Base */
+  .liquid-morph {
+    @apply before:absolute before:inset-0 before:z-[-1] before:opacity-70 before:transition-all before:duration-[2s];
+    position: relative;
+  }
+
+  /* Polymorphic Border Radius Animation */
+  .liquid-morph:before {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: morphShape 8s ease-in-out infinite alternate;
+  }
+
+  /* Liquid Blob Cards */
+  .bento-liquid-blob {
+    @apply liquid-morph hover:shadow-lg hover:shadow-primary/20 transition-all duration-500;
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: morphShape 8s ease-in-out infinite alternate;
+  }
+
+  /* Liquid Fill Effect */
+  .bento-liquid-fill {
+    @apply relative overflow-hidden;
+  }
+
+  .bento-liquid-fill:after {
+    @apply absolute bottom-0 left-0 w-full bg-primary/10 z-[-1];
+    content: '';
+    height: 0;
+    animation: bentoLiquidFill 3s ease-in-out forwards;
+  }
+
+  /* Liquid Gradient Card */
+  .bento-liquid-gradient {
+    @apply relative overflow-hidden;
+    background: linear-gradient(-45deg, theme('colors.primary.500/30'), theme('colors.secondary.500/30'), theme('colors.accent.500/30'));
+    background-size: 400% 400%;
+    animation: bentoLiquidGradient 15s ease infinite;
+  }
+
+  /* Floating Card Effect */
+  .bento-liquid-float {
+    @apply transition-transform;
+    animation: bentoLiquidFloat 4s ease-in-out infinite alternate;
+  }
+
+  /* Ripple Effect for Interaction */
+  .bento-liquid-ripple {
+    @apply relative overflow-hidden;
+  }
+
+  .bento-liquid-ripple:after {
+    @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0;
+    content: '';
+    width: 0;
+    height: 0;
+    background: radial-gradient(circle, theme('colors.primary.500/40') 0%, transparent 70%);
+    animation: bentoLiquidRipple 2s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+  }
+  
+  /* Interactive Liquid Hover */
+  .bento-hover-liquid {
+    @apply transition-all duration-300 overflow-hidden;
+  }
+  
+  .bento-hover-liquid:hover:before {
+    @apply absolute inset-0 opacity-70;
+    content: '';
+    background: theme('colors.primary.500/10');
+    border-radius: 40% 60% 60% 40% / 60% 30% 70% 40%;
+    animation: morphShape 4s ease-in-out infinite alternate;
+    z-index: -1;
+  }
+}
+
+/* Custom Keyframes for Bento Liquid Effects */
+@keyframes morphShape {
+  0% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    transform: scale(1);
+  }
+  25% {
+    border-radius: 58% 42% 75% 25% / 76% 46% 54% 24%;
+  }
+  50% {
+    border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%;
+    transform: scale(1.05);
+  }
+  75% {
+    border-radius: 33% 67% 58% 42% / 63% 68% 32% 37%;
+  }
+  100% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    transform: scale(1);
+  }
+}
+
+@keyframes bentoLiquidFill {
+  0% {
+    height: 0;
+    transform: translateY(0) scaleY(1);
+  }
+  40% {
+    height: 100%;
+    transform: translateY(0) scaleY(1);
+  }
+  60% {
+    height: 100%;
+    transform: translateY(-15%) scaleY(1.1);
+  }
+  80% {
+    height: 100%;
+    transform: translateY(-7%) scaleY(1.05);
+  }
+  100% {
+    height: 100%;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes bentoLiquidGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes bentoLiquidFloat {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(-3px) rotate(-1deg);
+  }
+}
+
+@keyframes bentoLiquidRipple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.8;
+  }
+  100% {
+    width: 200%;
+    height: 200%;
+    opacity: 0;
+  }
+}

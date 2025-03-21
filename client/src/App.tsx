@@ -15,6 +15,7 @@ import BulkExportPage from "./pages/BulkExportPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PDFDesignPage from "./pages/PDFDesignPage";
 import { NotFound } from "@/components/NotFound";
+import BentoLiquidExample from "@/components/ui/BentoLiquidExample";
 
 import TestExportPage from "./pages/TestExportPage";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -51,6 +52,7 @@ function App() {
         <Route path="/test-export" component={TestExportPage} />
         <Route path="/export" component={BulkExportPage} />
         <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/ui-showcase" component={BentoLiquidExample} />
 
         {/* Add admin routes with proper access control */}
         {user.role === "admin" && (
