@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import PDFSettingsPanel from './PDFSettingsPanel';
 import PDFPreview from './PDFPreview';
 import { PdfSettings, DEFAULT_PDF_SETTINGS } from '../services/pdfService';
-import { ReloadIcon, SaveIcon } from 'lucide-react';
+import { RotateCcw, Save } from 'lucide-react';
 
 interface PDFSettingsWithPreviewProps {
   initialSettings?: Partial<PdfSettings>;
