@@ -1218,30 +1218,7 @@ export function registerRoutes(app: Express): Server {
             eq(users.isActive, true)
           ));
 
-        await Promise.all(approvers.map(approver =>
-          notificationService.createNotification({
-            userId: approver.id,
-            title: 'New Purchase Request',
-            message: `A new purchase request "${updatedRequest.title}" requires your approval`,
-            type: 'approval_required',
-            requestId: updatedRequest.id,
-            priority: 'high',
-            actionType: 'approve'
-          })
-        ));
-      }
-
-      debug(req, 'Request updated successfully:', updatedRequest);
-      // If transitioning to pending, create notification for approvers
-      if (updateData.status === 'pending') {
-        const approvers = await db
-          .select()
-          .from(users)
-          .where(and(
-            eq(users.role, 'approver'),
-            eq(users.isActive, true)
-          ));
-
+        // Only send notification once to each approver
         await Promise.all(approvers.map(approver =>
           notificationService.createNotification({
             userId: approver.id,
