@@ -72,9 +72,11 @@ export function registerUnifiedPdfRoutes(app: Express) {
       }
 
       const type = req.body.type || 'header';
+      const userId = req.user?.id || null;
       const result = await pdfService.processUploadedImages(
         files,
-        type as 'header' | 'footer' | 'logo' | 'loginLogo'
+        type as 'header' | 'footer' | 'logo' | 'loginLogo',
+        userId
       );
 
       return res.json(result);
