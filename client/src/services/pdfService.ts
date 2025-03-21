@@ -1,11 +1,5 @@
-/**
- * PDF Service
- * 
- * A client-side service for PDF operations, providing a centralized interface
- * for PDF generation, export, and analysis.
- */
+import axios from 'axios';
 
-// Core PDF template configuration interface
 export interface PdfTemplateConfig {
   name: string;
   type: string;
@@ -26,7 +20,6 @@ export interface PdfTemplateConfig {
   customFields?: Record<string, boolean>;
 }
 
-// PDF settings interface for customizing the PDF output
 export interface PdfSettings {
   id?: number;
   headerTitle: string;
@@ -46,6 +39,7 @@ export interface PdfSettings {
   headerImage?: string | null;
   footerImage?: string | null;
   logo?: string | null;
+  logoPosition?: 'left' | 'center' | 'right';
   loginLogo?: string | null;
   
   // Display settings
@@ -54,7 +48,6 @@ export interface PdfSettings {
   
   // Logo settings
   showLogo?: boolean;
-  logoPosition?: 'left' | 'center' | 'right';
   
   // Watermark settings
   useWatermark?: boolean;
@@ -85,34 +78,25 @@ export interface PdfSettings {
   templateConfig?: PdfTemplateConfig;
 }
 
-// PDF export options interface
-export interface PdfExportOptions {
-  resourceId: number;
-  format?: 'pdf' | 'zip';
-  includeAttachments?: boolean;
-  watermarkText?: string;
-  useCustomHeader?: boolean;
-  useCustomFooter?: boolean;
-}
-
-// Default PDF settings
-export const DEFAULT_PDF_SETTINGS: Partial<PdfSettings> = {
+export const DEFAULT_PDF_SETTINGS: PdfSettings = {
   headerTitle: 'Purchase Request',
+  headerSubtitle: 'Document',
   headerColor: '#0066cc',
   footerText: 'Confidential - For internal use only',
-  footerColor: '#eeeeee',
+  footerColor: '#f5f5f5',
   pageNumbering: true,
   fontSize: 10,
+  fontFamily: 'Arial',
   marginTop: 25,
   marginBottom: 25,
   marginLeft: 25,
   marginRight: 25,
   headerHeight: 60,
   footerHeight: 30,
+  logoPosition: 'left',
   showHeader: true,
   showFooter: true,
   showLogo: true,
-  logoPosition: 'left',
   useWatermark: false,
   watermarkText: 'CONFIDENTIAL',
   watermarkOpacity: 0.15,
@@ -130,147 +114,151 @@ export const DEFAULT_PDF_SETTINGS: Partial<PdfSettings> = {
   showSignatures: true
 };
 
-/**
- * Client-side PDF service class with methods to interact with the backend PDF service
- */
-class PdfService {
-  private static instance: PdfService;
-  
-  private constructor() {}
-  
-  public static getInstance(): PdfService {
-    if (!PdfService.instance) {
-      PdfService.instance = new PdfService();
-    }
-    return PdfService.instance;
-  }
+export interface PdfExportOptions {
+  resourceId: number;
+  format?: 'pdf' | 'zip';
+  includeAttachments?: boolean;
+  watermarkText?: string;
+  watermarkOpacity?: number;
+}
 
+export interface PdfAuditEntry {
+  action: string;
+  resourceId: number;
+  timestamp?: string;
+  details?: Record<string, any>;
+}
+
+class PdfService {
   /**
    * Get PDF settings from the server
    */
-  public async getPdfSettings(): Promise<PdfSettings> {
+  async getPdfSettings(): Promise<PdfSettings> {
     try {
-      const response = await fetch('/api/pdf/print-settings');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch PDF settings');
-      }
-      
-      const settings = await response.json();
-      return settings;
+      const response = await axios.get('/api/pdf/print-settings');
+      return response.data || DEFAULT_PDF_SETTINGS;
     } catch (error) {
       console.error('Error fetching PDF settings:', error);
-      // Return default settings if there's an error
-      return DEFAULT_PDF_SETTINGS as PdfSettings;
+      return DEFAULT_PDF_SETTINGS;
     }
   }
-  
+
   /**
    * Save PDF settings to the server
    */
-  public async savePdfSettings(settings: Partial<PdfSettings>): Promise<PdfSettings> {
+  async savePdfSettings(settings: PdfSettings): Promise<PdfSettings> {
     try {
-      const response = await fetch('/api/pdf/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save PDF settings');
-      }
-      
-      const updatedSettings = await response.json();
-      return updatedSettings;
+      const response = await axios.post('/api/pdf/settings', settings);
+      return response.data;
     } catch (error) {
       console.error('Error saving PDF settings:', error);
       throw error;
     }
   }
-  
+
   /**
-   * Log PDF audit event
+   * Generate and download a PDF for a request
    */
-  public async logPdfAudit(action: string, resourceId: number, details?: Record<string, any>): Promise<void> {
+  async generatePdf(requestId: number, options?: Partial<PdfExportOptions>): Promise<void> {
     try {
-      await fetch('/api/pdf/audit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          resourceId,
-          details,
-        }),
+      // Create a download link and click it to trigger download
+      const a = document.createElement('a');
+      a.href = `/api/requests/${requestId}/pdf${this.formatQueryParams(options)}`;
+      a.download = `Request-${requestId}.pdf`;
+      a.click();
+      
+      // Log this action to the audit system
+      await this.logPdfAudit({
+        action: 'pdf_downloaded',
+        resourceId: requestId,
+        details: { options }
       });
     } catch (error) {
-      console.error('Error logging PDF audit:', error);
+      console.error('Error generating PDF:', error);
+      throw error;
     }
   }
-  
+
   /**
-   * Download PDF for a purchase request
+   * Generate and download a ZIP file for a request
    */
-  public async downloadRequestPdf(requestId: number): Promise<void> {
+  async generateZip(requestId: number, includeAttachments: boolean = true): Promise<void> {
     try {
-      // Log the audit event
-      await this.logPdfAudit('pdf_downloaded', requestId);
+      // Create a download link and click it to trigger download
+      const a = document.createElement('a');
+      a.href = `/api/requests/${requestId}/zip?includeAttachments=${includeAttachments}`;
+      a.download = `Request-${requestId}.zip`;
+      a.click();
       
-      // Open the PDF in a new tab/window
-      window.open(`/api/requests/${requestId}/pdf`, '_blank');
+      // Log this action to the audit system
+      await this.logPdfAudit({
+        action: 'zip_downloaded',
+        resourceId: requestId,
+        details: { includeAttachments }
+      });
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error generating ZIP:', error);
       throw error;
     }
   }
   
   /**
-   * Download attachments ZIP for a purchase request
+   * Upload image for PDF settings (logo, header, footer)
    */
-  public async downloadRequestZip(requestId: number): Promise<void> {
-    try {
-      // Log the audit event
-      await this.logPdfAudit('zip_downloaded', requestId);
-      
-      // Open the ZIP download in a new tab/window
-      window.open(`/api/requests/${requestId}/zip`, '_blank');
-    } catch (error) {
-      console.error('Error downloading ZIP:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Upload images for PDF branding
-   */
-  public async uploadBrandingImages(files: File[]): Promise<Record<string, string>> {
+  async uploadImage(file: File, type: 'logo' | 'headerImage' | 'footerImage'): Promise<string> {
     try {
       const formData = new FormData();
+      formData.append('files', file);
+      formData.append('type', type);
       
-      files.forEach(file => {
-        formData.append('files', file);
+      const response = await axios.post('/api/pdf/upload-images', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
       
-      const response = await fetch('/api/pdf/upload-images', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to upload branding images');
-      }
-      
-      const result = await response.json();
-      return result.files;
+      return response.data.urls[0];
     } catch (error) {
-      console.error('Error uploading branding images:', error);
+      console.error(`Error uploading ${type}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Log PDF-related actions to the audit system
+   */
+  private async logPdfAudit(auditEntry: PdfAuditEntry): Promise<void> {
+    try {
+      await axios.post('/api/pdf/audit', auditEntry);
+    } catch (error) {
+      console.error('Error logging PDF audit:', error);
+      // We don't throw here to prevent disrupting the main functionality
+    }
+  }
+
+  /**
+   * Format query parameters for PDF endpoint
+   */
+  private formatQueryParams(options?: Partial<PdfExportOptions>): string {
+    if (!options) return '';
+    
+    const params = new URLSearchParams();
+    
+    if (options.includeAttachments !== undefined) {
+      params.append('includeAttachments', options.includeAttachments.toString());
+    }
+    
+    if (options.watermarkText) {
+      params.append('watermarkText', options.watermarkText);
+    }
+    
+    if (options.watermarkOpacity !== undefined) {
+      params.append('watermarkOpacity', options.watermarkOpacity.toString());
+    }
+    
+    const paramString = params.toString();
+    return paramString ? `?${paramString}` : '';
   }
 }
 
-// Export singleton instance
-export const pdfService = PdfService.getInstance();
+export const pdfService = new PdfService();
