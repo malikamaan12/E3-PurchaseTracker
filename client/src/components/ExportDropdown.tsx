@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileDown, FileText, Table, FileSpreadsheet, Package, Calendar, PenTool, Download } from "lucide-react";
-import { exportRequestToPDF, exportRequestToExcel, exportRequestToCSV, exportMultipleRequestsToExcel, exportMultipleRequestsAsZip } from "@/lib/exportUtils";
+import { FileDown, FileText, Package, PenTool, Download } from "lucide-react";
+import { exportRequestToPDF, exportMultipleRequestsAsZip } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExportDropdownProps {
@@ -70,70 +70,12 @@ export function ExportDropdown({
         throw new Error('Invalid request data for export');
       }
 
-      // For direct API formats like CSV and Excel, use the API endpoint
-      if (format === 'csv' || format === 'excel') {
-        try {
-          // Call the server-side export endpoint with proper ID parameter
-          const requestId = requestData?.id || singleRequestId;
-          if (!requestId) {
-            throw new Error('Missing request ID for export');
-          }
-          
-          console.log(`Using direct API export for ${format} with request ID: ${requestId}`);
-          const endpoint = `/api/requests/export?format=${format === 'excel' ? 'xlsx' : 'csv'}&id=${requestId}`;
-          
-          // Open the endpoint in a new window/tab for download
-          const win = window.open(endpoint, '_blank');
-          
-          // If popup blocked, use alternative download method
-          if (!win || win.closed || typeof win.closed === 'undefined') {
-            console.log('Popup blocked, using fetch for download');
-            const response = await fetch(endpoint);
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(`API error: ${errorText || response.statusText}`);
-            }
-            
-            // Get the blob data for the file
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            
-            // Create an anchor element and trigger download
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `request_${requestId}.${format === 'excel' ? 'xlsx' : 'csv'}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-          }
-          
-          toast({
-            title: "Export Successful",
-            description: `Successfully exported request to ${format.toUpperCase()}`
-          });
-          return;
-        } catch (apiError) {
-          console.error(`API export error for ${format}:`, apiError);
-          
-          // Fall back to client-side generation for API errors
-          console.log('Falling back to client-side export generation');
-        }
-      }
-
-      // Client-side generation as fallback or for PDF/ZIP
+      // PDF and ZIP are the only supported formats now
       console.log(`Using client-side export for ${format}`);
       let fileName = '';
       switch (format) {
         case 'pdf':
           fileName = await exportRequestToPDF(requestData, type);
-          break;
-        case 'excel':
-          fileName = await exportRequestToExcel(requestData);
-          break;
-        case 'csv':
-          fileName = await exportRequestToCSV(requestData);
           break;
         case 'zip':
           fileName = await exportMultipleRequestsAsZip([requestData], true);
@@ -171,78 +113,7 @@ export function ExportDropdown({
     try {
       setIsLoading(format);
       
-      // Direct API export approach for CSV and Excel
-      if (format === 'csv' || format === 'excel') {
-        try {
-          // Build proper query parameters
-          const queryParams: Record<string, string> = {};
-          
-          // Format determines the file type
-          queryParams.format = format === 'excel' ? 'xlsx' : 'csv';
-          
-          // Add IDs or filters based on export type
-          if (exportType === 'multiple' && requestIds.length > 0) {
-            // Convert array of IDs to string
-            queryParams.ids = requestIds.join(',');
-          } else if (exportType === 'filtered') {
-            // Add all filters as query parameters
-            Object.entries(filters).forEach(([key, value]) => {
-              if (value !== undefined && value !== null) {
-                if (Array.isArray(value)) {
-                  queryParams[key] = value.join(',');
-                } else {
-                  queryParams[key] = String(value);
-                }
-              }
-            });
-          }
-          
-          // Create URL with proper query parameters
-          const endpoint = `/api/requests/export/bulk?${new URLSearchParams(queryParams).toString()}`;
-          console.log('Direct API export endpoint:', endpoint);
-          
-          // Option 1: Open in new window (works in most browsers)
-          const win = window.open(endpoint, '_blank');
-          
-          // Option 2: If popup blocked, use a fetch-based approach
-          if (!win || win.closed || typeof win.closed === 'undefined') {
-            console.log('Popup blocked, using fetch for bulk download');
-            
-            const response = await fetch(endpoint);
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(`API error: ${errorText || response.statusText}`);
-            }
-            
-            // Get blob data for file
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            
-            // Create and trigger download
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `requests_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-          }
-          
-          toast({
-            title: "Export Initiated",
-            description: `Your ${format.toUpperCase()} export has started. Check your downloads folder.`
-          });
-          
-          setIsLoading(null);
-          return;
-        } catch (directApiError) {
-          console.error(`Direct API export error for ${format}:`, directApiError);
-          // Continue to client-side fallback export below
-        }
-      }
-      
-      // Client-side export fallback or for formats that need client processing (ZIP)
+      // PDF and ZIP are the only supported formats now
       console.log('Using client-side bulk export for format:', format);
       
       // For filtered export, we need to pass the filters
@@ -299,9 +170,6 @@ export function ExportDropdown({
 
       let fileName = '';
       switch (format) {
-        case 'excel':
-          fileName = await exportMultipleRequestsToExcel(requests);
-          break;
         case 'zip':
           fileName = await exportMultipleRequestsAsZip(requests, true);
           break;
@@ -360,23 +228,15 @@ export function ExportDropdown({
         <DropdownMenuLabel>Export Options</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {/* Unified document export options for all types */}
+        {/* Document export options - PDF only as per requirement */}
         <DropdownMenuItem onClick={() => handleExport('pdf', 'user')}>
           <FileText className="h-4 w-4 mr-2" />
           <span>PDF Document</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('excel')}>
-          <FileSpreadsheet className="h-4 w-4 mr-2" />
-          <span>Excel Spreadsheet</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('csv')}>
-          <Table className="h-4 w-4 mr-2" />
-          <span>CSV File</span>
-        </DropdownMenuItem>
         
         <DropdownMenuSeparator />
         
-        {/* Comprehensive archive for all export types */}
+        {/* Comprehensive archive for all files */}
         <DropdownMenuItem onClick={() => handleExport('zip', 'user')}>
           <Package className="h-4 w-4 mr-2" />
           <span>Complete Archive (ZIP)</span>

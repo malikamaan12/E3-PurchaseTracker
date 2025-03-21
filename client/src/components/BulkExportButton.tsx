@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, FileSpreadsheet, FileText, Archive, ChevronDown } from "lucide-react";
+import { Loader2, FileText, Archive, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RequestFilters } from "@/services/requests";
 import * as exportUtils from "@/lib/exportUtils";
@@ -14,7 +14,7 @@ import * as exportUtils from "@/lib/exportUtils";
 export interface BulkExportButtonProps extends Omit<ButtonProps, "children"> {
   requests: any[];
   filters?: RequestFilters;
-  format?: "excel" | "csv" | "pdf" | "zip";
+  format?: "pdf" | "zip";
   includeAttachments?: boolean;
   children?: React.ReactNode; 
   onExportComplete?: (fileName: string) => void;
@@ -33,10 +33,10 @@ export function BulkExportButton({
   ...props
 }: BulkExportButtonProps) {
   const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"excel" | "csv" | "pdf" | "zip" | null>(format || null);
+  const [exportFormat, setExportFormat] = useState<"pdf" | "zip" | null>(format || null);
   const { toast } = useToast();
 
-  const handleExport = async (selectedFormat: "excel" | "csv" | "pdf" | "zip") => {
+  const handleExport = async (selectedFormat: "pdf" | "zip") => {
     if (!requests || requests.length === 0) {
       toast({
         title: "No requests to export",
@@ -63,12 +63,6 @@ export function BulkExportButton({
       // Add format-specific extension to the filename
       let fileExtension = '';
       switch (selectedFormat) {
-        case "excel":
-          fileExtension = '.xlsx';
-          break;
-        case "csv":
-          fileExtension = '.csv';
-          break;
         case "pdf":
         case "zip":
           fileExtension = '.zip';
