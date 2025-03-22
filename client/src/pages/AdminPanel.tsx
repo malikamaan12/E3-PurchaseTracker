@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
-import PDFSettingsPanel from "@/components/PDFSettingsPanel";
+import PDFSettingsWithPreview from "@/components/PDFSettingsWithPreview";
 import TestExportPage from "@/pages/TestExportPage";
 import {
   Card,
@@ -1038,7 +1038,33 @@ export default function AdminPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PDFSettingsPanel />
+              <PDFSettingsWithPreview 
+                initialSettings={{}}
+                onSave={async (settings) => {
+                  try {
+                    const response = await fetch('/api/pdf/settings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(settings),
+                      credentials: 'include'
+                    });
+                    
+                    if (!response.ok) {
+                      throw new Error('Failed to save PDF settings');
+                    }
+                    
+                    return await response.json();
+                  } catch (error) {
+                    console.error('Error saving PDF settings:', error);
+                    toast({
+                      title: 'Error',
+                      description: 'Failed to save PDF settings. Please try again.',
+                      variant: 'destructive'
+                    });
+                    throw error;
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
