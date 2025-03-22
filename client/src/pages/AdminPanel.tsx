@@ -1038,7 +1038,14 @@ export default function AdminPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PDFSettingsPanel />
+              <PDFSettingsPanel 
+                settings={{}} 
+                onSettingsChange={(newSettings) => {
+                  console.log('PDF settings updated:', newSettings);
+                  // In a real implementation, you would save these settings
+                  // For now, we just log them
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
