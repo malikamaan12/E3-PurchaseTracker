@@ -678,6 +678,15 @@ function addItemsTable(
   startY: number,
   cfg?: any
 ): number {
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color for items table:', error);
+    }
+  }
   // Parse items safely
   let items = [];
   try {
