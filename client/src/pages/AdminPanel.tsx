@@ -341,6 +341,18 @@ export default function AdminPanel() {
       return response.json();
     },
   });
+  
+  // Fetch PDF settings
+  const { data: pdfSettingsData, isLoading: isLoadingPdfSettings } = useQuery({
+    queryKey: ['/api/pdf/print-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/pdf/print-settings', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch PDF settings');
+      return response.json();
+    }
+  });
 
   const toggleSubPurposeFreeze = useMutation({
     mutationFn: async ({ id, isFrozen }: { id: number; isFrozen: boolean }) => {
@@ -1038,33 +1050,41 @@ export default function AdminPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PDFSettingsWithPreview 
-                initialSettings={{}}
-                onSave={async (settings) => {
-                  try {
-                    const response = await fetch('/api/pdf/settings', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(settings),
-                      credentials: 'include'
-                    });
-                    
-                    if (!response.ok) {
-                      throw new Error('Failed to save PDF settings');
+              {isLoadingPdfSettings ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <PDFSettingsWithPreview 
+                  initialSettings={pdfSettingsData || {}}
+                  onSave={async (settings) => {
+                    try {
+                      const response = await fetch('/api/pdf/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings),
+                        credentials: 'include'
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('Failed to save PDF settings');
+                      }
+                      
+                      // Invalidate the PDF settings query after save
+                      queryClient.invalidateQueries({ queryKey: ['/api/pdf/print-settings'] });
+                      return await response.json();
+                    } catch (error) {
+                      console.error('Error saving PDF settings:', error);
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to save PDF settings. Please try again.',
+                        variant: 'destructive'
+                      });
+                      throw error;
                     }
-                    
-                    return await response.json();
-                  } catch (error) {
-                    console.error('Error saving PDF settings:', error);
-                    toast({
-                      title: 'Error',
-                      description: 'Failed to save PDF settings. Please try again.',
-                      variant: 'destructive'
-                    });
-                    throw error;
-                  }
-                }}
-              />
+                  }}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
