@@ -116,34 +116,34 @@ export async function generatePurchaseRequestPDF(
   cursorY = await addHeader(doc, request, cursorY, cfg);
 
   // 2) Basic Information - Displays core request information
-  cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY);
+  cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY, cfg);
   cursorY = addBasicInfoTable(doc, request, cursorY);
 
   // 3) Vendor Information - If available
   if (request.vendor) {
-    cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY);
+    cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY, cfg);
     cursorY = addVendorInfoTable(doc, request, cursorY);
   }
 
   // 4) Items - Main purchase request items with proper content fitting
-  cursorY = addSectionTitle(doc, "ITEMS", cursorY);
+  cursorY = addSectionTitle(doc, "ITEMS", cursorY, cfg);
   cursorY = addItemsTable(doc, request, cursorY);
 
   // 5) Attachments - Always include if they exist
   if (request.attachments && request.attachments.length > 0) {
-    cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY);
+    cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY, cfg);
     cursorY = addAttachmentsTable(doc, request, cursorY);
   }
 
   // 6) Approvals - Always include if they exist (consolidating PDF types)
   if (request.approvals && request.approvals.length > 0) {
-    cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY);
+    cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY, cfg);
     cursorY = addApprovalsTable(doc, request, cursorY);
   }
 
   // 7) Signatures - Only for admin or approver roles
   if (cfg.showSignatures) {
-    cursorY = addSectionTitle(doc, "SIGNATURES", cursorY);
+    cursorY = addSectionTitle(doc, "SIGNATURES", cursorY, cfg);
     cursorY = addSignatureLines(doc, cursorY);
   }
 
