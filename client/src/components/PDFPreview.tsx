@@ -10,18 +10,39 @@ interface PDFPreviewProps {
 
 const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) => {
   const [loading, setLoading] = useState(true);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   
   // Ensure settings is never undefined
   const safeSettings = settings || {};
   
   useEffect(() => {
+    // Reset error state when settings change
+    setPreviewError(null);
+    
     // Simulate loading of PDF preview
+    setLoading(true);
     const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+      try {
+        // Validate that we have minimum required settings
+        if (!safeSettings) {
+          setPreviewError('No settings provided for preview');
+        }
+        
+        // Attempt to validate any required settings
+        if (safeSettings.useWatermark && !safeSettings.watermarkText) {
+          console.warn('Watermark enabled but no watermark text provided');
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error generating PDF preview:', error);
+        setPreviewError('Failed to generate preview due to invalid settings');
+        setLoading(false);
+      }
+    }, 800);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [safeSettings]);
   
   // Apply settings to create a visual representation of the PDF
   const renderPreview = () => {
@@ -29,6 +50,23 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
       return (
         <div className="flex items-center justify-center h-full">
           <Spinner size="lg" label="Generating preview..." />
+        </div>
+      );
+    }
+    
+    if (previewError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+          <div className="text-red-500 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-red-600 mb-2">Preview Error</h3>
+          <p className="text-gray-600 mb-4">{previewError}</p>
+          <p className="text-sm text-gray-500">Please check your settings and try again.</p>
         </div>
       );
     }
