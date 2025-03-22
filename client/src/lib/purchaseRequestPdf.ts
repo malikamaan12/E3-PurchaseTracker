@@ -88,6 +88,16 @@ export async function generatePurchaseRequestPDF(
     format: 'a4',
     compress: true
   });
+  
+  // Apply document-wide font color if specified
+  if (options?.fontColor) {
+    try {
+      const fontColor = hexToRgb(options.fontColor);
+      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
 
   // Defaults with consolidated PDF type logic
   const cfg = {
@@ -147,7 +157,7 @@ export async function generatePurchaseRequestPDF(
   // 7) Signatures - Only for admin or approver roles
   if (cfg.showSignatures) {
     cursorY = addSectionTitle(doc, "SIGNATURES", cursorY, cfg);
-    cursorY = addSignatureLines(doc, cursorY);
+    cursorY = addSignatureLines(doc, cursorY, cfg);
   }
 
   // Finally, add footers to each page
@@ -778,10 +788,24 @@ function addItemsTable(
   const totalsHeight = 30; // Approximate height for the totals section
   yPos = ensureContentFits(doc, yPos, totalsHeight);
 
+  // Apply custom font color if provided in the config for totals table
+  let totalsTextColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      totalsTextColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color for totals:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY: yPos,
     theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2 },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 2,
+      textColor: totalsTextColor // Apply custom font color
+    },
     columnStyles: {
       3: { fontStyle: 'bold', halign: 'right' },
       4: { halign: 'right' }
