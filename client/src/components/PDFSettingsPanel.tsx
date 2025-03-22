@@ -33,15 +33,18 @@ const fontFamilies = [
 ];
 
 const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({ 
-  settings,
+  settings = {},
   onSettingsChange,
   loading = false
 }) => {
   const [activeTab, setActiveTab] = useState('general');
   
+  // Ensure settings is never undefined
+  const safeSettings = settings || {};
+  
   const handleChange = (field: keyof PdfSettings, value: any) => {
     onSettingsChange({
-      ...settings,
+      ...safeSettings,
       [field]: value
     });
   };
@@ -56,7 +59,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
     // In a real implementation, you would upload the file to the server
     // and get back a permanent URL
     onSettingsChange({
-      ...settings,
+      ...safeSettings,
       [field]: url
     });
   };
@@ -78,7 +81,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="space-y-2">
               <Label htmlFor="fontFamily">Font Family</Label>
               <Select 
-                value={settings.fontFamily || 'Arial'} 
+                value={safeSettings.fontFamily || 'Arial'} 
                 onValueChange={(value) => handleChange('fontFamily', value)}
                 disabled={loading}
               >
@@ -94,13 +97,13 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="fontSize">Font Size ({settings.fontSize}pt)</Label>
+              <Label htmlFor="fontSize">Font Size ({safeSettings.fontSize}pt)</Label>
               <Slider 
                 id="fontSize" 
                 min={8} 
                 max={16}
                 step={1}
-                value={[settings.fontSize || 10]} 
+                value={[safeSettings.fontSize || 10]} 
                 onValueChange={(value) => handleChange('fontSize', value[0])}
                 disabled={loading}
               />
@@ -109,26 +112,26 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="marginTop">Top Margin ({settings.marginTop}px)</Label>
+              <Label htmlFor="marginTop">Top Margin ({safeSettings.marginTop}px)</Label>
               <Slider 
                 id="marginTop" 
                 min={0} 
                 max={100}
                 step={1}
-                value={[settings.marginTop || 25]} 
+                value={[safeSettings.marginTop || 25]} 
                 onValueChange={(value) => handleChange('marginTop', value[0])}
                 disabled={loading}
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="marginBottom">Bottom Margin ({settings.marginBottom}px)</Label>
+              <Label htmlFor="marginBottom">Bottom Margin ({safeSettings.marginBottom}px)</Label>
               <Slider 
                 id="marginBottom" 
                 min={0} 
                 max={100}
                 step={1}
-                value={[settings.marginBottom || 25]} 
+                value={[safeSettings.marginBottom || 25]} 
                 onValueChange={(value) => handleChange('marginBottom', value[0])}
                 disabled={loading}
               />
@@ -137,26 +140,26 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="marginLeft">Left Margin ({settings.marginLeft}px)</Label>
+              <Label htmlFor="marginLeft">Left Margin ({safeSettings.marginLeft}px)</Label>
               <Slider 
                 id="marginLeft" 
                 min={0} 
                 max={100}
                 step={1}
-                value={[settings.marginLeft || 25]} 
+                value={[safeSettings.marginLeft || 25]} 
                 onValueChange={(value) => handleChange('marginLeft', value[0])}
                 disabled={loading}
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="marginRight">Right Margin ({settings.marginRight}px)</Label>
+              <Label htmlFor="marginRight">Right Margin ({safeSettings.marginRight}px)</Label>
               <Slider 
                 id="marginRight" 
                 min={0} 
                 max={100}
                 step={1}
-                value={[settings.marginRight || 25]} 
+                value={[safeSettings.marginRight || 25]} 
                 onValueChange={(value) => handleChange('marginRight', value[0])}
                 disabled={loading}
               />
@@ -169,7 +172,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <div className="flex items-center space-x-2">
                 <Switch
                   id="showHeader"
-                  checked={settings.showHeader !== false}
+                  checked={safeSettings.showHeader !== false}
                   onCheckedChange={(checked) => handleChange('showHeader', checked)}
                   disabled={loading}
                 />
@@ -179,7 +182,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <div className="flex items-center space-x-2">
                 <Switch
                   id="showFooter"
-                  checked={settings.showFooter !== false}
+                  checked={safeSettings.showFooter !== false}
                   onCheckedChange={(checked) => handleChange('showFooter', checked)}
                   disabled={loading}
                 />
@@ -189,7 +192,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <div className="flex items-center space-x-2">
                 <Switch
                   id="showLogo"
-                  checked={settings.showLogo !== false}
+                  checked={safeSettings.showLogo !== false}
                   onCheckedChange={(checked) => handleChange('showLogo', checked)}
                   disabled={loading}
                 />
@@ -199,7 +202,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <div className="flex items-center space-x-2">
                 <Switch
                   id="pageNumbering"
-                  checked={settings.pageNumbering !== false}
+                  checked={safeSettings.pageNumbering !== false}
                   onCheckedChange={(checked) => handleChange('pageNumbering', checked)}
                   disabled={loading}
                 />
@@ -216,7 +219,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="headerTitle">Header Title</Label>
               <Input 
                 id="headerTitle" 
-                value={settings.headerTitle || ''} 
+                value={safeSettings.headerTitle || ''} 
                 onChange={(e) => handleChange('headerTitle', e.target.value)}
                 disabled={loading}
               />
@@ -226,7 +229,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="headerSubtitle">Header Subtitle</Label>
               <Input 
                 id="headerSubtitle" 
-                value={settings.headerSubtitle || ''} 
+                value={safeSettings.headerSubtitle || ''} 
                 onChange={(e) => handleChange('headerSubtitle', e.target.value)}
                 disabled={loading}
               />
@@ -238,14 +241,14 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 <Input 
                   type="color"
                   id="headerColor" 
-                  value={settings.headerColor || '#0066cc'} 
+                  value={safeSettings.headerColor || '#0066cc'} 
                   onChange={(e) => handleChange('headerColor', e.target.value)}
                   className="w-24"
                   disabled={loading}
                 />
                 <Input 
                   type="text"
-                  value={settings.headerColor || '#0066cc'} 
+                  value={safeSettings.headerColor || '#0066cc'} 
                   onChange={(e) => handleChange('headerColor', e.target.value)}
                   disabled={loading}
                 />
@@ -253,13 +256,13 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="headerHeight">Header Height ({settings.headerHeight}px)</Label>
+              <Label htmlFor="headerHeight">Header Height ({safeSettings.headerHeight}px)</Label>
               <Slider 
                 id="headerHeight" 
                 min={20} 
                 max={150}
                 step={1}
-                value={[settings.headerHeight || 60]} 
+                value={[safeSettings.headerHeight || 60]} 
                 onValueChange={(value) => handleChange('headerHeight', value[0])}
                 disabled={loading}
               />
@@ -286,10 +289,10 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                   disabled={loading}
                 />
               </div>
-              {settings.headerImage && (
+              {safeSettings.headerImage && (
                 <div className="mt-2">
                   <img
-                    src={settings.headerImage}
+                    src={safeSettings.headerImage}
                     alt="Header"
                     className="h-10 object-contain border rounded"
                   />
@@ -305,7 +308,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="footerText">Footer Text</Label>
               <Input 
                 id="footerText" 
-                value={settings.footerText || ''} 
+                value={safeSettings.footerText || ''} 
                 onChange={(e) => handleChange('footerText', e.target.value)}
                 disabled={loading}
               />
@@ -317,14 +320,14 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 <Input 
                   type="color"
                   id="footerColor" 
-                  value={settings.footerColor || '#f5f5f5'} 
+                  value={safeSettings.footerColor || '#f5f5f5'} 
                   onChange={(e) => handleChange('footerColor', e.target.value)}
                   className="w-24"
                   disabled={loading}
                 />
                 <Input 
                   type="text"
-                  value={settings.footerColor || '#f5f5f5'} 
+                  value={safeSettings.footerColor || '#f5f5f5'} 
                   onChange={(e) => handleChange('footerColor', e.target.value)}
                   disabled={loading}
                 />
@@ -332,13 +335,13 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2 mt-4">
-              <Label htmlFor="footerHeight">Footer Height ({settings.footerHeight}px)</Label>
+              <Label htmlFor="footerHeight">Footer Height ({safeSettings.footerHeight}px)</Label>
               <Slider 
                 id="footerHeight" 
                 min={20} 
                 max={100}
                 step={1}
-                value={[settings.footerHeight || 30]} 
+                value={[safeSettings.footerHeight || 30]} 
                 onValueChange={(value) => handleChange('footerHeight', value[0])}
                 disabled={loading}
               />
@@ -365,10 +368,10 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                   disabled={loading}
                 />
               </div>
-              {settings.footerImage && (
+              {safeSettings.footerImage && (
                 <div className="mt-2">
                   <img
-                    src={settings.footerImage}
+                    src={safeSettings.footerImage}
                     alt="Footer"
                     className="h-10 object-contain border rounded"
                   />
@@ -383,7 +386,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="space-y-2">
               <Label htmlFor="logoPositon">Logo Position</Label>
               <Select 
-                value={settings.logoPosition || 'left'} 
+                value={safeSettings.logoPosition || 'left'} 
                 onValueChange={(value) => handleChange('logoPosition', value as 'left' | 'center' | 'right')}
                 disabled={loading}
               >
@@ -419,10 +422,10 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                   disabled={loading}
                 />
               </div>
-              {settings.logo && (
+              {safeSettings.logo && (
                 <div className="mt-2">
                   <img
-                    src={settings.logo}
+                    src={safeSettings.logo}
                     alt="Logo"
                     className="h-10 object-contain border rounded"
                   />
@@ -438,7 +441,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showBasicInfo"
-                checked={settings.showBasicInfo !== false}
+                checked={safeSettings.showBasicInfo !== false}
                 onCheckedChange={(checked) => handleChange('showBasicInfo', checked)}
                 disabled={loading}
               />
@@ -448,7 +451,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showRequesterDetails"
-                checked={settings.showRequesterDetails !== false}
+                checked={safeSettings.showRequesterDetails !== false}
                 onCheckedChange={(checked) => handleChange('showRequesterDetails', checked)}
                 disabled={loading}
               />
@@ -458,7 +461,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showDateOfRequest"
-                checked={settings.showDateOfRequest !== false}
+                checked={safeSettings.showDateOfRequest !== false}
                 onCheckedChange={(checked) => handleChange('showDateOfRequest', checked)}
                 disabled={loading}
               />
@@ -468,7 +471,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showPurposeInfo"
-                checked={settings.showPurposeInfo !== false}
+                checked={safeSettings.showPurposeInfo !== false}
                 onCheckedChange={(checked) => handleChange('showPurposeInfo', checked)}
                 disabled={loading}
               />
@@ -478,7 +481,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showVendorDetails"
-                checked={settings.showVendorDetails !== false}
+                checked={safeSettings.showVendorDetails !== false}
                 onCheckedChange={(checked) => handleChange('showVendorDetails', checked)}
                 disabled={loading}
               />
@@ -488,7 +491,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showItems"
-                checked={settings.showItems !== false}
+                checked={safeSettings.showItems !== false}
                 onCheckedChange={(checked) => handleChange('showItems', checked)}
                 disabled={loading}
               />
@@ -498,7 +501,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showApprovals"
-                checked={settings.showApprovals !== false}
+                checked={safeSettings.showApprovals !== false}
                 onCheckedChange={(checked) => handleChange('showApprovals', checked)}
                 disabled={loading}
               />
@@ -508,7 +511,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showAttachments"
-                checked={settings.showAttachments !== false}
+                checked={safeSettings.showAttachments !== false}
                 onCheckedChange={(checked) => handleChange('showAttachments', checked)}
                 disabled={loading}
               />
@@ -518,7 +521,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showSignatures"
-                checked={settings.showSignatures !== false}
+                checked={safeSettings.showSignatures !== false}
                 onCheckedChange={(checked) => handleChange('showSignatures', checked)}
                 disabled={loading}
               />
@@ -528,7 +531,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Switch
                 id="showAuditInfo"
-                checked={settings.showAuditInfo === true}
+                checked={safeSettings.showAuditInfo === true}
                 onCheckedChange={(checked) => handleChange('showAuditInfo', checked)}
                 disabled={loading}
               />
@@ -542,7 +545,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           <div className="flex items-center space-x-2 mb-4">
             <Switch
               id="useWatermark"
-              checked={settings.useWatermark === true}
+              checked={safeSettings.useWatermark === true}
               onCheckedChange={(checked) => handleChange('useWatermark', checked)}
               disabled={loading}
             />
@@ -554,31 +557,31 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="watermarkText">Watermark Text</Label>
               <Input 
                 id="watermarkText" 
-                value={settings.watermarkText || ''} 
+                value={safeSettings.watermarkText || ''} 
                 onChange={(e) => handleChange('watermarkText', e.target.value)}
-                disabled={loading || settings.useWatermark !== true}
+                disabled={loading || safeSettings.useWatermark !== true}
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="watermarkOpacity">Opacity ({settings.watermarkOpacity && Math.round(settings.watermarkOpacity * 100)}%)</Label>
+              <Label htmlFor="watermarkOpacity">Opacity ({safeSettings.watermarkOpacity && Math.round(safeSettings.watermarkOpacity * 100)}%)</Label>
               <Slider 
                 id="watermarkOpacity" 
                 min={0.05} 
                 max={0.5}
                 step={0.01}
-                value={[settings.watermarkOpacity || 0.15]} 
+                value={[safeSettings.watermarkOpacity || 0.15]} 
                 onValueChange={(value) => handleChange('watermarkOpacity', value[0])}
-                disabled={loading || settings.useWatermark !== true}
+                disabled={loading || safeSettings.useWatermark !== true}
               />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="watermarkPosition">Watermark Position</Label>
               <Select 
-                value={settings.watermarkPosition || 'center'} 
+                value={safeSettings.watermarkPosition || 'center'} 
                 onValueChange={(value) => handleChange('watermarkPosition', value as 'center' | 'tile' | 'corner')}
-                disabled={loading || settings.useWatermark !== true}
+                disabled={loading || safeSettings.useWatermark !== true}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select watermark position" />
@@ -592,15 +595,15 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="watermarkRotation">Rotation ({settings.watermarkRotation}°)</Label>
+              <Label htmlFor="watermarkRotation">Rotation ({safeSettings.watermarkRotation}°)</Label>
               <Slider 
                 id="watermarkRotation" 
                 min={0} 
                 max={90}
                 step={1}
-                value={[settings.watermarkRotation || 45]} 
+                value={[safeSettings.watermarkRotation || 45]} 
                 onValueChange={(value) => handleChange('watermarkRotation', value[0])}
-                disabled={loading || settings.useWatermark !== true}
+                disabled={loading || safeSettings.useWatermark !== true}
               />
             </div>
           </div>
@@ -613,7 +616,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="companyAddress">Company Address</Label>
               <Input 
                 id="companyAddress" 
-                value={settings.companyAddress || ''} 
+                value={safeSettings.companyAddress || ''} 
                 onChange={(e) => handleChange('companyAddress', e.target.value)}
                 disabled={loading}
               />
@@ -623,7 +626,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="companyPhone">Company Phone</Label>
               <Input 
                 id="companyPhone" 
-                value={settings.companyPhone || ''} 
+                value={safeSettings.companyPhone || ''} 
                 onChange={(e) => handleChange('companyPhone', e.target.value)}
                 disabled={loading}
               />
@@ -633,7 +636,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="companyEmail">Company Email</Label>
               <Input 
                 id="companyEmail" 
-                value={settings.companyEmail || ''} 
+                value={safeSettings.companyEmail || ''} 
                 onChange={(e) => handleChange('companyEmail', e.target.value)}
                 disabled={loading}
               />
@@ -643,7 +646,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Label htmlFor="companyWebsite">Company Website</Label>
               <Input 
                 id="companyWebsite" 
-                value={settings.companyWebsite || ''} 
+                value={safeSettings.companyWebsite || ''} 
                 onChange={(e) => handleChange('companyWebsite', e.target.value)}
                 disabled={loading}
               />
