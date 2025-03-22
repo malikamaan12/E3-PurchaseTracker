@@ -665,7 +665,8 @@ function addVendorInfoTable(
 function addItemsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
+  cfg?: any
 ): number {
   // Parse items safely
   let items = [];
@@ -727,6 +728,16 @@ function addItemsTable(
   // Use a larger minimum space parameter for tables as they require more layout space
   startY = ensureContentFits(doc, startY, tableHeight, 40);
   
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY,
     head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
@@ -736,7 +747,8 @@ function addItemsTable(
       fontSize: 9, 
       cellPadding: 3,
       overflow: 'linebreak',  // Enable text wrapping
-      cellWidth: 'auto'       // Auto-size cells
+      cellWidth: 'auto',      // Auto-size cells
+      textColor: textColor    // Apply custom font color
     },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
@@ -790,7 +802,8 @@ function addItemsTable(
 function addAttachmentsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
+  cfg?: any
 ): number {
   const attachments = request.attachments || [];
 
@@ -831,12 +844,27 @@ function addAttachmentsTable(
   // Use our enhanced page fitting method with larger min space for tables
   startY = ensureContentFits(doc, startY, tableHeight, 40);
 
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY,
     head: [['Document Name', 'Type', 'Size']],
     body: rows,
     theme: 'striped',
-    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 3, 
+      overflow: 'linebreak',
+      textColor: textColor // Apply custom font color
+    },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
       0: { cellWidth: 80, overflow: 'linebreak' },
@@ -854,7 +882,8 @@ function addAttachmentsTable(
 function addApprovalsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
+  cfg?: any
 ): number {
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
 
@@ -934,12 +963,27 @@ function addApprovalsTable(
   const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes').length;
   
   // Add the main approvals table with enhanced styling
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY,
     head: [['Approver', 'Department', 'Status', 'Comments', 'Processed Date']],
     body: rows,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 3, 
+      overflow: 'linebreak',
+      textColor: textColor // Apply custom font color
+    },
     headStyles: { 
       fillColor: [240, 240, 245], 
       textColor: [50, 50, 50], 
@@ -1089,7 +1133,7 @@ function addApprovalsTable(
 
 // =========== SIGNATURE LINES =========== //
 
-function addSignatureLines(doc: jsPDF, startY: number): number {
+function addSignatureLines(doc: jsPDF, startY: number, cfg?: any): number {
   // Calculate approximate height needed for signature lines
   const signatureHeight = 30; // Height needed for signature lines
   
@@ -1101,6 +1145,16 @@ function addSignatureLines(doc: jsPDF, startY: number): number {
   const lineWidth = (pageWidth - margin * 2 - 20) / 2;
   const lineY = startY + 15;
 
+  // Apply custom font color to signature text if specified
+  if (cfg && cfg.fontColor) {
+    try {
+      const fontColor = hexToRgb(cfg.fontColor);
+      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   // Requester
   doc.line(margin, lineY, margin + lineWidth, lineY);
   doc.text("Requester Signature", margin, lineY + 5);
@@ -1108,6 +1162,9 @@ function addSignatureLines(doc: jsPDF, startY: number): number {
   // Approver
   doc.line(margin + lineWidth + 20, lineY, pageWidth - margin, lineY);
   doc.text("Approver Signature", margin + lineWidth + 20, lineY + 5);
+  
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
 
   return lineY + 15;
 }
