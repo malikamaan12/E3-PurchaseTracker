@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -15,53 +15,24 @@ interface PDFSettingsWithPreviewProps {
 
 const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
   initialSettings = {},
-  onSave = async () => { 
-    console.warn('onSave function not provided to PDFSettingsWithPreview');
-    return null;
-  },
+  onSave,
   previewData
 }) => {
-  // Ensure we have safe initial settings
-  const safeInitialSettings = initialSettings || {};
-  
   const [settings, setSettings] = useState<PdfSettings>({
     ...DEFAULT_PDF_SETTINGS,
-    ...safeInitialSettings
+    ...initialSettings
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
-  // Re-apply settings if initialSettings changes
-  useEffect(() => {
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      ...safeInitialSettings
-    }));
-  }, [safeInitialSettings]);
-  
   const handleSettingsChange = (updatedSettings: Partial<PdfSettings>) => {
-    if (!updatedSettings) {
-      console.warn('Received undefined settings update in PDFSettingsWithPreview');
-      return;
-    }
-    
-    setSettings(prevSettings => ({
-      ...prevSettings,
+    setSettings({
+      ...settings,
       ...updatedSettings
-    }));
+    });
   };
   
   const handleSave = async () => {
-    if (typeof onSave !== 'function') {
-      console.error('onSave is not a function in PDFSettingsWithPreview');
-      toast({
-        title: 'Error saving settings',
-        description: 'The save function is not properly configured. Please contact support.',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
     try {
       setLoading(true);
       await onSave(settings);
@@ -85,6 +56,9 @@ const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
   };
   
   const handleReset = () => {
+    // Use safe initialSettings here too (though default param should handle it)
+    const safeInitialSettings = initialSettings || {};
+    
     setSettings({
       ...DEFAULT_PDF_SETTINGS,
       ...safeInitialSettings

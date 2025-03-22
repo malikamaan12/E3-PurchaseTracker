@@ -1,40 +1,34 @@
-/**
- * Enhanced Purchase Request PDF Generator
- * 
- * This consolidated module handles the generation of PDF documents for purchase requests.
- * It offers a unified, consistent output format with customizable styling options.
- */
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatDate, formatCurrency } from './utils';
-import { applyPdfWatermark, applySecurityWatermark } from './pdfWatermarks';
+import { applyPdfWatermark } from './pdfAuditUtils';
 
-export interface PurchaseRequest {
-  id: number;
-  requestNumber: string;
-  title: string;
-  description: string;
-  requesterId: number;
+// =========== Utility Types & Functions =========== //
+
+// A minimal typed shape of your request
+interface PurchaseRequest {
+  requestNumber?: string;
+  title?: string;
+  status?: string;
+  priority?: string;
+  description?: string;
+  purposeType?: string;
+  subPurpose?: {
+    name?: string;
+  };
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  currency?: string;
+  freightAmount?: number;
+  items?: any[];
+  attachments?: any[];
+  approvals?: any[];
   requester?: {
-    id: number;
-    username: string;
+    username?: string;
     department?: string;
     email?: string;
     contactNumber?: string;
   };
-  status?: string;
-  priority?: string;
-  createdAt: string | Date;
-  processedAt?: string | Date;
-  purposeType: string;
-  subPurpose?: {
-    id?: number;
-    name: string;
-  };
-  items: any[];
   vendor?: {
-    id?: number;
     name?: string;
     companyName?: string;
     contactPerson?: string;
@@ -42,12 +36,25 @@ export interface PurchaseRequest {
     phone?: string;
     contactNumber?: string;
   };
-  approvals?: any[];
-  attachments?: any[];
-  currency?: string;
-  freightAmount?: number;
-  totalEstimatedCost?: number;
 }
+
+// Converts a `Date` or date-string to `MM/DD/YYYY` (or your desired format)
+function formatDate(date: string | Date | undefined): string {
+  if (!date) return 'N/A';
+  try {
+    return new Date(date).toLocaleDateString(); 
+  } catch {
+    return 'N/A';
+  }
+}
+
+// Simple currency formatter
+function formatCurrency(amount: number, currency = 'QAR') {
+  return `${currency} ${amount.toLocaleString()}`;
+}
+
+// =========== PDF GENERATOR MAIN FUNCTION =========== //
+import { applySecurityWatermark } from './pdfAuditUtils';
 
 export async function generatePurchaseRequestPDF(
   request: PurchaseRequest,
@@ -56,18 +63,20 @@ export async function generatePurchaseRequestPDF(
     showAttachments?: boolean;  // whether to include attachments table
     showSignatures?: boolean;   // whether to add signature lines
     headerImage?: string;       // custom header logo
-    footerImage?: string;       // custom footer logo
-    footerText?: string;        // custom footer text
-    pageNumbering?: boolean;    // whether to show page numbers
-    showHeader?: boolean;       // whether to show the header
-    showFooter?: boolean;       // whether to show the footer
-    companyInfo?: any;          // company contact information for footer
-    headerColor?: string;       // header background color
-    footerColor?: string;       // footer text/accent color
-    fontColor?: string;         // text color for all content
-    type?: 'user' | 'admin' | 'approver'; // PDF type for permission-based content
-    showWatermark?: boolean;    // whether to show the watermark
-    watermarkText?: string;     // custom watermark text
+    footerImage?: string;       // custom footer image
+    companyInfo?: {
+      phone?: string;
+      email?: string;
+      website?: string;
+      address?: string;
+    };
+    footerText?: string;        // e.g. "Designed by Team E3"
+    pageNumbering?: boolean;    // default true
+    headerColor?: string;       // header color
+    footerColor?: string;       // footer color
+    type?: 'user' | 'approver' | 'admin'; // pdf type
+    showWatermark?: boolean;    // whether to show watermark
+    watermarkText?: string;     // watermark text content
     watermarkOpacity?: number;  // watermark opacity (0-1)
     securityLevel?: 'confidential' | 'internal' | 'restricted' | 'public'; // document security
   }
@@ -78,16 +87,6 @@ export async function generatePurchaseRequestPDF(
     format: 'a4',
     compress: true
   });
-  
-  // Apply document-wide font color if specified
-  if (options?.fontColor) {
-    try {
-      const fontColor = hexToRgb(options.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
 
   // Defaults with consolidated PDF type logic
   const cfg = {
@@ -104,8 +103,6 @@ export async function generatePurchaseRequestPDF(
     companyInfo: options?.companyInfo || {},
     headerColor: options?.headerColor || '#6F2AE6', // E3 purple
     footerColor: options?.footerColor || '#6F2AE6', // E3 purple
-    // New font color option with default black
-    fontColor: options?.fontColor || '#000000', // Default black
     type: options?.type || 'user',
     showWatermark: options?.showWatermark ?? true,
     watermarkText: options?.watermarkText || 'E3 CONFIDENTIAL',
@@ -119,35 +116,35 @@ export async function generatePurchaseRequestPDF(
   cursorY = await addHeader(doc, request, cursorY, cfg);
 
   // 2) Basic Information - Displays core request information
-  cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY, cfg);
-  cursorY = addBasicInfoTable(doc, request, cursorY, cfg);
+  cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY);
+  cursorY = addBasicInfoTable(doc, request, cursorY);
 
   // 3) Vendor Information - If available
   if (request.vendor) {
-    cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY, cfg);
-    cursorY = addVendorInfoTable(doc, request, cursorY, cfg);
+    cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY);
+    cursorY = addVendorInfoTable(doc, request, cursorY);
   }
 
   // 4) Items - Main purchase request items with proper content fitting
-  cursorY = addSectionTitle(doc, "ITEMS", cursorY, cfg);
-  cursorY = addItemsTable(doc, request, cursorY, cfg);
+  cursorY = addSectionTitle(doc, "ITEMS", cursorY);
+  cursorY = addItemsTable(doc, request, cursorY);
 
   // 5) Attachments - Always include if they exist
   if (request.attachments && request.attachments.length > 0) {
-    cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY, cfg);
-    cursorY = addAttachmentsTable(doc, request, cursorY, cfg);
+    cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY);
+    cursorY = addAttachmentsTable(doc, request, cursorY);
   }
 
   // 6) Approvals - Always include if they exist (consolidating PDF types)
   if (request.approvals && request.approvals.length > 0) {
-    cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY, cfg);
-    cursorY = addApprovalsTable(doc, request, cursorY, cfg);
+    cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY);
+    cursorY = addApprovalsTable(doc, request, cursorY);
   }
 
   // 7) Signatures - Only for admin or approver roles
   if (cfg.showSignatures) {
-    cursorY = addSectionTitle(doc, "SIGNATURES", cursorY, cfg);
-    cursorY = addSignatureLines(doc, cursorY, cfg);
+    cursorY = addSectionTitle(doc, "SIGNATURES", cursorY);
+    cursorY = addSignatureLines(doc, cursorY);
   }
 
   // Finally, add footers to each page
@@ -203,17 +200,7 @@ async function addHeader(
       doc.setFontSize(10);
       doc.setTextColor(255, 255, 255);
       doc.text("E3", margin + 20, startY + 9, { align: 'center' });
-      // Apply font color setting if available
-      if (cfg && cfg.fontColor) {
-        try {
-          const fontColor = hexToRgb(cfg.fontColor);
-          doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-        } catch (error) {
-          doc.setTextColor(0, 0, 0); // Reset to black
-        }
-      } else {
-        doc.setTextColor(0, 0, 0); // Reset to black
-      }
+      doc.setTextColor(0, 0, 0);
     }
   } else {
     // Render a decent looking E3 banner if no image provided
@@ -222,17 +209,7 @@ async function addHeader(
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
     doc.text("E3", margin + 20, startY + 9, { align: 'center' });
-    // Apply font color setting if available
-    if (cfg && cfg.fontColor) {
-      try {
-        const fontColor = hexToRgb(cfg.fontColor);
-        doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-      } catch (error) {
-        doc.setTextColor(0, 0, 0); // Reset to black
-      }
-    } else {
-      doc.setTextColor(0, 0, 0); // Reset to black
-    }
+    doc.setTextColor(0, 0, 0);
   }
 
   // Add the "PURCHASE REQUEST" text
@@ -310,17 +287,8 @@ async function addHeader(
   doc.setFont('helvetica', 'normal');
   doc.text(request.priority?.toUpperCase() || "N/A", midPoint + 35, reqBoxY + 16);
   
-  // Apply font color setting if available
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      doc.setTextColor(0, 0, 0); // Reset to black
-    }
-  } else {
-    doc.setTextColor(0, 0, 0); // Reset to black
-  }
+  // Reset text color to black
+  doc.setTextColor(0, 0, 0);
   
   return reqBoxY + reqBoxHeight + 5;
 }
@@ -377,68 +345,57 @@ function addFooter(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
-  
-  // Ensure footer is visible by setting a fixed position from bottom
-  // This fixes the issue where footer might not be visible
-  const footerHeight = cfg.footerHeight || 30;
-  const footerY = pageHeight - footerHeight;
-  
-  // Convert footer color from hex to RGB with improved error handling
+  const footerY = pageHeight - 15;
+
+  // Convert footer color from hex to RGB
   const footerColor = hexToRgb(cfg.footerColor);
-  
-  // Add visible footer background
-  if (cfg.showFooter !== false) {
-    // Create footer background with the footer color
-    doc.setFillColor(footerColor[0], footerColor[1], footerColor[2], 0.1);
-    doc.rect(0, footerY, pageWidth, footerHeight, 'F');
-    
-    // Add a dividing line above the footer
-    doc.setDrawColor(footerColor[0], footerColor[1], footerColor[2], 0.5);
-    doc.setLineWidth(0.5);
-    doc.line(margin, footerY, pageWidth - margin, footerY);
-  }
+
+  // Thin horizontal line
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, footerY, pageWidth - margin, footerY);
 
   // If there's a footer image, place it on the right
   if (cfg.footerImage) {
     try {
       const img = new Image();
       img.src = cfg.footerImage;
-      doc.addImage(img, 'PNG', pageWidth - margin - 35, footerY + 5, 30, 15);
-      console.log("Footer image added successfully");
+      doc.addImage(img, 'PNG', pageWidth - margin - 25, footerY - 4, 25, 10);
     } catch (error) {
       console.error("Footer image error:", error);
       // Add small E3 brand mark at bottom right as fallback
-      const brandSize = 10;
-      const brandX = pageWidth - margin - brandSize - 5;
-      const brandY = footerY + 10;
+      const brandSize = 8;
+      const brandX = pageWidth - margin - brandSize;
+      const brandY = footerY + 2;
       
       // Purple box for brand
       doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
       doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
       
       // Add "E3" text in white
-      doc.setFontSize(7);
+      doc.setFontSize(6);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
     }
   } else {
     // Add small E3 brand mark at bottom right
-    const brandSize = 10;
-    const brandX = pageWidth - margin - brandSize - 5;
-    const brandY = footerY + 10;
+    const brandSize = 8;
+    const brandX = pageWidth - margin - brandSize;
+    const brandY = footerY + 2;
     
     // Purple box for brand
     doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
     doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
     
     // Add "E3" text in white
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
   }
 
   // Company contact info (if any) on the left
@@ -449,48 +406,32 @@ function addFooter(
   if (cfg.companyInfo?.email) contactText += `| Email: ${cfg.companyInfo.email} `;
   if (cfg.companyInfo?.website) contactText += `| Web: ${cfg.companyInfo.website}`;
   if (contactText) {
-    doc.text(contactText.trim(), margin, footerY + (footerHeight/2));
+    doc.text(contactText.trim(), margin, footerY + 5);
   }
 
   // Another line for address if needed
   if (cfg.companyInfo?.address) {
-    doc.text(cfg.companyInfo.address, margin, footerY + (footerHeight/2) + 5);
+    doc.text(cfg.companyInfo.address, margin, footerY + 10);
   }
 
-  // Page numbers in the center
+  // Page numbers in the center or right
   if (cfg.pageNumbering) {
-    doc.setFontSize(8);
-    // Use footer color for page numbers
-    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
-    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, footerY + (footerHeight/2), {
+    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, footerY + 5, {
       align: 'center'
     });
   }
 
-  // Footer text in the configured color
-  doc.setFontSize(9);
+  // Footer text in a color
+  doc.setFontSize(8);
   doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
   doc.setFont('helvetica', 'italic');
-  const footerTextY = footerY + (footerHeight/2) + 10;
-  doc.text(cfg.footerText || 'Purchase Request - Confidential', pageWidth / 2, footerTextY, { align: 'center' });
+  doc.text(cfg.footerText, pageWidth - margin, footerY + 10, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  
-  // Reset text color to match configured font color
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      doc.setTextColor(0, 0, 0); // Reset to black if error
-    }
-  } else {
-    doc.setTextColor(0, 0, 0); // Reset to default black
-  }
 }
 
 // =========== SECTION TITLES =========== //
 
-function addSectionTitle(doc: jsPDF, title: string, yPos: number, cfg?: any): number {
+function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
   // Better approach using ensureContentFits instead of maybeAddNewPage
   const titleSectionHeight = 15; // Section title height with margin
   yPos = ensureContentFits(doc, yPos, titleSectionHeight);
@@ -498,19 +439,9 @@ function addSectionTitle(doc: jsPDF, title: string, yPos: number, cfg?: any): nu
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const boxHeight = 8;
-  
-  // Get the custom header color if available, otherwise use default black
-  let titleColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.headerColor) {
-    try {
-      titleColor = hexToRgb(cfg.headerColor);
-    } catch (error) {
-      console.error('Error parsing section title color:', error);
-    }
-  }
 
-  // Use the header color for the section title background
-  doc.setFillColor(titleColor[0], titleColor[1], titleColor[2]);
+  // Dark background for the title
+  doc.setFillColor(0, 0, 0);
   doc.rect(margin, yPos, pageWidth - margin * 2, boxHeight, 'F');
 
   // White text
@@ -519,17 +450,8 @@ function addSectionTitle(doc: jsPDF, title: string, yPos: number, cfg?: any): nu
   doc.setTextColor(255, 255, 255);
   doc.text(title, margin + 5, yPos + 5);
 
-  // Reset text color to match configured font color
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      doc.setTextColor(0, 0, 0); // Reset to black if error
-    }
-  } else {
-    doc.setTextColor(0, 0, 0); // Reset to default black
-  }
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
 
   return yPos + boxHeight + 5;
@@ -545,6 +467,10 @@ function maybeAddNewPage(doc: jsPDF, yPos: number, minSpace: number = 40) {
   return false;
 }
 
+/**
+ * Checks if the content will fit on the current page, if not adds a new page.
+ * This is an enhanced version that is more precise about content height.
+ */
 /**
  * Ensures content fits on the current page, adds a new page if needed
  * This function prevents empty pages and handles content placement correctly
@@ -582,8 +508,7 @@ function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number, minR
 function addBasicInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number,
-  cfg?: any
+  startY: number
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 60; // Approximate height based on content
@@ -620,25 +545,10 @@ function addBasicInfoTable(
     ]);
   }
 
-  // Apply custom font color if provided in the config
-  let textColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.fontColor) {
-    try {
-      textColor = hexToRgb(cfg.fontColor);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
-
   (autoTable as any)(doc, {
     startY,
     theme: 'plain',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 2, 
-      overflow: 'linebreak',
-      textColor: textColor // Apply custom font color
-    },
+    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
     body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
     tableWidth: 'auto'
@@ -652,60 +562,34 @@ function addBasicInfoTable(
 function addVendorInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number,
-  cfg?: any
+  startY: number
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 30; // Approximate height based on content
   startY = ensureContentFits(doc, startY, tableHeight);
+  
+  const vendor = request.vendor || {};
 
-  if (!request.vendor) {
-    (autoTable as any)(doc, {
-      startY,
-      theme: 'plain',
-      body: [['No vendor information available']]
-    });
-    return (doc as any).lastAutoTable.finalY + 5;
-  }
-
-  const vendor = request.vendor;
-  const rows = [];
-
-  // Add company name and contact person
-  rows.push([
-    { content: 'Company:', styles: { fontStyle: 'bold' } },
-    vendor.companyName || vendor.name || 'N/A',
-    { content: 'Contact Person:', styles: { fontStyle: 'bold' } },
-    vendor.contactPerson || 'N/A'
-  ]);
-
-  // Add contact information (email/phone)
-  rows.push([
-    { content: 'Email:', styles: { fontStyle: 'bold' } },
-    vendor.email || 'N/A',
-    { content: 'Phone:', styles: { fontStyle: 'bold' } },
-    vendor.contactNumber || vendor.phone || 'N/A'
-  ]);
-
-  // Apply custom font color if provided in the config
-  let textColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.fontColor) {
-    try {
-      textColor = hexToRgb(cfg.fontColor);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
+  const body = [
+    [
+      { content: 'Vendor Name:', styles: { fontStyle: 'bold' } },
+      vendor.name || vendor.companyName || 'N/A',
+      { content: 'Contact Person:', styles: { fontStyle: 'bold' } },
+      vendor.contactPerson || 'N/A'
+    ],
+    [
+      { content: 'Email:', styles: { fontStyle: 'bold' } },
+      vendor.email || 'N/A',
+      { content: 'Phone:', styles: { fontStyle: 'bold' } },
+      vendor.phone || vendor.contactNumber || 'N/A'
+    ]
+  ];
 
   (autoTable as any)(doc, {
     startY,
     theme: 'plain',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 2,
-      textColor: textColor // Apply custom font color
-    },
-    body: rows,
+    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
     tableWidth: 'auto'
   });
@@ -718,19 +602,8 @@ function addVendorInfoTable(
 function addItemsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number,
-  cfg?: any
+  startY: number
 ): number {
-  // Apply custom font color if provided in the config
-  let textColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.fontColor) {
-    try {
-      textColor = hexToRgb(cfg.fontColor);
-    } catch (error) {
-      console.error('Error parsing font color for items table:', error);
-    }
-  }
-  
   // Parse items safely
   let items = [];
   try {
@@ -790,7 +663,7 @@ function addItemsTable(
   // Use our enhanced page fitting method
   // Use a larger minimum space parameter for tables as they require more layout space
   startY = ensureContentFits(doc, startY, tableHeight, 40);
-
+  
   (autoTable as any)(doc, {
     startY,
     head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
@@ -800,8 +673,7 @@ function addItemsTable(
       fontSize: 9, 
       cellPadding: 3,
       overflow: 'linebreak',  // Enable text wrapping
-      cellWidth: 'auto',      // Auto-size cells
-      textColor: textColor    // Apply custom font color
+      cellWidth: 'auto'       // Auto-size cells
     },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
@@ -834,11 +706,7 @@ function addItemsTable(
   (autoTable as any)(doc, {
     startY: yPos,
     theme: 'plain',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 2,
-      textColor: textColor // Apply custom font color
-    },
+    styles: { fontSize: 9, cellPadding: 2 },
     columnStyles: {
       3: { fontStyle: 'bold', halign: 'right' },
       4: { halign: 'right' }
@@ -859,8 +727,7 @@ function addItemsTable(
 function addAttachmentsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number,
-  cfg?: any
+  startY: number
 ): number {
   const attachments = request.attachments || [];
 
@@ -901,27 +768,12 @@ function addAttachmentsTable(
   // Use our enhanced page fitting method with larger min space for tables
   startY = ensureContentFits(doc, startY, tableHeight, 40);
 
-  // Apply custom font color if provided in the config
-  let textColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.fontColor) {
-    try {
-      textColor = hexToRgb(cfg.fontColor);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
-
   (autoTable as any)(doc, {
     startY,
     head: [['Document Name', 'Type', 'Size']],
     body: rows,
     theme: 'striped',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 3, 
-      overflow: 'linebreak',
-      textColor: textColor // Apply custom font color
-    },
+    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
       0: { cellWidth: 80, overflow: 'linebreak' },
@@ -939,8 +791,7 @@ function addAttachmentsTable(
 function addApprovalsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number,
-  cfg?: any
+  startY: number
 ): number {
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
 
@@ -1020,27 +871,12 @@ function addApprovalsTable(
   const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes').length;
   
   // Add the main approvals table with enhanced styling
-  // Apply custom font color if provided in the config
-  let textColor = [0, 0, 0]; // Default black
-  if (cfg && cfg.fontColor) {
-    try {
-      textColor = hexToRgb(cfg.fontColor);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
-
   (autoTable as any)(doc, {
     startY,
     head: [['Approver', 'Department', 'Status', 'Comments', 'Processed Date']],
     body: rows,
     theme: 'grid',
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 3, 
-      overflow: 'linebreak',
-      textColor: textColor // Apply custom font color
-    },
+    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
     headStyles: { 
       fillColor: [240, 240, 245], 
       textColor: [50, 50, 50], 
@@ -1181,17 +1017,8 @@ function addApprovalsTable(
   doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
   doc.text(`Overall Status: ${overallStatus}`, margin, statusTextY);
   
-  // Reset text color to match configured font color
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      doc.setTextColor(0, 0, 0); // Reset to black if error
-    }
-  } else {
-    doc.setTextColor(0, 0, 0); // Reset to black
-  }
+  // Reset text color
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   
   return statusTextY + 5;
@@ -1199,7 +1026,7 @@ function addApprovalsTable(
 
 // =========== SIGNATURE LINES =========== //
 
-function addSignatureLines(doc: jsPDF, startY: number, cfg?: any): number {
+function addSignatureLines(doc: jsPDF, startY: number): number {
   // Calculate approximate height needed for signature lines
   const signatureHeight = 30; // Height needed for signature lines
   
@@ -1211,16 +1038,6 @@ function addSignatureLines(doc: jsPDF, startY: number, cfg?: any): number {
   const lineWidth = (pageWidth - margin * 2 - 20) / 2;
   const lineY = startY + 15;
 
-  // Apply custom font color to signature text if specified
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      console.error('Error parsing font color:', error);
-    }
-  }
-
   // Requester
   doc.line(margin, lineY, margin + lineWidth, lineY);
   doc.text("Requester Signature", margin, lineY + 5);
@@ -1228,18 +1045,6 @@ function addSignatureLines(doc: jsPDF, startY: number, cfg?: any): number {
   // Approver
   doc.line(margin + lineWidth + 20, lineY, pageWidth - margin, lineY);
   doc.text("Approver Signature", margin + lineWidth + 20, lineY + 5);
-  
-  // Reset text color to match configured font color
-  if (cfg && cfg.fontColor) {
-    try {
-      const fontColor = hexToRgb(cfg.fontColor);
-      doc.setTextColor(fontColor[0], fontColor[1], fontColor[2]);
-    } catch (error) {
-      doc.setTextColor(0, 0, 0); // Reset to black if error
-    }
-  } else {
-    doc.setTextColor(0, 0, 0); // Reset to black
-  }
 
   return lineY + 15;
 }

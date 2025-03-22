@@ -19,15 +19,6 @@ const lastRequestTime: Record<string, number> = {};
 const anthropic = process.env.ANTHROPIC_API_KEY ? 
   new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
-// Anthropic API response type
-interface AnthropicMessage {
-  id: string;
-  content: Array<{
-    type: string;
-    text?: string;
-  }>;
-}
-
 // Fallback local analysis if Anthropic is not available
 function createLocalAnalysis(templateConfig: any, error?: Error) {
   const issues: string[] = [];

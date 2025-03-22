@@ -34,7 +34,7 @@ const fontFamilies = [
 
 const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({ 
   settings = {},
-  onSettingsChange = () => console.warn('onSettingsChange not provided to PDFSettingsPanel'),
+  onSettingsChange,
   loading = false
 }) => {
   const [activeTab, setActiveTab] = useState('general');
@@ -42,21 +42,8 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
   // Ensure settings is never undefined
   const safeSettings = settings || {};
   
-  // Safe wrapper for onSettingsChange to prevent "not a function" errors
-  const safeOnSettingsChange = (updatedSettings: Partial<PdfSettings>) => {
-    if (typeof onSettingsChange === 'function') {
-      try {
-        onSettingsChange(updatedSettings);
-      } catch (error) {
-        console.error('Error in onSettingsChange callback:', error);
-      }
-    } else {
-      console.warn('onSettingsChange is not a function in PDFSettingsPanel');
-    }
-  };
-  
   const handleChange = (field: keyof PdfSettings, value: any) => {
-    safeOnSettingsChange({
+    onSettingsChange({
       ...safeSettings,
       [field]: value
     });
@@ -71,7 +58,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
     
     // In a real implementation, you would upload the file to the server
     // and get back a permanent URL
-    safeOnSettingsChange({
+    onSettingsChange({
       ...safeSettings,
       [field]: url
     });

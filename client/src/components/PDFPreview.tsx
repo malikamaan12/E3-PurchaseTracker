@@ -10,39 +10,18 @@ interface PDFPreviewProps {
 
 const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) => {
   const [loading, setLoading] = useState(true);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   
   // Ensure settings is never undefined
   const safeSettings = settings || {};
   
   useEffect(() => {
-    // Reset error state when settings change
-    setPreviewError(null);
-    
     // Simulate loading of PDF preview
-    setLoading(true);
     const timer = setTimeout(() => {
-      try {
-        // Validate that we have minimum required settings
-        if (!safeSettings) {
-          setPreviewError('No settings provided for preview');
-        }
-        
-        // Attempt to validate any required settings
-        if (safeSettings.useWatermark && !safeSettings.watermarkText) {
-          console.warn('Watermark enabled but no watermark text provided');
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error generating PDF preview:', error);
-        setPreviewError('Failed to generate preview due to invalid settings');
-        setLoading(false);
-      }
-    }, 800);
+      setLoading(false);
+    }, 1000);
     
     return () => clearTimeout(timer);
-  }, [safeSettings]);
+  }, []);
   
   // Apply settings to create a visual representation of the PDF
   const renderPreview = () => {
@@ -50,23 +29,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
       return (
         <div className="flex items-center justify-center h-full">
           <Spinner size="lg" label="Generating preview..." />
-        </div>
-      );
-    }
-    
-    if (previewError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-          <div className="text-red-500 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-red-600 mb-2">Preview Error</h3>
-          <p className="text-gray-600 mb-4">{previewError}</p>
-          <p className="text-sm text-gray-500">Please check your settings and try again.</p>
         </div>
       );
     }
@@ -207,23 +169,19 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Request Number:</p>
-                    <p className="font-medium">{previewData?.requestNumber || "PR-2025-001"}</p>
+                    <p className="font-medium">PR-2025-001</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Date:</p>
-                    <p className="font-medium">
-                      {previewData?.createdAt 
-                        ? new Date(previewData.createdAt).toLocaleDateString() 
-                        : "March 21, 2025"}
-                    </p>
+                    <p className="font-medium">March 21, 2025</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Status:</p>
-                    <p className="font-medium">{previewData?.status || "Pending Approval"}</p>
+                    <p className="font-medium">Pending Approval</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Priority:</p>
-                    <p className="font-medium">{previewData?.priority || "High"}</p>
+                    <p className="font-medium">High</p>
                   </div>
                 </div>
               </div>
@@ -236,19 +194,19 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Name:</p>
-                    <p className="font-medium">{previewData?.requester?.username || "John Smith"}</p>
+                    <p className="font-medium">John Smith</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Department:</p>
-                    <p className="font-medium">{previewData?.requester?.department || "Marketing"}</p>
+                    <p className="font-medium">Marketing</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Email:</p>
-                    <p className="font-medium">{previewData?.requester?.email || "john.smith@example.com"}</p>
+                    <p className="font-medium">john.smith@example.com</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Contact:</p>
-                    <p className="font-medium">{previewData?.requester?.contactNumber || "+1 (555) 123-4567"}</p>
+                    <p className="text-sm text-gray-600">Phone:</p>
+                    <p className="font-medium">+1 (555) 123-4567</p>
                   </div>
                 </div>
               </div>
@@ -260,15 +218,11 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 <h2 className="text-lg font-semibold mb-3">Purpose</h2>
                 <div className="mb-3">
                   <p className="text-sm text-gray-600">Purpose Type:</p>
-                  <p className="font-medium">{previewData?.purposeType || "Marketing Campaign"}</p>
-                </div>
-                <div className="mb-3">
-                  <p className="text-sm text-gray-600">Sub-Purpose:</p>
-                  <p className="font-medium">{previewData?.subPurpose?.name || "General Marketing"}</p>
+                  <p className="font-medium">Marketing Campaign</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Description:</p>
-                  <p className="font-medium">{previewData?.description || "This purchase request is for materials needed for the Q2 Marketing Campaign focused on new product launch."}</p>
+                  <p className="font-medium">This purchase request is for materials needed for the Q2 Marketing Campaign focused on new product launch.</p>
                 </div>
               </div>
             )}
@@ -280,19 +234,19 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Vendor Name:</p>
-                    <p className="font-medium">{previewData?.vendor?.companyName || "Acme Supplies Ltd."}</p>
+                    <p className="font-medium">Acme Supplies Ltd.</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Contact Person:</p>
-                    <p className="font-medium">{previewData?.vendor?.contactPerson || "Jane Doe"}</p>
+                    <p className="font-medium">Jane Doe</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Email:</p>
-                    <p className="font-medium">{previewData?.vendor?.email || "sales@acmesupplies.com"}</p>
+                    <p className="font-medium">sales@acmesupplies.com</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Phone:</p>
-                    <p className="font-medium">{previewData?.vendor?.contactNumber || previewData?.vendor?.phone || "+1 (555) 987-6543"}</p>
+                    <p className="font-medium">+1 (555) 987-6543</p>
                   </div>
                 </div>
               </div>
@@ -313,101 +267,43 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                     </tr>
                   </thead>
                   <tbody>
-                    {previewData?.items && previewData.items.length > 0 ? (
-                      previewData.items.map((item, index) => (
-                        <tr key={index}>
-                          <td className="border p-2">{item.name}</td>
-                          <td className="border p-2">{item.description || '-'}</td>
-                          <td className="border p-2 text-right">{item.quantity}</td>
-                          <td className="border p-2 text-right">
-                            {previewData.currency || '$'}{' '}
-                            {item.estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="border p-2 text-right">
-                            {previewData.currency || '$'}{' '}
-                            {(item.quantity * item.estimatedCost).toLocaleString(undefined, { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <>
-                        <tr>
-                          <td className="border p-2">Marketing Brochures</td>
-                          <td className="border p-2">Product brochures for event</td>
-                          <td className="border p-2 text-right">500</td>
-                          <td className="border p-2 text-right">$2.50</td>
-                          <td className="border p-2 text-right">$1,250.00</td>
-                        </tr>
-                        <tr>
-                          <td className="border p-2">Display Stands</td>
-                          <td className="border p-2">Portable display stands</td>
-                          <td className="border p-2 text-right">5</td>
-                          <td className="border p-2 text-right">$120.00</td>
-                          <td className="border p-2 text-right">$600.00</td>
-                        </tr>
-                        <tr>
-                          <td className="border p-2">Promotional Items</td>
-                          <td className="border p-2">Branded pens and notepads</td>
-                          <td className="border p-2 text-right">250</td>
-                          <td className="border p-2 text-right">$3.75</td>
-                          <td className="border p-2 text-right">$937.50</td>
-                        </tr>
-                      </>
-                    )}
+                    <tr>
+                      <td className="border p-2">Marketing Brochures</td>
+                      <td className="border p-2">Product brochures for event</td>
+                      <td className="border p-2 text-right">500</td>
+                      <td className="border p-2 text-right">$2.50</td>
+                      <td className="border p-2 text-right">$1,250.00</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Display Stands</td>
+                      <td className="border p-2">Portable display stands</td>
+                      <td className="border p-2 text-right">5</td>
+                      <td className="border p-2 text-right">$120.00</td>
+                      <td className="border p-2 text-right">$600.00</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Promotional Items</td>
+                      <td className="border p-2">Branded pens and notepads</td>
+                      <td className="border p-2 text-right">250</td>
+                      <td className="border p-2 text-right">$3.75</td>
+                      <td className="border p-2 text-right">$937.50</td>
+                    </tr>
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
                       <td className="border p-2 text-right font-medium">Subtotal:</td>
-                      <td className="border p-2 text-right font-medium">
-                        {previewData?.items && previewData.items.length > 0 ? (
-                          <>
-                            {previewData.currency || '$'}{' '}
-                            {previewData.items
-                              .reduce((sum, item) => sum + (item.quantity * item.estimatedCost), 0)
-                              .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </>
-                        ) : (
-                          '$2,787.50'
-                        )}
-                      </td>
+                      <td className="border p-2 text-right font-medium">$2,787.50</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
                       <td className="border p-2 text-right font-medium">Freight:</td>
-                      <td className="border p-2 text-right font-medium">
-                        {previewData?.freightAmount !== undefined ? (
-                          <>
-                            {previewData.currency || '$'}{' '}
-                            {previewData.freightAmount.toLocaleString(undefined, { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </>
-                        ) : (
-                          '$150.00'
-                        )}
-                      </td>
+                      <td className="border p-2 text-right font-medium">$150.00</td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
                       <td className="border p-2 text-right font-medium">Total:</td>
-                      <td className="border p-2 text-right font-medium">
-                        {previewData?.totalEstimatedCost !== undefined ? (
-                          <>
-                            {previewData.currency || '$'}{' '}
-                            {previewData.totalEstimatedCost.toLocaleString(undefined, { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </>
-                        ) : (
-                          '$2,937.50'
-                        )}
-                      </td>
+                      <td className="border p-2 text-right font-medium">$2,937.50</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -429,45 +325,27 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                     </tr>
                   </thead>
                   <tbody>
-                    {previewData?.approvals && previewData.approvals.length > 0 ? (
-                      previewData.approvals.map((approval, index) => (
-                        <tr key={index}>
-                          <td className="border p-2">{approval.department}</td>
-                          <td className="border p-2">{approval.approver?.username || 'Pending Assignment'}</td>
-                          <td className="border p-2">{approval.status}</td>
-                          <td className="border p-2">
-                            {approval.processedAt 
-                              ? new Date(approval.processedAt).toLocaleDateString() 
-                              : '-'}
-                          </td>
-                          <td className="border p-2">{approval.comments || '-'}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <>
-                        <tr>
-                          <td className="border p-2">Department Head</td>
-                          <td className="border p-2">Sarah Johnson</td>
-                          <td className="border p-2">Approved</td>
-                          <td className="border p-2">Mar 18, 2025</td>
-                          <td className="border p-2">Approved as requested</td>
-                        </tr>
-                        <tr>
-                          <td className="border p-2">Finance</td>
-                          <td className="border p-2">Mike Williams</td>
-                          <td className="border p-2">Pending</td>
-                          <td className="border p-2">-</td>
-                          <td className="border p-2">-</td>
-                        </tr>
-                        <tr>
-                          <td className="border p-2">CEO Office</td>
-                          <td className="border p-2">Robert Chen</td>
-                          <td className="border p-2">Pending</td>
-                          <td className="border p-2">-</td>
-                          <td className="border p-2">-</td>
-                        </tr>
-                      </>
-                    )}
+                    <tr>
+                      <td className="border p-2">Department Head</td>
+                      <td className="border p-2">Sarah Johnson</td>
+                      <td className="border p-2">Approved</td>
+                      <td className="border p-2">Mar 18, 2025</td>
+                      <td className="border p-2">Approved as requested</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Finance</td>
+                      <td className="border p-2">Mike Williams</td>
+                      <td className="border p-2">Pending</td>
+                      <td className="border p-2">-</td>
+                      <td className="border p-2">-</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">CEO Office</td>
+                      <td className="border p-2">Robert Chen</td>
+                      <td className="border p-2">Pending</td>
+                      <td className="border p-2">-</td>
+                      <td className="border p-2">-</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -477,19 +355,11 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
             {safeSettings.showAttachments !== false && (
               <div className="mb-6 border-b pb-4">
                 <h2 className="text-lg font-semibold mb-3">Attachments</h2>
-                {previewData?.attachments && previewData.attachments.length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {previewData.attachments.map((attachment, index) => (
-                      <li key={index} className="mb-1">{attachment.fileName}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <ul className="list-disc list-inside">
-                    <li className="mb-1">Vendor_Quote_123456.pdf</li>
-                    <li className="mb-1">Product_Specifications.docx</li>
-                    <li className="mb-1">Campaign_Brief.pdf</li>
-                  </ul>
-                )}
+                <ul className="list-disc list-inside">
+                  <li className="mb-1">Vendor_Quote_123456.pdf</li>
+                  <li className="mb-1">Product_Specifications.docx</li>
+                  <li className="mb-1">Campaign_Brief.pdf</li>
+                </ul>
               </div>
             )}
             
