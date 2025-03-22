@@ -19,15 +19,6 @@ const lastRequestTime: Record<string, number> = {};
 const anthropic = process.env.ANTHROPIC_API_KEY ? 
   new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
-// Anthropic API response type
-interface AnthropicMessage {
-  id: string;
-  content: Array<{
-    type: string;
-    text?: string;
-  }>;
-}
-
 // Fallback local analysis if Anthropic is not available
 function createLocalAnalysis(templateConfig: any, error?: Error) {
   const issues: string[] = [];
@@ -97,6 +88,19 @@ function throttleRequest(id: string): Promise<void> {
   return Promise.resolve();
 }
 
+// Helper to safely get text from Anthropic response
+function getTextFromAnthropicResponse(response: any): string {
+  if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
+    const contentItem = response.content[0];
+    if (contentItem && typeof contentItem === 'object' && 'type' in contentItem) {
+      if (contentItem.type === 'text' && 'text' in contentItem) {
+        return contentItem.text as string;
+      }
+    }
+  }
+  return '';
+}
+
 export function registerPdfAnalysisRoutes(app: Express) {
   /**
    * Analyze a PDF template configuration with Claude AI
@@ -143,13 +147,16 @@ export function registerPdfAnalysisRoutes(app: Express) {
         ]
       });
       
-      // Parse Claude's response
-      const responseText = response.content[0].text;
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      // Parse Claude's response safely
+      const responseText = getTextFromAnthropicResponse(response);
       
-      if (jsonMatch) {
-        const analysisResult = JSON.parse(jsonMatch[0]);
-        return res.json(analysisResult);
+      if (responseText) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+          const analysisResult = JSON.parse(jsonMatch[0]);
+          return res.json(analysisResult);
+        }
       }
       
       throw new Error('Could not parse Claude response');
@@ -213,13 +220,16 @@ export function registerPdfAnalysisRoutes(app: Express) {
         ]
       });
       
-      // Parse Claude's response
-      const responseText = response.content[0].text;
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      // Parse Claude's response safely
+      const responseText = getTextFromAnthropicResponse(response);
       
-      if (jsonMatch) {
-        const analysisResult = JSON.parse(jsonMatch[0]);
-        return res.json(analysisResult);
+      if (responseText) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+          const analysisResult = JSON.parse(jsonMatch[0]);
+          return res.json(analysisResult);
+        }
       }
       
       throw new Error('Could not parse Claude response');
@@ -285,13 +295,16 @@ export function registerPdfAnalysisRoutes(app: Express) {
         ]
       });
       
-      // Parse Claude's response
-      const responseText = response.content[0].text;
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      // Parse Claude's response safely
+      const responseText = getTextFromAnthropicResponse(response);
       
-      if (jsonMatch) {
-        const analysisResult = JSON.parse(jsonMatch[0]);
-        return res.json(analysisResult);
+      if (responseText) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+          const analysisResult = JSON.parse(jsonMatch[0]);
+          return res.json(analysisResult);
+        }
       }
       
       throw new Error('Could not parse Claude response');
