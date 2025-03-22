@@ -74,6 +74,7 @@ export async function generatePurchaseRequestPDF(
     pageNumbering?: boolean;    // default true
     headerColor?: string;       // header color
     footerColor?: string;       // footer color
+    fontColor?: string;         // font color for text throughout the document
     type?: 'user' | 'approver' | 'admin'; // pdf type
     showWatermark?: boolean;    // whether to show watermark
     watermarkText?: string;     // watermark text content
@@ -103,6 +104,8 @@ export async function generatePurchaseRequestPDF(
     companyInfo: options?.companyInfo || {},
     headerColor: options?.headerColor || '#6F2AE6', // E3 purple
     footerColor: options?.footerColor || '#6F2AE6', // E3 purple
+    // New font color option with default black
+    fontColor: options?.fontColor || '#000000', // Default black
     type: options?.type || 'user',
     showWatermark: options?.showWatermark ?? true,
     watermarkText: options?.watermarkText || 'E3 CONFIDENTIAL',
@@ -117,28 +120,28 @@ export async function generatePurchaseRequestPDF(
 
   // 2) Basic Information - Displays core request information
   cursorY = addSectionTitle(doc, "BASIC INFORMATION", cursorY, cfg);
-  cursorY = addBasicInfoTable(doc, request, cursorY);
+  cursorY = addBasicInfoTable(doc, request, cursorY, cfg);
 
   // 3) Vendor Information - If available
   if (request.vendor) {
     cursorY = addSectionTitle(doc, "VENDOR INFORMATION", cursorY, cfg);
-    cursorY = addVendorInfoTable(doc, request, cursorY);
+    cursorY = addVendorInfoTable(doc, request, cursorY, cfg);
   }
 
   // 4) Items - Main purchase request items with proper content fitting
   cursorY = addSectionTitle(doc, "ITEMS", cursorY, cfg);
-  cursorY = addItemsTable(doc, request, cursorY);
+  cursorY = addItemsTable(doc, request, cursorY, cfg);
 
   // 5) Attachments - Always include if they exist
   if (request.attachments && request.attachments.length > 0) {
     cursorY = addSectionTitle(doc, "ATTACHED DOCUMENTS", cursorY, cfg);
-    cursorY = addAttachmentsTable(doc, request, cursorY);
+    cursorY = addAttachmentsTable(doc, request, cursorY, cfg);
   }
 
   // 6) Approvals - Always include if they exist (consolidating PDF types)
   if (request.approvals && request.approvals.length > 0) {
     cursorY = addSectionTitle(doc, "APPROVAL STATUS", cursorY, cfg);
-    cursorY = addApprovalsTable(doc, request, cursorY);
+    cursorY = addApprovalsTable(doc, request, cursorY, cfg);
   }
 
   // 7) Signatures - Only for admin or approver roles
@@ -536,7 +539,8 @@ function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number, minR
 function addBasicInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
+  cfg?: any
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 60; // Approximate height based on content
@@ -573,10 +577,25 @@ function addBasicInfoTable(
     ]);
   }
 
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY,
     theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 2, 
+      overflow: 'linebreak',
+      textColor: textColor // Apply custom font color
+    },
     body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
     tableWidth: 'auto'
@@ -590,7 +609,8 @@ function addBasicInfoTable(
 function addVendorInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
+  cfg?: any
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 30; // Approximate height based on content
@@ -613,10 +633,25 @@ function addVendorInfoTable(
     ]
   ];
 
+  // Apply custom font color if provided in the config
+  let textColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.fontColor) {
+    try {
+      textColor = hexToRgb(cfg.fontColor);
+    } catch (error) {
+      console.error('Error parsing font color:', error);
+    }
+  }
+
   (autoTable as any)(doc, {
     startY,
     theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 2, 
+      overflow: 'linebreak',
+      textColor: textColor // Apply custom font color
+    },
     body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
     tableWidth: 'auto'
