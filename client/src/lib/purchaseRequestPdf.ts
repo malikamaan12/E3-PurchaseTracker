@@ -345,57 +345,68 @@ function addFooter(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
-  const footerY = pageHeight - 15;
-
-  // Convert footer color from hex to RGB
+  
+  // Ensure footer is visible by setting a fixed position from bottom
+  // This fixes the issue where footer might not be visible
+  const footerHeight = cfg.footerHeight || 30;
+  const footerY = pageHeight - footerHeight;
+  
+  // Convert footer color from hex to RGB with improved error handling
   const footerColor = hexToRgb(cfg.footerColor);
-
-  // Thin horizontal line
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, footerY, pageWidth - margin, footerY);
+  
+  // Add visible footer background
+  if (cfg.showFooter !== false) {
+    // Create footer background with the footer color
+    doc.setFillColor(footerColor[0], footerColor[1], footerColor[2], 0.1);
+    doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+    
+    // Add a dividing line above the footer
+    doc.setDrawColor(footerColor[0], footerColor[1], footerColor[2], 0.5);
+    doc.setLineWidth(0.5);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
+  }
 
   // If there's a footer image, place it on the right
   if (cfg.footerImage) {
     try {
       const img = new Image();
       img.src = cfg.footerImage;
-      doc.addImage(img, 'PNG', pageWidth - margin - 25, footerY - 4, 25, 10);
+      doc.addImage(img, 'PNG', pageWidth - margin - 35, footerY + 5, 30, 15);
+      console.log("Footer image added successfully");
     } catch (error) {
       console.error("Footer image error:", error);
       // Add small E3 brand mark at bottom right as fallback
-      const brandSize = 8;
-      const brandX = pageWidth - margin - brandSize;
-      const brandY = footerY + 2;
+      const brandSize = 10;
+      const brandX = pageWidth - margin - brandSize - 5;
+      const brandY = footerY + 10;
       
       // Purple box for brand
       doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
       doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
       
       // Add "E3" text in white
-      doc.setFontSize(6);
+      doc.setFontSize(7);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
     }
   } else {
     // Add small E3 brand mark at bottom right
-    const brandSize = 8;
-    const brandX = pageWidth - margin - brandSize;
-    const brandY = footerY + 2;
+    const brandSize = 10;
+    const brandX = pageWidth - margin - brandSize - 5;
+    const brandY = footerY + 10;
     
     // Purple box for brand
     doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
     doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
     
     // Add "E3" text in white
-    doc.setFontSize(6);
+    doc.setFontSize(7);
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
   }
 
   // Company contact info (if any) on the left
@@ -406,32 +417,39 @@ function addFooter(
   if (cfg.companyInfo?.email) contactText += `| Email: ${cfg.companyInfo.email} `;
   if (cfg.companyInfo?.website) contactText += `| Web: ${cfg.companyInfo.website}`;
   if (contactText) {
-    doc.text(contactText.trim(), margin, footerY + 5);
+    doc.text(contactText.trim(), margin, footerY + (footerHeight/2));
   }
 
   // Another line for address if needed
   if (cfg.companyInfo?.address) {
-    doc.text(cfg.companyInfo.address, margin, footerY + 10);
+    doc.text(cfg.companyInfo.address, margin, footerY + (footerHeight/2) + 5);
   }
 
-  // Page numbers in the center or right
+  // Page numbers in the center
   if (cfg.pageNumbering) {
-    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, footerY + 5, {
+    doc.setFontSize(8);
+    // Use footer color for page numbers
+    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
+    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, footerY + (footerHeight/2), {
       align: 'center'
     });
   }
 
-  // Footer text in a color
-  doc.setFontSize(8);
+  // Footer text in the configured color
+  doc.setFontSize(9);
   doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
   doc.setFont('helvetica', 'italic');
-  doc.text(cfg.footerText, pageWidth - margin, footerY + 10, { align: 'right' });
+  const footerTextY = footerY + (footerHeight/2) + 10;
+  doc.text(cfg.footerText || 'Purchase Request - Confidential', pageWidth / 2, footerTextY, { align: 'center' });
   doc.setFont('helvetica', 'normal');
+  
+  // Reset text color to black after footer
+  doc.setTextColor(0, 0, 0);
 }
 
 // =========== SECTION TITLES =========== //
 
-function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
+function addSectionTitle(doc: jsPDF, title: string, yPos: number, cfg?: any): number {
   // Better approach using ensureContentFits instead of maybeAddNewPage
   const titleSectionHeight = 15; // Section title height with margin
   yPos = ensureContentFits(doc, yPos, titleSectionHeight);
@@ -439,9 +457,19 @@ function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const boxHeight = 8;
+  
+  // Get the custom header color if available, otherwise use default black
+  let titleColor = [0, 0, 0]; // Default black
+  if (cfg && cfg.headerColor) {
+    try {
+      titleColor = hexToRgb(cfg.headerColor);
+    } catch (error) {
+      console.error('Error parsing section title color:', error);
+    }
+  }
 
-  // Dark background for the title
-  doc.setFillColor(0, 0, 0);
+  // Use the header color for the section title background
+  doc.setFillColor(titleColor[0], titleColor[1], titleColor[2]);
   doc.rect(margin, yPos, pageWidth - margin * 2, boxHeight, 'F');
 
   // White text
