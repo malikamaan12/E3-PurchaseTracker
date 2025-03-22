@@ -16,14 +16,14 @@
 import { Request } from 'express';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { db } from '@db';
-import { purchaseRequests, fileAttachments, approvals, users, subPurposes } from '@db/schema';
-import { eq, and } from 'drizzle-orm';
-import { logAuditEvent } from '../utils/audit-logger';
+import { purchaseRequests, fileAttachments, approvals, users, subPurposes, pdfSettings } from '@db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { AppError, NotFoundError } from '../utils/errors';
+import { logAuditEvent } from '../utils/audit-logger';
+import { MODEL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/anthropic-config';
+import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
-import JSZip from 'jszip';
-import { MODEL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '../utils/anthropic-config';
 
 export interface PdfTemplateConfig {
   name: string;
@@ -146,8 +146,70 @@ export class PdfService {
    */
   public async getPdfSettings(): Promise<PdfSettingsWithTemplate> {
     try {
-      // For now, return default settings
-      // In a full implementation, this would retrieve from the database
+      // Get the most recently updated settings
+      const settingsResult = await db.query.pdfSettings.findMany({
+        orderBy: [desc(pdfSettings.updatedAt)],
+        limit: 1
+      });
+      
+      // If settings exist in the database
+      if (settingsResult.length > 0) {
+        const dbSettings = settingsResult[0];
+        
+        // Parse template config if it exists
+        let parsedTemplateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
+        
+        if (dbSettings.templateConfig) {
+          try {
+            parsedTemplateConfig = JSON.parse(dbSettings.templateConfig);
+          } catch (err) {
+            console.error('Error parsing template config:', err);
+          }
+        }
+        
+        // Map database settings to the expected format
+        return {
+          id: dbSettings.id,
+          headerTitle: dbSettings.headerTitle,
+          headerSubtitle: dbSettings.headerSubtitle,
+          headerColor: dbSettings.headerColor,
+          footerText: dbSettings.footerText,
+          footerColor: dbSettings.footerColor,
+          pageNumbering: dbSettings.pageNumbering,
+          fontSize: dbSettings.fontSize || 12,
+          fontFamily: dbSettings.fontFamily || 'helvetica',
+          marginTop: dbSettings.marginTop || 20,
+          marginBottom: dbSettings.marginBottom || 20,
+          marginLeft: dbSettings.marginLeft || 20,
+          marginRight: dbSettings.marginRight || 20,
+          headerHeight: dbSettings.headerHeight || 60,
+          footerHeight: dbSettings.footerHeight || 30,
+          headerImage: dbSettings.headerImage,
+          footerImage: dbSettings.footerImage,
+          logo: dbSettings.logo,
+          logoPosition: dbSettings.logoPosition as 'left' | 'center' | 'right' | undefined,
+          loginLogo: dbSettings.loginLogo || undefined,
+          watermarkOpacity: dbSettings.watermarkOpacity || 0.1,
+          watermarkText: dbSettings.watermarkText || 'CONFIDENTIAL',
+          companyAddress: dbSettings.companyAddress || undefined,
+          companyPhone: dbSettings.companyPhone || undefined,
+          companyEmail: dbSettings.companyEmail || undefined,
+          companyWebsite: dbSettings.companyWebsite || undefined,
+          showBasicInfo: dbSettings.showBasicInfo === null || dbSettings.showBasicInfo === undefined ? true : dbSettings.showBasicInfo,
+          showRequesterDetails: dbSettings.showRequesterDetails === null || dbSettings.showRequesterDetails === undefined ? true : dbSettings.showRequesterDetails,
+          showDateOfRequest: dbSettings.showDateOfRequest === null || dbSettings.showDateOfRequest === undefined ? true : dbSettings.showDateOfRequest,
+          showPurposeInfo: dbSettings.showPurposeInfo === null || dbSettings.showPurposeInfo === undefined ? true : dbSettings.showPurposeInfo,
+          showVendorDetails: dbSettings.showVendorDetails === null || dbSettings.showVendorDetails === undefined ? true : dbSettings.showVendorDetails,
+          showItems: dbSettings.showItems === null || dbSettings.showItems === undefined ? true : dbSettings.showItems,
+          showApprovals: dbSettings.showApprovals === null || dbSettings.showApprovals === undefined ? true : dbSettings.showApprovals,
+          showAttachments: dbSettings.showAttachments === null || dbSettings.showAttachments === undefined ? true : dbSettings.showAttachments,
+          showAuditInfo: dbSettings.showAuditInfo === null || dbSettings.showAuditInfo === undefined ? false : dbSettings.showAuditInfo,
+          showSignatures: dbSettings.showSignatures === null || dbSettings.showSignatures === undefined ? true : dbSettings.showSignatures,
+          templateConfig: parsedTemplateConfig
+        };
+      }
+      
+      // If no settings exist, return default values
       return {
         headerTitle: 'Purchase Request',
         headerSubtitle: 'Company Name',
@@ -162,11 +224,26 @@ export class PdfService {
         marginRight: 20,
         headerHeight: 60,
         footerHeight: 30,
-        headerImage: null,
-        footerImage: null,
-        logo: null,
-        loginLogo: null,
+        headerImage: undefined,
+        footerImage: undefined,
+        logo: undefined,
+        loginLogo: undefined,
         watermarkOpacity: 0.1,
+        watermarkText: 'CONFIDENTIAL',
+        companyAddress: undefined,
+        companyPhone: undefined,
+        companyEmail: undefined,
+        companyWebsite: undefined,
+        showBasicInfo: true,
+        showRequesterDetails: true,
+        showDateOfRequest: true,
+        showPurposeInfo: true,
+        showVendorDetails: true,
+        showItems: true,
+        showApprovals: true,
+        showAttachments: true,
+        showAuditInfo: false,
+        showSignatures: true,
         templateConfig: DEFAULT_TEMPLATE_CONFIG
       };
     } catch (error) {
@@ -180,31 +257,201 @@ export class PdfService {
    */
   public async savePdfSettings(settings: Partial<PdfSettingsWithTemplate>, userId: number | null): Promise<PdfSettingsWithTemplate> {
     try {
-      // In a full implementation, this would update settings in the database
-      console.log('Saving PDF settings:', settings);
-      console.log('User ID:', userId);
-
-      // Return merged settings with defaults
-      const defaultSettings = await this.getPdfSettings();
-      let parsedTemplateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
-
+      // Parse template config if it exists
+      let templateConfigStr: string | undefined = undefined;
+      
       if (settings.templateConfig) {
         try {
-          if (typeof settings.templateConfig === 'string') {
-            parsedTemplateConfig = JSON.parse(settings.templateConfig);
+          // Convert to string if it's an object
+          if (typeof settings.templateConfig === 'object') {
+            templateConfigStr = JSON.stringify(settings.templateConfig);
           } else {
-            parsedTemplateConfig = settings.templateConfig;
+            // Validate that it's valid JSON if it's already a string
+            JSON.parse(settings.templateConfig as string);
+            templateConfigStr = settings.templateConfig as string;
           }
         } catch (error) {
           console.error('Error parsing template config:', error);
+          // Use default template config if parsing fails
+          templateConfigStr = JSON.stringify(DEFAULT_TEMPLATE_CONFIG);
         }
       }
-
-      return {
-        ...defaultSettings,
-        ...settings,
-        templateConfig: parsedTemplateConfig
+      
+      // Check if settings already exist in the database
+      const existingSettings = await db.query.pdfSettings.findMany({
+        orderBy: [desc(pdfSettings.updatedAt)],
+        limit: 1
+      });
+      
+      let result;
+      
+      // Prepare database values for insert/update
+      const dbValues: Record<string, any> = {
+        headerTitle: settings.headerTitle,
+        headerSubtitle: settings.headerSubtitle,
+        headerColor: settings.headerColor,
+        footerText: settings.footerText,
+        footerColor: settings.footerColor,
+        pageNumbering: settings.pageNumbering,
+        fontSize: settings.fontSize,
+        fontFamily: settings.fontFamily,
+        marginTop: settings.marginTop,
+        marginBottom: settings.marginBottom,
+        marginLeft: settings.marginLeft,
+        marginRight: settings.marginRight,
+        headerHeight: settings.headerHeight,
+        footerHeight: settings.footerHeight,
+        headerImage: settings.headerImage,
+        footerImage: settings.footerImage,
+        logo: settings.logo,
+        logoPosition: settings.logoPosition,
+        loginLogo: settings.loginLogo,
+        watermarkOpacity: settings.watermarkOpacity,
+        watermarkText: settings.watermarkText,
+        companyAddress: settings.companyAddress,
+        companyPhone: settings.companyPhone,
+        companyEmail: settings.companyEmail,
+        companyWebsite: settings.companyWebsite,
+        showBasicInfo: settings.showBasicInfo,
+        showRequesterDetails: settings.showRequesterDetails,
+        showDateOfRequest: settings.showDateOfRequest,
+        showPurposeInfo: settings.showPurposeInfo,
+        showVendorDetails: settings.showVendorDetails,
+        showItems: settings.showItems,
+        showApprovals: settings.showApprovals,
+        showAttachments: settings.showAttachments,
+        showAuditInfo: settings.showAuditInfo,
+        showSignatures: settings.showSignatures,
+        templateConfig: templateConfigStr,
+        userId: userId,
+        updatedAt: new Date()
       };
+      
+      // Remove undefined values to avoid overwriting existing values
+      Object.keys(dbValues).forEach(key => {
+        if (dbValues[key] === undefined) {
+          delete dbValues[key];
+        }
+      });
+      
+      if (existingSettings.length > 0) {
+        // Update existing settings
+        console.log('Updating existing PDF settings');
+        const settingId = existingSettings[0].id;
+        
+        // Create a properly typed update object
+        const updateValues: Record<string, any> = {};
+        
+        // Only add defined values to the update
+        if (dbValues.headerTitle !== undefined) updateValues.headerTitle = dbValues.headerTitle;
+        if (dbValues.headerSubtitle !== undefined) updateValues.headerSubtitle = dbValues.headerSubtitle;
+        if (dbValues.headerColor !== undefined) updateValues.headerColor = dbValues.headerColor;
+        if (dbValues.footerText !== undefined) updateValues.footerText = dbValues.footerText;
+        if (dbValues.footerColor !== undefined) updateValues.footerColor = dbValues.footerColor;
+        if (dbValues.pageNumbering !== undefined) updateValues.pageNumbering = dbValues.pageNumbering;
+        if (dbValues.fontSize !== undefined) updateValues.fontSize = dbValues.fontSize;
+        if (dbValues.fontFamily !== undefined) updateValues.fontFamily = dbValues.fontFamily;
+        if (dbValues.marginTop !== undefined) updateValues.marginTop = dbValues.marginTop;
+        if (dbValues.marginBottom !== undefined) updateValues.marginBottom = dbValues.marginBottom;
+        if (dbValues.marginLeft !== undefined) updateValues.marginLeft = dbValues.marginLeft;
+        if (dbValues.marginRight !== undefined) updateValues.marginRight = dbValues.marginRight;
+        if (dbValues.headerHeight !== undefined) updateValues.headerHeight = dbValues.headerHeight;
+        if (dbValues.footerHeight !== undefined) updateValues.footerHeight = dbValues.footerHeight;
+        if (dbValues.headerImage !== undefined) updateValues.headerImage = dbValues.headerImage;
+        if (dbValues.footerImage !== undefined) updateValues.footerImage = dbValues.footerImage;
+        if (dbValues.logo !== undefined) updateValues.logo = dbValues.logo;
+        if (dbValues.logoPosition !== undefined) updateValues.logoPosition = dbValues.logoPosition;
+        if (dbValues.loginLogo !== undefined) updateValues.loginLogo = dbValues.loginLogo;
+        if (dbValues.watermarkOpacity !== undefined) updateValues.watermarkOpacity = dbValues.watermarkOpacity;
+        if (dbValues.watermarkText !== undefined) updateValues.watermarkText = dbValues.watermarkText;
+        if (dbValues.companyAddress !== undefined) updateValues.companyAddress = dbValues.companyAddress;
+        if (dbValues.companyPhone !== undefined) updateValues.companyPhone = dbValues.companyPhone;
+        if (dbValues.companyEmail !== undefined) updateValues.companyEmail = dbValues.companyEmail;
+        if (dbValues.companyWebsite !== undefined) updateValues.companyWebsite = dbValues.companyWebsite;
+        if (dbValues.showBasicInfo !== undefined) updateValues.showBasicInfo = dbValues.showBasicInfo;
+        if (dbValues.showRequesterDetails !== undefined) updateValues.showRequesterDetails = dbValues.showRequesterDetails;
+        if (dbValues.showDateOfRequest !== undefined) updateValues.showDateOfRequest = dbValues.showDateOfRequest;
+        if (dbValues.showPurposeInfo !== undefined) updateValues.showPurposeInfo = dbValues.showPurposeInfo;
+        if (dbValues.showVendorDetails !== undefined) updateValues.showVendorDetails = dbValues.showVendorDetails;
+        if (dbValues.showItems !== undefined) updateValues.showItems = dbValues.showItems;
+        if (dbValues.showApprovals !== undefined) updateValues.showApprovals = dbValues.showApprovals;
+        if (dbValues.showAttachments !== undefined) updateValues.showAttachments = dbValues.showAttachments;
+        if (dbValues.showAuditInfo !== undefined) updateValues.showAuditInfo = dbValues.showAuditInfo;
+        if (dbValues.showSignatures !== undefined) updateValues.showSignatures = dbValues.showSignatures;
+        if (dbValues.templateConfig !== undefined) updateValues.templateConfig = dbValues.templateConfig;
+        if (dbValues.userId !== undefined) updateValues.userId = dbValues.userId;
+        
+        // Always update the timestamp
+        updateValues.updatedAt = new Date();
+        
+        [result] = await db.update(pdfSettings)
+          .set(updateValues)
+          .where(eq(pdfSettings.id, settingId))
+          .returning();
+      } else {
+        // Create new settings
+        console.log('Creating new PDF settings');
+        
+        // Ensure required fields are present
+        if (!dbValues.headerTitle) {
+          dbValues.headerTitle = 'Purchase Request';
+        }
+        if (!dbValues.headerColor) {
+          dbValues.headerColor = '#0070c0';
+        }
+        if (!dbValues.footerColor) {
+          dbValues.footerColor = '#333333';
+        }
+        
+        // When creating a new record, the createdAt timestamp will be set automatically
+        // by the defaultNow() in the schema definition
+        
+        [result] = await db.insert(pdfSettings)
+          .values({
+            headerTitle: dbValues.headerTitle as string,
+            headerSubtitle: dbValues.headerSubtitle as string | undefined,
+            headerColor: dbValues.headerColor as string,
+            footerText: dbValues.footerText as string | undefined,
+            footerColor: dbValues.footerColor as string,
+            pageNumbering: dbValues.pageNumbering as boolean | undefined,
+            watermarkOpacity: dbValues.watermarkOpacity as number | undefined,
+            watermarkText: dbValues.watermarkText as string | undefined,
+            marginTop: dbValues.marginTop as number | undefined,
+            marginBottom: dbValues.marginBottom as number | undefined,
+            marginLeft: dbValues.marginLeft as number | undefined,
+            marginRight: dbValues.marginRight as number | undefined,
+            fontSize: dbValues.fontSize as number | undefined,
+            fontFamily: dbValues.fontFamily as string | undefined,
+            headerImage: dbValues.headerImage as string | undefined,
+            footerImage: dbValues.footerImage as string | undefined,
+            logo: dbValues.logo as string | undefined,
+            logoPosition: dbValues.logoPosition as string | undefined,
+            loginLogo: dbValues.loginLogo as string | undefined,
+            headerHeight: dbValues.headerHeight as number | undefined,
+            footerHeight: dbValues.footerHeight as number | undefined,
+            companyAddress: dbValues.companyAddress as string | undefined,
+            companyPhone: dbValues.companyPhone as string | undefined,
+            companyEmail: dbValues.companyEmail as string | undefined,
+            companyWebsite: dbValues.companyWebsite as string | undefined,
+            showBasicInfo: dbValues.showBasicInfo as boolean | undefined,
+            showRequesterDetails: dbValues.showRequesterDetails as boolean | undefined,
+            showDateOfRequest: dbValues.showDateOfRequest as boolean | undefined,
+            showPurposeInfo: dbValues.showPurposeInfo as boolean | undefined,
+            showVendorDetails: dbValues.showVendorDetails as boolean | undefined,
+            showItems: dbValues.showItems as boolean | undefined,
+            showApprovals: dbValues.showApprovals as boolean | undefined,
+            showAttachments: dbValues.showAttachments as boolean | undefined,
+            showAuditInfo: dbValues.showAuditInfo as boolean | undefined,
+            showSignatures: dbValues.showSignatures as boolean | undefined,
+            templateConfig: dbValues.templateConfig as string | undefined,
+            userId: dbValues.userId as number | undefined,
+            updatedAt: new Date()
+          })
+          .returning();
+      }
+      
+      // Get the full settings with defaults filled in
+      return await this.getPdfSettings();
     } catch (error) {
       console.error('Error saving PDF settings:', error);
       throw new AppError('Failed to save PDF settings', 500);
