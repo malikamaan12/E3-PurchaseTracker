@@ -4,19 +4,10 @@
  * Uses Anthropic Claude to analyze PDF generation issues and make suggestions
  * for improvements. This service centralizes AI-powered PDF analysis and optimization.
  */
-import axios from 'axios';
-import { PdfSettings, PdfTemplateConfig } from './pdfService';
 
-// Import Anthropic SDK if available, or use a compatibility wrapper
-let Anthropic: any;
-try {
-  // Try to import the official SDK
-  const AnthropicModule = require('@anthropic-ai/sdk');
-  Anthropic = AnthropicModule.default || AnthropicModule;
-} catch (error) {
-  // Fallback to a compatibility wrapper
-  Anthropic = null;
-}
+import { Anthropic } from '@anthropic-ai/sdk';
+import { PdfSettings, PdfTemplateConfig, DEFAULT_PDF_SETTINGS } from './pdfService';
+import axios from 'axios';
 
 interface AnthropicClient {
   messages: {
@@ -87,13 +78,10 @@ class PdfAnalysisService {
     if (!apiKey) return;
     
     try {
-      if (Anthropic) {
-        this.anthropic = new Anthropic({ apiKey });
-        this.apiKeySet = true;
-      }
+      this.anthropic = new Anthropic({ apiKey }) as unknown as AnthropicClient;
+      this.apiKeySet = true;
     } catch (error) {
-      console.error('Error initializing Anthropic SDK:', error);
-      this.anthropic = null;
+      console.error('Failed to initialize Anthropic client:', error);
       this.apiKeySet = false;
     }
   }
@@ -103,26 +91,53 @@ class PdfAnalysisService {
    */
   public async analyzeTemplateIssue(
     templateConfig: PdfTemplateConfig,
-    errorContext?: string
+    error?: Error
   ): Promise<TemplateAnalysisResult> {
-    // If Anthropic is not available, perform a local analysis
-    if (!this.anthropic || !this.apiKeySet) {
-      return this.performLocalAnalysis(templateConfig, errorContext);
+    if (!this.apiKeySet || !this.anthropic) {
+      return this.performLocalAnalysis(templateConfig, error);
     }
 
     try {
-      // Use server-side endpoint if available
-      const response = await axios.post('/api/pdf/analyze-template', {
-        templateConfig,
-        errorContext
+      const prompt = `
+      You are a PDF template analysis assistant. Please analyze the following PDF template configuration for issues:
+      
+      Template Configuration:
+      ${JSON.stringify(templateConfig, null, 2)}
+      
+      ${error ? `Error encountered: ${error.message}` : ''}
+      
+      Please provide:
+      1. A brief analysis of any issues in the template configuration
+      2. A list of recommendations to improve the template
+      3. A fixed version of the template as a JSON object
+      
+      Format your response as a JSON object with these keys: 
+      "analysis", "recommendations" (as an array of strings), and "fixedTemplate" (as an object).
+      `;
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
       });
+
+      const responseText = response.content[0].text;
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       
-      return response.data;
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]) as TemplateAnalysisResult;
+        return result;
+      }
+
+      throw new Error('Could not parse Claude response');
     } catch (error) {
-      console.error('Error analyzing template with server-side AI:', error);
-      
-      // Fallback to local analysis
-      return this.performLocalAnalysis(templateConfig, errorContext);
+      console.error('Error analyzing PDF template with Claude:', error);
+      return this.performLocalAnalysis(templateConfig, error as Error);
     }
   }
 
@@ -131,44 +146,59 @@ class PdfAnalysisService {
    */
   private performLocalAnalysis(
     templateConfig: PdfTemplateConfig,
-    errorContext?: string
+    error?: Error
   ): TemplateAnalysisResult {
+    // Basic validation logic - check for required fields and sensible values
+    const issues: string[] = [];
     const recommendations: string[] = [];
-    
-    // Basic template validation
-    if (!templateConfig.showHeader && !templateConfig.showFooter) {
-      recommendations.push('Enable either header or footer for better document structure');
+
+    // Check for required fields
+    if (!templateConfig.name) {
+      issues.push('Template name is missing');
+      recommendations.push('Add a name to the template for identification');
     }
-    
-    if (templateConfig.showWatermark && !templateConfig.watermarkText) {
-      recommendations.push('Add watermark text since watermark display is enabled');
+
+    if (!templateConfig.layout) {
+      issues.push('Template layout is not specified');
+      recommendations.push('Choose a layout type (portrait or landscape)');
     }
-    
-    if (templateConfig.type === 'complex' && !templateConfig.showTotalsTable) {
-      recommendations.push('Enable totals table for complex document types');
+
+    // Check for logical configuration issues
+    if (templateConfig.showHeader === false && templateConfig.showLogo === true) {
+      issues.push('Logo is enabled but header is disabled');
+      recommendations.push('Either enable the header or disable the logo');
     }
-    
-    const analysisText = errorContext 
-      ? `Template analysis based on error context: ${errorContext}`
-      : 'Basic template analysis completed with limited capabilities';
-    
-    // Basic fixes for template issues
+
+    if (templateConfig.showWatermark && 
+        (!templateConfig.watermarkText || templateConfig.watermarkOpacity === undefined)) {
+      issues.push('Watermark is enabled but watermark text or opacity is not set');
+      recommendations.push('Add watermark text and set an appropriate opacity (e.g., 0.2)');
+    }
+
+    // Create fixed template based on issues found
     const fixedTemplate: PdfTemplateConfig = {
-      ...templateConfig
+      ...templateConfig,
+      name: templateConfig.name || 'Default Template',
+      type: templateConfig.type || 'standard',
+      layout: templateConfig.layout || 'portrait',
+      showHeader: templateConfig.showHeader !== false, // Default to true if undefined
+      showFooter: templateConfig.showFooter !== false, // Default to true if undefined
+      showLogo: templateConfig.showLogo !== false, // Default to true if undefined
+      showWatermark: Boolean(templateConfig.showWatermark),
+      securityLevel: templateConfig.securityLevel || 'standard',
+      watermarkText: templateConfig.showWatermark ? (templateConfig.watermarkText || 'CONFIDENTIAL') : undefined,
+      watermarkOpacity: templateConfig.showWatermark ? (templateConfig.watermarkOpacity || 0.2) : undefined
     };
-    
-    if (!templateConfig.showHeader && !templateConfig.showFooter) {
-      fixedTemplate.showHeader = true;
-    }
-    
-    if (templateConfig.showWatermark && !templateConfig.watermarkText) {
-      fixedTemplate.watermarkText = 'CONFIDENTIAL';
-    }
-    
+
+    // Create a simple analysis message
+    const analysis = issues.length > 0
+      ? `Found ${issues.length} issues with the PDF template configuration: ${issues.join(', ')}.`
+      : 'No major issues found with the PDF template configuration.';
+
     return {
-      analysis: analysisText,
+      analysis,
       recommendations,
-      fixedTemplate: recommendations.length > 0 ? fixedTemplate : undefined
+      fixedTemplate
     };
   }
 
@@ -176,30 +206,54 @@ class PdfAnalysisService {
    * Analyze PDF generation error
    */
   public async analyzePdfError(
-    error: Error | string,
-    context?: Record<string, any>,
+    error: Error,
     pdfSettings?: PdfSettings
   ): Promise<PdfErrorAnalysisResult> {
-    // If Anthropic is not available, perform a local analysis
-    if (!this.anthropic || !this.apiKeySet) {
-      return this.createBasicErrorAnalysis(error, context);
+    if (!this.apiKeySet || !this.anthropic) {
+      return this.createBasicErrorAnalysis(error, pdfSettings);
     }
-    
+
     try {
-      // Use server-side endpoint if available
-      const response = await axios.post('/api/pdf/analyze-error', {
-        error: typeof error === 'string' ? error : error.message,
-        stack: error instanceof Error ? error.stack : undefined,
-        context,
-        pdfSettings
+      const prompt = `
+      You are a PDF generation troubleshooting assistant. Please analyze the following error:
+      
+      Error: ${error.message}
+      ${error.stack ? `Stack: ${error.stack}` : ''}
+      
+      ${pdfSettings ? `PDF Settings: ${JSON.stringify(pdfSettings, null, 2)}` : ''}
+      
+      Please provide:
+      1. A brief analysis of what might be causing this error
+      2. A categorization of the likely issue (data, template, code, network, permissions, or unknown)
+      3. A list of recommendations to fix the issue
+      
+      Format your response as a JSON object with these keys: 
+      "error", "analysis", "recommendations" (as an array of strings), and "likelyIssue".
+      `;
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
       });
+
+      const responseText = response.content[0].text;
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       
-      return response.data;
-    } catch (apiError) {
-      console.error('Error analyzing PDF error with server-side AI:', apiError);
-      
-      // Fallback to local analysis
-      return this.createBasicErrorAnalysis(error, context);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]) as PdfErrorAnalysisResult;
+        return result;
+      }
+
+      throw new Error('Could not parse Claude response');
+    } catch (error) {
+      console.error('Error analyzing PDF error with Claude:', error);
+      return this.createBasicErrorAnalysis(error as Error, pdfSettings);
     }
   }
 
@@ -207,74 +261,91 @@ class PdfAnalysisService {
    * Create basic error analysis when AI is unavailable
    */
   private createBasicErrorAnalysis(
-    error: Error | string,
-    context?: Record<string, any>
+    error: Error,
+    pdfSettings?: PdfSettings
   ): PdfErrorAnalysisResult {
-    const errorMessage = typeof error === 'string' ? error : error.message;
-    
-    // Simple error classification based on keywords
+    // Analyze error message for common patterns
+    const errorMsg = error.message.toLowerCase();
     let likelyIssue: 'data' | 'template' | 'code' | 'network' | 'permissions' | 'unknown' = 'unknown';
     const recommendations: string[] = [];
-    
-    if (errorMessage.includes('permission') || errorMessage.includes('access denied') || errorMessage.includes('forbidden')) {
-      likelyIssue = 'permissions';
-      recommendations.push('Check if you have the necessary permissions to access the resource');
-      recommendations.push('Verify your authentication credentials');
-    } else if (errorMessage.includes('network') || errorMessage.includes('timeout') || errorMessage.includes('connection')) {
-      likelyIssue = 'network';
-      recommendations.push('Check your internet connection');
-      recommendations.push('Verify the server is reachable and responding');
-    } else if (errorMessage.includes('template') || errorMessage.includes('layout')) {
-      likelyIssue = 'template';
-      recommendations.push('Verify template configuration is valid');
-      recommendations.push('Check for missing required template properties');
-    } else if (errorMessage.includes('data') || errorMessage.includes('missing') || errorMessage.includes('undefined')) {
+
+    if (errorMsg.includes('undefined') || errorMsg.includes('null')) {
       likelyIssue = 'data';
-      recommendations.push('Ensure all required data is provided for PDF generation');
-      recommendations.push('Check for null or undefined values in the data');
-    } else if (errorMessage.includes('syntax') || errorMessage.includes('reference') || errorMessage.includes('type')) {
-      likelyIssue = 'code';
-      recommendations.push('Check for syntax errors in PDF generation code');
-      recommendations.push('Verify all variable references are valid');
+      recommendations.push('Check for missing or undefined values in the PDF settings');
+      recommendations.push('Initialize all required settings with default values');
+    } else if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('request')) {
+      likelyIssue = 'network';
+      recommendations.push('Verify network connectivity');
+      recommendations.push('Check if the API endpoint is accessible');
+    } else if (errorMsg.includes('permission') || errorMsg.includes('access') || errorMsg.includes('denied')) {
+      likelyIssue = 'permissions';
+      recommendations.push('Verify you have the correct permissions to access the resource');
+    } else if (errorMsg.includes('template') || errorMsg.includes('layout')) {
+      likelyIssue = 'template';
+      recommendations.push('Check the PDF template configuration for errors');
+      recommendations.push('Verify all required template fields are specified');
+    } else {
+      recommendations.push('Check the console for detailed error information');
+      recommendations.push('Verify all PDF settings are properly initialized');
     }
-    
-    // If we couldn't classify it, provide generic recommendations
-    if (recommendations.length === 0) {
-      recommendations.push('Check server logs for more detailed error information');
-      recommendations.push('Verify PDF settings configuration');
-      recommendations.push('Ensure all required data is available for PDF generation');
-    }
-    
+
     return {
-      error: errorMessage,
-      analysis: `Basic error analysis: ${errorMessage}`,
+      error: error.message,
+      analysis: `The error appears to be related to ${likelyIssue} issues. ${error.message}`,
       recommendations,
       likelyIssue
     };
   }
 
   /**
-   * Analyze PDF settings for optimization
+   * Analyze PDF settings for improvement
    */
-  public async analyzePdfSettingsForOptimization(
-    settings: PdfSettings
+  public async analyzePdfSettings(
+    settings: Partial<PdfSettings>
   ): Promise<PdfAnalysisResult> {
-    // If Anthropic is not available, perform a local analysis
-    if (!this.anthropic || !this.apiKeySet) {
+    if (!this.apiKeySet || !this.anthropic) {
       return this.createBasicSettingsAnalysis(settings);
     }
-    
+
     try {
-      // Use server-side endpoint if available
-      const response = await axios.post('/api/pdf/analyze-settings', {
-        settings
+      const prompt = `
+      You are a PDF settings optimization assistant. Please analyze the following PDF settings:
+      
+      PDF Settings:
+      ${JSON.stringify(settings, null, 2)}
+      
+      Please provide:
+      1. A brief analysis of the current settings
+      2. A severity assessment (low, medium, high, critical) of any issues
+      3. A list of recommendations to improve the settings
+      4. Suggested fixed settings as a JSON object
+      
+      Format your response as a JSON object with these keys: 
+      "analysis", "severity", "recommendations" (as an array of strings), and "fixedSettings" (as an object).
+      `;
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
       });
+
+      const responseText = response.content[0].text;
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       
-      return response.data;
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]) as PdfAnalysisResult;
+        return result;
+      }
+
+      throw new Error('Could not parse Claude response');
     } catch (error) {
-      console.error('Error analyzing PDF settings with server-side AI:', error);
-      
-      // Fallback to local analysis
+      console.error('Error analyzing PDF settings with Claude:', error);
       return this.createBasicSettingsAnalysis(settings);
     }
   }
@@ -282,92 +353,66 @@ class PdfAnalysisService {
   /**
    * Create basic settings analysis when AI is unavailable
    */
-  private createBasicSettingsAnalysis(settings: PdfSettings): PdfAnalysisResult {
+  private createBasicSettingsAnalysis(
+    settings: Partial<PdfSettings>
+  ): PdfAnalysisResult {
+    // Basic validation logic - check for required fields and sensible values
     const recommendations: string[] = [];
     let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
-    
-    // Basic settings validation
-    if (!settings.headerTitle || settings.headerTitle.trim() === '') {
+
+    // Check for required fields
+    if (!settings.headerTitle) {
       recommendations.push('Add a header title for better document identification');
       severity = 'medium';
     }
-    
-    if (settings.useWatermark && (!settings.watermarkText || settings.watermarkText.trim() === '')) {
-      recommendations.push('Add watermark text since watermark is enabled');
+
+    // Create improved settings based on best practices
+    const improvedSettings: Partial<PdfSettings> = {
+      ...settings,
+      headerTitle: settings.headerTitle || 'Purchase Request',
+      pageNumbering: settings.pageNumbering !== false, // Default to true
+      fontSize: settings.fontSize || 10,
+      marginTop: settings.marginTop || 25,
+      marginBottom: settings.marginBottom || 25,
+      marginLeft: settings.marginLeft || 25,
+      marginRight: settings.marginRight || 25,
+    };
+
+    // Add relevant recommendations
+    if (!settings.logo && settings.showLogo !== false) {
+      recommendations.push('Add a company logo for better branding');
     }
-    
-    if (!settings.companyAddress && !settings.companyPhone && !settings.companyEmail && !settings.companyWebsite) {
-      recommendations.push('Consider adding company contact information for more professional PDFs');
+
+    if (!settings.watermarkText && settings.useWatermark) {
+      recommendations.push('Add watermark text for documents that need confidentiality marking');
     }
-    
-    // Font size checks
-    if (settings.fontSize && (settings.fontSize < 8 || settings.fontSize > 16)) {
-      recommendations.push('Adjust font size to be between 8pt and 16pt for better readability');
-    }
-    
-    // Check if the margins are set properly
-    if (settings.marginLeft !== undefined && 
-        settings.marginRight !== undefined && 
-        settings.marginTop !== undefined && 
-        settings.marginBottom !== undefined) {
-      const totalHorizontalMargin = settings.marginLeft + settings.marginRight;
-      const totalVerticalMargin = settings.marginTop + settings.marginBottom;
-      
-      if (totalHorizontalMargin > 80) {
-        recommendations.push('Horizontal margins are too large, consider reducing them');
-      }
-      
-      if (totalVerticalMargin > 80) {
-        recommendations.push('Vertical margins are too large, consider reducing them');
-      }
-    }
-    
-    // Create the analysis result
-    const analysisText = recommendations.length > 0
-      ? 'Several opportunities for improvement were found in your PDF settings.'
-      : 'Your PDF settings look good, no significant issues found.';
-    
+
+    // Create analysis message
+    const analysis = recommendations.length > 0
+      ? `Found ${recommendations.length} potential improvements for your PDF settings.`
+      : 'Your PDF settings look good, but there are still minor improvements possible.';
+
     return {
-      analysis: analysisText,
+      analysis,
       recommendations,
       severity,
-      fixedSettings: recommendations.length > 0 ? this.createFixedSettings(settings, recommendations) : undefined
+      fixedSettings: improvedSettings
     };
   }
 
   /**
-   * Create fixed settings based on recommendations
+   * Analyze PDF settings server-side (uses backend route)
    */
-  private createFixedSettings(
-    settings: PdfSettings,
-    recommendations: string[]
-  ): Partial<PdfSettings> {
-    const fixedSettings: Partial<PdfSettings> = { ...settings };
-    
-    // Apply fixes based on recommendations
-    if (recommendations.some(r => r.includes('header title'))) {
-      fixedSettings.headerTitle = 'Purchase Request';
+  public async analyzeSettingsWithBackend(
+    settings: Partial<PdfSettings>
+  ): Promise<PdfAnalysisResult> {
+    try {
+      const response = await axios.post('/api/pdf/analyze-settings', { settings });
+      return response.data as PdfAnalysisResult;
+    } catch (error) {
+      console.error('Error analyzing PDF settings with backend:', error);
+      return this.createBasicSettingsAnalysis(settings);
     }
-    
-    if (recommendations.some(r => r.includes('watermark text'))) {
-      fixedSettings.watermarkText = 'CONFIDENTIAL';
-    }
-    
-    if (recommendations.some(r => r.includes('font size'))) {
-      fixedSettings.fontSize = 10;
-    }
-    
-    if (recommendations.some(r => r.includes('horizontal margins'))) {
-      fixedSettings.marginLeft = 25;
-      fixedSettings.marginRight = 25;
-    }
-    
-    if (recommendations.some(r => r.includes('vertical margins'))) {
-      fixedSettings.marginTop = 25;
-      fixedSettings.marginBottom = 25;
-    }
-    
-    return fixedSettings;
   }
 }
 
