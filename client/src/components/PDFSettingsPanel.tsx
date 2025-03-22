@@ -11,12 +11,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { PdfSettings } from '../services/pdfService';
+import { PdfSettings, DEFAULT_PDF_SETTINGS } from '../services/pdfService';
 import { Button } from '@/components/ui/button';
 import { UploadIcon } from 'lucide-react';
 
 interface PDFSettingsPanelProps {
-  settings: Partial<PdfSettings>;
+  settings?: Partial<PdfSettings>;
   onSettingsChange: (settings: Partial<PdfSettings>) => void;
   loading?: boolean;
 }

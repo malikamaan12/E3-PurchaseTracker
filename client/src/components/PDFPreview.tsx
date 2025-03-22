@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { PdfSettings } from '../services/pdfService';
+import { PdfSettings, DEFAULT_PDF_SETTINGS } from '../services/pdfService';
 import { Card } from '@/components/ui/card';
 import { Spinner } from '../components/ui/spinner';
 
 interface PDFPreviewProps {
-  settings: Partial<PdfSettings>;
+  settings?: Partial<PdfSettings>;
   previewData?: any;
 }
 

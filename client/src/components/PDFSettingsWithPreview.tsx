@@ -14,7 +14,7 @@ interface PDFSettingsWithPreviewProps {
 }
 
 const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
-  initialSettings,
+  initialSettings = {},
   onSave,
   previewData
 }) => {
@@ -56,9 +56,12 @@ const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
   };
   
   const handleReset = () => {
+    // Use safe initialSettings here too (though default param should handle it)
+    const safeInitialSettings = initialSettings || {};
+    
     setSettings({
       ...DEFAULT_PDF_SETTINGS,
-      ...initialSettings
+      ...safeInitialSettings
     });
     
     toast({

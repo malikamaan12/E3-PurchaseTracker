@@ -59,12 +59,15 @@ const PDFDesignerPage: React.FC = () => {
     );
   }
 
+  // Ensure we have settings, even if just empty object
+  const safeSettings = settings || {};
+  
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-8">PDF Document Designer</h1>
       
       <PDFSettingsWithPreview
-        initialSettings={settings || undefined}
+        initialSettings={safeSettings}
         onSave={handleSaveSettings}
       />
     </div>
