@@ -90,6 +90,15 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     // Get margins from settings or use default
     const margin = pdfSettings?.marginLeft || 15;
     
+    // Define variables needed for tables
+    const fontSize = pdfSettings?.fontSize || 9;
+    const cellPadding = pdfSettings?.cellPadding || 3;
+    const marginLeft = pdfSettings?.marginLeft || 15;
+    const marginRight = pdfSettings?.marginRight || 15;
+    
+    // Get text color from settings or use default black
+    const textColor: RGBColor = pdfSettings?.textColor ? hexToRgb(pdfSettings.textColor) : [0, 0, 0];
+    
     // Add company logo if available
     if (pdfSettings?.headerImage) {
       try {
