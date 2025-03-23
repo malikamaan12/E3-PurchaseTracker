@@ -351,10 +351,14 @@ function addSection(doc: jsPDF, title: string, yPos: number, margin = 15, custom
 /**
  * Add a footer to the PDF
  */
-async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pdfSettings: any): Promise<void> {
+async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pdfSettings: any, customTextColor?: RGBColor): Promise<void> {
   try {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
+    
+    // Get font size and padding from settings
+    const fontSize = pdfSettings?.fontSize || 9;
+    const textDisplay = customTextColor || [0, 0, 0]; // Use provided text color or default to black
     
     // Get footer colors from settings or use defaults
     const primaryColor: RGBColor = [111/255, 42/255, 230/255]; // E3 purple
@@ -416,8 +420,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     
     // Add company contact information (if provided)
     if (pdfSettings?.companyPhone || pdfSettings?.companyEmail || pdfSettings?.companyWebsite) {
-      doc.setFontSize(7);
-      doc.setTextColor(70, 70, 70);
+      doc.setFontSize(fontSize > 7 ? fontSize - 2 : 7);
+      doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
       
       let contactText = '';
       if (pdfSettings?.companyPhone) {
@@ -440,14 +444,14 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     // Add company address (if provided)
     if (pdfSettings?.companyAddress) {
       doc.setFontSize(7);
-      doc.setTextColor(100, 100, 100);
+      doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
       doc.text(pdfSettings.companyAddress, margin, footerY + 10);
     }
     
     // Add page numbers
     if (pdfSettings?.pageNumbering !== false) {
       doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
+      doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
       doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, footerY + 6, { align: 'right' });
     }
     
@@ -875,7 +879,7 @@ export async function generateEnhancedPDF(
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      await addFooter(doc, i, pageCount, pdfSettings);
+      await addFooter(doc, i, pageCount, pdfSettings, textColor);
     }
     
     // Generate tracking ID for this PDF
