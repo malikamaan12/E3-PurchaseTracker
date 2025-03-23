@@ -628,7 +628,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 step={1}
                 value={[safeSettings.watermarkRotation || 45]} 
                 onValueChange={(value) => handleChange('watermarkRotation', value[0])}
-                disabled={loading || safeSettings.useWatermark !== true}
+                disabled={loading || !(safeSettings.useWatermark === true)}
               />
             </div>
           </div>

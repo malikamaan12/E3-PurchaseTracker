@@ -137,7 +137,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
         const safeHeaderColor: RGBColor = ensureValidRGBColor(headerColor, defaultPurple);
         const safeAccentColor: RGBColor = ensureValidRGBColor(accentColor, defaultTeal);
         
-        renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth);
+        renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth, pdfSettings?.headerTitle);
       }
     } else {
       // Fallback if no header image is set
@@ -149,7 +149,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       const safeHeaderColor: RGBColor = ensureValidRGBColor(headerColor, defaultPurple);
       const safeAccentColor: RGBColor = ensureValidRGBColor(accentColor, defaultTeal);
       
-      renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth);
+      renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth, pdfSettings?.headerTitle);
     }
     
     // Add subtitle from settings (e.g. "PURCHASE REQUEST") - centered and with background
@@ -266,7 +266,8 @@ function renderDefaultHeader(
   accentColor: RGBColor, 
   margin: number, 
   startY: number, 
-  pageWidth: number
+  pageWidth: number,
+  headerTitle?: string
 ): void {
   // Create stylized "E3" logo with rectangles and text
   // Purple box for 'E'
@@ -301,9 +302,8 @@ function renderDefaultHeader(
   
   // Check if we have document title settings and use them
   const headerLines = [];
-  if (pdfSettings?.headerTitle) {
+  if (headerTitle) {
     // Split long header titles into multiple lines if needed
-    const headerTitle = pdfSettings.headerTitle;
     if (headerTitle.length > 15) {
       const words = headerTitle.split(' ');
       let line = '';
@@ -938,7 +938,7 @@ export async function generateEnhancedPDF(
       console.log(`Applied ${templateSecurityLevel} security watermark to PDF`);
     }
     // Apply standard watermark if security watermark is not used but watermark is enabled
-    else if (showWatermark && (pdfSettings?.watermarkEnabled !== false || pdfSettings?.useWatermark === true)) {
+    else if (showWatermark && pdfSettings?.useWatermark === true) {
       // Use watermark text from template config if available
       const watermarkText = templateConfig.watermarkText || 
                           pdfSettings?.watermarkText || 
