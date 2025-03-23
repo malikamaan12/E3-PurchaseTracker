@@ -661,8 +661,12 @@ export async function generateEnhancedPDF(
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
-      styles: { fontSize: 9, cellPadding: 3 },
-      margin: { left: 15, right: 15 },
+      styles: { 
+        fontSize: fontSize, 
+        cellPadding: cellPadding,
+        textColor: [textColor[0], textColor[1], textColor[2]] 
+      },
+      margin: { left: marginLeft, right: marginRight },
       columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
       body: [
         [
@@ -707,8 +711,12 @@ export async function generateEnhancedPDF(
       autoTable(doc, {
         startY: yPos,
         theme: 'striped',
-        styles: { fontSize: 9, cellPadding: 3 },
-        margin: { left: 15, right: 15 },
+        styles: { 
+          fontSize: fontSize, 
+          cellPadding: cellPadding,
+          textColor: [textColor[0], textColor[1], textColor[2]] 
+        },
+        margin: { left: marginLeft, right: marginRight },
         headStyles: { fillColor: [240/255, 240/255, 245/255], textColor: [0, 0, 0] },
         head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
         body: items.map((item: any) => [
@@ -732,8 +740,12 @@ export async function generateEnhancedPDF(
       autoTable(doc, {
         startY: yPos,
         theme: 'plain',
-        styles: { fontSize: 9, cellPadding: 3 },
-        margin: { left: 15, right: 15 },
+        styles: { 
+          fontSize: fontSize, 
+          cellPadding: cellPadding,
+          textColor: [textColor[0], textColor[1], textColor[2]] 
+        },
+        margin: { left: marginLeft, right: marginRight },
         columnStyles: { 3: { fontStyle: 'bold', halign: 'right' }, 4: { halign: 'right' } },
         body: [
           ['', '', '', 'Items Total:', formatCurrency(itemsTotal)],
@@ -745,8 +757,12 @@ export async function generateEnhancedPDF(
       autoTable(doc, {
         startY: yPos,
         theme: 'plain',
-        styles: { fontSize: 9, cellPadding: 3 },
-        margin: { left: 15, right: 15 },
+        styles: { 
+          fontSize: fontSize, 
+          cellPadding: cellPadding,
+          textColor: [textColor[0], textColor[1], textColor[2]] 
+        },
+        margin: { left: marginLeft, right: marginRight },
         body: [['No items found']]
       });
     }
@@ -760,8 +776,12 @@ export async function generateEnhancedPDF(
       autoTable(doc, {
         startY: yPos,
         theme: 'striped',
-        styles: { fontSize: 9, cellPadding: 3 },
-        margin: { left: 15, right: 15 },
+        styles: { 
+          fontSize: fontSize, 
+          cellPadding: cellPadding,
+          textColor: [textColor[0], textColor[1], textColor[2]] 
+        },
+        margin: { left: marginLeft, right: marginRight },
         headStyles: { fillColor: [240/255, 240/255, 245/255], textColor: [0, 0, 0] },
         head: [['Document Name', 'Type', 'Size']],
         body: request.attachments.map((file: any) => [
@@ -809,7 +829,7 @@ export async function generateEnhancedPDF(
     
     // Add signature section for admin and approver PDFs
     if (type === 'admin' || type === 'approver') {
-      yPos = addSection(doc, 'Signatures', yPos);
+      yPos = addSection(doc, 'Signatures', yPos, 15, textColor);
       
       // Add signature lines
       const pageWidth = doc.internal.pageSize.width;
