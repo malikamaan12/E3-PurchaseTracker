@@ -184,9 +184,13 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 5 },
+      styles: { 
+        fontSize: fontSize, 
+        cellPadding: cellPadding,
+        textColor: [textColor[0], textColor[1], textColor[2]] 
+      },
       columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
-      margin: { left: margin, right: margin },
+      margin: { left: marginLeft, right: marginRight },
       body: [
         [
           'Purchase Request #' + (request.requestNumber || ''),
@@ -802,8 +806,12 @@ export async function generateEnhancedPDF(
         autoTable(doc, {
           startY: yPos,
           theme: 'striped',
-          styles: { fontSize: 9, cellPadding: 3 },
-          margin: { left: 15, right: 15 },
+          styles: { 
+            fontSize: fontSize, 
+            cellPadding: cellPadding,
+            textColor: [textColor[0], textColor[1], textColor[2]] 
+          },
+          margin: { left: marginLeft, right: marginRight },
           headStyles: { fillColor: [240/255, 240/255, 245/255], textColor: [0, 0, 0] },
           head: [['Approver', 'Department', 'Status', 'Comments', 'Processed At']],
           body: request.approvals.map((approval: any) => [
@@ -818,8 +826,12 @@ export async function generateEnhancedPDF(
         autoTable(doc, {
           startY: yPos,
           theme: 'plain',
-          styles: { fontSize: 9, cellPadding: 3 },
-          margin: { left: 15, right: 15 },
+          styles: { 
+            fontSize: fontSize, 
+            cellPadding: cellPadding,
+            textColor: [textColor[0], textColor[1], textColor[2]] 
+          },
+          margin: { left: marginLeft, right: marginRight },
           body: [['No approval information available']]
         });
       }
@@ -838,7 +850,8 @@ export async function generateEnhancedPDF(
       
       // Requester signature - include requester name and department
       doc.line(margin, yPos + 15, margin + lineWidth, yPos + 15);
-      doc.setFontSize(9);
+      doc.setFontSize(fontSize);
+      doc.setTextColor(textColor[0] * 255, textColor[1] * 255, textColor[2] * 255);
       // Use the same requester name variables we defined earlier to ensure consistency
       const requesterSignature = requesterName !== 'N/A' ? 
         `${requesterName}${requesterDepartment !== 'N/A' ? ` (${requesterDepartment})` : ''}` : 
