@@ -302,7 +302,7 @@ function renderDefaultHeader(
 /**
  * Add a section title with styling
  */
-function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): number {
+function addSection(doc: jsPDF, title: string, yPos: number, margin = 15, customTextColor?: RGBColor): number {
   const pageWidth = doc.internal.pageSize.width;
   
   // Define E3 colors with proper typing
@@ -332,8 +332,12 @@ function addSection(doc: jsPDF, title: string, yPos: number, margin = 15): numbe
   doc.setFont('helvetica', 'bold');
   doc.text(title, margin + 8, yPos + 5);
   
-  // Reset text color for subsequent content
-  doc.setTextColor(0, 0, 0);
+  // Reset text color for subsequent content - use custom color if provided
+  if (customTextColor) {
+    doc.setTextColor(customTextColor[0] * 255, customTextColor[1] * 255, customTextColor[2] * 255);
+  } else {
+    doc.setTextColor(0, 0, 0);
+  }
   doc.setFont('helvetica', 'normal');
   
   // Return position after section title with increased padding
@@ -606,6 +610,9 @@ export async function generateEnhancedPDF(
     const marginLeft = pdfSettings?.marginLeft || 15;
     const marginRight = pdfSettings?.marginRight || 15;
     
+    // Get text color from settings or use default black
+    const textColor = pdfSettings?.textColor ? hexToRgb(pdfSettings.textColor) : [0, 0, 0];
+    
     // Extract requester information directly from request
     const requesterName = request.requester?.username || 'N/A';
     const requesterDepartment = request.requester?.department || 'N/A';
@@ -625,7 +632,11 @@ export async function generateEnhancedPDF(
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
-      styles: { fontSize: fontSize, cellPadding: cellPadding },
+      styles: { 
+        fontSize: fontSize, 
+        cellPadding: cellPadding,
+        textColor: [textColor[0], textColor[1], textColor[2]] 
+      },
       margin: { left: marginLeft, right: marginRight },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } },
       body: [
