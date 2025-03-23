@@ -857,7 +857,7 @@ export async function generateEnhancedPDF(
       console.log(`Applied ${templateSecurityLevel} security watermark to PDF`);
     }
     // Apply standard watermark if security watermark is not used but watermark is enabled
-    else if (showWatermark && pdfSettings?.watermarkEnabled !== false) {
+    else if (showWatermark && (pdfSettings?.watermarkEnabled !== false || pdfSettings?.useWatermark === true)) {
       // Use watermark text from template config if available
       const watermarkText = templateConfig.watermarkText || 
                           pdfSettings?.watermarkText || 
