@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { PdfSettings, DEFAULT_PDF_SETTINGS } from '../services/pdfService';
 import { Button } from '@/components/ui/button';
-import { UploadIcon } from 'lucide-react';
+import { UploadIcon, Save, Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 interface PDFSettingsPanelProps {
   settings?: Partial<PdfSettings>;
@@ -43,19 +44,41 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
     return savedTab || 'general';
   });
   
+  // Create local state to prevent automatic saving
+  const [localSettings, setLocalSettings] = useState<Partial<PdfSettings>>(settings);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Update local settings when props change
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, []);
+  
   // When tab changes, save it to localStorage
   useEffect(() => {
     localStorage.setItem('pdfSettingsActiveTab', activeTab);
   }, [activeTab]);
   
   // Ensure settings is never undefined
-  const safeSettings = settings || {};
+  const safeSettings = localSettings || {};
   
+  // This function only updates the local state
   const handleChange = (field: keyof PdfSettings, value: any) => {
-    onSettingsChange({
-      ...safeSettings,
+    setLocalSettings(prev => ({
+      ...prev,
       [field]: value
-    });
+    }));
+    setHasChanges(true);
+  };
+  
+  // This function saves changes to server
+  const handleSave = () => {
+    setIsSaving(true);
+    onSettingsChange(localSettings);
+    setTimeout(() => {
+      setIsSaving(false);
+      setHasChanges(false);
+    }, 1000);
   };
   
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'headerImage' | 'footerImage') => {
@@ -67,10 +90,11 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
     
     // In a real implementation, you would upload the file to the server
     // and get back a permanent URL
-    onSettingsChange({
-      ...safeSettings,
+    setLocalSettings(prev => ({
+      ...prev,
       [field]: url
-    });
+    }));
+    setHasChanges(true);
   };
   
   return (
@@ -688,6 +712,34 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Save button fixed at bottom */}
+      <div className="sticky bottom-0 right-0 py-4 px-6 bg-white border-t mt-6 flex justify-end">
+        <Card className="shadow-md p-2">
+          <Button 
+            onClick={handleSave} 
+            disabled={loading || isSaving || !hasChanges}
+            className="w-32"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save
+              </>
+            )}
+          </Button>
+        </Card>
+        {hasChanges && (
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-sm text-amber-600 font-medium">
+            You have unsaved changes
+          </div>
+        )}
+      </div>
     </div>
   );
 };
