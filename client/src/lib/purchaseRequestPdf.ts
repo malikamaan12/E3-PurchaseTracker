@@ -664,6 +664,19 @@ function addItemsTable(
   // Use a larger minimum space parameter for tables as they require more layout space
   startY = ensureContentFits(doc, startY, tableHeight, 40);
   
+  // Get page width to calculate table widths
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const availableWidth = pageWidth - (margin * 2);
+  
+  // Calculate column widths based on available space
+  const itemWidth = Math.floor(availableWidth * 0.25); // 25% of available width
+  const qtyWidth = Math.floor(availableWidth * 0.08); // 8% of available width 
+  const costWidth = Math.floor(availableWidth * 0.15); // 15% of available width
+  const totalWidth = Math.floor(availableWidth * 0.15); // 15% of available width
+  // Description takes the remaining space (about 37%)
+  const descWidth = availableWidth - itemWidth - qtyWidth - costWidth - totalWidth;
+  
   (autoTable as any)(doc, {
     startY,
     head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
@@ -673,20 +686,25 @@ function addItemsTable(
       fontSize: 9, 
       cellPadding: 3,
       overflow: 'linebreak',  // Enable text wrapping
-      cellWidth: 'auto'       // Auto-size cells
+      minCellHeight: 10       // Ensure minimum height for cells
     },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
-      0: { cellWidth: 30 }, // Fixed width for item name column
-      1: { cellWidth: 'auto', overflow: 'linebreak' }, // Description with auto width & text wrapping
-      2: { halign: 'center', cellWidth: 12 }, // Slightly smaller quantity column
-      3: { halign: 'right', cellWidth: 22 }, // Slightly smaller unit cost
-      4: { halign: 'right', cellWidth: 22 } // Slightly smaller total cost
+      0: { cellWidth: itemWidth, overflow: 'linebreak' }, // Item name with wrapping
+      1: { cellWidth: descWidth, overflow: 'linebreak' }, // Description with wrapping
+      2: { halign: 'center', cellWidth: qtyWidth },       // Quantity column
+      3: { halign: 'right', cellWidth: costWidth },       // Unit cost
+      4: { halign: 'right', cellWidth: totalWidth }       // Total cost
     },
-    // Enable built-in page break support for long tables
-    margin: { top: 15, right: 15, bottom: 15, left: 15 },
-    horizontalPageBreak: true, // Enable horizontal page break if needed
-    horizontalPageBreakRepeat: 0, // Repeat the first column on new pages
+    // Set margins
+    margin: { top: 15, right: margin, bottom: 15, left: margin },
+    // Ensure content fits within cell boundaries
+    willDrawCell: (data: any) => {
+      // Add cell padding for text wrapping
+      if (data.column.index === 1 && data.cell.text && data.cell.text.length > 50) {
+        data.cell.styles.cellPadding = 4; // Increase padding for long text
+      }
+    },
     didDrawPage: (data: any) => {
       // Reset table header on each new page
     }
@@ -710,18 +728,18 @@ function addItemsTable(
     theme: 'plain',
     styles: { fontSize: 9, cellPadding: 2 },
     columnStyles: {
-      0: { cellWidth: 30 }, // Match the main table column width
-      1: { cellWidth: 'auto' }, // Auto-width for description column
-      2: { cellWidth: 12, halign: 'center' }, // Match the main table
-      3: { cellWidth: 22, fontStyle: 'bold', halign: 'right' },
-      4: { cellWidth: 22, halign: 'right' }
+      0: { cellWidth: itemWidth }, // Match the main table columns
+      1: { cellWidth: descWidth },
+      2: { cellWidth: qtyWidth, halign: 'center' },
+      3: { cellWidth: costWidth, fontStyle: 'bold', halign: 'right' },
+      4: { cellWidth: totalWidth, halign: 'right' }
     },
     body: [
       ['', '', '', 'Items Total:', formatCurrency(itemsTotal, request.currency)],
       ['', '', '', 'Freight:', formatCurrency(freightAmount, request.currency)],
       ['', '', '', 'Total Cost:', formatCurrency(totalCost, request.currency)]
     ],
-    margin: { top: 15, right: 15, bottom: 15, left: 15 }
+    margin: { top: 15, right: margin, bottom: 15, left: margin }
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
