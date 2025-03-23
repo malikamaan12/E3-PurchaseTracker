@@ -30,6 +30,7 @@ export interface PdfSettings {
   pageNumbering: boolean;
   fontSize?: number;
   fontFamily?: string;
+  textColor?: string;
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
@@ -51,6 +52,7 @@ export interface PdfSettings {
   
   // Watermark settings
   useWatermark?: boolean;
+  watermarkEnabled?: boolean;
   watermarkText?: string;
   watermarkOpacity?: number;
   watermarkPosition?: 'center' | 'tile' | 'corner';
@@ -98,10 +100,12 @@ export const DEFAULT_PDF_SETTINGS: PdfSettings = {
   showFooter: true,
   showLogo: true,
   useWatermark: false,
+  watermarkEnabled: false,
   watermarkText: 'CONFIDENTIAL',
   watermarkOpacity: 0.15,
   watermarkPosition: 'center',
   watermarkRotation: 45,
+  textColor: '#000000',
   showBasicInfo: true,
   showRequesterDetails: true,
   showDateOfRequest: true,

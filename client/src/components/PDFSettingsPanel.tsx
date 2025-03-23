@@ -108,6 +108,26 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 disabled={loading}
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="textColor">Text Color</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  id="textColor"
+                  value={safeSettings.textColor || "#000000"}
+                  onChange={(e) => handleChange('textColor', e.target.value)}
+                  className="w-12 h-10 p-1"
+                  disabled={loading}
+                />
+                <Input
+                  value={safeSettings.textColor || "#000000"}
+                  onChange={(e) => handleChange('textColor', e.target.value)}
+                  className="flex-1"
+                  disabled={loading}
+                />
+              </div>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -545,8 +565,11 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           <div className="flex items-center space-x-2 mb-4">
             <Switch
               id="useWatermark"
-              checked={safeSettings.useWatermark === true}
-              onCheckedChange={(checked) => handleChange('useWatermark', checked)}
+              checked={safeSettings.useWatermark === true || safeSettings.watermarkEnabled === true}
+              onCheckedChange={(checked) => {
+                handleChange('useWatermark', checked);
+                handleChange('watermarkEnabled', checked);
+              }}
               disabled={loading}
             />
             <Label htmlFor="useWatermark">Enable Watermark</Label>
