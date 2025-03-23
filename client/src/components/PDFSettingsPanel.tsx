@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,16 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
   onSettingsChange,
   loading = false
 }) => {
-  const [activeTab, setActiveTab] = useState('general');
+  // Store active tab in localStorage to persist between renders
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('pdfSettingsActiveTab');
+    return savedTab || 'general';
+  });
+  
+  // When tab changes, save it to localStorage
+  useEffect(() => {
+    localStorage.setItem('pdfSettingsActiveTab', activeTab);
+  }, [activeTab]);
   
   // Ensure settings is never undefined
   const safeSettings = settings || {};
