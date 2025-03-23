@@ -677,14 +677,16 @@ function addItemsTable(
     },
     headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
     columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { cellWidth: 'auto', overflow: 'linebreak' }, // Make sure description wraps
-      2: { halign: 'center', cellWidth: 15 },
-      3: { halign: 'right', cellWidth: 25 },
-      4: { halign: 'right', cellWidth: 25 }
+      0: { cellWidth: 30 }, // Fixed width for item name column
+      1: { cellWidth: 'auto', overflow: 'linebreak' }, // Description with auto width & text wrapping
+      2: { halign: 'center', cellWidth: 12 }, // Slightly smaller quantity column
+      3: { halign: 'right', cellWidth: 22 }, // Slightly smaller unit cost
+      4: { halign: 'right', cellWidth: 22 } // Slightly smaller total cost
     },
     // Enable built-in page break support for long tables
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
+    horizontalPageBreak: true, // Enable horizontal page break if needed
+    horizontalPageBreakRepeat: 0, // Repeat the first column on new pages
     didDrawPage: (data: any) => {
       // Reset table header on each new page
     }
@@ -708,8 +710,11 @@ function addItemsTable(
     theme: 'plain',
     styles: { fontSize: 9, cellPadding: 2 },
     columnStyles: {
-      3: { fontStyle: 'bold', halign: 'right' },
-      4: { halign: 'right' }
+      0: { cellWidth: 30 }, // Match the main table column width
+      1: { cellWidth: 'auto' }, // Auto-width for description column
+      2: { cellWidth: 12, halign: 'center' }, // Match the main table
+      3: { cellWidth: 22, fontStyle: 'bold', halign: 'right' },
+      4: { cellWidth: 22, halign: 'right' }
     },
     body: [
       ['', '', '', 'Items Total:', formatCurrency(itemsTotal, request.currency)],
