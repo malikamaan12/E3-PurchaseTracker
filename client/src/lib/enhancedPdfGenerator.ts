@@ -68,9 +68,8 @@ function hexToRgb(hex: string): RGBColor {
 
 /**
  * Add a header to the PDF with company logo and gradient
- * @returns A tuple containing [yPosition, styleOptions]
  */
-async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfSettings: any): Promise<[number, StyleOptions]> {
+async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfSettings: any): Promise<number> {
   try {
     const pageWidth = doc.internal.pageSize.width;
     
@@ -259,28 +258,12 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       }
     });
     
-    // Create style options object
-    const styleOptions: StyleOptions = {
-      fontSize,
-      cellPadding,
-      marginLeft,
-      marginRight,
-      textColor
-    };
-    
-    // Return the Y position for the next section with increased spacing and style options
-    return [(doc as any).lastAutoTable.finalY + 15, styleOptions]; // Increased from +10 to +15
+    // Return the Y position for the next section with increased spacing
+    return (doc as any).lastAutoTable.finalY + 15; // Increased from +10 to +15
   } catch (error) {
     console.error('Error adding header:', error);
-    // Return safe defaults
-    const defaultStyleOptions: StyleOptions = {
-      fontSize: 9,
-      cellPadding: 3,
-      marginLeft: 15,
-      marginRight: 15,
-      textColor: [0, 0, 0]
-    };
-    return [100, defaultStyleOptions]; // Return a safe default position and styles
+    // Return a safe default position
+    return 100;
   }
 }
 
@@ -666,12 +649,17 @@ export async function generateEnhancedPDF(
       floatPrecision: 16 // Better precision for graphics
     });
     
-    // Add header and get position and style options
-    const [yPosition, styleOptions] = await addHeader(doc, request, pdfSettings);
-    let yPos = yPosition;
+    // Add header and get position
+    let yPos = await addHeader(doc, request, pdfSettings);
+
+    // Define variables needed for tables for consistent styles
+    const fontSize = pdfSettings?.fontSize || 9;
+    const cellPadding = pdfSettings?.cellPadding || 3;
+    const marginLeft = pdfSettings?.marginLeft || 15;
+    const marginRight = pdfSettings?.marginRight || 15;
     
-    // Use style options returned from header function
-    const { fontSize, cellPadding, marginLeft, marginRight, textColor } = styleOptions;
+    // Get text color from settings or use default black
+    const textColor: RGBColor = pdfSettings?.textColor ? hexToRgb(pdfSettings.textColor) : [0, 0, 0];
     
     // Add Request Information section
     yPos = addSection(doc, 'Request Information', yPos, 15, textColor);
