@@ -101,6 +101,75 @@ export default function AdminPanel() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [pdfSettings, setPdfSettings] = useState<Record<string, any>>({});
+  
+  // Fetch PDF settings
+  const { data: pdfSettingsData } = useQuery({
+    queryKey: ["/api/pdf/print-settings"],
+    queryFn: async () => {
+      const response = await fetch("/api/pdf/print-settings", {
+        credentials: "include"
+      });
+      if (!response.ok) throw new Error("Failed to fetch PDF settings");
+      const data = await response.json();
+      // Set the settings directly after fetching
+      setPdfSettings(data);
+      return data;
+    }
+  });
+  
+  // Save PDF settings mutation
+  const savePdfSettings = useMutation<
+    Record<string, any>, // Return type 
+    Error,              // Error type
+    Record<string, any>  // Variables type
+  >({
+    mutationFn: async (settings: Record<string, any>) => {
+      const res = await fetch("/api/pdf/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settings),
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: "PDF settings updated successfully",
+      });
+      // Update the settings with the response from the server
+      setPdfSettings(data);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle PDF settings changes and maintain state
+  const handlePdfSettingsChange = (newSettings: Record<string, any>) => {
+    // Update the local state immediately for a responsive UI
+    setPdfSettings(prevSettings => {
+      const mergedSettings = { ...prevSettings, ...newSettings };
+      console.log('PDF settings updated:', mergedSettings);
+      
+      // Save settings to the server in the background
+      savePdfSettings.mutate(mergedSettings);
+      
+      return mergedSettings;
+    });
+  };
 
   // Fetch account requests
   const { data: accountRequests = [], isLoading: isLoadingRequests } = useQuery({
@@ -1037,14 +1106,10 @@ export default function AdminPanel() {
                 Customize appearance and content of exported PDF documents
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-[#111827] text-white rounded-b-md">
               <PDFSettingsPanel 
-                settings={{}} 
-                onSettingsChange={(newSettings) => {
-                  console.log('PDF settings updated:', newSettings);
-                  // In a real implementation, you would save these settings
-                  // For now, we just log them
-                }}
+                settings={pdfSettings}
+                onSettingsChange={handlePdfSettingsChange}
               />
             </CardContent>
           </Card>
