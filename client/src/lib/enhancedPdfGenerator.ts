@@ -10,6 +10,17 @@ import { applyPdfWatermark, applySecurityWatermark, generatePdfTrackingId, logPd
  */
 type RGBColor = [number, number, number]; // Must be exactly 3 values for RGB
 
+/**
+ * Interface for the PDF style options
+ */
+interface StyleOptions {
+  fontSize: number;
+  cellPadding: number;
+  marginLeft: number;
+  marginRight: number;
+  textColor: RGBColor;
+}
+
 // Ensure array is a valid RGBColor with fallback to default values
 function ensureValidRGBColor(color: any, defaultColor: RGBColor): RGBColor {
   if (Array.isArray(color) && color.length === 3 &&
