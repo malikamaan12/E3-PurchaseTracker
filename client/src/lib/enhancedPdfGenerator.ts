@@ -473,10 +473,27 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     }
     
     // Add company contact information (if provided)
-    if (pdfSettings?.companyPhone || pdfSettings?.companyEmail || pdfSettings?.companyWebsite) {
+    // Debugging company info to identify issues
+    console.log('Company info for footer:', {
+      companyPhone: pdfSettings?.companyPhone,
+      companyEmail: pdfSettings?.companyEmail,
+      companyWebsite: pdfSettings?.companyWebsite,
+      companyAddress: pdfSettings?.companyAddress
+    });
+    
+    // Check for any company information - improved detection
+    const hasCompanyInfo = !!(
+      pdfSettings?.companyPhone || 
+      pdfSettings?.companyEmail || 
+      pdfSettings?.companyWebsite || 
+      pdfSettings?.companyAddress
+    );
+    
+    if (hasCompanyInfo) {
       doc.setFontSize(fontSize > 7 ? fontSize - 2 : 7);
       doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
       
+      // Build company contact text
       let contactText = '';
       if (pdfSettings?.companyPhone) {
         contactText += `Phone: ${pdfSettings.companyPhone}`;
@@ -490,16 +507,20 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
         contactText += `Web: ${pdfSettings.companyWebsite}`;
       }
       
+      // Render contact info
       if (contactText) {
         doc.text(contactText, margin, footerY + 6);
       }
-    }
-    
-    // Add company address (if provided)
-    if (pdfSettings?.companyAddress) {
-      doc.setFontSize(7);
-      doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
-      doc.text(pdfSettings.companyAddress, margin, footerY + 10);
+      
+      // Add company address (if provided) - directly after contact info
+      if (pdfSettings?.companyAddress) {
+        doc.setFontSize(7);
+        doc.text(pdfSettings.companyAddress, margin, footerY + 10);
+      }
+      
+      console.log('Added company information to footer');
+    } else {
+      console.log('No company information available for footer');
     }
     
     // Add page numbers
@@ -570,7 +591,19 @@ export async function generateEnhancedPDF(
       footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
       footerColor: '#6F2AE6',
       pageNumbering: true,
-      watermarkOpacity: 10,
+      // Add these watermark settings to defaults to ensure consistency
+      useWatermark: true,
+      watermarkEnabled: true, 
+      watermarkText: 'CONFIDENTIAL',
+      watermarkOpacity: 0.15,
+      watermarkPosition: 'center',
+      watermarkRotation: 45,
+      // Add company details as defaults as well
+      companyPhone: '+974 123 456 789',
+      companyEmail: 'contact@e3enterprises.com',
+      companyWebsite: 'www.e3enterprises.com',
+      companyAddress: 'Building 123, Street 45, Doha, Qatar',
+      // Template config
       templateConfig: JSON.stringify({
         name: 'Standard Template',
         type: 'standard',
@@ -944,12 +977,23 @@ export async function generateEnhancedPDF(
     
     // Apply security watermark based on security level and template configuration
     const templateConfig = pdfSettings.templateConfig || {};
-    const showWatermark = templateConfig.showWatermark !== false;
+    
+    // FIXED: Check both template config AND useWatermark from settings, with template 
+    // config taking precedence only if explicitly set to false
+    const showWatermark = templateConfig.showWatermark !== false && 
+                         (pdfSettings?.useWatermark === true || pdfSettings?.watermarkEnabled === true);
+    
+    console.log('Watermark settings:', { 
+      templateShowWatermark: templateConfig.showWatermark, 
+      useWatermark: pdfSettings?.useWatermark,
+      watermarkEnabled: pdfSettings?.watermarkEnabled,
+      showWatermark: showWatermark
+    });
     
     // Get security level from template config or fall back to settings
     const templateSecurityLevel = templateConfig.securityLevel || securityLevel;
     
-    // Apply security watermark based on security level if not public
+    // Apply security watermark based on security level if not public AND watermark is enabled
     if (showWatermark && templateSecurityLevel !== 'public') {
       // Apply security watermark with specific styling based on security level
       // Pass user ID if available for tracking
@@ -959,19 +1003,21 @@ export async function generateEnhancedPDF(
       console.log(`Applied ${templateSecurityLevel} security watermark to PDF`);
     }
     // Apply standard watermark if security watermark is not used but watermark is enabled
-    else if (showWatermark && pdfSettings?.useWatermark === true) {
-      // Use watermark text from template config if available
+    else if (showWatermark) {
+      // Use watermark text from template config if available, or from settings
       const watermarkText = templateConfig.watermarkText || 
                           pdfSettings?.watermarkText || 
                           `CONFIDENTIAL - ${request.requestNumber || ''}`;
       
-      // Use watermark opacity from template config if available
+      // Use watermark opacity from template config if available, or from settings
       const watermarkOpacity = templateConfig.watermarkOpacity || 
                             pdfSettings?.watermarkOpacity || 
                             0.08;
       
       applyPdfWatermark(doc, watermarkText, watermarkOpacity);
       console.log(`Applied standard watermark with opacity ${watermarkOpacity}`);
+    } else {
+      console.log('No watermark applied to PDF - watermark is disabled in settings');
     }
     
     // Log audit event for PDF generation (non-blocking async)
