@@ -152,7 +152,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       renderDefaultHeader(doc, safeHeaderColor, safeAccentColor, margin, startY, pageWidth);
     }
     
-    // Add "PURCHASE REQUEST" title - centered and with background
+    // Add subtitle from settings (e.g. "PURCHASE REQUEST") - centered and with background
     // Increase spacing after header to prevent overlap
     const titleY = startY + headerHeight + 15; // Increased from +10 to +15
     
@@ -160,11 +160,12 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     doc.setFillColor(0, 0, 0);
     doc.rect(0, titleY - 5, pageWidth, 10, 'F');
     
-    // Add title text in white
+    // Add title text in white - use headerSubtitle from settings if available
+    const subtitleText = pdfSettings?.headerSubtitle || "PURCHASE REQUEST";
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.text("PURCHASE REQUEST", pageWidth/2, titleY, { align: 'center' });
+    doc.text(subtitleText, pageWidth/2, titleY, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     
     // Add request info table - increased spacing after title
@@ -293,13 +294,45 @@ function renderDefaultHeader(
   doc.setFont('helvetica', 'bold');
   doc.text("E3", margin + 6, startY + 15);
   
-  // Add company name text
+  // Add company name text - use settings values if available
   doc.setFontSize(11);
   doc.setTextColor(70, 42, 230); // Use E3 purple for text
   doc.setFont('helvetica', 'bold');
-  doc.text("EVENTS &", margin + 35, startY + 8);
-  doc.text("ENTERTAINMENT", margin + 35, startY + 15);
-  doc.text("ENTERPRISES", margin + 35, startY + 22);
+  
+  // Check if we have document title settings and use them
+  const headerLines = [];
+  if (pdfSettings?.headerTitle) {
+    // Split long header titles into multiple lines if needed
+    const headerTitle = pdfSettings.headerTitle;
+    if (headerTitle.length > 15) {
+      const words = headerTitle.split(' ');
+      let line = '';
+      for (const word of words) {
+        if ((line + ' ' + word).length > 15) {
+          headerLines.push(line);
+          line = word;
+        } else {
+          line = line ? line + ' ' + word : word;
+        }
+      }
+      if (line) headerLines.push(line);
+    } else {
+      headerLines.push(headerTitle);
+    }
+  } else {
+    // Use default values if no settings
+    headerLines.push("EVENTS &");
+    headerLines.push("ENTERTAINMENT");
+    headerLines.push("ENTERPRISES");
+  }
+  
+  // Render the header lines
+  let lineY = startY + 8;
+  for (const line of headerLines) {
+    doc.text(line, margin + 35, lineY);
+    lineY += 7;
+  }
+  
   doc.setFont('helvetica', 'normal');
 }
 
