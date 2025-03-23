@@ -601,9 +601,6 @@ export async function generateEnhancedPDF(
     // Add header
     let yPos = await addHeader(doc, request, pdfSettings);
     
-    // Add Request Information section
-    yPos = addSection(doc, 'Request Information', yPos);
-    
     // Use settings from PDF settings if available
     const fontSize = pdfSettings?.fontSize || 9;
     const cellPadding = pdfSettings?.cellPadding || 3;
@@ -611,7 +608,10 @@ export async function generateEnhancedPDF(
     const marginRight = pdfSettings?.marginRight || 15;
     
     // Get text color from settings or use default black
-    const textColor = pdfSettings?.textColor ? hexToRgb(pdfSettings.textColor) : [0, 0, 0];
+    const textColor: RGBColor = pdfSettings?.textColor ? hexToRgb(pdfSettings.textColor) : [0, 0, 0];
+    
+    // Add Request Information section
+    yPos = addSection(doc, 'Request Information', yPos, 15, textColor);
     
     // Extract requester information directly from request
     const requesterName = request.requester?.username || 'N/A';
@@ -655,7 +655,7 @@ export async function generateEnhancedPDF(
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
     // Add Vendor Information section
-    yPos = addSection(doc, 'Vendor Information', yPos);
+    yPos = addSection(doc, 'Vendor Information', yPos, 15, textColor);
     
     const vendor = request.vendor || {};
     autoTable(doc, {
@@ -683,7 +683,7 @@ export async function generateEnhancedPDF(
     yPos = (doc as any).lastAutoTable.finalY + 10;
     
     // Add Items section
-    yPos = addSection(doc, 'Items', yPos);
+    yPos = addSection(doc, 'Items', yPos, 15, textColor);
     
     // Safely parse items
     let items = [];
@@ -755,7 +755,7 @@ export async function generateEnhancedPDF(
     
     // Add Attached Documents section if available
     if (request.attachments && request.attachments.length > 0) {
-      yPos = addSection(doc, 'Attached Documents', yPos);
+      yPos = addSection(doc, 'Attached Documents', yPos, 15, textColor);
       
       autoTable(doc, {
         startY: yPos,
@@ -776,7 +776,7 @@ export async function generateEnhancedPDF(
     
     // Add Approval Status section if admin or approver PDF
     if (type === 'admin' || type === 'approver' || (request.approvals && request.approvals.length > 0)) {
-      yPos = addSection(doc, 'Approval Status', yPos);
+      yPos = addSection(doc, 'Approval Status', yPos, 15, textColor);
       
       if (request.approvals && request.approvals.length > 0) {
         autoTable(doc, {
