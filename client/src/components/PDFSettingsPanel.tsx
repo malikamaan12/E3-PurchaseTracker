@@ -565,9 +565,11 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           <div className="flex items-center space-x-2 mb-4">
             <Switch
               id="useWatermark"
-              checked={safeSettings.useWatermark === true || safeSettings.watermarkEnabled === true}
+              checked={safeSettings.useWatermark === true}
               onCheckedChange={(checked) => {
+                // Only use one property for the watermark toggle to avoid confusion
                 handleChange('useWatermark', checked);
+                // Keep this for backwards compatibility with existing documents
                 handleChange('watermarkEnabled', checked);
               }}
               disabled={loading}
@@ -582,7 +584,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 id="watermarkText" 
                 value={safeSettings.watermarkText || ''} 
                 onChange={(e) => handleChange('watermarkText', e.target.value)}
-                disabled={loading || safeSettings.useWatermark !== true}
+                disabled={loading || !(safeSettings.useWatermark === true)}
               />
             </div>
             
@@ -595,7 +597,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 step={0.01}
                 value={[safeSettings.watermarkOpacity || 0.15]} 
                 onValueChange={(value) => handleChange('watermarkOpacity', value[0])}
-                disabled={loading || safeSettings.useWatermark !== true}
+                disabled={loading || !(safeSettings.useWatermark === true)}
               />
             </div>
             
@@ -604,7 +606,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
               <Select 
                 value={safeSettings.watermarkPosition || 'center'} 
                 onValueChange={(value) => handleChange('watermarkPosition', value as 'center' | 'tile' | 'corner')}
-                disabled={loading || safeSettings.useWatermark !== true}
+                disabled={loading || !(safeSettings.useWatermark === true)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select watermark position" />
