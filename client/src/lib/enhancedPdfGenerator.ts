@@ -538,11 +538,36 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
       console.log('No company information available for footer');
     }
     
-    // Add page numbers
+    // Add page numbers based on position setting
     if (pdfSettings?.pageNumbering !== false) {
       doc.setFontSize(8);
       doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
-      doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, footerY + 6, { align: 'right' });
+      
+      const pageNumberText = `Page ${currentPage} of ${totalPages}`;
+      const position = pdfSettings?.pageNumberPosition || 'bottom-right';
+      
+      // Position based on the setting
+      switch (position) {
+        case 'top-left':
+          doc.text(pageNumberText, margin, 10);
+          break;
+        case 'top-center':
+          doc.text(pageNumberText, pageWidth / 2, 10, { align: 'center' });
+          break;
+        case 'top-right':
+          doc.text(pageNumberText, pageWidth - margin, 10, { align: 'right' });
+          break;
+        case 'bottom-left':
+          doc.text(pageNumberText, margin, footerY + 6);
+          break;
+        case 'bottom-center':
+          doc.text(pageNumberText, pageWidth / 2, footerY + 6, { align: 'center' });
+          break;
+        case 'bottom-right':
+        default:
+          doc.text(pageNumberText, pageWidth - margin, footerY + 6, { align: 'right' });
+          break;
+      }
     }
     
     // Add footer text (e.g., "Designed by Team E3")
