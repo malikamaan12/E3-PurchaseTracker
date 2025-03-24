@@ -3589,7 +3589,13 @@ export function registerRoutes(app: Express): Server {
         footerImage,
         logo,
         headerHeight,
-        footerHeight
+        footerHeight,
+        companyAddress,
+        companyPhone,
+        companyEmail,
+        companyWebsite,
+        watermarkText,
+        watermarkOpacity
       } = req.body;
       
       // Validate required fields
@@ -3597,49 +3603,78 @@ export function registerRoutes(app: Express): Server {
         throw new AppError('Required fields are missing', 400);
       }
       
-      // Insert new settings using Drizzle ORM
-      const newSettings = await db.insert(pdfSettings).values({
-        headerTitle,
-        headerSubtitle: headerSubtitle || 'PURCHASE REQUEST',
-        headerColor,
-        footerText: footerText || 'ALL RIGHTS RESERVED BY E3',
-        footerColor,
-        pageNumbering: Boolean(pageNumbering),
-        fontSize: Number(fontSize || 11),
-        marginTop: Number(marginTop || 20),
-        marginBottom: Number(marginBottom || 20),
-        marginLeft: Number(marginLeft || 25),
-        marginRight: Number(marginRight || 25),
-        headerHeight: Number(headerHeight || 60),
-        footerHeight: Number(footerHeight || 40),
-        headerImage: headerImage || null,
-        footerImage: footerImage || null,
-        logo: logo || null,
-        userId: req.user!.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-      
-      // Return the created settings
-      const setting = newSettings[0];
-      res.status(201).json({
-        headerTitle: setting.headerTitle,
-        headerSubtitle: setting.headerSubtitle,
-        headerColor: setting.headerColor,
-        footerText: setting.footerText,
-        footerColor: setting.footerColor,
-        pageNumbering: setting.pageNumbering,
-        fontSize: setting.fontSize,
-        marginTop: setting.marginTop,
-        marginBottom: setting.marginBottom,
-        marginLeft: setting.marginLeft,
-        marginRight: setting.marginRight,
-        headerImage: setting.headerImage,
-        footerImage: setting.footerImage,
-        logo: setting.logo,
-        headerHeight: setting.headerHeight,
-        footerHeight: setting.footerHeight
+      // Find existing settings
+      const existingSettings = await db.query.pdfSettings.findMany({
+        orderBy: [desc(pdfSettings.updatedAt)],
+        limit: 1
       });
+      
+      let result;
+      
+      if (existingSettings.length > 0) {
+        // Update existing settings
+        const settingId = existingSettings[0].id;
+        [result] = await db.update(pdfSettings)
+          .set({
+            headerTitle,
+            headerSubtitle: headerSubtitle || 'PURCHASE REQUEST',
+            headerColor,
+            footerText: footerText || 'ALL RIGHTS RESERVED BY E3',
+            footerColor,
+            pageNumbering: Boolean(pageNumbering),
+            fontSize: Number(fontSize || 11),
+            marginTop: Number(marginTop || 20),
+            marginBottom: Number(marginBottom || 20),
+            marginLeft: Number(marginLeft || 25),
+            marginRight: Number(marginRight || 25),
+            headerHeight: Number(headerHeight || 60),
+            footerHeight: Number(footerHeight || 40),
+            headerImage: headerImage || null,
+            footerImage: footerImage || null,
+            logo: logo || null,
+            companyAddress: companyAddress || null,
+            companyPhone: companyPhone || null,
+            companyEmail: companyEmail || null,
+            companyWebsite: companyWebsite || null,
+            watermarkText: watermarkText || null,
+            watermarkOpacity: watermarkOpacity !== undefined ? Number(watermarkOpacity) : null,
+            updatedAt: new Date()
+          })
+          .where(eq(pdfSettings.id, settingId))
+          .returning();
+      } else {
+        // Insert new settings using Drizzle ORM
+        [result] = await db.insert(pdfSettings).values({
+          headerTitle,
+          headerSubtitle: headerSubtitle || 'PURCHASE REQUEST',
+          headerColor,
+          footerText: footerText || 'ALL RIGHTS RESERVED BY E3',
+          footerColor,
+          pageNumbering: Boolean(pageNumbering),
+          fontSize: Number(fontSize || 11),
+          marginTop: Number(marginTop || 20),
+          marginBottom: Number(marginBottom || 20),
+          marginLeft: Number(marginLeft || 25),
+          marginRight: Number(marginRight || 25),
+          headerHeight: Number(headerHeight || 60),
+          footerHeight: Number(footerHeight || 40),
+          headerImage: headerImage || null,
+          footerImage: footerImage || null,
+          logo: logo || null,
+          companyAddress: companyAddress || null,
+          companyPhone: companyPhone || null,
+          companyEmail: companyEmail || null,
+          companyWebsite: companyWebsite || null,
+          watermarkText: watermarkText || null,
+          watermarkOpacity: watermarkOpacity !== undefined ? Number(watermarkOpacity) : null,
+          userId: req.user!.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning();
+      }
+      
+      // Return the created/updated settings
+      res.status(200).json(result);
     } catch (error) {
       const analysis = await analyzeError(error as Error, {
         component: 'PDF Settings',
@@ -3805,52 +3840,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-  app.post("/api/pdf/settings", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return next(new AppError('Not authenticated', 401));
-      }
-      
-      if (req.user?.role !== 'admin') {
-        return next(new AuthorizationError('Only administrators can modify PDF settings'));
-      }
-      
-      // Get the settings data from the request body
-      const settingsData = req.body;
-      
-      // Find existing settings
-      const existingSettings = await db.query.pdfSettings.findMany({
-        orderBy: [desc(pdfSettings.updatedAt)],
-        limit: 1
-      });
-      
-      let result;
-      
-      if (existingSettings.length > 0) {
-        // Update existing settings
-        const settingId = existingSettings[0].id;
-        [result] = await db.update(pdfSettings)
-          .set({
-            ...settingsData,
-            updatedAt: new Date()
-          })
-          .where(eq(pdfSettings.id, settingId))
-          .returning();
-      } else {
-        // Create new settings
-        [result] = await db.insert(pdfSettings).values({
-          ...settingsData,
-          userId: req.user!.id,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }).returning();
-      }
-      
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
-  });
+  // Second PDF settings endpoint removed to avoid duplication
+  // The implementation above now handles all PDF settings updates
   
   // Image upload endpoint
   app.post("/api/pdf/upload-images", async (req: Request, res: Response, next: NextFunction) => {
