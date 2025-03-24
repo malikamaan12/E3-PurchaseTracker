@@ -557,6 +557,7 @@ export function registerPdfRoutes(app: Express) {
               footerText: 'ALL RIGHTS RESERVED BY E3',
               footerColor: '#1a365d',
               pageNumbering: true,
+              pageNumberPosition: 'bottom-right',
               fontSize: 11,
               marginTop: 20,
               marginBottom: 20,
