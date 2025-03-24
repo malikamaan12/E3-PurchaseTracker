@@ -50,6 +50,7 @@ export function registerPdfRoutes(app: Express) {
         footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
         footerColor: '#6F2AE6',
         pageNumbering: true,
+        pageNumberPosition: 'bottom-right', // Default position for page numbers
         watermarkOpacity: 10,
         templateConfig: JSON.stringify({
           name: 'Standard Template',
@@ -153,6 +154,7 @@ export function registerPdfRoutes(app: Express) {
           footerText: 'ALL RIGHTS RESERVED BY E3',
           footerColor: '#1a365d',
           pageNumbering: true,
+          pageNumberPosition: 'bottom-right',
           fontSize: 11,
           marginTop: 20,
           marginBottom: 20,
@@ -240,6 +242,7 @@ export function registerPdfRoutes(app: Express) {
             footerText: 'CONFIDENTIAL - ALL RIGHTS RESERVED',
             footerColor: '#6F2AE6',
             pageNumbering: true,
+            pageNumberPosition: 'bottom-right',
             templateConfig: JSON.stringify(templateConfig),
             userId: req.user!.id,
             createdAt: new Date(),
@@ -399,6 +402,7 @@ export function registerPdfRoutes(app: Express) {
                 footerText: 'ALL RIGHTS RESERVED BY E3',
                 footerColor: '#1a365d',
                 pageNumbering: true,
+                pageNumberPosition: 'bottom-right',
                 fontSize: 11,
                 marginTop: 20,
                 marginBottom: 20,

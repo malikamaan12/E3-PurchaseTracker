@@ -546,6 +546,13 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
       const pageNumberText = `Page ${currentPage} of ${totalPages}`;
       const position = pdfSettings?.pageNumberPosition || 'bottom-right';
       
+      // Debug log for page number position
+      console.log('PDF Page Number Position Settings:', {
+        position: position,
+        pageNumbering: pdfSettings?.pageNumbering,
+        rawSettings: pdfSettings
+      });
+      
       // Position based on the setting
       switch (position) {
         case 'top-left':
