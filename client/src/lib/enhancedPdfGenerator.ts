@@ -481,12 +481,12 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
       companyAddress: pdfSettings?.companyAddress
     });
     
-    // Ensure proper access to company information from passed pdfSettings object
-    // Create fallback values for when company info is missing
-    const fallbackPhone = '+974 123 456 789';
-    const fallbackEmail = 'contact@e3enterprises.com';
-    const fallbackWebsite = 'www.e3enterprises.com';
-    const fallbackAddress = 'Building 123, Street 45, Doha, Qatar';
+    // Ensure company information comes only from database settings
+    // No fallbacks - empty strings if missing
+    const fallbackPhone = '';
+    const fallbackEmail = '';
+    const fallbackWebsite = '';
+    const fallbackAddress = '';
     
     // Use nullish coalescing (??) to only use fallback if fields are null/undefined, 
     // Empty strings should be considered valid user choices and not fall back to defaults
