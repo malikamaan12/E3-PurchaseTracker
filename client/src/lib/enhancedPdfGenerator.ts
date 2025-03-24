@@ -481,30 +481,45 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
       companyAddress: pdfSettings?.companyAddress
     });
     
+    // Ensure proper access to company information from passed pdfSettings object
+    // Create fallback values for when company info is missing
+    const fallbackPhone = '+974 123 456 789';
+    const fallbackEmail = 'contact@e3enterprises.com';
+    const fallbackWebsite = 'www.e3enterprises.com';
+    const fallbackAddress = 'Building 123, Street 45, Doha, Qatar';
+    
+    // Use nullish coalescing (??) to only use fallback if fields are null/undefined, 
+    // Empty strings should be considered valid user choices and not fall back to defaults
+    const companyPhone = pdfSettings.companyPhone ?? fallbackPhone;
+    const companyEmail = pdfSettings.companyEmail ?? fallbackEmail;
+    const companyWebsite = pdfSettings.companyWebsite ?? fallbackWebsite;  
+    const companyAddress = pdfSettings.companyAddress ?? fallbackAddress;
+    
+    console.log('Processed company info for footer:', {
+      companyPhone, companyEmail, companyWebsite, companyAddress
+    });
+    
     // Check for any company information - improved detection
     const hasCompanyInfo = !!(
-      pdfSettings?.companyPhone || 
-      pdfSettings?.companyEmail || 
-      pdfSettings?.companyWebsite || 
-      pdfSettings?.companyAddress
+      companyPhone || companyEmail || companyWebsite || companyAddress
     );
     
     if (hasCompanyInfo) {
       doc.setFontSize(fontSize > 7 ? fontSize - 2 : 7);
       doc.setTextColor(textDisplay[0] * 255, textDisplay[1] * 255, textDisplay[2] * 255);
       
-      // Build company contact text
+      // Build company contact text using our processed variables
       let contactText = '';
-      if (pdfSettings?.companyPhone) {
-        contactText += `Phone: ${pdfSettings.companyPhone}`;
+      if (companyPhone) {
+        contactText += `Phone: ${companyPhone}`;
       }
-      if (pdfSettings?.companyEmail) {
+      if (companyEmail) {
         contactText += contactText ? ' | ' : '';
-        contactText += `Email: ${pdfSettings.companyEmail}`;
+        contactText += `Email: ${companyEmail}`;
       }
-      if (pdfSettings?.companyWebsite) {
+      if (companyWebsite) {
         contactText += contactText ? ' | ' : '';
-        contactText += `Web: ${pdfSettings.companyWebsite}`;
+        contactText += `Web: ${companyWebsite}`;
       }
       
       // Render contact info
@@ -513,9 +528,9 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
       }
       
       // Add company address (if provided) - directly after contact info
-      if (pdfSettings?.companyAddress) {
+      if (companyAddress) {
         doc.setFontSize(7);
-        doc.text(pdfSettings.companyAddress, margin, footerY + 10);
+        doc.text(companyAddress, margin, footerY + 10);
       }
       
       console.log('Added company information to footer');
