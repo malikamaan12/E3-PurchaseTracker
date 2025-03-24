@@ -5,11 +5,8 @@
  * and updates it with the correct company information.
  */
 
-import { db } from './db/index.js';
-import { pdfSettings, eq, desc } from './db/schema.js';
-
-// Fix ESM import by making this file a module
-// Add package.json type field if missing
+const { db } = require('./db/index');
+const { pdfSettings, eq, desc } = require('./db/schema');
 
 async function updateCompanyInfo() {
   console.log('Starting company info update in PDF settings...');
