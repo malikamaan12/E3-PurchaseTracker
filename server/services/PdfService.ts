@@ -156,6 +156,14 @@ export class PdfService {
       if (settingsResult.length > 0) {
         const dbSettings = settingsResult[0];
         
+        // Debug log for company information
+        console.log('Retrieved PDF settings with company info:', {
+          companyAddress: dbSettings.companyAddress,
+          companyPhone: dbSettings.companyPhone,
+          companyEmail: dbSettings.companyEmail,
+          companyWebsite: dbSettings.companyWebsite
+        });
+        
         // Parse template config if it exists
         let parsedTemplateConfig: PdfTemplateConfig = DEFAULT_TEMPLATE_CONFIG;
         
@@ -281,6 +289,14 @@ export class PdfService {
       const existingSettings = await db.query.pdfSettings.findMany({
         orderBy: [desc(pdfSettings.updatedAt)],
         limit: 1
+      });
+      
+      // Log company information for debugging
+      console.log('Saving PDF settings with company information:', {
+        companyAddress: settings.companyAddress,
+        companyPhone: settings.companyPhone,
+        companyEmail: settings.companyEmail,
+        companyWebsite: settings.companyWebsite
       });
       
       let result;
