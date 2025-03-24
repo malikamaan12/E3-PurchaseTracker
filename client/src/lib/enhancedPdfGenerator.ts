@@ -613,11 +613,12 @@ export async function generateEnhancedPDF(
       watermarkOpacity: 0.15,
       watermarkPosition: 'center',
       watermarkRotation: 45,
-      // Add company details as defaults as well
-      companyPhone: '+974 123 456 789',
-      companyEmail: 'contact@e3enterprises.com',
-      companyWebsite: 'www.e3enterprises.com',
-      companyAddress: 'Building 123, Street 45, Doha, Qatar',
+      // Company details are intentionally empty in defaults
+      // This ensures we only use values from the database
+      companyPhone: '',
+      companyEmail: '',
+      companyWebsite: '',
+      companyAddress: '',
       // Template config
       templateConfig: JSON.stringify({
         name: 'Standard Template',
