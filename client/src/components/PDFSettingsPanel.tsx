@@ -261,6 +261,29 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                 />
                 <Label htmlFor="pageNumbering">Page Numbering</Label>
               </div>
+              
+              {safeSettings.pageNumbering !== false && (
+                <div className="flex flex-col gap-2 mt-2 ml-7">
+                  <Label htmlFor="pageNumberPosition">Page Number Position</Label>
+                  <Select 
+                    value={safeSettings.pageNumberPosition || 'bottom-right'} 
+                    onValueChange={(value) => handleChange('pageNumberPosition', value)}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top-left">Top Left</SelectItem>
+                      <SelectItem value="top-center">Top Center</SelectItem>
+                      <SelectItem value="top-right">Top Right</SelectItem>
+                      <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                      <SelectItem value="bottom-center">Bottom Center</SelectItem>
+                      <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>
