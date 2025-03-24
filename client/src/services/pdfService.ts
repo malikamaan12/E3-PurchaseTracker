@@ -28,6 +28,7 @@ export interface PdfSettings {
   footerText?: string;
   footerColor: string;
   pageNumbering: boolean;
+  pageNumberPosition?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
   fontSize?: number;
   fontFamily?: string;
   textColor?: string;
@@ -87,6 +88,7 @@ export const DEFAULT_PDF_SETTINGS: PdfSettings = {
   footerText: 'Confidential - For internal use only',
   footerColor: '#f5f5f5',
   pageNumbering: true,
+  pageNumberPosition: 'bottom-right',
   fontSize: 10,
   fontFamily: 'Arial',
   marginTop: 25,
