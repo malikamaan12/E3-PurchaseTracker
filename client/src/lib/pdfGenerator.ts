@@ -337,18 +337,24 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         address?: string;
       }
     } = {
-      footerText: "ALL RIGHTS RESERVED BY E3",
+      footerText: "ALL RIGHTS RESERVED", // Default, will be overridden by settings
       footerColor: "#6F2AE6", // E3 purple
       pageNumbering: true,
       footerImage: null,
       showFooterText: true,
       showFooterImage: false,
       contactInfo: {
-        phone: "+974 44332340 / 55255417",
-        email: "info@e3corp.com",
-        website: "www.e3corp.com",
-        address: "Floor 36, Office 3602, Palm Tower B, Marina 41, Port Area, P.O.Box 55821, Doha"
+        phone: "",
+        email: "",
+        website: "",
+        address: ""
       }
+    };
+    
+    // Add pageNumberPosition to settings object
+    settings = {
+      ...settings,
+      pageNumberPosition: "bottom-right" // Default page number position
     };
     
     // First check if settings were passed directly in the request object
@@ -564,15 +570,53 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         doc.setFontSize(8);
         doc.setFont(request?.pdfSettings?.fontFamily || 'helvetica', 'normal');
         
-        // Create page numbers in a clean box with accent color
-        doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+        // Create page numbers with the right position
         const pageText = `Page ${currentPage} of ${totalPages}`;
         const pageTextWidth = doc.getTextWidth(pageText) + 10;
-        doc.roundedRect(pageWidth - margin - pageTextWidth, pageHeight - 7, pageTextWidth, 5, 1, 1, 'F');
         
-        // Draw the page number text
-        doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
-        doc.text(pageText, pageWidth - margin - 5, pageHeight - 4, { align: 'right' });
+        // Get the page number position (default to bottom-right if not specified)
+        const pageNumberPosition = request?.pdfSettings?.pageNumberPosition || settings.pageNumberPosition || 'bottom-right';
+        
+        // Position the page number based on the setting
+        switch(pageNumberPosition) {
+          case 'top-left':
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect(margin, 5, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, margin + 5, 9);
+            break;
+          case 'top-center':
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect((pageWidth - pageTextWidth) / 2, 5, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, pageWidth / 2, 9, { align: 'center' });
+            break;
+          case 'top-right':
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect(pageWidth - margin - pageTextWidth, 5, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, pageWidth - margin - 5, 9, { align: 'right' });
+            break;
+          case 'bottom-left':
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect(margin, pageHeight - 7, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, margin + 5, pageHeight - 4);
+            break;
+          case 'bottom-center':
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect((pageWidth - pageTextWidth) / 2, pageHeight - 7, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, pageWidth / 2, pageHeight - 4, { align: 'center' });
+            break;
+          case 'bottom-right':
+          default:
+            doc.setFillColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2], 0.1);
+            doc.roundedRect(pageWidth - margin - pageTextWidth, pageHeight - 7, pageTextWidth, 5, 1, 1, 'F');
+            doc.setTextColor(footerColorRgb[0], footerColorRgb[1], footerColorRgb[2]);
+            doc.text(pageText, pageWidth - margin - 5, pageHeight - 4, { align: 'right' });
+            break;
+        }
       }
     }
     
