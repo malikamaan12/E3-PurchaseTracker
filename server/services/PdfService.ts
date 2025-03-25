@@ -80,6 +80,7 @@ export interface PdfSettingsWithTemplate {
   footerText?: string | null;
   footerColor: string;
   pageNumbering: boolean;
+  pageNumberPosition?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
   fontSize?: number;
   fontFamily?: string;
   marginTop?: number;
@@ -184,6 +185,7 @@ export class PdfService {
           footerText: dbSettings.footerText,
           footerColor: dbSettings.footerColor,
           pageNumbering: dbSettings.pageNumbering,
+          pageNumberPosition: dbSettings.pageNumberPosition as 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' || 'bottom-right',
           fontSize: dbSettings.fontSize || 12,
           fontFamily: dbSettings.fontFamily || 'helvetica',
           marginTop: dbSettings.marginTop || 20,
@@ -225,6 +227,7 @@ export class PdfService {
         footerText: '© 2024 - Confidential',
         footerColor: '#333333',
         pageNumbering: true,
+        pageNumberPosition: 'bottom-right',
         fontSize: 12,
         marginTop: 20,
         marginBottom: 20,
@@ -309,6 +312,7 @@ export class PdfService {
         footerText: settings.footerText,
         footerColor: settings.footerColor,
         pageNumbering: settings.pageNumbering,
+        pageNumberPosition: settings.pageNumberPosition,
         fontSize: settings.fontSize,
         fontFamily: settings.fontFamily,
         marginTop: settings.marginTop,
@@ -365,6 +369,7 @@ export class PdfService {
         if (dbValues.footerText !== undefined) updateValues.footerText = dbValues.footerText;
         if (dbValues.footerColor !== undefined) updateValues.footerColor = dbValues.footerColor;
         if (dbValues.pageNumbering !== undefined) updateValues.pageNumbering = dbValues.pageNumbering;
+        if (dbValues.pageNumberPosition !== undefined) updateValues.pageNumberPosition = dbValues.pageNumberPosition;
         if (dbValues.fontSize !== undefined) updateValues.fontSize = dbValues.fontSize;
         if (dbValues.fontFamily !== undefined) updateValues.fontFamily = dbValues.fontFamily;
         if (dbValues.marginTop !== undefined) updateValues.marginTop = dbValues.marginTop;
@@ -430,6 +435,7 @@ export class PdfService {
             footerText: dbValues.footerText as string | undefined,
             footerColor: dbValues.footerColor as string,
             pageNumbering: dbValues.pageNumbering as boolean | undefined,
+            pageNumberPosition: dbValues.pageNumberPosition as string | undefined,
             watermarkOpacity: dbValues.watermarkOpacity as number | undefined,
             watermarkText: dbValues.watermarkText as string | undefined,
             marginTop: dbValues.marginTop as number | undefined,
