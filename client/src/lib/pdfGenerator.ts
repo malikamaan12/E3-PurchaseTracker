@@ -326,6 +326,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       footerText: string;
       footerColor: string;
       pageNumbering: boolean;
+      pageNumberPosition?: string;
       footerImage?: string | null;
       showFooterText: boolean;
       showFooterImage: boolean;
@@ -337,7 +338,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         address?: string;
       }
     } = {
-      footerText: "ALL RIGHTS RESERVED", // Default, will be overridden by settings
+      footerText: "Confidential", // Default, will be overridden by settings
       footerColor: "#6F2AE6", // E3 purple
       pageNumbering: true,
       footerImage: null,
@@ -351,11 +352,8 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     };
     
-    // Add pageNumberPosition to settings object
-    settings = {
-      ...settings,
-      pageNumberPosition: "bottom-right" // Default page number position
-    };
+    // Set default page number position
+    settings.pageNumberPosition = "bottom-right"; // Default page number position
     
     // First check if settings were passed directly in the request object
     if (request?.pdfSettings) {
@@ -365,6 +363,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
         footerText: request.pdfSettings.footerText || settings.footerText,
         footerColor: request.pdfSettings.footerColor || settings.footerColor,
         footerImage: request.pdfSettings.footerImage,
+        pageNumberPosition: request.pdfSettings.pageNumberPosition || settings.pageNumberPosition,
         // Fix visibility issues by checking for explicit boolean values
         showFooterText: request.pdfSettings.hasOwnProperty('showFooterText')
           ? Boolean(request.pdfSettings.showFooterText)
@@ -394,6 +393,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
             footerText: apiSettings.footerText || settings.footerText,
             footerColor: apiSettings.footerColor || settings.footerColor,
             footerImage: apiSettings.footerImage,
+            pageNumberPosition: apiSettings.pageNumberPosition || settings.pageNumberPosition,
             // Fix visibility issues by checking for explicit boolean values
             showFooterText: apiSettings.hasOwnProperty('showFooterText')
               ? Boolean(apiSettings.showFooterText)
@@ -632,8 +632,9 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     
     doc.setFontSize(8);
     doc.setTextColor(90, 90, 90);
-    // Use a generic footer text in the fallback case
-    doc.text("ALL RIGHTS RESERVED", margin, pageHeight - 4);
+    // Default footer text in error case - no reference to settings object which might be unavailable
+    const footerText = request?.pdfSettings?.footerText || "Confidential";
+    doc.text(footerText, margin, pageHeight - 4);
     
     // Position page number in bottom right as fallback
     doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
