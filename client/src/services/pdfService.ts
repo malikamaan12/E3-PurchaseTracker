@@ -142,6 +142,24 @@ class PdfService {
   async getPdfSettings(): Promise<PdfSettings> {
     try {
       const response = await axios.get('/api/pdf/print-settings');
+      
+      // Debug logging to see what's coming from the server
+      console.log('CLIENT: PDF settings received from server:', {
+        pageNumberPosition: response.data?.pageNumberPosition,
+        pageNumberingEnabled: response.data?.pageNumbering,
+        validPosition: typeof response.data?.pageNumberPosition === 'string' && 
+          ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(response.data?.pageNumberPosition)
+      });
+      
+      // Ensure valid pageNumberPosition before returning
+      if (response.data && typeof response.data.pageNumberPosition === 'string') {
+        const validPositions = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+        if (!validPositions.includes(response.data.pageNumberPosition)) {
+          console.warn('Invalid pageNumberPosition received:', response.data.pageNumberPosition);
+          response.data.pageNumberPosition = 'bottom-right';
+        }
+      }
+      
       return response.data || DEFAULT_PDF_SETTINGS;
     } catch (error) {
       console.error('Error fetching PDF settings:', error);

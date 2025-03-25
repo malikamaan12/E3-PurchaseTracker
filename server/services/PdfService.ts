@@ -185,7 +185,9 @@ export class PdfService {
           footerText: dbSettings.footerText,
           footerColor: dbSettings.footerColor,
           pageNumbering: dbSettings.pageNumbering,
-          pageNumberPosition: dbSettings.pageNumberPosition as 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' || 'bottom-right',
+          pageNumberPosition: typeof dbSettings.pageNumberPosition === 'string' && ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(dbSettings.pageNumberPosition) 
+            ? dbSettings.pageNumberPosition as 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
+            : 'bottom-right',
           fontSize: dbSettings.fontSize || 12,
           fontFamily: dbSettings.fontFamily || 'helvetica',
           marginTop: dbSettings.marginTop || 20,
