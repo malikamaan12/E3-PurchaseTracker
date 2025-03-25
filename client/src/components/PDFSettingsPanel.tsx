@@ -267,7 +267,12 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
                   <Label htmlFor="pageNumberPosition">Page Number Position</Label>
                   <Select 
                     value={safeSettings.pageNumberPosition || 'bottom-right'} 
-                    onValueChange={(value) => handleChange('pageNumberPosition', value)}
+                    onValueChange={(value) => {
+                      // Log the selected value
+                      console.log('Page number position selected:', value);
+                      // Make sure to update the setting
+                      handleChange('pageNumberPosition', value);
+                    }}
                     disabled={loading}
                   >
                     <SelectTrigger className="w-full">

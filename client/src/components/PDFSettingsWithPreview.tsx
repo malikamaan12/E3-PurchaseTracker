@@ -26,9 +26,30 @@ const PDFSettingsWithPreview: React.FC<PDFSettingsWithPreviewProps> = ({
   const { toast } = useToast();
   
   const handleSettingsChange = (updatedSettings: Partial<PdfSettings>) => {
+    // Debug log for page number position
+    if ('pageNumberPosition' in updatedSettings) {
+      console.log('PDFSettingsWithPreview - pageNumberPosition updated:', {
+        newValue: updatedSettings.pageNumberPosition,
+        validValue: typeof updatedSettings.pageNumberPosition === 'string' && 
+          ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(updatedSettings.pageNumberPosition)
+      });
+    }
+    
+    // Create a copy of the updated settings to sanitize the pageNumberPosition if needed
+    const sanitizedSettings = { ...updatedSettings };
+    
+    // Ensure pageNumberPosition is one of the valid values if it's being updated
+    if (sanitizedSettings.pageNumberPosition !== undefined) {
+      const validPositions = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+      if (!validPositions.includes(sanitizedSettings.pageNumberPosition)) {
+        console.warn('Invalid pageNumberPosition value:', sanitizedSettings.pageNumberPosition);
+        sanitizedSettings.pageNumberPosition = 'bottom-right';
+      }
+    }
+    
     setSettings({
       ...settings,
-      ...updatedSettings
+      ...sanitizedSettings
     });
   };
   
