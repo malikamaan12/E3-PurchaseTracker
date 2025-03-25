@@ -352,8 +352,13 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
       }
     };
     
-    // Set default page number position
-    settings.pageNumberPosition = "bottom-right"; // Default page number position
+    // Only set default page number position if not already specified
+    if (!settings.pageNumberPosition) {
+      settings.pageNumberPosition = "bottom-right"; // Default page number position only if not already set
+      console.log("Using default page number position: bottom-right");
+    } else {
+      console.log("Using specified page number position:", settings.pageNumberPosition);
+    }
     
     // First check if settings were passed directly in the request object
     if (request?.pdfSettings) {
