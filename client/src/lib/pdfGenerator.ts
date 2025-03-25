@@ -632,7 +632,10 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, re
     
     doc.setFontSize(8);
     doc.setTextColor(90, 90, 90);
-    doc.text("ALL RIGHTS RESERVED BY E3", margin, pageHeight - 4);
+    // Use a generic footer text in the fallback case
+    doc.text("ALL RIGHTS RESERVED", margin, pageHeight - 4);
+    
+    // Position page number in bottom right as fallback
     doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
   }
 }
