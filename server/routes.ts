@@ -682,8 +682,12 @@ export function registerRoutes(app: Express): Server {
               attachments,
               approvals: approvalsList,
               requester,
-              // Ensure additionalApprovers is always an array  
-              additionalApprovers: request.additionalApprovers || []
+              // Parse additionalApprovers JSON if needed
+              additionalApprovers: typeof request.additionalApprovers === 'string'
+                ? JSON.parse(request.additionalApprovers)
+                : Array.isArray(request.additionalApprovers)
+                  ? request.additionalApprovers
+                  : []
             };
           } catch (error) {
             console.error('Error processing request:', error);
@@ -3303,9 +3307,11 @@ export function registerRoutes(app: Express): Server {
           subPurpose: null,
           approvals: [],
           attachments: [],
-          additionalApprovers: Array.isArray(request.additionalApprovers) 
-            ? request.additionalApprovers 
-            : []
+          additionalApprovers: typeof request.additionalApprovers === 'string'
+            ? JSON.parse(request.additionalApprovers)
+            : Array.isArray(request.additionalApprovers)
+              ? request.additionalApprovers
+              : []
         });
         return; // Don't rethrow the error since we're handling it gracefully
       }
@@ -5550,6 +5556,13 @@ async function getRequestWithRelations(requestId: number) {
   // Parse items JSON
   const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
   
+  // Parse additionalApprovers JSON
+  const additionalApprovers = typeof request.additionalApprovers === 'string'
+    ? JSON.parse(request.additionalApprovers)
+    : Array.isArray(request.additionalApprovers)
+      ? request.additionalApprovers
+      : [];
+  
   // Return complete request with relations
   return {
     ...request,
@@ -5558,7 +5571,8 @@ async function getRequestWithRelations(requestId: number) {
     subPurpose,
     requester,
     approvals: approvalsList,
-    attachments: attachmentsList
+    attachments: attachmentsList,
+    additionalApprovers // Explicitly include additionalApprovers as an array
   };
 }
 
