@@ -345,7 +345,7 @@ export default function TestExportPage() {
     <div className="container py-8">
       <h1 className="text-2xl font-bold mb-6">Export Functionality Test Page</h1>
       
-      <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+      <Alert className="mb-4 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/50">
         <AlertTitle>Export Functionality Updated</AlertTitle>
         <AlertDescription>
           Excel and CSV export options have been removed to standardize on PDF and ZIP formats only, per the project requirements.
@@ -398,7 +398,7 @@ export default function TestExportPage() {
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Advanced Diagnostics</h2>
         <div className="grid grid-cols-1 gap-4 mb-4">
-          <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+          <Alert className="bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/50">
             <AlertTitle>Export Diagnostics Updated</AlertTitle>
             <AlertDescription>
               Per the standardization requirements, we have shifted to PDF and ZIP-only exports with enhanced audit validation.

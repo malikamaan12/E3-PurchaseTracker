@@ -27,10 +27,11 @@ import { useVendors } from "@/hooks/use-vendors";
 import { useSubPurposes } from "@/hooks/use-sub-purposes";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-// Brand colors
+// Brand colors - Use CSS variables from theme.json instead of hardcoded values
+// These fallbacks ensure compatibility but we should rely on theme tokens
 const BRAND = {
-  primary: '#7156a2',
-  secondary: '#35bbba',
+  primary: 'var(--primary)',
+  secondary: 'var(--secondary)',
 };
 
 interface RequestCounts {
@@ -53,8 +54,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { vendors = [] } = useVendors();
   const { subPurposes = [] } = useSubPurposes();
-  
-  // Debug sub-purposes data - removed to fix infinite loop
   
   // Handle notification clicks
   const handleNotificationClick = useCallback(async (notification: { id: number; link: string | null; requestId?: number }) => {
