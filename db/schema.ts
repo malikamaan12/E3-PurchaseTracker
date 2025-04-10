@@ -93,6 +93,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityScore: integer("priority_score"),
   priorityReason: text("priority_reason"),
   priorityRecommendations: text("priority_recommendations").$type<string[]>(),
+  additionalApprovers: text("additional_approvers").$type<string[]>(), // Add additionalApprovers field
   currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   freightAmount: integer("freight_amount").notNull().default(0),
