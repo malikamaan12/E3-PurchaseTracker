@@ -738,8 +738,8 @@ export function registerRoutes(app: Express): Server {
         updatedAt: new Date(),
         // Properly stringify the items array
         items: JSON.stringify(items),
-        // Ensure additionalApprovers is saved
-        additionalApprovers: additionalApprovers
+        // Properly stringify the additionalApprovers array
+        additionalApprovers: JSON.stringify(additionalApprovers)
       };
 
       // If saving as draft, make sure required fields are not enforced
@@ -1171,11 +1171,13 @@ export function registerRoutes(app: Express): Server {
         console.log("No items provided, using defaults for draft");
       }
 
-      // Make sure additionalApprovers is an array
+      // Make sure additionalApprovers is an array and stringify it
       if (updateData.additionalApprovers !== undefined) {
-        finalUpdateData.additionalApprovers = Array.isArray(updateData.additionalApprovers) 
-          ? updateData.additionalApprovers 
-          : [];
+        finalUpdateData.additionalApprovers = JSON.stringify(
+          Array.isArray(updateData.additionalApprovers) 
+            ? updateData.additionalApprovers 
+            : []
+        );
       }
       
       // Handle date fields properly by converting string dates to proper Date objects
