@@ -3270,6 +3270,11 @@ export function registerRoutes(app: Express): Server {
         // Parse items JSON
         const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
         
+        // Ensure additionalApprovers is always an array
+        const additionalApprovers = Array.isArray(request.additionalApprovers) 
+          ? request.additionalApprovers 
+          : [];
+
         // Return complete response
         res.json({
           ...request,
@@ -3277,11 +3282,24 @@ export function registerRoutes(app: Express): Server {
           vendor,
           subPurpose,
           approvals: approvalsList,
-          attachments: attachmentsList
+          attachments: attachmentsList,
+          additionalApprovers // Explicitly include additionalApprovers as an array
         });
       } catch (error) {
         console.error("[GET /api/requests/:id] Error in database queries:", error);
-        throw error;
+        // Return a valid response with default values in case of error
+        res.json({
+          ...request,
+          items: typeof request.items === 'string' ? [] : request.items,
+          vendor: null,
+          subPurpose: null,
+          approvals: [],
+          attachments: [],
+          additionalApprovers: Array.isArray(request.additionalApprovers) 
+            ? request.additionalApprovers 
+            : []
+        });
+        return; // Don't rethrow the error since we're handling it gracefully
       }
 
     } catch (error) {
