@@ -326,9 +326,11 @@ export function registerRoutes(app: Express): Server {
         const isApprover = approvalsForUser.length > 0;
         
         // Check if user's department is in additional approvers
-        const additionalApprovers = Array.isArray(request.additionalApprovers) 
-          ? request.additionalApprovers 
-          : [];
+        const additionalApprovers = typeof request.additionalApprovers === 'string'
+          ? JSON.parse(request.additionalApprovers)
+          : Array.isArray(request.additionalApprovers) 
+            ? request.additionalApprovers 
+            : [];
           
         const isAdditionalApprover = req.user?.department && additionalApprovers.includes(req.user.department);
         
@@ -602,9 +604,11 @@ export function registerRoutes(app: Express): Server {
           }
           
           // 3. User's department is in additionalApprovers for this request
-          const additionalApprovers = Array.isArray(request.additionalApprovers) 
-            ? request.additionalApprovers 
-            : [];
+          const additionalApprovers = typeof request.additionalApprovers === 'string'
+            ? JSON.parse(request.additionalApprovers)
+            : Array.isArray(request.additionalApprovers) 
+              ? request.additionalApprovers 
+              : [];
             
           if (req.user?.department && additionalApprovers.includes(req.user.department)) {
             return true;
@@ -3272,10 +3276,12 @@ export function registerRoutes(app: Express): Server {
         // Parse items JSON
         const items = typeof request.items === 'string' ? JSON.parse(request.items) : request.items;
         
-        // Ensure additionalApprovers is always an array
-        const additionalApprovers = Array.isArray(request.additionalApprovers) 
-          ? request.additionalApprovers 
-          : [];
+        // Parse additionalApprovers JSON
+        const additionalApprovers = typeof request.additionalApprovers === 'string' 
+          ? JSON.parse(request.additionalApprovers) 
+          : Array.isArray(request.additionalApprovers) 
+            ? request.additionalApprovers 
+            : [];
 
         // Return complete response
         res.json({
