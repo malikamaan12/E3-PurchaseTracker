@@ -45,7 +45,8 @@ export function registerUnifiedPdfRoutes(app: Express) {
   // Get login logo
   app.get("/api/login-logo", async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      // Use E3 White logo from public directory
+      // Force return the E3 white logo path - don't rely on PDF settings
+      console.log('Returning E3 White logo path');
       return res.json({ loginLogo: '/images/e3-white-logo.png' });
     } catch (error) {
       next(error);

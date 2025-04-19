@@ -13,6 +13,8 @@ import type { LoginCredentials } from "@db/schema";
 import AccountRequestForm from "@/components/AccountRequestForm";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import e3Logo from "../assets/e3-logo.svg";
+// Import e3WhiteLogo
+const e3WhiteLogo = "/images/e3-white-logo.png";
 
 // Custom hook to fetch the login logo
 function useLoginLogo() {
@@ -28,6 +30,7 @@ function useLoginLogo() {
           throw new Error('Failed to fetch login logo');
         }
         const data = await response.json();
+        console.log('Login logo data:', data);
         if (data.loginLogo) {
           setLogoUrl(data.loginLogo);
         }
@@ -101,19 +104,15 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-6">
-          {logoUrl ? (
-            <img 
-              src={logoUrl} 
-              alt="Company Logo" 
-              className="h-20 w-auto object-contain" 
-              onError={(e) => {
-                console.error('Error loading custom logo, falling back to default');
-                e.currentTarget.src = e3Logo;
-              }}
-            />
-          ) : (
-            <img src={e3Logo} alt="E3 Logo" className="h-20 w-auto" />
-          )}
+          <img 
+            src={e3WhiteLogo} 
+            alt="E3 White Logo" 
+            className="h-20 w-auto object-contain" 
+            onError={(e) => {
+              console.error('Error loading white logo, falling back to default');
+              e.currentTarget.src = e3Logo;
+            }}
+          />
         </div>
         <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg">
           <CardHeader className="border-b border-[#35bbba]/20 dark:border-[#35bbba]/40 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/10 dark:to-[#35bbba]/10">
