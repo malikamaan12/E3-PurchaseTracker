@@ -32,6 +32,9 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
+// Serve static files from the public directory
+app.use(express.static(path.join(process.cwd(), 'public')));
+
 // Add detailed request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
