@@ -58,7 +58,7 @@ export function EnhancedNotificationsDropdown({
     refetch 
   } = useEnhancedNotifications({
     autoPolling: true,
-    pollInterval: 30000,
+    pollInterval: 60000, // Increase to 60 seconds from 30 to reduce API calls
     includeRead: true
   });
 

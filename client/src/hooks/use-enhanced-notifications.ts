@@ -246,30 +246,32 @@ export function useEnhancedNotifications(options?: {
     retry: MAX_RETRIES
   });
 
-  // Setup polling
+  // Setup polling - optimized to prevent excessive API calls
   useEffect(() => {
     // Initialize lastFetchTime on mount to avoid invalid date issues
     if (lastFetchTime === null) {
       setLastFetchTime(new Date());
     }
     
-    const startPolling = () => {
-      if (autoPolling && !pollTimerRef) {
-        const id = window.setInterval(() => {
-          // Use a safe way to update the date to avoid invalid date objects
-          const now = new Date();
-          if (!isNaN(now.getTime())) {
+    // Only create one interval timer and ensure we don't have multiple timers running
+    if (autoPolling && !pollTimerRef) {
+      // Create a debounced version of the refetch to prevent excessive API calls
+      const debouncedRefetch = () => {
+        // Use a safe way to update the date to avoid invalid date objects
+        const now = new Date();
+        if (!isNaN(now.getTime())) {
+          // Only update if significant time has passed (at least 5 seconds)
+          if (!lastFetchTime || now.getTime() - lastFetchTime.getTime() > 5000) {
             setLastFetchTime(now);
             refetch();
           }
-        }, pollInterval);
-        setPollTimerRef(id);
-        return id;
-      }
-      return null;
-    };
-
-    const timerId = startPolling();
+        }
+      };
+      
+      // Setup the interval timer with a longer interval (60 seconds instead of 30)
+      const id = window.setInterval(debouncedRefetch, 60000);
+      setPollTimerRef(id);
+    }
 
     // Cleanup polling on unmount
     return () => {
@@ -277,11 +279,8 @@ export function useEnhancedNotifications(options?: {
         window.clearInterval(pollTimerRef);
         setPollTimerRef(null);
       }
-      if (timerId) {
-        window.clearInterval(timerId);
-      }
     };
-  }, [autoPolling, pollInterval, refetch, lastFetchTime]);
+  }, [autoPolling, refetch, lastFetchTime]);
 
   // Safely calculate counts
   const notificationArray = Array.isArray(notifications) ? notifications : [];

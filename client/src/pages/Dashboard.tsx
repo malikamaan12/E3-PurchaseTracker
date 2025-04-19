@@ -286,8 +286,8 @@ export default function Dashboard() {
     return filtered;
   }, [safeRequests, user, activeFilters]);
 
-  // Update department list from requests
-  useEffect(() => {
+  // Update department list from requests - use useMemo instead of useEffect to prevent unnecessary re-renders
+  useMemo(() => {
     if (Array.isArray(safeRequests)) {
       const uniqueDepartments = Array.from(
         new Set(
@@ -296,9 +296,13 @@ export default function Dashboard() {
             .filter((d): d is string => !!d)
         )
       );
-      setDepartments(uniqueDepartments);
+      
+      // Only update if departments actually changed
+      if (JSON.stringify(uniqueDepartments) !== JSON.stringify(departments)) {
+        setDepartments(uniqueDepartments);
+      }
     }
-  }, [safeRequests]);
+  }, [safeRequests, departments]);
 
   // Calculate filtered requests for each category
   const categorizedRequests = useMemo(() => ({

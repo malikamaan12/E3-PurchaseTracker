@@ -26,7 +26,7 @@ export function useNotifications() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Enhanced real-time notification query with proper error handling
+  // Enhanced real-time notification query with proper error handling and optimization
   const { data: notifications = [], isLoading, error } = useQuery<Notification[], NotificationError>({
     queryKey: [API_ROUTES.NOTIFICATIONS],
     retry: NOTIFICATION_CONFIG.MAX_RETRIES,
@@ -34,10 +34,9 @@ export function useNotifications() {
       NOTIFICATION_CONFIG.MIN_RETRY_DELAY * Math.pow(2, attemptIndex),
       NOTIFICATION_CONFIG.MAX_RETRY_DELAY
     ),
-    // Removed redundant refetchInterval to prevent duplicate polling that was causing
-    // Maximum update depth exceeded errors. This is now handled manually in the NotificationsDropdown
-    refetchOnWindowFocus: true,
-    staleTime: 5000, // Consider data stale after 5 seconds
+    // Performance optimization: Increase stale time and decrease refetch frequency
+    refetchOnWindowFocus: false, // Only refetch on manual trigger or interval
+    staleTime: 60000, // Consider data stale after 60 seconds instead of 5
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchOnReconnect: true,
     select: (data: Notification[]) => {

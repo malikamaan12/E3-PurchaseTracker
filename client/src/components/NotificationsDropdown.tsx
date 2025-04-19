@@ -36,32 +36,32 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
   const { notifications, unreadCount, highPriorityCount, isLoading, markAsRead, refetch } = useNotifications();
   const pollTimerRef = useRef<number | null>(null);
 
-  // Setup polling with proper error handling and cleanup
+  // Optimized polling with proper error handling and cleanup
   useEffect(() => {
     const pollNotifications = async () => {
       try {
-        await refetch();
+        // Only fetch if dropdown is open and not already loading
+        if (open && !isLoading) {
+          await refetch();
+        }
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
     };
 
-    // Initial fetch when dropdown opens
+    // Only poll when dropdown is open
     if (open) {
-      // Start polling only if we don't have an active timer
+      // Fetch once immediately when opened
+      pollNotifications();
+      
+      // Set up polling with a longer interval (60 seconds instead of 30)
       if (!pollTimerRef.current) {
-        // Initial fetch, but only if we're not already loading
-        if (!isLoading) {
-          pollNotifications();
-        }
-        pollTimerRef.current = window.setInterval(pollNotifications, 30000); // Poll every 30 seconds
+        pollTimerRef.current = window.setInterval(pollNotifications, 60000);
       }
-    } else {
+    } else if (pollTimerRef.current) {
       // Clear polling when dropdown closes
-      if (pollTimerRef.current) {
-        window.clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
     }
 
     // Cleanup function
@@ -71,7 +71,7 @@ export function NotificationsDropdown({ onNotificationClick }: NotificationsDrop
         pollTimerRef.current = null;
       }
     };
-  }, [open, refetch]);
+  }, [open, refetch, isLoading]);
   
   // Removed duplicate cleanup effect that was causing potential memory issues
 
