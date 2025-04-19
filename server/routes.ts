@@ -832,6 +832,92 @@ export function registerRoutes(app: Express): Server {
 
       console.log(`Purchase request ${action === 'draft' ? 'draft saved' : 'submitted'} successfully:`, request.id);
 
+      // If the request is being submitted (not saved as draft), send notifications
+      if (action !== 'draft' && request.status === 'pending') {
+        try {
+          // Get mandatory approvers
+          const mandatoryApprovers = await db
+            .select()
+            .from(users)
+            .where(and(
+              eq(users.role, 'approver'),
+              eq(users.isActive, true)
+            ));
+          
+          console.log(`Found ${mandatoryApprovers.length} mandatory approvers for notification`);
+          
+          // Parse and process additionalApprovers
+          let additionalApproverDepartments: string[] = [];
+          if (request.additionalApprovers) {
+            try {
+              additionalApproverDepartments = typeof request.additionalApprovers === 'string'
+                ? JSON.parse(request.additionalApprovers) 
+                : Array.isArray(request.additionalApprovers) 
+                  ? request.additionalApprovers 
+                  : [];
+            } catch (err) {
+              console.error('Error parsing additionalApprovers:', err);
+              additionalApproverDepartments = [];
+            }
+          }
+          
+          console.log('Found additional approver departments:', additionalApproverDepartments);
+          
+          // Get users from additional approver departments
+          let additionalApproverUsers: any[] = [];
+          if (additionalApproverDepartments.length > 0) {
+            additionalApproverUsers = await db
+              .select()
+              .from(users)
+              .where(and(
+                inArray(users.department, additionalApproverDepartments),
+                eq(users.isActive, true)
+              ));
+            
+            console.log(`Found ${additionalApproverUsers.length} additional approvers from departments:`, 
+              additionalApproverDepartments);
+          }
+          
+          // Combine all approvers, ensuring no duplicates by user ID
+          const allApprovers = [...mandatoryApprovers];
+          
+          // Add additional approvers, avoiding duplicates
+          additionalApproverUsers.forEach(additionalApprover => {
+            if (!allApprovers.some(a => a.id === additionalApprover.id)) {
+              allApprovers.push(additionalApprover);
+            }
+          });
+          
+          console.log(`Sending notifications to ${allApprovers.length} approvers for request ${request.id}`);
+          
+          // Get requester name for the notification message
+          const [requester] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, req.user!.id))
+            .limit(1);
+            
+          const requesterName = requester ? requester.username : 'A user';
+          const requesterDept = requester ? requester.department : 'an unknown department';
+          
+          // Send notifications to all approvers
+          await Promise.all(allApprovers.map(approver =>
+            notificationService.createNotification({
+              userId: approver.id,
+              title: 'New Purchase Request',
+              message: `${requesterName} from ${requesterDept} submitted a new request "${request.title}" that requires your approval.`,
+              type: 'approval_required',
+              requestId: request.id,
+              priority: 'high',
+              actionType: 'approve'
+            })
+          ));
+        } catch (notificationError) {
+          console.error('Error sending notifications for new request:', notificationError);
+          // Continue even if notification sending fails
+        }
+      }
+
       // Return detailed response with parsed items
       res.status(201).json({
         ...request,
@@ -1220,6 +1306,7 @@ export function registerRoutes(app: Express): Server {
 
       // If transitioning to pending, create notification for approvers
       if (updateData.status === 'pending') {
+        // Get all mandatory approvers with 'approver' role
         const approvers = await db
           .select()
           .from(users)
@@ -1228,8 +1315,52 @@ export function registerRoutes(app: Express): Server {
             eq(users.isActive, true)
           ));
 
+        // Parse additionalApprovers if present
+        let additionalApproverDepartments: string[] = [];
+        if (updatedRequest.additionalApprovers) {
+          try {
+            additionalApproverDepartments = typeof updatedRequest.additionalApprovers === 'string'
+              ? JSON.parse(updatedRequest.additionalApprovers) 
+              : Array.isArray(updatedRequest.additionalApprovers) 
+                ? updatedRequest.additionalApprovers 
+                : [];
+          } catch (err) {
+            console.error('Error parsing additionalApprovers:', err);
+            additionalApproverDepartments = [];
+          }
+        }
+
+        console.log('Found additional approver departments:', additionalApproverDepartments);
+
+        // Get users from additional approver departments
+        let additionalApproversUsers: any[] = [];
+        if (additionalApproverDepartments.length > 0) {
+          additionalApproversUsers = await db
+            .select()
+            .from(users)
+            .where(and(
+              inArray(users.department, additionalApproverDepartments),
+              eq(users.isActive, true)
+            ));
+          
+          console.log(`Found ${additionalApproversUsers.length} additional approvers from departments:`, 
+            additionalApproverDepartments);
+        }
+
+        // Combine all approvers, ensuring no duplicates by user ID
+        const allApprovers = [...approvers];
+        
+        // Add additional approvers, avoiding duplicates
+        additionalApproversUsers.forEach(additionalApprover => {
+          if (!allApprovers.some(a => a.id === additionalApprover.id)) {
+            allApprovers.push(additionalApprover);
+          }
+        });
+
+        console.log(`Sending notifications to ${allApprovers.length} approvers for request ${updatedRequest.id}`);
+
         // Only send notification once to each approver
-        await Promise.all(approvers.map(approver =>
+        await Promise.all(allApprovers.map(approver =>
           notificationService.createNotification({
             userId: approver.id,
             title: 'New Purchase Request',
