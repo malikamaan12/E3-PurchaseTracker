@@ -1,28 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { PdfSettings, DEFAULT_PDF_SETTINGS } from '../services/pdfService';
-import { Card } from '@/components/ui/card';
-import { Spinner } from '../components/ui/spinner';
+import React, { useState, useEffect } from "react";
+import { PdfSettings, DEFAULT_PDF_SETTINGS } from "../services/pdfService";
+import { Card } from "@/components/ui/card";
+import { Spinner } from "../components/ui/spinner";
 
 interface PDFPreviewProps {
   settings?: Partial<PdfSettings>;
   previewData?: any;
 }
 
-const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) => {
+const PDFPreview: React.FC<PDFPreviewProps> = ({
+  settings = {},
+  previewData,
+}) => {
   const [loading, setLoading] = useState(true);
-  
+
   // Ensure settings is never undefined
   const safeSettings = settings || {};
-  
+
   useEffect(() => {
     // Simulate loading of PDF preview
     const timer = setTimeout(() => {
       setLoading(false);
     }, 1000);
-    
+
     return () => clearTimeout(timer);
   }, []);
-  
+
   // Apply settings to create a visual representation of the PDF
   const renderPreview = () => {
     if (loading) {
@@ -32,134 +35,156 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
         </div>
       );
     }
-    
+
     return (
       <div className="pdf-preview-container">
         {/* PDF Page Preview */}
         <div className="paper a4 mx-auto shadow-lg bg-white">
           {/* Header */}
           {safeSettings.showHeader !== false && (
-            <div 
+            <div
               className="pdf-header"
               style={{
-                backgroundColor: safeSettings.headerColor || '#0066cc',
+                backgroundColor: safeSettings.headerColor || "#0066cc",
                 height: `${safeSettings.headerHeight || 60}px`,
-                color: '#ffffff',
-                padding: '8px 15px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
+                color: "#ffffff",
+                padding: "8px 15px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
               <div className="flex items-center">
                 {safeSettings.showLogo !== false && safeSettings.logo && (
-                  <div 
+                  <div
                     className="pdf-logo mr-4"
                     style={{
-                      justifyContent: safeSettings.logoPosition === 'center' ? 'center' 
-                        : safeSettings.logoPosition === 'right' ? 'flex-end' 
-                        : 'flex-start'
+                      justifyContent:
+                        safeSettings.logoPosition === "center"
+                          ? "center"
+                          : safeSettings.logoPosition === "right"
+                            ? "flex-end"
+                            : "flex-start",
                     }}
                   >
-                    <img 
-                      src={safeSettings.logo} 
-                      alt="Logo" 
-                      className="h-10 object-contain" 
+                    <img
+                      src={safeSettings.logo}
+                      alt="Logo"
+                      className="h-10 object-contain"
                     />
                   </div>
                 )}
                 <div>
-                  <h1 className="text-xl font-bold">{safeSettings.headerTitle || 'Purchase Request'}</h1>
+                  <h1 className="text-xl font-bold">
+                    {safeSettings.headerTitle || "Purchase Request"}
+                  </h1>
                   {safeSettings.headerSubtitle && (
                     <p className="text-sm">{safeSettings.headerSubtitle}</p>
                   )}
                 </div>
               </div>
-              
+
               {safeSettings.headerImage && (
                 <div className="pdf-header-image">
-                  <img 
-                    src={safeSettings.headerImage} 
-                    alt="Header" 
-                    className="h-12 object-contain" 
+                  <img
+                    src={safeSettings.headerImage}
+                    alt="Header"
+                    className="h-12 object-contain"
                   />
                 </div>
               )}
             </div>
           )}
-          
+
           {/* Watermark (if enabled) */}
           {safeSettings.useWatermark && (
-            <div 
+            <div
               className="pdf-watermark absolute"
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 0,
                 left: 0,
                 right: 0,
                 bottom: 0,
-                display: 'flex',
-                alignItems: safeSettings.watermarkPosition === 'corner' ? 'flex-start' : 'center',
-                justifyContent: safeSettings.watermarkPosition === 'corner' ? 'flex-end' : 'center',
-                pointerEvents: 'none',
+                display: "flex",
+                alignItems:
+                  safeSettings.watermarkPosition === "corner"
+                    ? "flex-start"
+                    : "center",
+                justifyContent:
+                  safeSettings.watermarkPosition === "corner"
+                    ? "flex-end"
+                    : "center",
+                pointerEvents: "none",
                 opacity: safeSettings.watermarkOpacity || 0.15,
                 zIndex: 10,
-                overflow: 'hidden'
+                overflow: "hidden",
               }}
             >
-              {safeSettings.watermarkPosition === 'tile' ? (
-                <div className="watermark-tile" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundImage: `repeating-linear-gradient(${safeSettings.watermarkRotation || 45}deg, transparent, transparent 100px, rgba(117, 117, 117, 0.2) 100px, rgba(117, 117, 117, 0.2) 350px)`,
-                  backgroundSize: '400px 400px'
-                }}>
+              {safeSettings.watermarkPosition === "tile" ? (
+                <div
+                  className="watermark-tile"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: `repeating-linear-gradient(${safeSettings.watermarkRotation || 45}deg, transparent, transparent 100px, rgba(117, 117, 117, 0.2) 100px, rgba(117, 117, 117, 0.2) 350px)`,
+                    backgroundSize: "400px 400px",
+                  }}
+                >
                   <div className="grid grid-cols-3 gap-x-32 gap-y-40 p-20">
-                    {Array(9).fill(0).map((_, index) => (
-                      <div 
-                        key={index}
-                        style={{
-                          transform: `rotate(${safeSettings.watermarkRotation || 45}deg)`,
-                          fontSize: '1.5rem',
-                          fontWeight: 'bold',
-                          color: '#757575',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {safeSettings.watermarkText || 'CONFIDENTIAL'}
-                      </div>
-                    ))}
+                    {Array(9)
+                      .fill(0)
+                      .map((_, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            transform: `rotate(${safeSettings.watermarkRotation || 45}deg)`,
+                            fontSize: "1.5rem",
+                            fontWeight: "bold",
+                            color: "#757575",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {safeSettings.watermarkText || "CONFIDENTIAL"}
+                        </div>
+                      ))}
                   </div>
                 </div>
               ) : (
-                <div 
+                <div
                   style={{
                     transform: `rotate(${safeSettings.watermarkRotation || 45}deg)`,
-                    fontSize: safeSettings.watermarkPosition === 'corner' ? '1.5rem' : '3rem',
-                    fontWeight: 'bold',
-                    color: '#757575',
-                    whiteSpace: 'nowrap',
-                    margin: safeSettings.watermarkPosition === 'corner' ? '20px' : '0'
+                    fontSize:
+                      safeSettings.watermarkPosition === "corner"
+                        ? "1.5rem"
+                        : "3rem",
+                    fontWeight: "bold",
+                    color: "#757575",
+                    whiteSpace: "nowrap",
+                    margin:
+                      safeSettings.watermarkPosition === "corner"
+                        ? "20px"
+                        : "0",
                   }}
                 >
-                  {safeSettings.watermarkText || 'CONFIDENTIAL'}
+                  {safeSettings.watermarkText || "CONFIDENTIAL"}
                 </div>
               )}
             </div>
           )}
-          
+
           {/* Content Section */}
-          <div 
+          <div
             className="pdf-content"
             style={{
               padding: `${safeSettings.marginTop || 25}px ${safeSettings.marginRight || 25}px ${safeSettings.marginBottom || 25}px ${safeSettings.marginLeft || 25}px`,
-              fontFamily: safeSettings.fontFamily || 'Arial, sans-serif',
+              fontFamily: safeSettings.fontFamily || "Arial, sans-serif",
               fontSize: `${safeSettings.fontSize || 10}pt`,
-              position: 'relative',
-              zIndex: 20
+              position: "relative",
+              zIndex: 20,
             }}
           >
             {/* Basic Request Information */}
@@ -186,7 +211,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </div>
               </div>
             )}
-            
             {/* Requester Details */}
             {safeSettings.showRequesterDetails !== false && (
               <div className="mb-6 border-b pb-4">
@@ -211,7 +235,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </div>
               </div>
             )}
-            
             {/* Purpose Information */}
             {safeSettings.showPurposeInfo !== false && (
               <div className="mb-6 border-b pb-4">
@@ -222,15 +245,19 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Description:</p>
-                  <p className="font-medium">This purchase request is for materials needed for the Q2 Marketing Campaign focused on new product launch.</p>
+                  <p className="font-medium">
+                    This purchase request is for materials needed for the Q2
+                    Marketing Campaign focused on new product launch.
+                  </p>
                 </div>
               </div>
             )}
-            
             {/* Vendor Details */}
             {safeSettings.showVendorDetails !== false && (
               <div className="mb-6 border-b pb-4">
-                <h2 className="text-lg font-semibold mb-3">Vendor Information</h2>
+                <h2 className="text-lg font-semibold mb-3">
+                  Vendor Information
+                </h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Vendor Name:</p>
@@ -251,7 +278,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </div>
               </div>
             )}
-            
             {/* Items List */}
             {safeSettings.showItems !== false && (
               <div className="mb-6 border-b pb-4">
@@ -260,16 +286,24 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border p-2 text-left text-sm">Item</th>
-                      <th className="border p-2 text-left text-sm">Description</th>
-                      <th className="border p-2 text-right text-sm">Quantity</th>
-                      <th className="border p-2 text-right text-sm">Unit Cost</th>
+                      <th className="border p-2 text-left text-sm">
+                        Description
+                      </th>
+                      <th className="border p-2 text-right text-sm">
+                        Quantity
+                      </th>
+                      <th className="border p-2 text-right text-sm">
+                        Unit Cost
+                      </th>
                       <th className="border p-2 text-right text-sm">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
                       <td className="border p-2">Marketing Brochures</td>
-                      <td className="border p-2">Product brochures for event</td>
+                      <td className="border p-2">
+                        Product brochures for event
+                      </td>
                       <td className="border p-2 text-right">500</td>
                       <td className="border p-2 text-right">$2.50</td>
                       <td className="border p-2 text-right">$1,250.00</td>
@@ -292,24 +326,35 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                   <tfoot>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
-                      <td className="border p-2 text-right font-medium">Subtotal:</td>
-                      <td className="border p-2 text-right font-medium">$2,787.50</td>
+                      <td className="border p-2 text-right font-medium">
+                        Subtotal:
+                      </td>
+                      <td className="border p-2 text-right font-medium">
+                        $2,787.50
+                      </td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
-                      <td className="border p-2 text-right font-medium">Freight:</td>
-                      <td className="border p-2 text-right font-medium">$150.00</td>
+                      <td className="border p-2 text-right font-medium">
+                        Freight:
+                      </td>
+                      <td className="border p-2 text-right font-medium">
+                        $150.00
+                      </td>
                     </tr>
                     <tr className="bg-gray-50">
                       <td colSpan={3} className="border p-2"></td>
-                      <td className="border p-2 text-right font-medium">Total:</td>
-                      <td className="border p-2 text-right font-medium">$2,937.50</td>
+                      <td className="border p-2 text-right font-medium">
+                        Total:
+                      </td>
+                      <td className="border p-2 text-right font-medium">
+                        $2,937.50
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             )}
-            
             {/* Approvals */}
             {safeSettings.showApprovals !== false && (
               <div className="mb-6 border-b pb-4">
@@ -317,7 +362,9 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border p-2 text-left text-sm">Department</th>
+                      <th className="border p-2 text-left text-sm">
+                        Department
+                      </th>
                       <th className="border p-2 text-left text-sm">Approver</th>
                       <th className="border p-2 text-left text-sm">Status</th>
                       <th className="border p-2 text-left text-sm">Date</th>
@@ -350,7 +397,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </table>
               </div>
             )}
-            
             {/* Attachments List */}
             {safeSettings.showAttachments !== false && (
               <div className="mb-6 border-b pb-4">
@@ -362,7 +408,6 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                 </ul>
               </div>
             )}
-            
             {/* Signature Lines */}
             {safeSettings.showSignatures !== false && (
               <div className="mb-6 mt-12">
@@ -374,68 +419,76 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ settings = {}, previewData }) =
                   </div>
                   <div>
                     <div className="border-t border-gray-400 pt-2">
-                      <p className="text-sm text-center">Final Approval Signature</p>
+                      <p className="text-sm text-center">
+                        Final Approval Signature
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
             {/* Company Information (if provided) */}
-            {safeSettings.companyAddress || safeSettings.companyPhone || safeSettings.companyEmail || safeSettings.companyWebsite ? (
+            {safeSettings.companyAddress ||
+            safeSettings.companyPhone ||
+            safeSettings.companyEmail ||
+            safeSettings.companyWebsite ? (
               <div className="mt-8 pt-4 border-t text-center text-sm text-gray-500">
-                {safeSettings.companyAddress && <p>{safeSettings.companyAddress}</p>}
+                {safeSettings.companyAddress && (
+                  <p>{safeSettings.companyAddress}</p>
+                )}
                 <div className="flex justify-center space-x-4">
-                  {safeSettings.companyPhone && <p>Phone: {safeSettings.companyPhone}</p>}
-                  {safeSettings.companyEmail && <p>Email: {safeSettings.companyEmail}</p>}
-                  {safeSettings.companyWebsite && <p>Web: {safeSettings.companyWebsite}</p>}
+                  {safeSettings.companyPhone && (
+                    <p>Phone: {safeSettings.companyPhone}</p>
+                  )}
+                  {safeSettings.companyEmail && (
+                    <p>Email: {safeSettings.companyEmail}</p>
+                  )}
+                  {safeSettings.companyWebsite && (
+                    <p>Web: {safeSettings.companyWebsite}</p>
+                  )}
                 </div>
               </div>
             ) : null}
           </div>
-          
+
           {/* Footer */}
           {safeSettings.showFooter !== false && (
-            <div 
+            <div
               className="pdf-footer"
               style={{
-                backgroundColor: safeSettings.footerColor || '#eeeeee',
+                backgroundColor: safeSettings.footerColor || "#eeeeee",
                 height: `${safeSettings.footerHeight || 30}px`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 15px',
-                fontSize: '8pt'
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 15px",
+                fontSize: "8pt",
               }}
             >
-              <div>
-                {safeSettings.footerText || 'Purchase Request System'}
-              </div>
-              
+              <div>{safeSettings.footerText || "Purchase Request System"}</div>
+
               {safeSettings.footerImage && (
                 <div className="pdf-footer-image">
-                  <img 
-                    src={safeSettings.footerImage} 
-                    alt="Footer" 
-                    className="h-6 object-contain" 
+                  <img
+                    src={safeSettings.footerImage}
+                    alt="Footer"
+                    className="h-6 object-contain"
                   />
                 </div>
               )}
-              
-              {safeSettings.pageNumbering !== false && (
-                <div>Page 1 of 1</div>
-              )}
+
+              {safeSettings.pageNumbering !== false && <div>Page 1 of 1</div>}
             </div>
           )}
         </div>
       </div>
     );
   };
-  
+
   return (
     <div className="pdf-preview relative">
       {renderPreview()}
-      
+
       <style>{`
         .paper {
           box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);

@@ -1,6 +1,6 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { applyPdfWatermark } from './pdfAuditUtils';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { applyPdfWatermark } from "./pdfAuditUtils";
 
 // =========== Utility Types & Functions =========== //
 
@@ -40,52 +40,52 @@ interface PurchaseRequest {
 
 // Converts a `Date` or date-string to `MM/DD/YYYY` (or your desired format)
 function formatDate(date: string | Date | undefined): string {
-  if (!date) return 'N/A';
+  if (!date) return "N/A";
   try {
-    return new Date(date).toLocaleDateString(); 
+    return new Date(date).toLocaleDateString();
   } catch {
-    return 'N/A';
+    return "N/A";
   }
 }
 
 // Simple currency formatter
-function formatCurrency(amount: number, currency = 'QAR') {
+function formatCurrency(amount: number, currency = "QAR") {
   return `${currency} ${amount.toLocaleString()}`;
 }
 
 // =========== PDF GENERATOR MAIN FUNCTION =========== //
-import { applySecurityWatermark } from './pdfAuditUtils';
+import { applySecurityWatermark } from "./pdfAuditUtils";
 
 export async function generatePurchaseRequestPDF(
   request: PurchaseRequest,
   options?: {
-    showApprovals?: boolean;    // whether to include approvals table
-    showAttachments?: boolean;  // whether to include attachments table
-    showSignatures?: boolean;   // whether to add signature lines
-    headerImage?: string;       // custom header logo
-    footerImage?: string;       // custom footer image
+    showApprovals?: boolean; // whether to include approvals table
+    showAttachments?: boolean; // whether to include attachments table
+    showSignatures?: boolean; // whether to add signature lines
+    headerImage?: string; // custom header logo
+    footerImage?: string; // custom footer image
     companyInfo?: {
       phone?: string;
       email?: string;
       website?: string;
       address?: string;
     };
-    footerText?: string;        // e.g. "Designed by Team E3"
-    pageNumbering?: boolean;    // default true
-    headerColor?: string;       // header color
-    footerColor?: string;       // footer color
-    type?: 'user' | 'approver' | 'admin'; // pdf type
-    showWatermark?: boolean;    // whether to show watermark
-    watermarkText?: string;     // watermark text content
-    watermarkOpacity?: number;  // watermark opacity (0-1)
-    securityLevel?: 'confidential' | 'internal' | 'restricted' | 'public'; // document security
-  }
+    footerText?: string; // e.g. "Designed by Team E3"
+    pageNumbering?: boolean; // default true
+    headerColor?: string; // header color
+    footerColor?: string; // footer color
+    type?: "user" | "approver" | "admin"; // pdf type
+    showWatermark?: boolean; // whether to show watermark
+    watermarkText?: string; // watermark text content
+    watermarkOpacity?: number; // watermark opacity (0-1)
+    securityLevel?: "confidential" | "internal" | "restricted" | "public"; // document security
+  },
 ) {
   const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-    compress: true
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+    compress: true,
   });
 
   // Defaults with consolidated PDF type logic
@@ -95,19 +95,21 @@ export async function generatePurchaseRequestPDF(
     // Always include attachments if they exist
     showAttachments: true,
     // Only show signatures for admin or approver users
-    showSignatures: options?.showSignatures ?? (options?.type === 'admin' || options?.type === 'approver'),
-    headerImage: options?.headerImage || '',
-    footerImage: options?.footerImage || '',
-    footerText: options?.footerText || 'Designed by Team E3',
+    showSignatures:
+      options?.showSignatures ??
+      (options?.type === "admin" || options?.type === "approver"),
+    headerImage: options?.headerImage || "",
+    footerImage: options?.footerImage || "",
+    footerText: options?.footerText || "Designed by Team E3",
     pageNumbering: options?.pageNumbering !== false, // default true
     companyInfo: options?.companyInfo || {},
-    headerColor: options?.headerColor || '#6F2AE6', // E3 purple
-    footerColor: options?.footerColor || '#6F2AE6', // E3 purple
-    type: options?.type || 'user',
+    headerColor: options?.headerColor || "#6F2AE6", // E3 purple
+    footerColor: options?.footerColor || "#6F2AE6", // E3 purple
+    type: options?.type || "user",
     showWatermark: options?.showWatermark ?? true,
-    watermarkText: options?.watermarkText || 'E3 CONFIDENTIAL',
+    watermarkText: options?.watermarkText || "E3 CONFIDENTIAL",
     watermarkOpacity: options?.watermarkOpacity || 0.1,
-    securityLevel: options?.securityLevel || 'internal'
+    securityLevel: options?.securityLevel || "internal",
   };
 
   let cursorY = 10; // tracks vertical position
@@ -153,11 +155,11 @@ export async function generatePurchaseRequestPDF(
     doc.setPage(i);
     addFooter(doc, i, pageCount, cfg);
   }
-  
+
   // Apply security watermark if enabled
-  if (cfg.securityLevel && cfg.securityLevel !== 'public') {
+  if (cfg.securityLevel && cfg.securityLevel !== "public") {
     applySecurityWatermark(doc, cfg.securityLevel);
-  } 
+  }
   // Apply custom watermark if security watermark is not used but watermark is enabled
   else if (cfg.showWatermark && cfg.watermarkText) {
     applyPdfWatermark(doc, cfg.watermarkText, cfg.watermarkOpacity);
@@ -172,7 +174,7 @@ async function addHeader(
   doc: jsPDF,
   request: PurchaseRequest,
   startY: number,
-  cfg: any
+  cfg: any,
 ): Promise<number> {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
@@ -190,38 +192,48 @@ async function addHeader(
       // Insert the image on the left
       const imgWidth = 40;
       const imgHeight = 15;
-      doc.addImage(img, 'PNG', margin, startY, imgWidth, imgHeight);
+      doc.addImage(img, "PNG", margin, startY, imgWidth, imgHeight);
     } catch (error) {
       console.error("Failed to load header image:", error);
-      
+
       // Render a decent looking E3 banner if image fails
       doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-      doc.rect(margin, startY, 40, 15, 'F');
+      doc.rect(margin, startY, 40, 15, "F");
       doc.setFontSize(10);
       doc.setTextColor(255, 255, 255);
-      doc.text("E3", margin + 20, startY + 9, { align: 'center' });
+      doc.text("E3", margin + 20, startY + 9, { align: "center" });
       doc.setTextColor(0, 0, 0);
     }
   } else {
     // Render a decent looking E3 banner if no image provided
     doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-    doc.rect(margin, startY, 40, 15, 'F');
+    doc.rect(margin, startY, 40, 15, "F");
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
-    doc.text("E3", margin + 20, startY + 9, { align: 'center' });
+    doc.text("E3", margin + 20, startY + 9, { align: "center" });
     doc.setTextColor(0, 0, 0);
   }
 
   // Add the "PURCHASE REQUEST" text
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text("PURCHASE REQUEST", pageWidth / 2, startY + 10, { align: 'center' });
+  doc.setFont("helvetica", "bold");
+  doc.text("PURCHASE REQUEST", pageWidth / 2, startY + 10, { align: "center" });
 
   // Add request number and date to the right
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`PR #${request.requestNumber || '---'}`, pageWidth - margin, startY + 7, { align: 'right' });
-  doc.text(`Date: ${formatDate(request.createdAt)}`, pageWidth - margin, startY + 12, { align: 'right' });
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    `PR #${request.requestNumber || "---"}`,
+    pageWidth - margin,
+    startY + 7,
+    { align: "right" },
+  );
+  doc.text(
+    `Date: ${formatDate(request.createdAt)}`,
+    pageWidth - margin,
+    startY + 12,
+    { align: "right" },
+  );
 
   // Add a clean divider below header
   const dividerY = startY + headerHeight;
@@ -232,41 +244,57 @@ async function addHeader(
   // Add requester info box
   const reqBoxY = dividerY + 3;
   const reqBoxHeight = 20;
-  
+
   // Clean subtle background for requester info
   doc.setFillColor(248, 249, 250);
-  doc.roundedRect(margin, reqBoxY, pageWidth - (margin * 2), reqBoxHeight, 1, 1, 'F');
-  
+  doc.roundedRect(
+    margin,
+    reqBoxY,
+    pageWidth - margin * 2,
+    reqBoxHeight,
+    1,
+    1,
+    "F",
+  );
+
   // Draw light border
-  doc.setDrawColor(230, 230, 230); 
+  doc.setDrawColor(230, 230, 230);
   doc.setLineWidth(0.2);
-  doc.roundedRect(margin, reqBoxY, pageWidth - (margin * 2), reqBoxHeight, 1, 1, 'S');
-  
+  doc.roundedRect(
+    margin,
+    reqBoxY,
+    pageWidth - margin * 2,
+    reqBoxHeight,
+    1,
+    1,
+    "S",
+  );
+
   // Add requester details
   doc.setFontSize(9);
   doc.setTextColor(80, 80, 80);
-  
+
   // First row - left column
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("helvetica", "bold");
   doc.text("Requester:", margin + 5, reqBoxY + 7);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   doc.text(request.requester?.username || "N/A", margin + 35, reqBoxY + 7);
-  
+
   // First row - right column
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("helvetica", "bold");
   const midPoint = pageWidth / 2;
   doc.text("Department:", midPoint, reqBoxY + 7);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   doc.text(request.requester?.department || "N/A", midPoint + 35, reqBoxY + 7);
-  
+
   // Second row - left column
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("helvetica", "bold");
   doc.text("Status:", margin + 5, reqBoxY + 16);
-  
+
   // Add status with color
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   const status = request.status?.toUpperCase() || "PENDING";
-  
+
   // Set status color based on status value
   if (status === "APPROVED") {
     doc.setTextColor(0, 128, 0); // Green
@@ -277,19 +305,23 @@ async function addHeader(
   } else {
     doc.setTextColor(80, 80, 80); // Default gray
   }
-  
+
   doc.text(status, margin + 35, reqBoxY + 16);
-  
+
   // Second row - right column
   doc.setTextColor(80, 80, 80);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("helvetica", "bold");
   doc.text("Priority:", midPoint, reqBoxY + 16);
-  doc.setFont('helvetica', 'normal');
-  doc.text(request.priority?.toUpperCase() || "N/A", midPoint + 35, reqBoxY + 16);
-  
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    request.priority?.toUpperCase() || "N/A",
+    midPoint + 35,
+    reqBoxY + 16,
+  );
+
   // Reset text color to black
   doc.setTextColor(0, 0, 0);
-  
+
   return reqBoxY + reqBoxHeight + 5;
 }
 
@@ -298,23 +330,32 @@ function hexToRgb(hex: string): [number, number, number] {
   const defaultColor: [number, number, number] = [111, 42, 230]; // E3 purple #6F2AE6
   try {
     // Remove the # if present
-    const cleanHex = hex.replace(/^#/, '');
-    
+    const cleanHex = hex.replace(/^#/, "");
+
     // Validate hex format (3 or 6 characters)
     if (!/^([0-9A-F]{3}){1,2}$/i.test(cleanHex)) {
       return defaultColor;
     }
-    
+
     // Handle both 3-char and 6-char hex
-    const r = parseInt(cleanHex.length === 3 ? cleanHex[0] + cleanHex[0] : cleanHex.substr(0, 2), 16);
-    const g = parseInt(cleanHex.length === 3 ? cleanHex[1] + cleanHex[1] : cleanHex.substr(2, 2), 16);
-    const b = parseInt(cleanHex.length === 3 ? cleanHex[2] + cleanHex[2] : cleanHex.substr(4, 2), 16);
-    
+    const r = parseInt(
+      cleanHex.length === 3 ? cleanHex[0] + cleanHex[0] : cleanHex.substr(0, 2),
+      16,
+    );
+    const g = parseInt(
+      cleanHex.length === 3 ? cleanHex[1] + cleanHex[1] : cleanHex.substr(2, 2),
+      16,
+    );
+    const b = parseInt(
+      cleanHex.length === 3 ? cleanHex[2] + cleanHex[2] : cleanHex.substr(4, 2),
+      16,
+    );
+
     // Handle NaN values
     if (isNaN(r) || isNaN(g) || isNaN(b)) {
       return defaultColor;
     }
-    
+
     return [r, g, b];
   } catch (error) {
     console.error(`Error parsing hex color ${hex}:`, error);
@@ -328,7 +369,7 @@ function imageOnload(img: HTMLImageElement) {
     img.onload = () => resolve();
     setTimeout(() => resolve(), 1000); // Add timeout as fallback
     img.onerror = () => {
-      console.error('Error loading image');
+      console.error("Error loading image");
       resolve();
     };
   });
@@ -340,7 +381,7 @@ function addFooter(
   doc: jsPDF,
   currentPage: number,
   totalPages: number,
-  cfg: any
+  cfg: any,
 ) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -359,24 +400,26 @@ function addFooter(
     try {
       const img = new Image();
       img.src = cfg.footerImage;
-      doc.addImage(img, 'PNG', pageWidth - margin - 25, footerY - 4, 25, 10);
+      doc.addImage(img, "PNG", pageWidth - margin - 25, footerY - 4, 25, 10);
     } catch (error) {
       console.error("Footer image error:", error);
       // Add small E3 brand mark at bottom right as fallback
       const brandSize = 8;
       const brandX = pageWidth - margin - brandSize;
       const brandY = footerY + 2;
-      
+
       // Purple box for brand
       doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-      doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
-      
+      doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, "F");
+
       // Add "E3" text in white
       doc.setFontSize(6);
       doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("helvetica", "bold");
+      doc.text("E3", brandX + brandSize / 2, brandY + brandSize / 2 + 2, {
+        align: "center",
+      });
+      doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
     }
   } else {
@@ -384,17 +427,19 @@ function addFooter(
     const brandSize = 8;
     const brandX = pageWidth - margin - brandSize;
     const brandY = footerY + 2;
-    
+
     // Purple box for brand
     doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-    doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, 'F');
-    
+    doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, "F");
+
     // Add "E3" text in white
     doc.setFontSize(6);
     doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text("E3", brandX + brandSize/2, brandY + brandSize/2 + 2, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("helvetica", "bold");
+    doc.text("E3", brandX + brandSize / 2, brandY + brandSize / 2 + 2, {
+      align: "center",
+    });
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
   }
 
@@ -403,8 +448,10 @@ function addFooter(
   doc.setTextColor(80, 80, 80);
   let contactText = "";
   if (cfg.companyInfo?.phone) contactText += `Phone: ${cfg.companyInfo.phone} `;
-  if (cfg.companyInfo?.email) contactText += `| Email: ${cfg.companyInfo.email} `;
-  if (cfg.companyInfo?.website) contactText += `| Web: ${cfg.companyInfo.website}`;
+  if (cfg.companyInfo?.email)
+    contactText += `| Email: ${cfg.companyInfo.email} `;
+  if (cfg.companyInfo?.website)
+    contactText += `| Web: ${cfg.companyInfo.website}`;
   if (contactText) {
     doc.text(contactText.trim(), margin, footerY + 5);
   }
@@ -416,17 +463,24 @@ function addFooter(
 
   // Page numbers in the center or right
   if (cfg.pageNumbering) {
-    doc.text(`Page ${currentPage} of ${totalPages}`, pageWidth / 2, footerY + 5, {
-      align: 'center'
-    });
+    doc.text(
+      `Page ${currentPage} of ${totalPages}`,
+      pageWidth / 2,
+      footerY + 13,
+      {
+        align: "center",
+      },
+    );
   }
 
   // Footer text in a color
   doc.setFontSize(8);
   doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
-  doc.setFont('helvetica', 'italic');
-  doc.text(cfg.footerText, pageWidth - margin, footerY + 10, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "italic");
+  doc.text(cfg.footerText, pageWidth - margin, footerY + 10, {
+    align: "right",
+  });
+  doc.setFont("helvetica", "normal");
 }
 
 // =========== SECTION TITLES =========== //
@@ -442,17 +496,17 @@ function addSectionTitle(doc: jsPDF, title: string, yPos: number): number {
 
   // Dark background for the title
   doc.setFillColor(0, 0, 0);
-  doc.rect(margin, yPos, pageWidth - margin * 2, boxHeight, 'F');
+  doc.rect(margin, yPos, pageWidth - margin * 2, boxHeight, "F");
 
   // White text
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
   doc.text(title, margin + 5, yPos + 5);
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
 
   return yPos + boxHeight + 5;
 }
@@ -474,41 +528,45 @@ function maybeAddNewPage(doc: jsPDF, yPos: number, minSpace: number = 40) {
 /**
  * Ensures content fits on the current page, adds a new page if needed
  * This function prevents empty pages and handles content placement correctly
- * 
+ *
  * @param doc PDF document
  * @param yPos Current Y position
  * @param contentHeight Approximate height of the content to add
  * @param minRemainingSpace Minimum space required to start content on current page
  * @returns Updated Y position (either on current page or at top of new page)
  */
-function ensureContentFits(doc: jsPDF, yPos: number, contentHeight: number, minRemainingSpace: number = 30) {
+function ensureContentFits(
+  doc: jsPDF,
+  yPos: number,
+  contentHeight: number,
+  minRemainingSpace: number = 10,
+): number {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
-  const footerSpace = 20; // Reserve space for footer
-  const availableSpace = pageHeight - yPos - margin - footerSpace;
-  
-  // If content won't fit, or there's very little space left on the page
-  if (contentHeight > availableSpace || availableSpace < minRemainingSpace) {
-    // Check if we're at the top of a page - if so, don't add another page
-    // This prevents empty pages when a content section would never fit on one page
+  const footerSpace = 10;
+  const bottomLimit = pageHeight - margin - footerSpace;
+  const contentEndY = yPos + contentHeight;
+  const remainingSpace = bottomLimit - yPos;
+
+  if (contentEndY > bottomLimit || remainingSpace < minRemainingSpace) {
     if (yPos <= margin + 5) {
-      return yPos; // Already at top of page, don't add a new one
+      return yPos;
     }
-    
-    // Add a new page and return the top position
+
     doc.addPage();
-    return margin; // Return the starting Y position on the new page
+    return margin;
   }
   
-  return yPos; // Return the original position if content fits
+  return yPos;
 }
+
 
 // =========== BASIC INFO TABLE =========== //
 
 function addBasicInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 60; // Approximate height based on content
@@ -519,39 +577,46 @@ function addBasicInfoTable(
   // Only include essential details that aren't shown elsewhere
   const body = [
     [
-      { content: 'Title:', styles: { fontStyle: 'bold' } },
-      { content: request.title || 'N/A', colSpan: 3 }
+      { content: "Title:", styles: { fontStyle: "bold" } },
+      { content: request.title || "N/A", colSpan: 3 },
     ],
     [
-      { content: 'Description:', styles: { fontStyle: 'bold' } },
-      { content: request.description || 'N/A', colSpan: 3 }
+      { content: "Description:", styles: { fontStyle: "bold" } },
+      { content: request.description || "N/A", colSpan: 3 },
     ],
     [
-      { content: 'Purpose Type:', styles: { fontStyle: 'bold' } },
-      request.purposeType || 'N/A',
-      { content: 'Sub-purpose:', styles: { fontStyle: 'bold' } },
-      request.subPurpose?.name || 'N/A'
-    ]
+      { content: "Purpose Type:", styles: { fontStyle: "bold" } },
+      request.purposeType || "N/A",
+      { content: "Sub-purpose:", styles: { fontStyle: "bold" } },
+      request.subPurpose?.name || "N/A",
+    ],
   ];
 
   // Only add contact info if it's not displayed elsewhere and is available
   if (request.requester?.email || request.requester?.contactNumber) {
     body.push([
-      { content: 'Contact Info:', styles: { fontStyle: 'bold' } },
-      { content: [
-        request.requester?.email ? `Email: ${request.requester.email}` : '',
-        request.requester?.contactNumber ? `Phone: ${request.requester.contactNumber}` : ''
-      ].filter(Boolean).join(' | '), colSpan: 3 }
+      { content: "Contact Info:", styles: { fontStyle: "bold" } },
+      {
+        content: [
+          request.requester?.email ? `Email: ${request.requester.email}` : "",
+          request.requester?.contactNumber
+            ? `Phone: ${request.requester.contactNumber}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        colSpan: 3,
+      },
     ]);
   }
 
   (autoTable as any)(doc, {
     startY,
-    theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    theme: "plain",
+    styles: { fontSize: 9, cellPadding: 2, overflow: "linebreak" },
     body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
-    tableWidth: 'auto'
+    tableWidth: "auto",
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -562,36 +627,36 @@ function addBasicInfoTable(
 function addVendorInfoTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
 ): number {
   // Calculate the table height to make sure it fits on the page
   const tableHeight = 30; // Approximate height based on content
   startY = ensureContentFits(doc, startY, tableHeight);
-  
+
   const vendor = request.vendor || {};
 
   const body = [
     [
-      { content: 'Vendor Name:', styles: { fontStyle: 'bold' } },
-      vendor.name || vendor.companyName || 'N/A',
-      { content: 'Contact Person:', styles: { fontStyle: 'bold' } },
-      vendor.contactPerson || 'N/A'
+      { content: "Vendor Name:", styles: { fontStyle: "bold" } },
+      vendor.name || vendor.companyName || "N/A",
+      { content: "Contact Person:", styles: { fontStyle: "bold" } },
+      vendor.contactPerson || "N/A",
     ],
     [
-      { content: 'Email:', styles: { fontStyle: 'bold' } },
-      vendor.email || 'N/A',
-      { content: 'Phone:', styles: { fontStyle: 'bold' } },
-      vendor.phone || vendor.contactNumber || 'N/A'
-    ]
+      { content: "Email:", styles: { fontStyle: "bold" } },
+      vendor.email || "N/A",
+      { content: "Phone:", styles: { fontStyle: "bold" } },
+      vendor.phone || vendor.contactNumber || "N/A",
+    ],
   ];
 
   (autoTable as any)(doc, {
     startY,
-    theme: 'plain',
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    theme: "plain",
+    styles: { fontSize: 9, cellPadding: 2, overflow: "linebreak" },
     body,
     margin: { top: 15, right: 15, bottom: 15, left: 15 },
-    tableWidth: 'auto'
+    tableWidth: "auto",
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -602,26 +667,26 @@ function addVendorInfoTable(
 function addItemsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
 ): number {
   // Parse items safely
   let items = [];
   try {
     if (Array.isArray(request.items)) {
       items = request.items;
-    } else if (typeof request.items === 'string') {
-      items = JSON.parse(request.items || '[]');
+    } else if (typeof request.items === "string") {
+      items = JSON.parse(request.items || "[]");
     }
   } catch (error) {
-    console.error('Error parsing items:', error);
+    console.error("Error parsing items:", error);
     items = [];
   }
 
   if (items.length === 0) {
     (autoTable as any)(doc, {
       startY,
-      theme: 'plain',
-      body: [['No items found']]
+      theme: "plain",
+      body: [["No items found"]],
     });
     return (doc as any).lastAutoTable.finalY + 5;
   }
@@ -631,11 +696,11 @@ function addItemsTable(
     const qty = Number(item.quantity) || 0;
     const cost = Number(item.estimatedCost) || 0;
     return [
-      item.name || 'N/A',
-      item.description || 'N/A',
+      item.name || "N/A",
+      item.description || "N/A",
       qty.toString(),
       formatCurrency(cost, request.currency),
-      formatCurrency(qty * cost, request.currency)
+      formatCurrency(qty * cost, request.currency),
     ];
   });
 
@@ -643,12 +708,12 @@ function addItemsTable(
   // Adjust row height calculation based on text content that might wrap
   const rowHeight = 12; // Base height per row in points
   let tableHeight = 40; // Start with header + margins
-  
+
   // More accurate height calculation that accounts for content length and wrapping
   rows.forEach((row: any[]) => {
     // Add base height for each row
     let thisRowHeight = rowHeight;
-    
+
     // If description is longer, increase estimated height for text wrapping
     const description = row[1].toString();
     if (description.length > 30) {
@@ -656,65 +721,78 @@ function addItemsTable(
       const extraLines = Math.ceil(description.length / 30) - 1;
       thisRowHeight += extraLines * 8; // 8 points per extra line
     }
-    
+
     tableHeight += thisRowHeight;
   });
-  
+
   // Use our enhanced page fitting method
   // Use a larger minimum space parameter for tables as they require more layout space
   startY = ensureContentFits(doc, startY, tableHeight, 40);
-  
+
   // Get page width to calculate table widths
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
-  const availableWidth = pageWidth - (margin * 2);
-  
+  const availableWidth = pageWidth - margin * 2;
+
   // Calculate column widths based on available space
   const itemWidth = Math.floor(availableWidth * 0.25); // 25% of available width
-  const qtyWidth = Math.floor(availableWidth * 0.08); // 8% of available width 
+  const qtyWidth = Math.floor(availableWidth * 0.08); // 8% of available width
   const costWidth = Math.floor(availableWidth * 0.15); // 15% of available width
   const totalWidth = Math.floor(availableWidth * 0.15); // 15% of available width
   // Description takes the remaining space (about 37%)
-  const descWidth = availableWidth - itemWidth - qtyWidth - costWidth - totalWidth;
-  
+  const descWidth =
+    availableWidth - itemWidth - qtyWidth - costWidth - totalWidth;
+
   (autoTable as any)(doc, {
     startY,
-    head: [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']],
+    head: [["Item", "Description", "Qty", "Unit Cost", "Total"]],
     body: rows,
-    theme: 'striped',
-    styles: { 
-      fontSize: 9, 
+    theme: "striped",
+    styles: {
+      fontSize: 9,
       cellPadding: 3,
-      overflow: 'linebreak',  // Enable text wrapping
-      minCellHeight: 10       // Ensure minimum height for cells
+      overflow: "linebreak", // Enable text wrapping
+      minCellHeight: 10, // Ensure minimum height for cells
+      valign: "middle",
+      halign: "left",
     },
-    headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
+    headStyles: {
+      fillColor: [240, 240, 245],
+      textColor: [0, 0, 0],
+      halign: "left",
+    },
     columnStyles: {
-      0: { cellWidth: itemWidth, overflow: 'linebreak' }, // Item name with wrapping
-      1: { cellWidth: descWidth, overflow: 'linebreak' }, // Description with wrapping
-      2: { halign: 'center', cellWidth: qtyWidth },       // Quantity column
-      3: { halign: 'right', cellWidth: costWidth },       // Unit cost
-      4: { halign: 'right', cellWidth: totalWidth }       // Total cost
+      0: { halign: "left", cellWidth: itemWidth, overflow: "linebreak" }, // Item name with wrapping
+      1: { halign: "left", cellWidth: descWidth, overflow: "linebreak" }, // Description with wrapping
+      2: { halign: "left", cellWidth: qtyWidth }, // Quantity column
+      3: { halign: "left", cellWidth: costWidth }, // Unit cost
+      4: { halign: "left", cellWidth: totalWidth }, // Total cost
     },
     // Set margins
     margin: { top: 15, right: margin, bottom: 15, left: margin },
     // Ensure content fits within cell boundaries
     willDrawCell: (data: any) => {
       // Add cell padding for text wrapping
-      if (data.column.index === 1 && data.cell.text && data.cell.text.length > 50) {
+      if (
+        data.column.index === 1 &&
+        data.cell.text &&
+        data.cell.text.length > 50
+      ) {
         data.cell.styles.cellPadding = 4; // Increase padding for long text
       }
     },
     didDrawPage: (data: any) => {
       // Reset table header on each new page
-    }
+    },
   });
 
   let yPos = (doc as any).lastAutoTable.finalY;
-  
+
   // Calculate totals
   const itemsTotal = items.reduce(
-    (sum: number, i: any) => sum + (Number(i.quantity) || 0) * (Number(i.estimatedCost) || 0), 0
+    (sum: number, i: any) =>
+      sum + (Number(i.quantity) || 0) * (Number(i.estimatedCost) || 0),
+    0,
   );
   const freightAmount = Number(request.freightAmount) || 0;
   const totalCost = itemsTotal + freightAmount;
@@ -725,21 +803,27 @@ function addItemsTable(
 
   (autoTable as any)(doc, {
     startY: yPos,
-    theme: 'plain',
+    theme: "plain",
     styles: { fontSize: 9, cellPadding: 2 },
     columnStyles: {
       0: { cellWidth: itemWidth }, // Match the main table columns
       1: { cellWidth: descWidth },
-      2: { cellWidth: qtyWidth, halign: 'center' },
-      3: { cellWidth: costWidth, fontStyle: 'bold', halign: 'right' },
-      4: { cellWidth: totalWidth, halign: 'right' }
+      2: { cellWidth: qtyWidth, halign: "center" },
+      3: { cellWidth: costWidth, fontStyle: "bold", halign: "right" },
+      4: { cellWidth: totalWidth, halign: "right" },
     },
     body: [
-      ['', '', '', 'Items Total:', formatCurrency(itemsTotal, request.currency)],
-      ['', '', '', 'Freight:', formatCurrency(freightAmount, request.currency)],
-      ['', '', '', 'Total Cost:', formatCurrency(totalCost, request.currency)]
+      [
+        "",
+        "",
+        "",
+        "Items Total:",
+        formatCurrency(itemsTotal, request.currency),
+      ],
+      ["", "", "", "Freight:", formatCurrency(freightAmount, request.currency)],
+      ["", "", "", "Total Cost:", formatCurrency(totalCost, request.currency)],
     ],
-    margin: { top: 15, right: margin, bottom: 15, left: margin }
+    margin: { top: 15, right: margin, bottom: 15, left: margin },
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -750,15 +834,15 @@ function addItemsTable(
 function addAttachmentsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
 ): number {
   const attachments = request.attachments || [];
 
   if (attachments.length === 0) {
     (autoTable as any)(doc, {
       startY,
-      theme: 'plain',
-      body: [['No attachments']]
+      theme: "plain",
+      body: [["No attachments"]],
     });
     return (doc as any).lastAutoTable.finalY + 5;
   }
@@ -766,44 +850,62 @@ function addAttachmentsTable(
   // Calculate approximate table height to check page fit
   const rowHeight = 12; // Base height per row in points
   let tableHeight = 20; // Start with header + margins
-  
+
   // Generate rows with more accurate height estimation
   const rows = attachments.map((file: any) => {
     // Add extra height for longer filenames that will wrap
-    const filename = file.fileName || file.name || 'N/A';
+    const filename = file.fileName || file.name || "N/A";
     let thisRowHeight = rowHeight;
-    
+
     if (filename.length > 40) {
       // Add extra height based on filename length for wrapping
       const extraLines = Math.ceil(filename.length / 40) - 1;
       thisRowHeight += extraLines * 8; // 8 points per extra line
     }
-    
+
     tableHeight += thisRowHeight;
-    
+
     return [
       filename,
-      file.fileType || 'N/A',
-      file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
+      file.fileType || "N/A",
+      file.fileSize ? `${(file.fileSize / 1024 / 1024).toFixed(2)} MB` : "N/A",
     ];
   });
-  
+
   // Use our enhanced page fitting method with larger min space for tables
-  startY = ensureContentFits(doc, startY, tableHeight, 40);
+  startY = ensureContentFits(doc, startY, tableHeight, 30);
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const availableWidth = pageWidth - margin * 2;
+  const numColumns = 3;
+  const columnWidth = availableWidth / numColumns;
 
   (autoTable as any)(doc, {
     startY,
-    head: [['Document Name', 'Type', 'Size']],
+    head: [["Document Name", "Type", "Size"]],
     body: rows,
-    theme: 'striped',
-    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
-    headStyles: { fillColor: [240, 240, 245], textColor: [0, 0, 0] },
-    columnStyles: {
-      0: { cellWidth: 80, overflow: 'linebreak' },
-      1: { cellWidth: 40, halign: 'center' },
-      2: { cellWidth: 20, halign: 'right' }
+    theme: "striped",
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: "linebreak",
+      valign: "middle",
+      halign: "left",
     },
-    margin: { top: 15, right: 15, bottom: 15, left: 15 }
+    headStyles: {
+      fillColor: [240, 240, 245],
+      textColor: [0, 0, 0],
+      halign: "left",
+    },
+    columnStyles: {
+      0: { cellWidth: columnWidth, overflow: "linebreak", halign: "left" },
+      1: { cellWidth: columnWidth, halign: "left" },
+      2: { cellWidth: columnWidth, halign: "left" },
+    },
+    tableWidth: "100%",
+    margin: { top: margin, right: margin, bottom: margin, left: margin },
+    pageBreak: "avoid",
   });
 
   return (doc as any).lastAutoTable.finalY + 5;
@@ -814,236 +916,288 @@ function addAttachmentsTable(
 function addApprovalsTable(
   doc: jsPDF,
   request: PurchaseRequest,
-  startY: number
+  startY: number,
 ): number {
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
 
   if (approvals.length === 0) {
     (autoTable as any)(doc, {
       startY,
-      theme: 'plain',
-      body: [['No approvals found for this request']]
+      theme: "plain",
+      body: [["No approvals found for this request"]],
     });
     return (doc as any).lastAutoTable.finalY + 5;
   }
 
   // Enhanced approval rows with style customization for status
   const rows = [];
-  
+
   for (const app of approvals) {
-    const status = (app.status || 'PENDING').toUpperCase();
+    const status = (app.status || "PENDING").toUpperCase();
     let statusStyle = {};
-    let statusIcon = '';
-    
+    let statusIcon = "";
+
     // Apply color styling based on approval status with icons
-    if (status === 'APPROVED') {
-      statusStyle = { fillColor: [230, 255, 230], textColor: [0, 128, 0], fontStyle: 'bold' };
-      statusIcon = '✓ ';
-    } else if (status === 'REJECTED') {
-      statusStyle = { fillColor: [255, 230, 230], textColor: [192, 0, 0], fontStyle: 'bold' };
-      statusIcon = '✗ ';
-    } else if (status === 'PENDING') {
+    if (status === "APPROVED") {
+      statusStyle = {
+        fillColor: [230, 255, 230],
+        textColor: [0, 128, 0],
+        fontStyle: "bold",
+      };
+      statusIcon = "✓ ";
+    } else if (status === "REJECTED") {
+      statusStyle = {
+        fillColor: [255, 230, 230],
+        textColor: [192, 0, 0],
+        fontStyle: "bold",
+      };
+      statusIcon = "✗ ";
+    } else if (status === "PENDING") {
       statusStyle = { fillColor: [240, 248, 255], textColor: [0, 102, 204] };
-      statusIcon = '⋯ ';
-    } else if (status === 'CHANGES') {
+      statusIcon = "⋯ ";
+    } else if (status === "CHANGES") {
       statusStyle = { fillColor: [255, 248, 225], textColor: [186, 104, 0] };
-      statusIcon = '! ';
+      statusIcon = "! ";
     }
-    
+
     // Format the date in a more readable way
-    const processedDate = app.processedAt ? formatDate(app.processedAt) : 'Awaiting';
-    
+    const processedDate = app.processedAt
+      ? formatDate(app.processedAt)
+      : "Awaiting";
+
     rows.push([
-      app.approver?.username || 'N/A',
-      app.department || 'N/A',
+      app.approver?.username || "N/A",
+      app.department || "N/A",
       { content: statusIcon + status, styles: statusStyle },
-      { content: app.comments || 'No comments', styles: { fontSize: 8 } },
-      processedDate
+      { content: app.comments || "No comments", styles: { fontSize: 8 } },
+      processedDate,
     ]);
   }
 
   // Calculate a more accurate table height for comments that might wrap
   const rowHeight = 14; // Base height per row in points
   let tableHeight = 30; // Start with header + margins
-  
+
   // Add height for each row, accounting for comments that might wrap
-  rows.forEach(row => {
+  rows.forEach((row) => {
     let thisRowHeight = rowHeight;
-    
+
     // If comment content is longer, increase estimated height for text wrapping
-    const comment = typeof row[3] === 'object' ? 
-      (row[3].content || '').toString() : 
-      (row[3] || '').toString();
-    
+    const comment =
+      typeof row[3] === "object"
+        ? (row[3].content || "").toString()
+        : (row[3] || "").toString();
+
     if (comment.length > 30) {
       // Add extra height based on content length for wrapping
       const extraLines = Math.ceil(comment.length / 30) - 1;
       thisRowHeight += extraLines * 6; // 6 points per extra line for comments
     }
-    
+
     tableHeight += thisRowHeight;
   });
-  
+
   // Use our enhanced page fitting method with larger min space for tables
   startY = ensureContentFits(doc, startY, tableHeight, 40);
 
   // Calculate approval statistics for summary visualization
-  const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
-  const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
-  const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
-  const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes').length;
-  
+  const approvedCount = approvals.filter(
+    (a) => a.status?.toLowerCase() === "approved",
+  ).length;
+  const rejectedCount = approvals.filter(
+    (a) => a.status?.toLowerCase() === "rejected",
+  ).length;
+  const pendingCount = approvals.filter(
+    (a) => a.status?.toLowerCase() === "pending" || !a.status,
+  ).length;
+  const changesCount = approvals.filter(
+    (a) => a.status?.toLowerCase() === "changes",
+  ).length;
+
+  const apPageWidth = doc.internal.pageSize.getWidth();
+  const apMargin = 15;
+  const availableWidth = apPageWidth - apMargin * 2;
+  const numColumns = 5;
+  const columnWidth = availableWidth / numColumns;
+
   // Add the main approvals table with enhanced styling
   (autoTable as any)(doc, {
     startY,
-    head: [['Approver', 'Department', 'Status', 'Comments', 'Processed Date']],
+    head: [["Approver", "Department", "Status", "Comments", "Processed Date"]],
     body: rows,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
-    headStyles: { 
-      fillColor: [240, 240, 245], 
-      textColor: [50, 50, 50], 
-      fontStyle: 'bold',
-      halign: 'center'
+    theme: "grid",
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: "linebreak",
+      valign: "middle",
+      halign: "left",
+    },
+    headStyles: {
+      fillColor: [240, 240, 245],
+      textColor: [50, 50, 50],
+      fontStyle: "bold",
+      halign: "left",
     },
     columnStyles: {
-      0: { fontStyle: 'bold' },
-      2: { halign: 'center', cellWidth: 30 },
-      3: { cellWidth: 'auto', overflow: 'linebreak' }, // Ensure comments wrap properly
-      4: { halign: 'right', cellWidth: 30 }
+      0: { fontStyle: "bold", cellWidth: columnWidth },
+      1: { halign: "left", cellWidth: columnWidth },
+      2: { halign: "left", cellWidth: columnWidth },
+      3: { halign: "left", cellWidth: columnWidth, overflow: "linebreak" }, // Ensure comments wrap properly
+      4: { halign: "left", cellWidth: columnWidth },
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252]
+      fillColor: [248, 250, 252],
     },
-    margin: { top: 15, right: 15, bottom: 15, left: 15 }
+    margin: {
+      top: apMargin,
+      right: apMargin,
+      bottom: apMargin,
+      left: apMargin,
+    },
   });
-  
+
   // Add a visual approval flow summary with progress indicators
   let endY = (doc as any).lastAutoTable.finalY + 8;
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
-  
+
   // Check if we need a new page for the approval summary
   const summaryHeight = 60; // Approximate height for approval summary
   endY = ensureContentFits(doc, endY, summaryHeight);
-  
+
   // Add the approval flow summary section title
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Approval Progress Summary', margin, endY);
-  
+  doc.setFont("helvetica", "bold");
+  doc.text("Approval Progress Summary", margin, endY);
+
   // Draw approval flow visualization
   const boxSize = 8;
   const textY = endY + 5;
   const boxY = textY + 3;
   const textPadding = 4;
-  
+
   // Calculate total width for progress bar
-  const progressBarWidth = pageWidth - (margin * 2);
+  const progressBarWidth = pageWidth - margin * 2;
   const progressBarHeight = 5;
   const progressBarY = boxY + boxSize + 8;
-  
+
   // First draw background progress bar
   doc.setFillColor(235, 235, 235);
-  doc.roundedRect(margin, progressBarY, progressBarWidth, progressBarHeight, 2, 2, 'F');
-  
+  doc.roundedRect(
+    margin,
+    progressBarY,
+    progressBarWidth,
+    progressBarHeight,
+    2,
+    2,
+    "F",
+  );
+
   // Calculate progress percentage based on approvals
   const totalApprovers = approvals.length;
   let progressPercentage = approvedCount / totalApprovers;
-  
+
   // Draw the colored progress indicator
   if (progressPercentage > 0) {
     // Green progress for approved
     doc.setFillColor(46, 174, 52);
     doc.roundedRect(
-      margin, 
-      progressBarY, 
-      progressBarWidth * progressPercentage, 
-      progressBarHeight, 
-      2, 2, 'F'
+      margin,
+      progressBarY,
+      progressBarWidth * progressPercentage,
+      progressBarHeight,
+      2,
+      2,
+      "F",
     );
   }
-  
+
   if (rejectedCount > 0) {
     // Red indicator for rejected above the progress bar
-    const rejectX = margin + (progressBarWidth * (approvedCount / totalApprovers));
+    const rejectX =
+      margin + progressBarWidth * (approvedCount / totalApprovers);
     doc.setFillColor(220, 53, 69);
-    doc.circle(rejectX, progressBarY + (progressBarHeight / 2), 3, 'F');
+    doc.circle(rejectX, progressBarY + progressBarHeight / 2, 3, "F");
   }
-  
+
   // Summary boxes with counts and labels
   doc.setFontSize(9);
-  
+
   // Approved summary
   doc.setFillColor(46, 174, 52); // Green
-  doc.rect(margin, boxY, boxSize, boxSize, 'F');
-  doc.setFont('helvetica', 'bold');
+  doc.rect(margin, boxY, boxSize, boxSize, "F");
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(46, 174, 52);
   doc.text(`${approvedCount}`, margin + boxSize + textPadding, boxY + 6);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text('Approved', margin + boxSize + textPadding + 8, boxY + 6);
-  
+  doc.text("Approved", margin + boxSize + textPadding + 8, boxY + 6);
+
   // Pending summary
   const pendingX = margin + 70;
   doc.setFillColor(0, 123, 255); // Blue
-  doc.rect(pendingX, boxY, boxSize, boxSize, 'F');
-  doc.setFont('helvetica', 'bold');
+  doc.rect(pendingX, boxY, boxSize, boxSize, "F");
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 123, 255);
   doc.text(`${pendingCount}`, pendingX + boxSize + textPadding, boxY + 6);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text('Pending', pendingX + boxSize + textPadding + 8, boxY + 6);
-  
+  doc.text("Pending", pendingX + boxSize + textPadding + 8, boxY + 6);
+
   // Rejected summary
   const rejectedX = margin + 140;
   doc.setFillColor(220, 53, 69); // Red
-  doc.rect(rejectedX, boxY, boxSize, boxSize, 'F');
-  doc.setFont('helvetica', 'bold');
+  doc.rect(rejectedX, boxY, boxSize, boxSize, "F");
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(220, 53, 69);
   doc.text(`${rejectedCount}`, rejectedX + boxSize + textPadding, boxY + 6);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text('Rejected', rejectedX + boxSize + textPadding + 8, boxY + 6);
-  
+  doc.text("Rejected", rejectedX + boxSize + textPadding + 8, boxY + 6);
+
   // Changes requested summary (if applicable)
   if (changesCount > 0) {
     const changesX = margin + 210;
     doc.setFillColor(255, 193, 7); // Amber
-    doc.rect(changesX, boxY, boxSize, boxSize, 'F');
-    doc.setFont('helvetica', 'bold');
+    doc.rect(changesX, boxY, boxSize, boxSize, "F");
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 193, 7);
     doc.text(`${changesCount}`, changesX + boxSize + textPadding, boxY + 6);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
-    doc.text('Changes Requested', changesX + boxSize + textPadding + 8, boxY + 6);
+    doc.text(
+      "Changes Requested",
+      changesX + boxSize + textPadding + 8,
+      boxY + 6,
+    );
   }
-  
+
   // Add overall approval status
   const statusTextY = progressBarY + progressBarHeight + 10;
-  let overallStatus = 'In Progress';
+  let overallStatus = "In Progress";
   let statusColor = [0, 123, 255]; // Blue for in progress
-  
+
   if (rejectedCount > 0) {
-    overallStatus = 'Rejected';
+    overallStatus = "Rejected";
     statusColor = [220, 53, 69]; // Red
   } else if (pendingCount === 0 && approvedCount === totalApprovers) {
-    overallStatus = 'Fully Approved';
+    overallStatus = "Fully Approved";
     statusColor = [46, 174, 52]; // Green
   } else if (changesCount > 0) {
-    overallStatus = 'Changes Requested';
+    overallStatus = "Changes Requested";
     statusColor = [255, 193, 7]; // Amber
   }
-  
-  doc.setFont('helvetica', 'bold');
+
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
   doc.text(`Overall Status: ${overallStatus}`, margin, statusTextY);
-  
+
   // Reset text color
   doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
-  
+  doc.setFont("helvetica", "normal");
+
   return statusTextY + 5;
 }
 
@@ -1052,7 +1206,7 @@ function addApprovalsTable(
 function addSignatureLines(doc: jsPDF, startY: number): number {
   // Calculate approximate height needed for signature lines
   const signatureHeight = 30; // Height needed for signature lines
-  
+
   // Use our enhanced page fitting method
   startY = ensureContentFits(doc, startY, signatureHeight);
 

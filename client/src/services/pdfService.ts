@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from "axios";
 
 export interface PdfTemplateConfig {
   name: string;
@@ -28,7 +28,13 @@ export interface PdfSettings {
   footerText?: string;
   footerColor: string;
   pageNumbering: boolean;
-  pageNumberPosition?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  pageNumberPosition?:
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right";
   fontSize?: number;
   fontFamily?: string;
   textColor?: string;
@@ -41,24 +47,24 @@ export interface PdfSettings {
   headerImage?: string | null;
   footerImage?: string | null;
   logo?: string | null;
-  logoPosition?: 'left' | 'center' | 'right';
+  logoPosition?: "left" | "center" | "right";
   loginLogo?: string | null;
-  
+
   // Display settings
   showHeader?: boolean;
   showFooter?: boolean;
-  
+
   // Logo settings
   showLogo?: boolean;
-  
+
   // Watermark settings
   useWatermark?: boolean;
   watermarkEnabled?: boolean;
   watermarkText?: string;
   watermarkOpacity?: number;
-  watermarkPosition?: 'center' | 'tile' | 'corner';
+  watermarkPosition?: "center" | "tile" | "corner";
   watermarkRotation?: number;
-  
+
   // Content visibility settings
   showBasicInfo?: boolean;
   showRequesterDetails?: boolean;
@@ -70,44 +76,44 @@ export interface PdfSettings {
   showAttachments?: boolean;
   showAuditInfo?: boolean;
   showSignatures?: boolean;
-  
+
   // Company information
   companyAddress?: string;
   companyPhone?: string;
   companyEmail?: string;
   companyWebsite?: string;
-  
+
   // Template configuration
   templateConfig?: PdfTemplateConfig;
 }
 
 export const DEFAULT_PDF_SETTINGS: PdfSettings = {
-  headerTitle: 'Purchase Request',
-  headerSubtitle: 'Document',
-  headerColor: '#0066cc',
-  footerText: 'Confidential - For internal use only',
-  footerColor: '#f5f5f5',
+  headerTitle: "Purchase Request",
+  headerSubtitle: "Document",
+  headerColor: "#0066cc",
+  footerText: "Confidential - For internal use only",
+  footerColor: "#f5f5f5",
   pageNumbering: true,
-  pageNumberPosition: 'bottom-right',
+  pageNumberPosition: "bottom-right",
   fontSize: 10,
-  fontFamily: 'Arial',
+  fontFamily: "Arial",
   marginTop: 25,
   marginBottom: 25,
   marginLeft: 25,
   marginRight: 25,
   headerHeight: 60,
   footerHeight: 30,
-  logoPosition: 'left',
+  logoPosition: "left",
   showHeader: true,
   showFooter: true,
   showLogo: true,
   useWatermark: false,
   watermarkEnabled: false,
-  watermarkText: 'CONFIDENTIAL',
+  watermarkText: "CONFIDENTIAL",
   watermarkOpacity: 0.15,
-  watermarkPosition: 'center',
+  watermarkPosition: "center",
   watermarkRotation: 45,
-  textColor: '#000000',
+  textColor: "#000000",
   showBasicInfo: true,
   showRequesterDetails: true,
   showDateOfRequest: true,
@@ -117,12 +123,12 @@ export const DEFAULT_PDF_SETTINGS: PdfSettings = {
   showApprovals: true,
   showAttachments: true,
   showAuditInfo: false,
-  showSignatures: true
+  showSignatures: true,
 };
 
 export interface PdfExportOptions {
   resourceId: number;
-  format?: 'pdf' | 'zip';
+  format?: "pdf" | "zip";
   includeAttachments?: boolean;
   watermarkText?: string;
   watermarkOpacity?: number;
@@ -141,28 +147,49 @@ class PdfService {
    */
   async getPdfSettings(): Promise<PdfSettings> {
     try {
-      const response = await axios.get('/api/pdf/print-settings');
-      
+      const response = await axios.get("/api/pdf/print-settings");
+
       // Debug logging to see what's coming from the server
-      console.log('CLIENT: PDF settings received from server:', {
+      console.log("CLIENT: PDF settings received from server:", {
         pageNumberPosition: response.data?.pageNumberPosition,
         pageNumberingEnabled: response.data?.pageNumbering,
-        validPosition: typeof response.data?.pageNumberPosition === 'string' && 
-          ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(response.data?.pageNumberPosition)
+        validPosition:
+          typeof response.data?.pageNumberPosition === "string" &&
+          [
+            "top-left",
+            "top-center",
+            "top-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ].includes(response.data?.pageNumberPosition),
       });
-      
+
       // Ensure valid pageNumberPosition before returning
-      if (response.data && typeof response.data.pageNumberPosition === 'string') {
-        const validPositions = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+      if (
+        response.data &&
+        typeof response.data.pageNumberPosition === "string"
+      ) {
+        const validPositions = [
+          "top-left",
+          "top-center",
+          "top-right",
+          "bottom-left",
+          "bottom-center",
+          "bottom-right",
+        ];
         if (!validPositions.includes(response.data.pageNumberPosition)) {
-          console.warn('Invalid pageNumberPosition received:', response.data.pageNumberPosition);
-          response.data.pageNumberPosition = 'bottom-right';
+          console.warn(
+            "Invalid pageNumberPosition received:",
+            response.data.pageNumberPosition,
+          );
+          response.data.pageNumberPosition = "bottom-right";
         }
       }
-      
+
       return response.data || DEFAULT_PDF_SETTINGS;
     } catch (error) {
-      console.error('Error fetching PDF settings:', error);
+      console.error("Error fetching PDF settings:", error);
       return DEFAULT_PDF_SETTINGS;
     }
   }
@@ -172,10 +199,10 @@ class PdfService {
    */
   async savePdfSettings(settings: PdfSettings): Promise<PdfSettings> {
     try {
-      const response = await axios.post('/api/pdf/settings', settings);
+      const response = await axios.post("/api/pdf/settings", settings);
       return response.data;
     } catch (error) {
-      console.error('Error saving PDF settings:', error);
+      console.error("Error saving PDF settings:", error);
       throw error;
     }
   }
@@ -183,22 +210,25 @@ class PdfService {
   /**
    * Generate and download a PDF for a request
    */
-  async generatePdf(requestId: number, options?: Partial<PdfExportOptions>): Promise<void> {
+  async generatePdf(
+    requestId: number,
+    options?: Partial<PdfExportOptions>,
+  ): Promise<void> {
     try {
       // Create a download link and click it to trigger download
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = `/api/requests/${requestId}/pdf${this.formatQueryParams(options)}`;
       a.download = `Request-${requestId}.pdf`;
       a.click();
-      
+
       // Log this action to the audit system
       await this.logPdfAudit({
-        action: 'pdf_downloaded',
+        action: "pdf_downloaded",
         resourceId: requestId,
-        details: { options }
+        details: { options },
       });
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
       throw error;
     }
   }
@@ -206,41 +236,47 @@ class PdfService {
   /**
    * Generate and download a ZIP file for a request
    */
-  async generateZip(requestId: number, includeAttachments: boolean = true): Promise<void> {
+  async generateZip(
+    requestId: number,
+    includeAttachments: boolean = true,
+  ): Promise<void> {
     try {
       // Create a download link and click it to trigger download
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = `/api/requests/${requestId}/zip?includeAttachments=${includeAttachments}`;
       a.download = `Request-${requestId}.zip`;
       a.click();
-      
+
       // Log this action to the audit system
       await this.logPdfAudit({
-        action: 'zip_downloaded',
+        action: "zip_downloaded",
         resourceId: requestId,
-        details: { includeAttachments }
+        details: { includeAttachments },
       });
     } catch (error) {
-      console.error('Error generating ZIP:', error);
+      console.error("Error generating ZIP:", error);
       throw error;
     }
   }
-  
+
   /**
    * Upload image for PDF settings (logo, header, footer)
    */
-  async uploadImage(file: File, type: 'logo' | 'headerImage' | 'footerImage'): Promise<string> {
+  async uploadImage(
+    file: File,
+    type: "logo" | "headerImage" | "footerImage",
+  ): Promise<string> {
     try {
       const formData = new FormData();
-      formData.append('files', file);
-      formData.append('type', type);
-      
-      const response = await axios.post('/api/pdf/upload-images', formData, {
+      formData.append("files", file);
+      formData.append("type", type);
+
+      const response = await axios.post("/api/pdf/upload-images", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-      
+
       return response.data.urls[0];
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
@@ -253,9 +289,9 @@ class PdfService {
    */
   private async logPdfAudit(auditEntry: PdfAuditEntry): Promise<void> {
     try {
-      await axios.post('/api/pdf/audit', auditEntry);
+      await axios.post("/api/pdf/audit", auditEntry);
     } catch (error) {
-      console.error('Error logging PDF audit:', error);
+      console.error("Error logging PDF audit:", error);
       // We don't throw here to prevent disrupting the main functionality
     }
   }
@@ -264,24 +300,27 @@ class PdfService {
    * Format query parameters for PDF endpoint
    */
   private formatQueryParams(options?: Partial<PdfExportOptions>): string {
-    if (!options) return '';
-    
+    if (!options) return "";
+
     const params = new URLSearchParams();
-    
+
     if (options.includeAttachments !== undefined) {
-      params.append('includeAttachments', options.includeAttachments.toString());
+      params.append(
+        "includeAttachments",
+        options.includeAttachments.toString(),
+      );
     }
-    
+
     if (options.watermarkText) {
-      params.append('watermarkText', options.watermarkText);
+      params.append("watermarkText", options.watermarkText);
     }
-    
+
     if (options.watermarkOpacity !== undefined) {
-      params.append('watermarkOpacity', options.watermarkOpacity.toString());
+      params.append("watermarkOpacity", options.watermarkOpacity.toString());
     }
-    
+
     const paramString = params.toString();
-    return paramString ? `?${paramString}` : '';
+    return paramString ? `?${paramString}` : "";
   }
 }
 
