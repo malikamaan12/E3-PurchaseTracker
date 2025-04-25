@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@db/schema";
@@ -13,6 +20,7 @@ import type { LoginCredentials } from "@db/schema";
 import AccountRequestForm from "@/components/AccountRequestForm";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import e3Logo from "../assets/e3-logo.svg";
+import { navigate } from "wouter/use-browser-location";
 // Import e3WhiteLogo
 const e3WhiteLogo = "/images/e3-white-logo.png";
 
@@ -25,17 +33,17 @@ function useLoginLogo() {
   useEffect(() => {
     async function fetchLogoUrl() {
       try {
-        const response = await fetch('/api/login-logo');
+        const response = await fetch("/api/login-logo");
         if (!response.ok) {
-          throw new Error('Failed to fetch login logo');
+          throw new Error("Failed to fetch login logo");
         }
         const data = await response.json();
-        console.log('Login logo data:', data);
+        console.log("Login logo data:", data);
         if (data.loginLogo) {
           setLogoUrl(data.loginLogo);
         }
       } catch (err) {
-        console.error('Error fetching login logo:', err);
+        console.error("Error fetching login logo:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setIsLoading(false);
@@ -85,14 +93,15 @@ export default function AuthPage() {
 
       // The login function in useUser will handle success/error toasts
       await login(data);
-
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Auth error:", error);
 
       // Only show this toast if the error wasn't caught by the login mutation
       toast({
         title: "Authentication Error",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description:
+          error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -104,12 +113,14 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-6">
-          <img 
-            src={e3WhiteLogo} 
-            alt="E3 White Logo" 
-            className="h-20 w-auto object-contain" 
+          <img
+            src={e3WhiteLogo}
+            alt="E3 White Logo"
+            className="h-20 w-auto object-contain"
             onError={(e) => {
-              console.error('Error loading white logo, falling back to default');
+              console.error(
+                "Error loading white logo, falling back to default",
+              );
               e.currentTarget.src = e3Logo;
             }}
           />
@@ -139,13 +150,18 @@ export default function AuthPage() {
 
               <TabsContent value="login">
                 <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={loginForm.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={loginForm.control}
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-200">Username</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-200">
+                            Username
+                          </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -163,7 +179,9 @@ export default function AuthPage() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-200">Password</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-200">
+                            Password
+                          </FormLabel>
                           <div className="relative">
                             <FormControl>
                               <Input
@@ -203,7 +221,7 @@ export default function AuthPage() {
                           Logging in...
                         </>
                       ) : (
-                        'Login'
+                        "Login"
                       )}
                     </Button>
                   </form>
@@ -217,7 +235,8 @@ export default function AuthPage() {
           </CardContent>
         </Card>
         <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400 px-4">
-          Welcome to the E3 Purchase Request System—built with passion by E3 and driven by your success!
+          Welcome to the E3 Purchase Request System—built with passion by E3 and
+          driven by your success!
         </div>
       </div>
     </div>

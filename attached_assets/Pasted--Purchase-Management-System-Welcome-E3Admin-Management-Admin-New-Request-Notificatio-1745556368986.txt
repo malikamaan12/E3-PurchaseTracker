@@ -1,0 +1,94 @@
+
+Purchase Management System
+Welcome, E3Admin (Management)
+
+
+Admin
+
+New Request
+
+Notifications
+
+Notifications
+
+Toggle theme
+
+Logout
+Search requests...
+Bulk Export
+Filters
+Show Filters
+
+My Requests
+13
+
+Ready to Submit
+1
+
+All Requests
+26
+
+Pending
+18
+
+Approved
+7
+
+Rejected
+0
+
+Changes Requested
+1
+Request #	Title	Status	Priority	Department	Created	Total Cost	Actions
+PR-1745099714807-719	test 1111	PENDING	medium	Management	Apr 20, 2025	QAR 9,225.00	
+View
+Edit
+PR-1744319060027-457	Magnus Group is incredibly proud of its recent execution of the 5x8	DRAFT	medium	Management	Apr 11, 2025	QAR 2,775.00	
+View
+Edit
+PR-1742323723118-346	The poem reflects on the speaker's nostalgia	PENDING	urgent	Management	Mar 18, 2025	QAR 1,325.00	
+View
+Edit
+PR-1741548419289-848	dhfghd	PENDING	medium	Management	Mar 9, 2025	QAR 13,260.00	
+View
+Edit
+PR-1741380509292-421	sgsdgsdg	PENDING	medium	Management	Mar 7, 2025	QAR 1,300.00	
+View
+Edit
+PR-1741380397533-45	safdaF	PENDING	high	Management	Mar 7, 2025	QAR 11,300.00	
+View
+Edit
+PR-1737048880753-293	A vibrant indoor play area designed	PENDING	medium	Management	Jan 16, 2025	QAR 3,124.00	
+View
+Edit
+PR-1736414924026-364	Let me implement a more robust solution	PENDING	urgent	Management	Jan 9, 2025	QAR 4,040.00	
+View
+Edit
+PR-1736374146850-743	see one timeline component	APPROVED	medium	Management	Jan 9, 2025	QAR 650.00	
+View
+Edit
+PR-1736370943809-939	If everything looks good	APPROVED	medium	Management	Jan 9, 2025	QAR 2,900.00	
+View
+Edit
+PR-1736367891446-836	I’m happy to share that I’ve obtained a new certification: Foundations	PENDING	medium	Management	Jan 8, 2025	QAR 3,151.00	
+View
+Edit
+PR-1736286651698-718	DeepseekService-related code and references	APPROVED	high	Management	Jan 8, 2025	QAR 49.00	
+View
+Edit
+PR-1736277345329-995	Imagine that a business builds a strong top-of-funnel marketing strategy.	APPROVED	urgent	Management	Jan 7, 2025	QAR 1,325.00	
+View
+Edit
+[plugin:runtime-error-plugin] Failed to fetch
+/home/runner/workspace/client/src/hooks/use-enhanced-notifications.ts:99:32
+97 |          const queryString = params ? `?${params}` : '';
+98 |          
+99 |          const response = await fetch(`/api/notifications${queryString}`, {
+   |                                 ^
+100|            credentials: 'include'
+101|          }).catch(err => {
+
+    at queryFn /home/runner/workspace/client/src/hooks/use-enhanced-notifications.ts:99:32
+    at Object.fetchFn [as fn] (https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=1c3457e2:840:14
+Click outside, press Esc key, or fix the code to dismiss.
+You can also disable this overlay by setting server.hmr.overlay to false in vite.config.js.

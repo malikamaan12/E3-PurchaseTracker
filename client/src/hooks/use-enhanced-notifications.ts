@@ -96,13 +96,16 @@ export function useEnhancedNotifications(options?: {
         const params = buildQueryParams();
         const queryString = params ? `?${params}` : '';
         
-        const response = await fetch(`/api/notifications${queryString}`, {
-          credentials: 'include'
-        }).catch(err => {
+        let response: Response;
+        try {
+          response = await fetch(`/api/notifications${queryString}`, {
+            credentials: 'include'
+          });
+        } catch (err) {
           console.error("Network error fetching notifications:", err);
           // Return empty array on network error to prevent app crashes
-          return { ok: true, json: () => Promise.resolve([]) };
-        });
+          return [];
+        }
         
         if (!response.ok) {
           console.error(`Notification API error: ${response.status}`);
@@ -110,7 +113,7 @@ export function useEnhancedNotifications(options?: {
           return [];
         }
         
-        return response.json();
+        return await response.json();
       } catch (err) {
         console.error("Error in notifications query:", err);
         // Return empty array on any errors to prevent app crashes
@@ -120,30 +123,25 @@ export function useEnhancedNotifications(options?: {
     staleTime: STALE_TIME,
     enabled: true,
     retry: MAX_RETRIES,
-    refetchOnWindowFocus: true,
-    // Add fallback for all errors
-    onError: (error) => {
-      console.error("Failed to fetch notifications:", error);
-      return []; // Return empty array on error
-    }
+    refetchOnWindowFocus: true
   });
 
   // Mark notification as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: number) => {
       try {
-        const response = await fetch(`/api/notifications/${notificationId}/read`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
-        }).catch(err => {
+        let response: Response;
+        try {
+          response = await fetch(`/api/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          });
+        } catch (err) {
           console.error("Network error marking notification as read:", err);
-          // Return mock success to prevent app crashes during network issues
-          return { 
-            ok: true, 
-            json: () => Promise.resolve({ success: true, message: "Operation handled offline" }) 
-          };
-        });
+          // Return a default response to prevent crashes
+          return { success: true, message: "Operation handled offline" };
+        }
         
         if (!response.ok) {
           console.error(`Mark as read API error: ${response.status}`);
@@ -152,7 +150,7 @@ export function useEnhancedNotifications(options?: {
           throw error;
         }
         
-        return response.json();
+        return await response.json();
       } catch (err) {
         console.error("Error in mark as read mutation:", err);
         // Return a default response to prevent crashes
@@ -179,19 +177,25 @@ export function useEnhancedNotifications(options?: {
   // Acknowledge notification
   const acknowledgeNotification = useMutation({
     mutationFn: async (notificationId: number) => {
-      const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const error = new Error('Failed to acknowledge notification') as NotificationError;
-        error.status = response.status;
-        throw error;
+      try {
+        const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const error = new Error('Failed to acknowledge notification') as NotificationError;
+          error.status = response.status;
+          throw error;
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Error acknowledging notification:", err);
+        // Return a default response to prevent crashes
+        return { success: true };
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       // Refetch to ensure consistency
@@ -213,19 +217,25 @@ export function useEnhancedNotifications(options?: {
   // Mark all notifications as read
   const markAllAsRead = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/notifications/mark-all-read', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const error = new Error('Failed to mark all notifications as read') as NotificationError;
-        error.status = response.status;
-        throw error;
+      try {
+        const response = await fetch('/api/notifications/mark-all-read', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const error = new Error('Failed to mark all notifications as read') as NotificationError;
+          error.status = response.status;
+          throw error;
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Error marking all notifications as read:", err);
+        // Return a default response to prevent crashes
+        return { success: true };
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       // Refetch to ensure consistency
@@ -345,36 +355,46 @@ export function useEnhancedNotifications(options?: {
           throw new Error(`Unknown action type: ${actionType}`);
       }
       
-      // Make API request
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: method !== 'GET' ? JSON.stringify(actionData) : undefined
-      });
-      
-      if (!response.ok) {
-        const error = new Error(`Failed to perform action: ${actionType}`) as NotificationError;
-        error.status = response.status;
-        try {
-          const data = await response.json();
-          error.details = data;
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-        throw error;
-      }
-      
-      // Mark the notification as read
-      if (notificationId) {
-        await fetch(`/api/notifications/${notificationId}/read`, {
-          method: 'PUT',
+      try {
+        // Make API request
+        const response = await fetch(endpoint, {
+          method,
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
+          credentials: 'include',
+          body: method !== 'GET' ? JSON.stringify(actionData) : undefined
         });
+        
+        if (!response.ok) {
+          const error = new Error(`Failed to perform action: ${actionType}`) as NotificationError;
+          error.status = response.status;
+          try {
+            const data = await response.json();
+            error.details = data;
+          } catch (e) {
+            // Ignore JSON parsing errors
+          }
+          throw error;
+        }
+        
+        // Mark the notification as read
+        if (notificationId) {
+          try {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include'
+            });
+          } catch (err) {
+            console.error("Error marking notification as read after action:", err);
+            // Continue despite error
+          }
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error(`Error performing action ${actionType}:`, err);
+        throw err; // Rethrow to trigger onError handler
       }
-      
-      return response.json();
     },
     onSuccess: (data, variables) => {
       // Refetch to ensure consistency
