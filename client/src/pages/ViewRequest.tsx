@@ -2,16 +2,18 @@ import { useParams } from "wouter";
 import { useUser } from "@/hooks/use-user";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, AlertCircle, FileText } from "lucide-react";
+import { Loader2, ArrowLeft, AlertCircle, FileText, Sparkles } from "lucide-react";
 import RequestCard from "@/components/RequestCard";
 import { useLocation } from "wouter";
 import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
+import { ClaudeAIInsights } from "@/components/ClaudeAIInsights";
 import { DownloadOptions } from "@/components/DownloadOptions";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRequest } from "@/hooks/use-request";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ViewRequest() {
   const { id } = useParams();
@@ -107,31 +109,60 @@ export default function ViewRequest() {
             </CardContent>
           </Card>
 
-          {/* Request Timeline */}
-          <RequestTimeline request={request} />
+          {/* Tabbed layout for details */}
+          <Card className="border-[#35bbba]/20 shadow-lg">
+            <CardContent className="p-6">
+              <Tabs defaultValue="timeline">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="timeline">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Timeline
+                  </TabsTrigger>
+                  <TabsTrigger value="approval" disabled={!(showApproval || request.status !== 'draft')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Approval
+                  </TabsTrigger>
+                  <TabsTrigger value="insights">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    AI Insights
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="timeline">
+                  <RequestTimeline request={request} />
+                </TabsContent>
+                
+                <TabsContent value="approval">
+                  {(showApproval || request.status !== 'draft') && (
+                    <ApprovalFlow
+                      request={request}
+                      onApprovalUpdate={() => {
+                        // Invalidate queries to refresh data
+                        queryClient.invalidateQueries({ queryKey: [`/api/requests/${requestId}`] });
+                        queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+                        refetch();
 
-          {/* Only show approval flow when needed */}
-          {(showApproval || request.status !== 'draft') && (
-            <Card className="border-[#35bbba]/20 shadow-lg">
-              <CardContent className="p-6">
-                <ApprovalFlow
-                  request={request}
-                  onApprovalUpdate={() => {
-                    // Invalidate queries to refresh data
-                    queryClient.invalidateQueries({ queryKey: [`/api/requests/${requestId}`] });
-                    queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
-                    refetch();
-
-                    toast({
-                      title: "Approval Updated",
-                      description: "The request approval status has been updated",
-                      variant: "default"
-                    });
-                  }}
-                />
-              </CardContent>
-            </Card>
-          )}
+                        toast({
+                          title: "Approval Updated",
+                          description: "The request approval status has been updated",
+                          variant: "default"
+                        });
+                      }}
+                    />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="insights">
+                  <ClaudeAIInsights
+                    requestData={request}
+                    vendorOptions={[request.vendor].filter(Boolean)}
+                    attachmentData={request.attachments && request.attachments.length > 0 ? request.attachments : undefined}
+                    showExecutiveSummary={user?.role === 'admin' || user?.department === 'CEO Office' || user?.department === 'Director'}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
