@@ -2,9 +2,6 @@ import Anthropic from '@anthropic-ai/sdk';
 
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 
-/**
- * Service for interacting with Anthropic Claude AI
- */
 export class ClaudeAIService {
   private anthropic: Anthropic;
 
@@ -20,17 +17,16 @@ export class ClaudeAIService {
    */
   async analyzeRequest(requestDetails: any): Promise<{
     optimizationSuggestions: string[];
-    costSavingEstimate: string;
+    costSavings: string;
     priorityScore: number;
     priorityReason: string;
   }> {
     try {
       const prompt = `
-        As a purchasing optimization expert, analyze this purchase request and provide:
-        1. Three concrete optimization suggestions (cost reduction, timing, alternatives)
-        2. Estimated cost savings percentage
-        3. Priority score (1-100)
-        4. Brief reasoning for priority
+        As a procurement analyst, review this purchase request and provide:
+        1. At least 2-3 optimization suggestions to improve cost efficiency
+        2. Potential cost savings as a percentage
+        3. Priority score (1-100) with reasoning
 
         Purchase request details:
         ${JSON.stringify(requestDetails, null, 2)}
@@ -42,25 +38,30 @@ export class ClaudeAIService {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      // Parse response to extract the structured information
-      const content = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response format from Claude');
+      }
+      const content = contentBlock.text;
+      
+      // Parse response to extract insights
       const optimizationSuggestions = this.extractOptimizationSuggestions(content);
-      const costSavingEstimate = this.extractCostSavings(content);
+      const costSavings = this.extractCostSavings(content);
       const { priorityScore, priorityReason } = this.extractPriorityInfo(content);
 
       return {
         optimizationSuggestions,
-        costSavingEstimate,
+        costSavings,
         priorityScore,
         priorityReason,
       };
     } catch (error) {
-      console.error('Error analyzing request with Claude:', error);
+      console.error('Error analyzing purchase request with Claude:', error);
       return {
-        optimizationSuggestions: ['Unable to analyze request at this time'],
-        costSavingEstimate: 'Unknown',
-        priorityScore: 50, // Default middle priority
-        priorityReason: 'AI analysis unavailable',
+        optimizationSuggestions: [],
+        costSavings: 'Unknown',
+        priorityScore: 50,
+        priorityReason: 'Unable to analyze with AI at this time',
       };
     }
   }
@@ -93,7 +94,11 @@ export class ClaudeAIService {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const content = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response format from Claude');
+      }
+      const content = contentBlock.text;
       return this.parseVendorRecommendations(content, vendorOptions);
     } catch (error) {
       console.error('Error recommending vendors with Claude:', error);
@@ -129,7 +134,11 @@ export class ClaudeAIService {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const content = response.content[0].text;
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response format from Claude');
+      }
+      const content = contentBlock.text;
       return this.parseAttachmentValidation(content);
     } catch (error) {
       console.error('Error validating attachments with Claude:', error);
@@ -162,7 +171,11 @@ export class ClaudeAIService {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      return response.content[0].text.trim();
+      const contentBlock = response.content[0];
+      if (contentBlock.type !== 'text') {
+        throw new Error('Unexpected response format from Claude');
+      }
+      return contentBlock.text.trim();
     } catch (error) {
       console.error('Error generating executive summary with Claude:', error);
       return 'Executive summary generation failed. Please review the complete request details.';
@@ -174,11 +187,11 @@ export class ClaudeAIService {
   private extractOptimizationSuggestions(content: string): string[] {
     try {
       // Look for numbered suggestions in the response
-      const regex = /\d\.\s+(.*?)(?=\d\.\s+|$)/gs;
-      const matches = [...content.matchAll(regex)];
+      const regex = /\d\.\s+(.*?)(?=\d\.\s+|$)/g;
+      const matches = Array.from(content.match(regex) || []);
       
       if (matches && matches.length > 0) {
-        return matches.map(match => match[1].trim());
+        return matches.map(match => match.trim());
       }
       
       // Fallback: split by newlines and look for suggestions
@@ -264,7 +277,7 @@ export class ClaudeAIService {
     reasonings: Record<string, string>;
   } {
     try {
-      const vendorNames = vendorOptions.map(v => v.companyName);
+      const vendorNames = vendorOptions.map(v => v.companyName || v.name || '').filter(Boolean);
       const reasonings: Record<string, string> = {};
       const recommendedVendors: string[] = [];
       
@@ -281,7 +294,7 @@ export class ClaudeAIService {
             reasonings[vendor] = reasonMatch[1].trim();
           } else {
             // Try to find the sentence containing the vendor name
-            const sentences = content.split(/[\.\n]/);
+            const sentences = content.split(/[.\n]/);
             const relevantSentence = sentences.find(s => s.includes(vendor));
             
             if (relevantSentence) {
@@ -324,7 +337,7 @@ export class ClaudeAIService {
       const isInvalid = /\b(?:invalid|incomplete|missing|inadequate|insufficient|problem|issue|error)\b/i.test(content);
       
       // Extract issues
-      const issuesMatch = content.match(/(?:issues|problems|concerns):\s*(.+?)(?=\n\n|$)/is);
+      const issuesMatch = content.match(/(?:issues|problems|concerns):\s*(.+?)(?=\n\n|$)/i);
       if (issuesMatch) {
         const issuesText = issuesMatch[1];
         const issuesList = issuesText.split(/\n-|\n\d+\./).filter(Boolean).map(i => i.trim());
@@ -332,7 +345,7 @@ export class ClaudeAIService {
       }
       
       // Extract suggestions
-      const suggestionsMatch = content.match(/(?:suggestions|recommendations|improvements):\s*(.+?)(?=\n\n|$)/is);
+      const suggestionsMatch = content.match(/(?:suggestions|recommendations|improvements):\s*(.+?)(?=\n\n|$)/i);
       if (suggestionsMatch) {
         const suggestionsText = suggestionsMatch[1];
         const suggestionsList = suggestionsText.split(/\n-|\n\d+\./).filter(Boolean).map(s => s.trim());
