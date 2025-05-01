@@ -15,8 +15,7 @@ import JSZip from "jszip";
 // Import the notification service and route registrar
 import { notificationService } from "./services/NotificationService";
 import { registerNotificationRoutes } from "./routes/notification-routes";
-// Import Claude AI routes
-import { registerClaudeAIRoutes } from "./routes/claude-ai-routes";
+// Import Claude AI routes is now in-line where it's used
 import { AuthorizationError, NotFoundError } from "./utils/errors";
 import {
   users,
@@ -118,12 +117,17 @@ const getContentDisposition = (
     : `inline; filename="${filename}"`;
 };
 
-import { registerClaudeAIRoutes } from './routes/claude-ai-routes';
-
 export function registerRoutes(app: Express): Server {
   // Register Claude AI routes directly on the app with /api prefix
   const apiRouter = express.Router();
-  registerClaudeAIRoutes(apiRouter);
+  // Import notification routes
+  registerNotificationRoutes(apiRouter);
+  // Register Claude AI routes
+  import('./routes/claude-ai-routes').then(({ registerClaudeAIRoutes }) => {
+    registerClaudeAIRoutes(apiRouter);
+  }).catch(err => {
+    console.error('Error loading Claude AI routes:', err);
+  });
   app.use('/api', apiRouter);
 
   // Create uploads directory if it doesn't exist
