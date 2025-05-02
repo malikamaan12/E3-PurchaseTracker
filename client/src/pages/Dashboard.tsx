@@ -849,7 +849,7 @@ export default function Dashboard() {
                         <Clock className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Pending</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.pending}
                       </div>
                     </div>
@@ -862,7 +862,7 @@ export default function Dashboard() {
                         <CheckCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Approved</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.approved}
                       </div>
                     </div>
@@ -875,7 +875,7 @@ export default function Dashboard() {
                         <XCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Rejected</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.rejected}
                       </div>
                     </div>
@@ -888,7 +888,7 @@ export default function Dashboard() {
                         <PencilRuler className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Changes</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.changes}
                       </div>
                     </div>

@@ -98,17 +98,45 @@ export function useEnhancedNotifications(options?: {
         
         // Simple fetch without AbortController to avoid abort errors
         try {
-          const response = await fetch(`/api/notifications${queryString}`, {
-            credentials: 'include',
-            // No signal here to avoid abort errors
-          });
+          // Add a delay before retrying (exponential backoff)
+          const delayRetry = async (retryCount: number): Promise<Notification[]> => {
+            if (retryCount > MAX_RETRIES) {
+              console.warn('Maximum retries reached for notifications API');
+              return [];
+            }
+            
+            try {
+              const response = await fetch(`/api/notifications${queryString}`, {
+                credentials: 'include',
+                // No signal here to avoid abort errors
+              });
+              
+              if (!response.ok) {
+                console.error(`Notification API error: ${response.status}`);
+                
+                // If we get 401, 500 or 502, retry with exponential backoff
+                if ([401, 500, 502].includes(response.status)) {
+                  const delay = Math.min(1000 * (2 ** retryCount), 10000); // Max 10 seconds
+                  console.log(`Retrying notification fetch in ${delay}ms (attempt ${retryCount + 1})`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  return delayRetry(retryCount + 1);
+                }
+                
+                return [];
+              }
+              
+              return await response.json();
+            } catch (fetchErr: any) {
+              // Network error, retry with backoff
+              const delay = Math.min(1000 * (2 ** retryCount), 10000); // Max 10 seconds
+              console.log(`Network error, retrying in ${delay}ms (attempt ${retryCount + 1})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return delayRetry(retryCount + 1);
+            }
+          };
           
-          if (!response.ok) {
-            console.error(`Notification API error: ${response.status}`);
-            return [];
-          }
-          
-          return await response.json();
+          // Start with retry count 0
+          return await delayRetry(0);
         } catch (fetchErr: any) {
           console.error("Network error fetching notifications:", fetchErr);
           return [];
@@ -120,37 +148,65 @@ export function useEnhancedNotifications(options?: {
     },
     staleTime: STALE_TIME,
     enabled: true,
-    retry: 0, // No retries since we're already handling errors gracefully
-    refetchOnWindowFocus: false // Don't refetch on window focus to reduce requests
+    retry: 0, // No retries since we're handling retries manually with exponential backoff
+    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
+    refetchOnReconnect: true // But do refetch when reconnecting
   });
 
   // Mark notification as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: number) => {
       try {
-        // Simple fetch without AbortController to avoid abort errors
-        try {
-          const response = await fetch(`/api/notifications/${notificationId}/read`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include'
-            // No signal here to avoid abort errors
-          });
-          
-          if (!response.ok) {
-            console.error(`Mark as read API error: ${response.status}`);
-            const error = new Error('Failed to mark notification as read') as NotificationError;
-            error.status = response.status;
-            throw error;
+        // Retry logic with exponential backoff
+        const delayRetry = async (retryCount: number): Promise<any> => {
+          if (retryCount > MAX_RETRIES) {
+            console.warn('Maximum retries reached for mark as read API');
+            // Return a default response to prevent crashes
+            return { success: true, message: "Maximum retries reached, operation handled gracefully" };
           }
           
-          return await response.json();
-        } catch (fetchErr: any) {
-          console.error("Network error marking notification as read:", fetchErr);
-          
-          // Return a default response to prevent crashes
-          return { success: true, message: "Operation handled gracefully" };
-        }
+          try {
+            const response = await fetch(`/api/notifications/${notificationId}/read`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include'
+              // No signal here to avoid abort errors
+            });
+            
+            if (!response.ok) {
+              console.error(`Mark as read API error: ${response.status}`);
+              
+              // If we get 401, 500 or 502, retry with exponential backoff
+              if ([401, 500, 502].includes(response.status)) {
+                const delay = Math.min(1000 * (2 ** retryCount), 10000); // Max 10 seconds
+                console.log(`Retrying mark as read API in ${delay}ms (attempt ${retryCount + 1})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return delayRetry(retryCount + 1);
+              }
+              
+              const error = new Error('Failed to mark notification as read') as NotificationError;
+              error.status = response.status;
+              throw error;
+            }
+            
+            return await response.json();
+          } catch (fetchErr: any) {
+            // For network errors, retry with backoff
+            if (retryCount < MAX_RETRIES) {
+              const delay = Math.min(1000 * (2 ** retryCount), 10000); // Max 10 seconds
+              console.log(`Network error, retrying mark as read in ${delay}ms (attempt ${retryCount + 1})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return delayRetry(retryCount + 1);
+            }
+            
+            console.error("Network error marking notification as read after max retries:", fetchErr);
+            // Return a default response to prevent crashes
+            return { success: true, message: "Operation handled gracefully" };
+          }
+        };
+        
+        // Start with retry count 0
+        return await delayRetry(0);
       } catch (err) {
         console.error("Error in mark as read mutation:", err);
         // Return a default response to prevent crashes
@@ -171,7 +227,7 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
     },
-    retry: 0 // No retries since we're handling errors gracefully
+    retry: 0 // No retries since we're handling retries manually with exponential backoff
   });
 
   // Acknowledge notification
@@ -283,17 +339,47 @@ export function useEnhancedNotifications(options?: {
       setLastFetchTime(new Date());
     }
     
+    // Track consecutive failures
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 5;
+    
     // Only create one interval timer and ensure we don't have multiple timers running
     if (autoPolling && !pollTimerRef) {
       // Create a debounced version of the refetch to prevent excessive API calls
-      const debouncedRefetch = () => {
+      const debouncedRefetch = async () => {
         // Use a safe way to update the date to avoid invalid date objects
         const now = new Date();
         if (!isNaN(now.getTime())) {
           // Only update if significant time has passed (at least 5 seconds)
           if (!lastFetchTime || now.getTime() - lastFetchTime.getTime() > 5000) {
-            setLastFetchTime(now);
-            refetch();
+            try {
+              setLastFetchTime(now);
+              await refetch();
+              // Reset failure count on success
+              consecutiveFailures = 0;
+            } catch (error) {
+              // Increment failure count
+              consecutiveFailures++;
+              console.error(`Polling error (attempt ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}):`, error);
+              
+              // If too many consecutive failures, back off polling
+              if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                console.warn('Too many consecutive polling failures, backing off for 2 minutes');
+                // Clear current timer
+                if (pollTimerRef) {
+                  window.clearInterval(pollTimerRef);
+                  setPollTimerRef(null);
+                }
+                
+                // Set a new timer with longer interval (2 minutes) after backing off
+                setTimeout(() => {
+                  consecutiveFailures = 0; // Reset failures
+                  // Restart polling with normal interval
+                  const newId = window.setInterval(debouncedRefetch, 60000);
+                  setPollTimerRef(newId);
+                }, 120000); // 2 minutes
+              }
+            }
           }
         }
       };
