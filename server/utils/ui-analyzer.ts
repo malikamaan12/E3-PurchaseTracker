@@ -79,10 +79,13 @@ export async function analyzeUiColors(
 
     // Parse the response to extract the JSON data
     try {
-      const jsonMatch = response.content[0].text.match(/\{[\s\S]*\}/m);
-      if (jsonMatch) {
-        const jsonResponse = JSON.parse(jsonMatch[0]);
-        return jsonResponse as UiAnalysisResult;
+      if (response.content[0].type === 'text') {
+        const textContent = response.content[0].text;
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/m);
+        if (jsonMatch) {
+          const jsonResponse = JSON.parse(jsonMatch[0]);
+          return jsonResponse as UiAnalysisResult;
+        }
       }
     } catch (parseError) {
       console.error('Error parsing UI analysis response:', parseError);
@@ -147,9 +150,12 @@ export async function generateAccessibleColorPalette(
     );
 
     try {
-      const jsonMatch = response.content[0].text.match(/\{[\s\S]*\}/m);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      if (response.content[0].type === 'text') {
+        const textContent = response.content[0].text;
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/m);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
       }
     } catch (parseError) {
       console.error('Error parsing color palette response:', parseError);

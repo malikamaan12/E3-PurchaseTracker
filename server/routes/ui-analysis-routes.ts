@@ -21,18 +21,18 @@ router.post('/analyze-screenshot', upload.single('screenshot'), async (req: Requ
   try {
     // Check if Claude API key is configured
     if (!checkApiKeyConfigured()) {
-      throw new AppError('Claude API key not configured', 'error', 401);
+      throw new AppError('Claude API key not configured', 401);
     }
 
     // Get current color scheme from request body
     const currentColorScheme = req.body.colorScheme ? JSON.parse(req.body.colorScheme) : null;
     if (!currentColorScheme) {
-      throw new AppError('Current color scheme is required', 'error', 400);
+      throw new AppError('Current color scheme is required', 400);
     }
 
     // Check for screenshot file
     if (!req.file) {
-      throw new AppError('Screenshot file is required', 'error', 400);
+      throw new AppError('Screenshot file is required', 400);
     }
 
     // Read and convert image file to base64
@@ -73,13 +73,13 @@ router.post('/generate-palette', async (req: Request, res: Response) => {
   try {
     // Check if Claude API key is configured
     if (!checkApiKeyConfigured()) {
-      throw new AppError('Claude API key not configured', 'error', 401);
+      throw new AppError('Claude API key not configured', 401);
     }
 
     // Get base colors from request body
     const { primary, secondary, background } = req.body;
     if (!primary || !secondary || !background) {
-      throw new AppError('Primary, secondary, and background colors are required', 'error', 400);
+      throw new AppError('Primary, secondary, and background colors are required', 400);
     }
 
     // Generate the palette

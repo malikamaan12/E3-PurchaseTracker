@@ -144,6 +144,14 @@ export function registerRoutes(app: Express): Server {
   }).catch(err => {
     console.error('Error loading vendor analysis routes:', err);
   });
+  
+  // Register UI Analysis routes
+  import('./routes/ui-analysis-routes').then((routes) => {
+    apiRouter.use('/ui-analysis', routes.default);
+    console.log('UI analysis routes registered successfully');
+  }).catch(err => {
+    console.error('Error loading UI analysis routes:', err);
+  });
   app.use('/api', apiRouter);
 
   // Create uploads directory if it doesn't exist
