@@ -96,18 +96,12 @@ export function useEnhancedNotifications(options?: {
         const params = buildQueryParams();
         const queryString = params ? `?${params}` : '';
         
-        // Use AbortController for timeout control
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
+        // Simple fetch without AbortController to avoid abort errors
         try {
           const response = await fetch(`/api/notifications${queryString}`, {
             credentials: 'include',
-            signal: controller.signal
+            // No signal here to avoid abort errors
           });
-          
-          // Clear timeout once response is received
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Notification API error: ${response.status}`);
@@ -116,15 +110,7 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          // Clear timeout to prevent memory leaks
-          clearTimeout(timeoutId);
-          
-          if (fetchErr && fetchErr.name === 'AbortError') {
-            console.error("Notification fetch request timed out");
-          } else {
-            console.error("Network error fetching notifications:", fetchErr);
-          }
-          
+          console.error("Network error fetching notifications:", fetchErr);
           return [];
         }
       } catch (err) {
@@ -134,29 +120,22 @@ export function useEnhancedNotifications(options?: {
     },
     staleTime: STALE_TIME,
     enabled: true,
-    retry: 1, // Only retry once to prevent excessive requests on failure
-    retryDelay: 1000, // Wait 1 second before retrying
-    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
+    retry: 0, // No retries since we're already handling errors gracefully
+    refetchOnWindowFocus: false // Don't refetch on window focus to reduce requests
   });
 
   // Mark notification as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: number) => {
       try {
-        // Use AbortController for timeout control
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
+        // Simple fetch without AbortController to avoid abort errors
         try {
           const response = await fetch(`/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            signal: controller.signal
+            credentials: 'include'
+            // No signal here to avoid abort errors
           });
-          
-          // Clear timeout once response is received
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Mark as read API error: ${response.status}`);
@@ -167,14 +146,7 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          // Clear timeout to prevent memory leaks
-          clearTimeout(timeoutId);
-          
-          if (fetchErr && fetchErr.name === 'AbortError') {
-            console.error("Mark as read request timed out");
-          } else {
-            console.error("Network error marking notification as read:", fetchErr);
-          }
+          console.error("Network error marking notification as read:", fetchErr);
           
           // Return a default response to prevent crashes
           return { success: true, message: "Operation handled gracefully" };
@@ -199,27 +171,21 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
     },
-    retry: 1 // Only retry once to prevent excessive requests
+    retry: 0 // No retries since we're handling errors gracefully
   });
 
   // Acknowledge notification
   const acknowledgeNotification = useMutation({
     mutationFn: async (notificationId: number) => {
       try {
-        // Use AbortController for timeout control
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
+        // Simple fetch without AbortController to avoid abort errors
         try {
           const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            signal: controller.signal
+            credentials: 'include'
+            // No signal here to avoid abort errors
           });
-          
-          // Clear timeout once response is received
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Acknowledge API error: ${response.status}`);
@@ -230,14 +196,7 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          // Clear timeout to prevent memory leaks
-          clearTimeout(timeoutId);
-          
-          if (fetchErr && fetchErr.name === 'AbortError') {
-            console.error("Acknowledge request timed out");
-          } else {
-            console.error("Network error acknowledging notification:", fetchErr);
-          }
+          console.error("Network error acknowledging notification:", fetchErr);
           
           // Return a default response to prevent crashes
           return { success: true, message: "Operation handled gracefully" };
@@ -262,27 +221,21 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
     },
-    retry: 1 // Only retry once to prevent excessive requests
+    retry: 0 // No retries since we're handling errors gracefully
   });
 
   // Mark all notifications as read
   const markAllAsRead = useMutation({
     mutationFn: async () => {
       try {
-        // Use AbortController for timeout control
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
+        // Simple fetch without AbortController to avoid abort errors
         try {
           const response = await fetch('/api/notifications/mark-all-read', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            signal: controller.signal
+            credentials: 'include'
+            // No signal here to avoid abort errors
           });
-          
-          // Clear timeout once response is received
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Mark all as read API error: ${response.status}`);
@@ -293,14 +246,7 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          // Clear timeout to prevent memory leaks
-          clearTimeout(timeoutId);
-          
-          if (fetchErr && fetchErr.name === 'AbortError') {
-            console.error("Mark all as read request timed out");
-          } else {
-            console.error("Network error marking all notifications as read:", fetchErr);
-          }
+          console.error("Network error marking all notifications as read:", fetchErr);
           
           // Return a default response to prevent crashes
           return { success: true, message: "Operation handled gracefully" };
@@ -327,7 +273,7 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
     },
-    retry: 1 // Only retry once to prevent excessive requests
+    retry: 0 // No retries since we're handling errors gracefully
   });
 
   // Setup polling - optimized to prevent excessive API calls
@@ -430,22 +376,15 @@ export function useEnhancedNotifications(options?: {
       }
       
       try {
-        // Use AbortController for timeout control
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout (longer for actions)
-        
+        // Simple fetch without AbortController to avoid abort errors
         try {
           // Make API request
           const response = await fetch(endpoint, {
             method,
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            signal: controller.signal,
             body: method !== 'GET' ? JSON.stringify(actionData) : undefined
           });
-          
-          // Clear timeout once response is received
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Action API error for ${actionType}: ${response.status}`);
@@ -463,18 +402,12 @@ export function useEnhancedNotifications(options?: {
           // Mark the notification as read
           if (notificationId) {
             try {
-              // Use a separate AbortController for the read request
-              const readController = new AbortController();
-              const readTimeoutId = setTimeout(() => readController.abort(), 3000); // 3 second timeout for read
-              
               await fetch(`/api/notifications/${notificationId}/read`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                signal: readController.signal
+                credentials: 'include'
+                // No signal here to avoid abort errors
               });
-              
-              clearTimeout(readTimeoutId);
             } catch (readErr) {
               console.error("Error marking notification as read after action:", readErr);
               // Continue despite error
@@ -483,15 +416,7 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          // Clear timeout to prevent memory leaks
-          clearTimeout(timeoutId);
-          
-          if (fetchErr && fetchErr.name === 'AbortError') {
-            console.error(`${actionType} action request timed out`);
-          } else {
-            console.error(`Network error performing ${actionType} action:`, fetchErr);
-          }
-          
+          console.error(`Network error performing ${actionType} action:`, fetchErr);
           throw fetchErr; // Rethrow to trigger onError handler
         }
       } catch (err) {
