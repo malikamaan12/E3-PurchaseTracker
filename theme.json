@@ -1,26 +1,26 @@
 {
   "variant": "professional",
-  "primary": "#4A6FFF",
+  "primary": "#A020F0",
   "appearance": "system",
   "radius": 0.5,
-  "accent": "#36BFFA",
-  "foreground": "#18181B",
-  "background": "#F8FAFC",
+  "accent": "#00C2FF",
+  "foreground": "#000000",
+  "background": "#F4F4F6",
   "card": "#FFFFFF",
   "popover": "#FFFFFF",
-  "border": "#E2E8F0",
-  "input": "#E2E8F0",
-  "ring": "#4A6FFF",
+  "border": "#DDDDDD",
+  "input": "#EEEEEE",
+  "ring": "#A020F0",
   "text": {
-    "primary": "#18181B",
-    "secondary": "#475569"
+    "primary": "#000000",
+    "secondary": "#444444"
   },
   "muted": {
-    "DEFAULT": "#F1F5F9",
-    "foreground": "#475569"
+    "DEFAULT": "#F8F8F8",
+    "foreground": "#444444"
   },
   "secondary": {
-    "DEFAULT": "#16B1FF",
+    "DEFAULT": "#6C00F7",
     "foreground": "#FFFFFF"
   },
   "destructive": {
@@ -28,29 +28,29 @@
     "foreground": "#FFFFFF"
   },
   "hover": {
-    "DEFAULT": "#36BFFA",
+    "DEFAULT": "#00C2FF",
     "foreground": "#FFFFFF"
   },
   "dark": {
-    "primary": "#4A6FFF",
-    "accent": "#36BFFA",
+    "primary": "#A020F0",
+    "accent": "#00C2FF",
     "foreground": "#FFFFFF",
-    "background": "#0F172A",
-    "card": "#1E293B",
-    "popover": "#1E293B",
-    "border": "#334155",
-    "input": "#334155",
-    "ring": "#4A6FFF",
+    "background": "#1A1A1A",
+    "card": "#2A2A2A",
+    "popover": "#2A2A2A",
+    "border": "#2F2F2F",
+    "input": "#333333",
+    "ring": "#A020F0",
     "text": {
       "primary": "#FFFFFF",
-      "secondary": "#CBD5E1"
+      "secondary": "#CFCFCF"
     },
     "muted": {
-      "DEFAULT": "#1E293B",
-      "foreground": "#94A3B8"
+      "DEFAULT": "#232323",
+      "foreground": "#AAAAAA"
     },
     "secondary": {
-      "DEFAULT": "#16B1FF",
+      "DEFAULT": "#6C00F7",
       "foreground": "#FFFFFF"
     },
     "destructive": {
@@ -58,7 +58,7 @@
       "foreground": "#FFFFFF"
     },
     "hover": {
-      "DEFAULT": "#36BFFA",
+      "DEFAULT": "#00C2FF",
       "foreground": "#FFFFFF"
     }
   }

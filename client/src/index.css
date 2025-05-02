@@ -69,11 +69,11 @@
   
   /* Gradient Styles */
   .bg-gradient-primary {
-    background: linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
+    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
   }
   
   .text-gradient-primary {
-    background: linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
+    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -84,7 +84,7 @@
     background-clip: padding-box, border-box;
     background-origin: padding-box, border-box;
     background-image: linear-gradient(to right, var(--background), var(--background)), 
-                     linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
+                     linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
   }
   
   .hover-btn {
@@ -93,7 +93,7 @@
   
   .hover-btn:hover {
     filter: brightness(1.1);
-    box-shadow: 0 0 12px rgba(54, 191, 250, 0.5);
+    box-shadow: 0 0 12px rgba(160, 32, 240, 0.5);
   }
 }
 
@@ -160,6 +160,37 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Dark Mode Text Visibility Improvements */
+.dark .pdf-label {
+  @apply text-gray-300;
+}
+
+.dark .pdf-value {
+  @apply text-gray-100;
+}
+
+.dark [class*="text-gray-"] {
+  @apply text-gray-300;
+}
+
+.dark [class*="text-slate-"] {
+  @apply text-slate-300;
+}
+
+.dark [class*="text-muted"] {
+  @apply text-gray-300;
+}
+
+/* Ensure text is visible in dark mode for common components */
+.dark .data-table td,
+.dark .data-table th,
+.dark label,
+.dark p,
+.dark span:not([class*="text-"]),
+.dark div[class*="muted"] {
+  @apply text-white;
 }
 
 /* Print Styles */
