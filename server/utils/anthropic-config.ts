@@ -6,9 +6,8 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { AppError } from './errors';
 
-// Note: The newest model available in our @anthropic-ai/sdk version is "claude-3-sonnet-20240229"
-// This will be updated to "claude-3-7-sonnet-20250219" once the SDK is updated
-export const MODEL = 'claude-3-sonnet-20240229';
+// The newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+export const MODEL = 'claude-3-7-sonnet-20250219';
 
 // Standard token and temperature settings
 export const DEFAULT_MAX_TOKENS = 1024;

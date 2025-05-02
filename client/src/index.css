@@ -4,52 +4,52 @@
 
 @layer base {
   :root {
-    --background: #FFFFFF;
-    --foreground: #000000;
+    --background: #F8FAFC;
+    --foreground: #18181B;
     --card: #FFFFFF;
-    --card-foreground: #000000;
+    --card-foreground: #18181B;
     --popover: #FFFFFF;
-    --popover-foreground: #000000;
-    --primary: #6C00F7;
+    --popover-foreground: #18181B;
+    --primary: #4A6FFF;
     --primary-foreground: #FFFFFF;
-    --secondary: #1CD8D2;
+    --secondary: #16B1FF;
     --secondary-foreground: #FFFFFF;
-    --muted: #F4F4F6;
-    --muted-foreground: #444444;
-    --accent: #00C2FF;
+    --muted: #F1F5F9;
+    --muted-foreground: #475569;
+    --accent: #36BFFA;
     --accent-foreground: #FFFFFF;
-    --destructive: hsl(0 84.2% 60.2%);
+    --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
-    --border: #DDDDDD;
-    --input: #DDDDDD;
-    --ring: #6C00F7;
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #4A6FFF;
     --radius: 0.5rem;
-    --text-primary: #000000;
-    --text-secondary: #444444;
+    --text-primary: #18181B;
+    --text-secondary: #475569;
   }
 
   .dark {
-    --background: #1A1A1A;
+    --background: #0F172A;
     --foreground: #FFFFFF;
-    --card: #2A2A2A;
+    --card: #1E293B;
     --card-foreground: #FFFFFF;
-    --popover: #2A2A2A;
+    --popover: #1E293B;
     --popover-foreground: #FFFFFF;
-    --primary: #6C00F7;
+    --primary: #4A6FFF;
     --primary-foreground: #FFFFFF;
-    --secondary: #1CD8D2;
+    --secondary: #16B1FF;
     --secondary-foreground: #FFFFFF;
-    --muted: #2A2A2A;
-    --muted-foreground: #CFCFCF;
-    --accent: #00C2FF;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #36BFFA;
     --accent-foreground: #FFFFFF;
-    --destructive: hsl(0 62.8% 30.6%);
+    --destructive: #DC2626;
     --destructive-foreground: #FFFFFF;
-    --border: #2F2F2F;
-    --input: #2F2F2F;
-    --ring: #6C00F7;
+    --border: #334155;
+    --input: #334155;
+    --ring: #4A6FFF;
     --text-primary: #FFFFFF;
-    --text-secondary: #CFCFCF;
+    --text-secondary: #CBD5E1;
   }
 
   * {
@@ -69,11 +69,11 @@
   
   /* Gradient Styles */
   .bg-gradient-primary {
-    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
+    background: linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
   }
   
   .text-gradient-primary {
-    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
+    background: linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -84,7 +84,7 @@
     background-clip: padding-box, border-box;
     background-origin: padding-box, border-box;
     background-image: linear-gradient(to right, var(--background), var(--background)), 
-                     linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
+                     linear-gradient(90deg, #4A6FFF, #3A8FFF, #36BFFA, #16B1FF);
   }
   
   .hover-btn {
@@ -93,7 +93,7 @@
   
   .hover-btn:hover {
     filter: brightness(1.1);
-    box-shadow: 0 0 12px rgba(0, 194, 255, 0.5);
+    box-shadow: 0 0 12px rgba(54, 191, 250, 0.5);
   }
 }
 

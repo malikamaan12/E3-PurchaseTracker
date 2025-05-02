@@ -1,64 +1,64 @@
 {
-  "variant": "vibrant",
-  "primary": "#6C00F7",
+  "variant": "professional",
+  "primary": "#4A6FFF",
   "appearance": "system",
   "radius": 0.5,
-  "accent": "#00C2FF",
-  "foreground": "#000000",
-  "background": "#FFFFFF",
+  "accent": "#36BFFA",
+  "foreground": "#18181B",
+  "background": "#F8FAFC",
   "card": "#FFFFFF",
   "popover": "#FFFFFF",
-  "border": "#DDDDDD",
-  "input": "#DDDDDD",
-  "ring": "#6C00F7",
+  "border": "#E2E8F0",
+  "input": "#E2E8F0",
+  "ring": "#4A6FFF",
   "text": {
-    "primary": "#000000",
-    "secondary": "#444444"
+    "primary": "#18181B",
+    "secondary": "#475569"
   },
   "muted": {
-    "DEFAULT": "#F4F4F6",
-    "foreground": "#444444"
+    "DEFAULT": "#F1F5F9",
+    "foreground": "#475569"
   },
   "secondary": {
-    "DEFAULT": "#1CD8D2",
+    "DEFAULT": "#16B1FF",
     "foreground": "#FFFFFF"
   },
   "destructive": {
-    "DEFAULT": "hsl(0 84.2% 60.2%)",
+    "DEFAULT": "#EF4444",
     "foreground": "#FFFFFF"
   },
   "hover": {
-    "DEFAULT": "#00C2FF",
+    "DEFAULT": "#36BFFA",
     "foreground": "#FFFFFF"
   },
   "dark": {
-    "primary": "#6C00F7",
-    "accent": "#00C2FF",
+    "primary": "#4A6FFF",
+    "accent": "#36BFFA",
     "foreground": "#FFFFFF",
-    "background": "#1A1A1A",
-    "card": "#2A2A2A",
-    "popover": "#2A2A2A",
-    "border": "#2F2F2F",
-    "input": "#2F2F2F",
-    "ring": "#6C00F7",
+    "background": "#0F172A",
+    "card": "#1E293B",
+    "popover": "#1E293B",
+    "border": "#334155",
+    "input": "#334155",
+    "ring": "#4A6FFF",
     "text": {
       "primary": "#FFFFFF",
-      "secondary": "#CFCFCF"
+      "secondary": "#CBD5E1"
     },
     "muted": {
-      "DEFAULT": "#2A2A2A",
-      "foreground": "#CFCFCF"
+      "DEFAULT": "#1E293B",
+      "foreground": "#94A3B8"
     },
     "secondary": {
-      "DEFAULT": "#1CD8D2",
+      "DEFAULT": "#16B1FF",
       "foreground": "#FFFFFF"
     },
     "destructive": {
-      "DEFAULT": "hsl(0 62.8% 30.6%)",
+      "DEFAULT": "#DC2626",
       "foreground": "#FFFFFF"
     },
     "hover": {
-      "DEFAULT": "#00C2FF",
+      "DEFAULT": "#36BFFA",
       "foreground": "#FFFFFF"
     }
   }
