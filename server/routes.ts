@@ -136,6 +136,14 @@ export function registerRoutes(app: Express): Server {
   }).catch(err => {
     console.error('Error loading Anthropic demo routes:', err);
   });
+
+  // Register Vendor Analysis routes
+  import('./routes/vendor-analysis-routes').then(({ registerVendorAnalysisRoutes }) => {
+    registerVendorAnalysisRoutes(apiRouter);
+    console.log('Vendor analysis routes registered successfully');
+  }).catch(err => {
+    console.error('Error loading vendor analysis routes:', err);
+  });
   app.use('/api', apiRouter);
 
   // Create uploads directory if it doesn't exist

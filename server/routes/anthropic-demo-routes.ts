@@ -1,11 +1,8 @@
 import { Request, Response, NextFunction, Router } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import multer from 'multer';
-
-// the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-const CLAUDE_MODEL = 'claude-3-7-sonnet-20250219';
+import { analyzeText, analyzeImage, checkApiStatus } from '../utils/anthropic-analyzer';
 
 // Create multer instance for handling file uploads
 const storage = multer.diskStorage({
@@ -38,14 +35,6 @@ const upload = multer({
   },
 });
 
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// Type for valid image media types in Anthropic API
-type AnthropicImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-
 /**
  * Register Anthropic demo routes
  */
@@ -59,15 +48,11 @@ export function registerAnthropicDemoRoutes(router: Router): void {
         return res.status(400).json({ error: 'Text is required' });
       }
       
-      const response = await anthropic.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: text }],
-      });
+      const result = await analyzeText(text);
       
       res.json({
         success: true,
-        result: response.content,
+        result,
       });
     } catch (error) {
       console.error('Error in Anthropic text analysis endpoint:', error);
@@ -92,50 +77,14 @@ export function registerAnthropicDemoRoutes(router: Router): void {
         const { prompt } = req.body;
         const imagePath = req.file.path;
         
-        // Read image as base64
-        const imageBuffer = fs.readFileSync(imagePath);
-        const base64Image = imageBuffer.toString('base64');
-        
-        // Get file extension and determine mime type
-        const fileExt = path.extname(req.file.originalname).toLowerCase();
-        let mimeType: AnthropicImageMediaType = 'image/jpeg';
-        
-        if (fileExt === '.png') {
-          mimeType = 'image/png';
-        } else if (fileExt === '.gif') {
-          mimeType = 'image/gif';
-        } else if (fileExt === '.webp') {
-          mimeType = 'image/webp';
-        }
-        
-        const response = await anthropic.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: 1024,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt || 'Describe this image in detail'
-              },
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mimeType,
-                  data: base64Image
-                }
-              }
-            ]
-          }]
-        });
+        const result = await analyzeImage(imagePath, prompt || 'Describe this image in detail');
         
         // Clean up the temporary file
         fs.unlinkSync(imagePath);
         
         res.json({
           success: true,
-          result: response.content,
+          result,
         });
       } catch (error) {
         console.error('Error in Anthropic image analysis endpoint:', error);
@@ -161,25 +110,8 @@ export function registerAnthropicDemoRoutes(router: Router): void {
   // Debug endpoint to check if Anthropic API is available
   router.get('/anthropic-demo/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Simple API check
-      const response = await anthropic.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: 100,
-        messages: [{ role: 'user', content: 'Respond with the exact text: "Anthropic API is working correctly."' }],
-      });
-      
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== 'text') {
-        throw new Error('Unexpected response format from Claude');
-      }
-      
-      const isWorking = contentBlock.text.includes('Anthropic API is working correctly');
-      
-      res.json({
-        available: true,
-        apiWorking: isWorking,
-        model: CLAUDE_MODEL
-      });
+      const status = await checkApiStatus();
+      res.json(status);
     } catch (error) {
       console.error('Error checking Anthropic API status:', error);
       res.status(500).json({
