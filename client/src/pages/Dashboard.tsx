@@ -647,34 +647,32 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <Card className="mb-6 border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="relative w-full sm:flex-1 mb-3 sm:mb-0">
-                <Input
-                  placeholder="Search requests..."
-                  value={activeFilters.searchQuery}
-                  onChange={(e) => handleFilterChange({
-                    ...activeFilters,
-                    searchQuery: e.target.value,
-                  })}
-                  className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70"
-                />
-                <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
-              </div>
-              {isAdmin && (
-                <div className="w-full sm:w-auto flex justify-center">
-                  <Link href="/export" className="w-full sm:w-auto">
-                    <Button variant="outline" className="w-full sm:w-auto bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Bulk Export
-                    </Button>
-                  </Link>
-                </div>
-              )}
+        <div className="mb-6 bg-white/80 dark:bg-gray-800/80 rounded-lg p-5 backdrop-blur-sm shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="relative w-full sm:flex-1 mb-3 sm:mb-0">
+              <Input
+                placeholder="Search requests..."
+                value={activeFilters.searchQuery}
+                onChange={(e) => handleFilterChange({
+                  ...activeFilters,
+                  searchQuery: e.target.value,
+                })}
+                className="pl-8 border-0 shadow-sm focus:ring-[#7156a2]/50 dark:focus:ring-[#7156a2]/70"
+              />
+              <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
             </div>
-          </CardContent>
-        </Card>
+            {isAdmin && (
+              <div className="w-full sm:w-auto flex justify-center">
+                <Link href="/export" className="w-full sm:w-auto">
+                  <Button variant="outline" className="w-full sm:w-auto bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] border-0 dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Bulk Export
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
 
         <DashboardFilterPanel
           onFilterChange={handleFilterChange}
@@ -689,8 +687,8 @@ export default function Dashboard() {
           <div className="pb-4">
             {/* Desktop view - standard row */}
             <div className="hidden sm:block overflow-x-auto">
-              <TabsList className="mb-6 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-max min-w-full">
-                <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+              <TabsList className="mb-6 bg-white/80 dark:bg-gray-900/80 shadow-sm rounded-lg p-1 w-max min-w-full">
+                <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                   <span className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
                     <span>My Requests</span>
@@ -699,7 +697,7 @@ export default function Dashboard() {
                     {requestCounts.myRequests}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                   <span className="flex items-center">
                     <FileEdit className="h-4 w-4 mr-2" />
                     <span>Ready to Submit</span>
@@ -710,7 +708,7 @@ export default function Dashboard() {
                 </TabsTrigger>
                 {(isAdmin || isSpecialRole) && (
                   <>
-                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <Files className="h-4 w-4 mr-2" />
                         <span>All Requests</span>
@@ -719,7 +717,7 @@ export default function Dashboard() {
                         {requestCounts.allRequests}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                    <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
                         <span>Pending</span>
@@ -728,7 +726,7 @@ export default function Dashboard() {
                         {requestCounts.pending}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                    <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         <span>Approved</span>
@@ -737,7 +735,7 @@ export default function Dashboard() {
                         {requestCounts.approved}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                    <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <XCircle className="h-4 w-4 mr-2" />
                         <span>Rejected</span>
@@ -746,7 +744,7 @@ export default function Dashboard() {
                         {requestCounts.rejected}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                    <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <PencilRuler className="h-4 w-4 mr-2" />
                         <span>Changes Requested</span>
@@ -758,7 +756,7 @@ export default function Dashboard() {
                   </>
                 )}
                 {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                  <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
+                  <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
                     <span className="flex items-center">
                       <CircleCheck className="h-4 w-4 mr-2" />
                       <span>Pending Approvals</span>
@@ -900,7 +898,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg p-4 sm:p-6">
+          <div className="bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-md p-4 sm:p-6 backdrop-blur-sm">
             <TabsContent value="my-requests">
               {renderRequestsTable(categorizedRequests.myRequests)}
             </TabsContent>
