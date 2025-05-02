@@ -508,7 +508,7 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {requests.map((request) => (
-                  <TableRow key={request.id} className="hover:bg-[#35bbba]/5 dark:hover:bg-[#35bbba]/10 transition-colors">
+                  <TableRow key={request.id} className="hover:bg-[#35bbba]/5 dark:hover:bg-[#35bbba]/10 dark:text-white transition-colors">
                     <TableCell className="font-medium">
                       {request.requestNumber}
                     </TableCell>
