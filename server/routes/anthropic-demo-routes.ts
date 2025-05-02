@@ -5,24 +5,27 @@ import path from 'path';
 import multer from 'multer';
 
 // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+const CLAUDE_MODEL = 'claude-3-7-sonnet-20250219';
 
-// Create a multer instance for handling file uploads
+// Create multer instance for handling file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadsDir = path.join(process.cwd(), 'uploads/temp');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const fileExt = path.extname(file.originalname);
+    cb(null, `anthropic-${uniqueSuffix}${fileExt}`);
+  },
+});
+
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadsDir = path.join(process.cwd(), 'uploads/temp');
-      // Create directory if it doesn't exist
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      cb(null, uploadsDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const fileExt = path.extname(file.originalname);
-      cb(null, `anthropic-${uniqueSuffix}${fileExt}`);
-    },
-  }),
+  storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -40,6 +43,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Type for valid image media types in Anthropic API
+type AnthropicImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
 /**
  * Register Anthropic demo routes
  */
@@ -54,7 +60,7 @@ export function registerAnthropicDemoRoutes(router: Router): void {
       }
       
       const response = await anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
+        model: CLAUDE_MODEL,
         max_tokens: 1024,
         messages: [{ role: 'user', content: text }],
       });
@@ -65,7 +71,11 @@ export function registerAnthropicDemoRoutes(router: Router): void {
       });
     } catch (error) {
       console.error('Error in Anthropic text analysis endpoint:', error);
-      next(error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+      });
     }
   });
   
@@ -88,7 +98,7 @@ export function registerAnthropicDemoRoutes(router: Router): void {
         
         // Get file extension and determine mime type
         const fileExt = path.extname(req.file.originalname).toLowerCase();
-        let mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' = 'image/jpeg';
+        let mimeType: AnthropicImageMediaType = 'image/jpeg';
         
         if (fileExt === '.png') {
           mimeType = 'image/png';
@@ -99,7 +109,7 @@ export function registerAnthropicDemoRoutes(router: Router): void {
         }
         
         const response = await anthropic.messages.create({
-          model: 'claude-3-7-sonnet-20250219',
+          model: CLAUDE_MODEL,
           max_tokens: 1024,
           messages: [{
             role: 'user',
@@ -139,7 +149,11 @@ export function registerAnthropicDemoRoutes(router: Router): void {
           }
         }
         
-        next(error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred during image analysis',
+          details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+        });
       }
     }
   );
@@ -149,7 +163,7 @@ export function registerAnthropicDemoRoutes(router: Router): void {
     try {
       // Simple API check
       const response = await anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
+        model: CLAUDE_MODEL,
         max_tokens: 100,
         messages: [{ role: 'user', content: 'Respond with the exact text: "Anthropic API is working correctly."' }],
       });
@@ -164,13 +178,14 @@ export function registerAnthropicDemoRoutes(router: Router): void {
       res.json({
         available: true,
         apiWorking: isWorking,
-        model: 'claude-3-7-sonnet-20250219'
+        model: CLAUDE_MODEL
       });
     } catch (error) {
       console.error('Error checking Anthropic API status:', error);
       res.status(500).json({
         available: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error occurred while checking API status',
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
       });
     }
   });
