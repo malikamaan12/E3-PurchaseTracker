@@ -664,7 +664,7 @@ export default function Dashboard() {
             {isAdmin && (
               <div className="w-full sm:w-auto flex justify-center">
                 <Link href="/export" className="w-full sm:w-auto">
-                  <Button variant="outline" className="w-full sm:w-auto bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] border-0 dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+                  <Button variant="outline" className="w-full sm:w-auto bg-gradient-to-r from-[#A020F0]/10 to-[#1CD8D2]/10 hover:bg-gradient-to-r hover:from-[#A020F0]/20 hover:to-[#1CD8D2]/20 text-[#6C00F7] border-0 dark:bg-gradient-to-r dark:from-[#A020F0]/20 dark:to-[#1CD8D2]/20 dark:hover:from-[#A020F0]/30 dark:hover:to-[#1CD8D2]/30 dark:text-[#1CD8D2]">
                     <FileText className="h-4 w-4 mr-2" />
                     Bulk Export
                   </Button>
@@ -688,7 +688,7 @@ export default function Dashboard() {
             {/* Desktop view - standard row */}
             <div className="hidden sm:block overflow-x-auto">
               <TabsList className="mb-6 bg-white/80 dark:bg-gray-900/80 shadow-sm rounded-lg p-1 w-max min-w-full">
-                <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                <TabsTrigger value="my-requests" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                   <span className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
                     <span>My Requests</span>
@@ -697,7 +697,7 @@ export default function Dashboard() {
                     {requestCounts.myRequests}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                   <span className="flex items-center">
                     <FileEdit className="h-4 w-4 mr-2" />
                     <span>Ready to Submit</span>
@@ -708,7 +708,7 @@ export default function Dashboard() {
                 </TabsTrigger>
                 {(isAdmin || isSpecialRole) && (
                   <>
-                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <Files className="h-4 w-4 mr-2" />
                         <span>All Requests</span>
@@ -717,7 +717,7 @@ export default function Dashboard() {
                         {requestCounts.allRequests}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="pending" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
                         <span>Pending</span>
@@ -726,7 +726,7 @@ export default function Dashboard() {
                         {requestCounts.pending}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="approved" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         <span>Approved</span>
@@ -735,7 +735,7 @@ export default function Dashboard() {
                         {requestCounts.approved}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="rejected" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <XCircle className="h-4 w-4 mr-2" />
                         <span>Rejected</span>
@@ -744,7 +744,7 @@ export default function Dashboard() {
                         {requestCounts.rejected}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="changes" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                       <span className="flex items-center">
                         <PencilRuler className="h-4 w-4 mr-2" />
                         <span>Changes Requested</span>
@@ -756,7 +756,7 @@ export default function Dashboard() {
                   </>
                 )}
                 {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                  <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white border-0 text-sm">
+                  <TabsTrigger value="approvals" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
                     <span className="flex items-center">
                       <CircleCheck className="h-4 w-4 mr-2" />
                       <span>Pending Approvals</span>
@@ -781,9 +781,9 @@ export default function Dashboard() {
                 <div className="grid grid-cols-4 gap-x-4 mb-6">
                   <div 
                     onClick={() => setActiveTab("my-requests")}
-                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#6C00F7] dark:text-[#1CD8D2]" : "text-gray-600 dark:text-gray-400"}`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-gradient-to-r from-[#A020F0]/10 to-[#1CD8D2]/10 dark:from-[#A020F0]/20 dark:to-[#1CD8D2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                       <FileText className="h-6 w-6" />
                     </div>
                     <div className="text-xs font-medium">My</div>
