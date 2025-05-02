@@ -5,7 +5,17 @@
 
 import { anthropicClient, MODEL, DEFAULT_MAX_TOKENS, executeWithRetry } from './anthropic-config';
 import { AppError } from './errors';
-import { Message } from '@anthropic-ai/sdk';
+
+// Define an interface that matches the structure of Anthropic Message responses
+interface AnthropicMessageResponse {
+  id: string;
+  content: Array<{
+    type: string;
+    text?: string;
+    [key: string]: any;
+  }>;
+  [key: string]: any;
+}
 
 // Helper function to extract JSON from response text
 function extractJson(text: string): any {
@@ -26,11 +36,11 @@ function extractJson(text: string): any {
 // Helper function to process API response
 function processAnthropicResponse(response: any): any {
   // Type cast response since we know it's a non-streaming response which has the content property
-  const messageResponse = response as Message;
+  const messageResponse = response as AnthropicMessageResponse;
   
   // Find the content block with text
-  const contentBlock = messageResponse.content.find((block: { type: string }) => block.type === 'text');
-  if (!contentBlock || contentBlock.type !== 'text') {
+  const contentBlock = messageResponse.content.find(block => block.type === 'text');
+  if (!contentBlock || contentBlock.type !== 'text' || !contentBlock.text) {
     throw new Error('Invalid response format from Claude');
   }
   
