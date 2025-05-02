@@ -664,7 +664,7 @@ export default function Dashboard() {
             {isAdmin && (
               <div className="w-full sm:w-auto flex justify-center">
                 <Link href="/export" className="w-full sm:w-auto">
-                  <Button variant="outline" className="w-full sm:w-auto bg-gradient-to-r from-[#A020F0]/10 to-[#1CD8D2]/10 hover:bg-gradient-to-r hover:from-[#A020F0]/20 hover:to-[#1CD8D2]/20 text-[#6C00F7] border-0 dark:bg-gradient-to-r dark:from-[#A020F0]/20 dark:to-[#1CD8D2]/20 dark:hover:from-[#A020F0]/30 dark:hover:to-[#1CD8D2]/30 dark:text-[#1CD8D2]">
+                  <Button variant="outline" className="w-full sm:w-auto bg-gradient-primary text-white border-0 hover-btn">
                     <FileText className="h-4 w-4 mr-2" />
                     Bulk Export
                   </Button>
@@ -781,26 +781,26 @@ export default function Dashboard() {
                 <div className="grid grid-cols-4 gap-x-4 mb-6">
                   <div 
                     onClick={() => setActiveTab("my-requests")}
-                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#6C00F7] dark:text-[#1CD8D2]" : "text-gray-600 dark:text-gray-400"}`}
+                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-gradient-to-r from-[#A020F0]/10 to-[#1CD8D2]/10 dark:from-[#A020F0]/20 dark:to-[#1CD8D2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                       <FileText className="h-6 w-6" />
                     </div>
                     <div className="text-xs font-medium">My</div>
-                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                    <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                       {requestCounts.myRequests}
                     </div>
                   </div>
                   
                   <div 
                     onClick={() => setActiveTab("drafts-to-submit")}
-                    className={`flex flex-col items-center ${activeTab === "drafts-to-submit" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                    className={`flex flex-col items-center ${activeTab === "drafts-to-submit" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "drafts-to-submit" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "drafts-to-submit" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                       <FileEdit className="h-6 w-6" />
                     </div>
                     <div className="text-xs font-medium">Drafts</div>
-                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                    <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                       {requestCounts.draftsToSubmit}
                     </div>
                   </div>
@@ -808,13 +808,13 @@ export default function Dashboard() {
                   {(isAdmin || isSpecialRole) && (
                     <div 
                       onClick={() => setActiveTab("all-requests")}
-                      className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "all-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "all-requests" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <Files className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">All</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.allRequests}
                       </div>
                     </div>
@@ -825,13 +825,13 @@ export default function Dashboard() {
                   {!isAdmin && !isSpecialRole && showApprovalsTab && (
                     <div 
                       onClick={() => setActiveTab("approvals")}
-                      className={`flex flex-col items-center ${activeTab === "approvals" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "approvals" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approvals" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approvals" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <CircleCheck className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Approvals</div>
-                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.approvals}
                       </div>
                     </div>
@@ -843,9 +843,9 @@ export default function Dashboard() {
                   <div className="grid grid-cols-4 gap-x-4">
                     <div 
                       onClick={() => setActiveTab("pending")}
-                      className={`flex flex-col items-center ${activeTab === "pending" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "pending" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "pending" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "pending" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <Clock className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Pending</div>
@@ -856,9 +856,9 @@ export default function Dashboard() {
                     
                     <div 
                       onClick={() => setActiveTab("approved")}
-                      className={`flex flex-col items-center ${activeTab === "approved" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "approved" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approved" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approved" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <CheckCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Approved</div>
@@ -869,9 +869,9 @@ export default function Dashboard() {
                     
                     <div 
                       onClick={() => setActiveTab("rejected")}
-                      className={`flex flex-col items-center ${activeTab === "rejected" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "rejected" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "rejected" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "rejected" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <XCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Rejected</div>
@@ -882,9 +882,9 @@ export default function Dashboard() {
                     
                     <div 
                       onClick={() => setActiveTab("changes")}
-                      className={`flex flex-col items-center ${activeTab === "changes" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex flex-col items-center ${activeTab === "changes" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "changes" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "changes" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
                         <PencilRuler className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Changes</div>

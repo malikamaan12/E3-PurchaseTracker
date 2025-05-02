@@ -1,57 +1,65 @@
 {
   "variant": "vibrant",
-  "primary": "hsl(276 100% 53%)",
+  "primary": "#6C00F7",
   "appearance": "system",
   "radius": 0.5,
-  "accent": "hsl(175 77% 49%)",
-  "foreground": "hsl(0 0% 0%)",
-  "background": "hsl(0 0% 100%)",
-  "card": "hsl(0 0% 100%)",
-  "popover": "hsl(0 0% 100%)",
-  "border": "hsl(0 0% 88%)",
-  "input": "hsl(0 0% 88%)",
-  "ring": "hsl(276 100% 53%)",
+  "accent": "#00C2FF",
+  "foreground": "#000000",
+  "background": "#FFFFFF",
+  "card": "#FFFFFF",
+  "popover": "#FFFFFF",
+  "border": "#DDDDDD",
+  "input": "#DDDDDD",
+  "ring": "#6C00F7",
+  "text": {
+    "primary": "#000000",
+    "secondary": "#444444"
+  },
   "muted": {
-    "DEFAULT": "hsl(276 100% 95%)",
-    "foreground": "hsl(276 100% 45%)"
+    "DEFAULT": "#F4F4F6",
+    "foreground": "#444444"
   },
   "secondary": {
-    "DEFAULT": "hsl(175 77% 49%)",
-    "foreground": "hsl(0 0% 100%)"
+    "DEFAULT": "#1CD8D2",
+    "foreground": "#FFFFFF"
   },
   "destructive": {
     "DEFAULT": "hsl(0 84.2% 60.2%)",
-    "foreground": "hsl(0 0% 98%)"
+    "foreground": "#FFFFFF"
   },
   "hover": {
-    "DEFAULT": "hsl(191 100% 50%)",
-    "foreground": "hsl(0 0% 100%)"
+    "DEFAULT": "#00C2FF",
+    "foreground": "#FFFFFF"
   },
   "dark": {
-    "primary": "hsl(276 100% 53%)",
-    "accent": "hsl(175 77% 49%)",
-    "foreground": "hsl(0 0% 100%)",
-    "background": "hsl(0 0% 10%)",
-    "card": "hsl(0 0% 13%)",
-    "popover": "hsl(0 0% 13%)",
-    "border": "hsl(0 0% 17%)",
-    "input": "hsl(0 0% 17%)",
-    "ring": "hsl(276 100% 53%)",
+    "primary": "#6C00F7",
+    "accent": "#00C2FF",
+    "foreground": "#FFFFFF",
+    "background": "#1A1A1A",
+    "card": "#2A2A2A",
+    "popover": "#2A2A2A",
+    "border": "#2F2F2F",
+    "input": "#2F2F2F",
+    "ring": "#6C00F7",
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#CFCFCF"
+    },
     "muted": {
-      "DEFAULT": "hsl(276 100% 15%)",
-      "foreground": "hsl(276 100% 85%)"
+      "DEFAULT": "#2A2A2A",
+      "foreground": "#CFCFCF"
     },
     "secondary": {
-      "DEFAULT": "hsl(175 77% 49%)",
-      "foreground": "hsl(0 0% 100%)"
+      "DEFAULT": "#1CD8D2",
+      "foreground": "#FFFFFF"
     },
     "destructive": {
       "DEFAULT": "hsl(0 62.8% 30.6%)",
-      "foreground": "hsl(0 0% 98%)"
+      "foreground": "#FFFFFF"
     },
     "hover": {
-      "DEFAULT": "hsl(191 100% 50%)",
-      "foreground": "hsl(0 0% 100%)"
+      "DEFAULT": "#00C2FF",
+      "foreground": "#FFFFFF"
     }
   }
 }
