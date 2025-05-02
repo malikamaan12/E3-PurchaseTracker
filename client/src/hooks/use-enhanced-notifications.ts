@@ -96,61 +96,89 @@ export function useEnhancedNotifications(options?: {
         const params = buildQueryParams();
         const queryString = params ? `?${params}` : '';
         
-        let response: Response;
+        // Use AbortController for timeout control
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         try {
-          response = await fetch(`/api/notifications${queryString}`, {
-            credentials: 'include'
+          const response = await fetch(`/api/notifications${queryString}`, {
+            credentials: 'include',
+            signal: controller.signal
           });
-        } catch (err) {
-          console.error("Network error fetching notifications:", err);
-          // Return empty array on network error to prevent app crashes
+          
+          // Clear timeout once response is received
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            console.error(`Notification API error: ${response.status}`);
+            return [];
+          }
+          
+          return await response.json();
+        } catch (fetchErr: any) {
+          // Clear timeout to prevent memory leaks
+          clearTimeout(timeoutId);
+          
+          if (fetchErr && fetchErr.name === 'AbortError') {
+            console.error("Notification fetch request timed out");
+          } else {
+            console.error("Network error fetching notifications:", fetchErr);
+          }
+          
           return [];
         }
-        
-        if (!response.ok) {
-          console.error(`Notification API error: ${response.status}`);
-          // Return empty array on API errors to prevent app crashes
-          return [];
-        }
-        
-        return await response.json();
       } catch (err) {
         console.error("Error in notifications query:", err);
-        // Return empty array on any errors to prevent app crashes
         return [];
       }
     },
     staleTime: STALE_TIME,
     enabled: true,
-    retry: MAX_RETRIES,
-    refetchOnWindowFocus: true
+    retry: 1, // Only retry once to prevent excessive requests on failure
+    retryDelay: 1000, // Wait 1 second before retrying
+    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
   });
 
   // Mark notification as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: number) => {
       try {
-        let response: Response;
+        // Use AbortController for timeout control
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         try {
-          response = await fetch(`/api/notifications/${notificationId}/read`, {
+          const response = await fetch(`/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal
           });
-        } catch (err) {
-          console.error("Network error marking notification as read:", err);
+          
+          // Clear timeout once response is received
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            console.error(`Mark as read API error: ${response.status}`);
+            const error = new Error('Failed to mark notification as read') as NotificationError;
+            error.status = response.status;
+            throw error;
+          }
+          
+          return await response.json();
+        } catch (fetchErr) {
+          // Clear timeout to prevent memory leaks
+          clearTimeout(timeoutId);
+          
+          if (fetchErr.name === 'AbortError') {
+            console.error("Mark as read request timed out");
+          } else {
+            console.error("Network error marking notification as read:", fetchErr);
+          }
+          
           // Return a default response to prevent crashes
-          return { success: true, message: "Operation handled offline" };
+          return { success: true, message: "Operation handled gracefully" };
         }
-        
-        if (!response.ok) {
-          console.error(`Mark as read API error: ${response.status}`);
-          const error = new Error('Failed to mark notification as read') as NotificationError;
-          error.status = response.status;
-          throw error;
-        }
-        
-        return await response.json();
       } catch (err) {
         console.error("Error in mark as read mutation:", err);
         // Return a default response to prevent crashes
@@ -171,7 +199,7 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
     },
-    retry: MAX_RETRIES
+    retry: 1 // Only retry once to prevent excessive requests
   });
 
   // Acknowledge notification
