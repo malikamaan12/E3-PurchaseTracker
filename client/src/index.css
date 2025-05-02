@@ -183,6 +183,73 @@
   @apply text-gray-300;
 }
 
+/* High-contrast text improvements */
+.text-muted, .text-muted-foreground {
+  @apply text-gray-700 !important;
+}
+
+.dark .text-muted, .dark .text-muted-foreground {
+  @apply text-gray-200 !important;
+}
+
+/* Ensuring high contrast for form fields and tables */
+input, textarea, select {
+  @apply text-gray-900 !important;
+  @apply placeholder:text-gray-500 !important;
+}
+
+.dark input, .dark textarea, .dark select {
+  @apply text-white !important;
+  @apply placeholder:text-gray-400 !important;
+}
+
+/* Ensure header text has enough contrast */
+h1, h2, h3, h4, h5, h6 {
+  @apply text-gray-900 !important;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  @apply text-white !important;
+}
+
+/* Fix labels and subtle text elements */
+label, .text-sm {
+  @apply text-gray-800 !important;
+  @apply font-medium !important;
+}
+
+.dark label, .dark .text-sm {
+  @apply text-gray-200 !important;
+}
+
+/* Fix vendor management text visibility */
+table td, table th, 
+.vendor-table td, .vendor-table th,
+.data-table td, .data-table th,
+[class*="Table"] td, [class*="Table"] th {
+  @apply text-gray-900 !important;
+  @apply font-medium !important;
+}
+
+.dark table td, .dark table th,
+.dark .vendor-table td, .dark .vendor-table th,
+.dark .data-table td, .dark .data-table th,
+.dark [class*="Table"] td, .dark [class*="Table"] th {
+  @apply text-white !important;
+  @apply font-medium !important;
+}
+
+/* Special attention to vendor empty states */
+.empty-state, .empty-message, .no-data {
+  @apply text-gray-800 !important;
+  @apply font-medium !important;
+}
+
+.dark .empty-state, .dark .empty-message, .dark .no-data {
+  @apply text-gray-100 !important;
+  @apply font-medium !important;
+}
+
 /* Ensure text is visible in dark mode for common components */
 .dark .data-table td,
 .dark .data-table th,
