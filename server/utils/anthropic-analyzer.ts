@@ -1,118 +1,110 @@
-import Anthropic from '@anthropic-ai/sdk';
-import fs from 'fs';
+import { anthropicClient as anthropic, MODEL } from './anthropic-config';
 
-// the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-export const CLAUDE_MODEL = 'claude-3-7-sonnet-20250219';
-
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-type AnthropicImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-
-/**
- * Analyzes text using Anthropic's Claude model
- * @param text The text to analyze
- * @param maxTokens Maximum number of tokens to generate in the response
- * @returns The analysis result
- */
-export async function analyzeText(text: string, maxTokens: number = 1024): Promise<any> {
-  try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: text }],
-    });
-    
-    return response.content;
-  } catch (error) {
-    console.error('Error analyzing text with Anthropic:', error);
-    throw new Error(error instanceof Error ? error.message : 'Unknown error occurred during text analysis');
-  }
+interface AnalysisContext {
+  formData?: any;
+  error?: Error;
+  navigationTarget?: string;
+  requestId?: number;
+  userId?: number;
+  formState?: any;
 }
 
-/**
- * Analyzes an image using Anthropic's Claude model
- * @param imagePath The path to the image file
- * @param prompt The prompt to accompany the image analysis
- * @param maxTokens Maximum number of tokens to generate in the response
- * @returns The analysis result
- */
-export async function analyzeImage(imagePath: string, prompt: string = 'Describe this image in detail', maxTokens: number = 1024): Promise<any> {
-  try {
-    // Read image as base64
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = imageBuffer.toString('base64');
-    
-    // Get file extension and determine mime type
-    const fileExt = imagePath.split('.').pop()?.toLowerCase() || '';
-    let mimeType: AnthropicImageMediaType = 'image/jpeg';
-    
-    if (fileExt === 'png') {
-      mimeType = 'image/png';
-    } else if (fileExt === 'gif') {
-      mimeType = 'image/gif';
-    } else if (fileExt === 'webp') {
-      mimeType = 'image/webp';
-    }
-    
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: maxTokens,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: prompt
-          },
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mimeType,
-              data: base64Image
-            }
-          }
-        ]
-      }]
-    });
-    
-    return response.content;
-  } catch (error) {
-    console.error('Error analyzing image with Anthropic:', error);
-    throw new Error(error instanceof Error ? error.message : 'Unknown error occurred during image analysis');
-  }
+interface AnalysisResult {
+  issue_detected: boolean;
+  issue_type: 'validation' | 'navigation' | 'data' | 'authentication' | 'other';
+  description: string;
+  recommendation: string;
+  severity: 'low' | 'medium' | 'high';
+  autofix?: Record<string, any>;
+  validationErrors?: string[];
+  suggestion?: string;
 }
 
-/**
- * Checks if the Anthropic API is available and working
- * @returns Status information about the API
- */
-export async function checkApiStatus(): Promise<{ available: boolean; apiWorking: boolean; model: string; }> {
+export async function analyzeFormSubmission(context: AnalysisContext): Promise<AnalysisResult> {
   try {
-    // Simple API check
+    const prompt = `Analyze this purchase request form submission context and identify potential issues:
+    Form Data: ${JSON.stringify(context.formData, null, 2)}
+    Error: ${context.error?.message || 'No error'}
+    Form State: ${JSON.stringify(context.formState, null, 2)}
+    Request ID: ${context.requestId}
+    User ID: ${context.userId}
+
+    Consider the following aspects:
+    1. Data validation issues
+    2. Required fields missing
+    3. Format errors
+    4. Common user mistakes
+    5. Navigation problems
+    6. Authentication issues
+
+    Please provide analysis in JSON format with the following structure:
+    {
+      "issue_detected": boolean,
+      "issue_type": "validation"|"navigation"|"data"|"authentication"|"other",
+      "description": "detailed description of the issue",
+      "recommendation": "user-friendly recommendation to fix the issue",
+      "severity": "low"|"medium"|"high",
+      "suggestion": "brief, actionable suggestion for the user",
+      "validationErrors": ["list", "of", "validation", "errors"],
+      "autofix": {
+        "fieldName": "correctedValue" // Optional: provide automatic fixes for fields
+      }
+    }`;
+
     const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'Respond with the exact text: "Anthropic API is working correctly."' }],
+      model: MODEL,
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
     });
-    
-    const contentBlock = response.content[0];
-    if (contentBlock.type !== 'text') {
-      throw new Error('Unexpected response format from Claude');
+
+    // Safely extract content from the response
+    if (!response.content || !response.content[0]) {
+      throw new Error('Invalid response format from Anthropic API');
+    }
+
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Expected text response from Anthropic API');
     }
     
-    const isWorking = contentBlock.text.includes('Anthropic API is working correctly');
-    
+    const analysis = JSON.parse(content.text) as AnalysisResult;
+
+    // Add default autofix suggestions for common issues
+    if (!analysis.autofix) {
+      analysis.autofix = {};
+
+      // Add automatic fixes based on issue type
+      if (analysis.issue_type === 'validation') {
+        if (context.formState?.errors?.items) {
+          analysis.autofix.items = [{ name: "", quantity: 1, estimatedCost: 0, description: "" }];
+        }
+        if (context.formState?.errors?.vendorId) {
+          analysis.autofix.vendorId = null;
+        }
+      }
+    }
+
+    // Ensure all required properties are present
     return {
-      available: true,
-      apiWorking: isWorking,
-      model: CLAUDE_MODEL
+      issue_detected: analysis.issue_detected,
+      issue_type: analysis.issue_type,
+      description: analysis.description,
+      recommendation: analysis.recommendation,
+      severity: analysis.severity,
+      autofix: analysis.autofix,
+      validationErrors: analysis.validationErrors || [],
+      suggestion: analysis.suggestion || analysis.recommendation
     };
   } catch (error) {
-    console.error('Error checking Anthropic API status:', error);
-    throw new Error(error instanceof Error ? error.message : 'Unknown error occurred while checking API status');
+    console.error('Error analyzing form submission:', error);
+    return {
+      issue_detected: true,
+      issue_type: "other", // Changed from "analysis_error" to match the type
+      description: "Failed to analyze form submission",
+      recommendation: "Please try submitting the form again. If the issue persists, contact support.",
+      severity: "high",
+      validationErrors: [],
+      suggestion: "Please try again or contact support if the issue continues."
+    };
   }
 }
