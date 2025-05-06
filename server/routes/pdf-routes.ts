@@ -618,7 +618,14 @@ export function registerPdfRoutes(app: Express) {
       }
       
       // Validate action type is one of the allowed values
-      const validActions = ['pdf_generated', 'pdf_downloaded', 'pdf_viewed'];
+      const validActions = [
+        'pdf_generated', 
+        'pdf_downloaded', 
+        'pdf_viewed', 
+        'excel_downloaded', 
+        'csv_downloaded', 
+        'zip_downloaded'
+      ];
       if (!action || !validActions.includes(action)) {
         return next(new ValidationError('Invalid action type', {
           action: `Must be one of: ${validActions.join(', ')}`

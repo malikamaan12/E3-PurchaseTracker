@@ -16,14 +16,14 @@
  * Log a PDF generation event to the audit log
  * 
  * @param requestId - The ID of the request being processed
- * @param action - The action being performed ('pdf_generated', 'pdf_downloaded', 'pdf_viewed')
+ * @param action - The action being performed ('pdf_generated', 'pdf_downloaded', 'pdf_viewed', 'excel_downloaded', 'csv_downloaded', 'zip_downloaded')
  * @param details - Additional details about the generation
  * @param type - The type of user performing the action
  * @returns Promise resolving to the audit log entry
  */
 export async function logPdfAuditEvent(
   requestId: number | string | null | undefined,
-  action: 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed',
+  action: 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 'excel_downloaded' | 'csv_downloaded' | 'zip_downloaded',
   details: Record<string, any> = {},
   type: 'user' | 'approver' | 'admin' = 'user'
 ): Promise<any> {

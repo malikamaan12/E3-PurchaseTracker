@@ -52,8 +52,7 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
       
       toast({
         title: "Export Successful",
-        description: `Request exported as ${fileName}`,
-        variant: "success"
+        description: `Request exported as ${fileName}`
       });
     } catch (error) {
       console.error(`Error during ${format} export:`, error);

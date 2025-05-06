@@ -70,7 +70,7 @@ export const DEFAULT_TEMPLATE_CONFIG: PdfTemplateConfig = {
   }
 };
 
-export type PdfAuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 'pdf_analyzed';
+export type PdfAuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 'pdf_analyzed' | 'excel_downloaded' | 'csv_downloaded' | 'zip_downloaded';
 
 export interface PdfSettingsWithTemplate {
   id?: number;
