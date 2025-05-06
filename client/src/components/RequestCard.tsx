@@ -491,15 +491,15 @@ export default function RequestCard({
           {request.attachments.map((file) => (
             <div
               key={file.id}
-              className="relative group p-4 rounded-lg border border-gray-200 hover:border-primary/50 transition-colors"
+              className="relative group p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-colors dark:bg-gray-800"
             >
               <div className="flex items-center gap-3">
                 <FileIcon className="h-8 w-8 text-primary" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {file.fileName}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-300">
                     {formatFileSize(file.fileSize)}
                   </p>
                 </div>
@@ -513,7 +513,7 @@ export default function RequestCard({
                       fileType: file.fileType,
                       fileUrl: `/api/attachments/${file.id}`
                     })}
-                    className="text-gray-600 hover:text-primary"
+                    className="text-gray-600 dark:text-white hover:text-primary dark:hover:text-primary"
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     Preview
