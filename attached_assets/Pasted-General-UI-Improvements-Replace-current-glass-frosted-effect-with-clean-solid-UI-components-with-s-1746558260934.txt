@@ -1,0 +1,101 @@
+General UI Improvements
+
+Replace current glass/frosted effect with clean, solid UI components with subtle shadows
+Implement responsive design with dedicated mobile and desktop layouts
+Increase contrast between text and backgrounds for better readability
+Standardize button styles, input fields, and UI components across all pages
+Add proper spacing between elements to improve visual hierarchy
+Implement a consistent grid system for better alignment
+
+Color Scheme
+Primary Colors
+
+Main Brand Purple: #8A2BE2 (slightly more vibrant than current)
+Secondary Blue: #4361EE (more soothing than current cyan)
+Accent Green: #4CC9A0 (for success states and approvals)
+Alert Red: #E63946 (for errors and rejections)
+
+Light Mode
+
+Background: #F8F9FA (slightly warmer than current gray)
+Card/Container Background: #FFFFFF
+Text Primary: #1A1A2E (nearly black but softer)
+Text Secondary: #4A4B53 (medium gray for less important text)
+Border Color: #E2E8F0 (subtle gray for separators)
+
+Dark Mode
+
+Background: #121212 (true dark, not current dark gray)
+Card/Container Background: #1E1E1E
+Text Primary: #F4F5F7 (off-white)
+Text Secondary: #A0AEC0 (muted blue-gray)
+Border Color: #2D3748 (dark gray for separators)
+
+Typography
+
+Primary Font: Inter or SF Pro Display (san-serif, modern)
+Font Size Range: 14px-18px for body text (increase from current)
+Header Sizes: 20px, 24px, 32px for different hierarchy levels
+Font Weight: 400 for regular text, 600 for emphasis, 700 for headers
+Line Height: 1.5 for better readability
+
+Component-Specific Changes
+Forms (Purchase Request Form)
+
+Increase input field height to 48px for better touch targets
+Add subtle inner shadow to input fields
+Group related fields with clear visual separation
+Replace dropdown arrows with modern chevron icons
+Add inline validation with color indicators
+
+Tables (Dashboard View)
+
+Implement alternating row colors for better readability
+Add hover states on rows
+Make column headers sticky on scroll
+Add subtle row dividers instead of full grid lines
+Implement responsive tables that stack on mobile
+
+Status Indicators
+
+Replace text status with color-coded pills (PENDING in amber, APPROVED in green, REJECTED in red)
+Use consistent iconography alongside status text
+Ensure color contrast meets accessibility standards (4.5:1 minimum)
+
+Navigation
+
+Create a collapsible sidebar for desktop view
+Implement bottom navigation for mobile view
+Add visual indicators for current section
+Ensure touch targets are at least 48px for mobile
+
+User Management Screen
+
+Redesign user rows with avatar placeholders
+Group role indicators into more visible badges
+Add tooltips for action buttons
+Implement swipe actions for mobile (edit/delete)
+
+Mobile-Specific Adaptations
+
+Implement a mobile-first approach to all screens
+Stack form fields vertically on smaller screens
+Replace data tables with cards for each entry
+Add pull-to-refresh functionality on list views
+Ensure all touch targets are minimum 44px × 44px
+Add bottom sheet modals instead of standard modals
+
+Accessibility Improvements
+
+Ensure color contrast ratio of at least 4.5:1 for all text
+Add focus states to all interactive elements
+Implement proper ARIA labels
+Support dynamic text sizing
+Add keyboard navigation support
+
+Animation & Interactions
+
+Add subtle loading states
+Implement smooth transitions between screens (300ms)
+Add micro-interactions for button clicks, form submissions
+Implement skeleton screens instead of spinners for loading
