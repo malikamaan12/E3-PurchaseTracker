@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { analyzeText, analyzeImage, analyzeDocument, analyzeVendorPerformance, anthropicErrorHandler } from '../utils/anthropic-client';
-import { isAuthenticated, isAdmin } from '../auth';
+import { AppError } from '../utils/errors';
 
 const router = Router();
 
@@ -45,11 +45,32 @@ const upload = multer({
   },
 });
 
+// Middleware to check if user is authenticated
+const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: true, message: 'Authentication required' });
+  }
+  next();
+};
+
+// Middleware to check if user is admin
+const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: true, message: 'Authentication required' });
+  }
+  
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: true, message: 'Admin access required' });
+  }
+  
+  next();
+};
+
 // Apply error handling middleware
 router.use(anthropicErrorHandler);
 
-// Text analysis endpoint
-router.post('/analyze/text', isAuthenticated, async (req, res, next) => {
+// Text analysis endpoint 
+router.post('/analyze/text', isAuthenticated, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { text, options = {} } = req.body;
     

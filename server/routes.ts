@@ -152,6 +152,14 @@ export function registerRoutes(app: Express): Server {
   }).catch(err => {
     console.error('Error loading UI analysis routes:', err);
   });
+  
+  // Register Anthropic API routes
+  import('./routes/anthropic-routes').then((routes) => {
+    apiRouter.use('/anthropic', routes.default);
+    console.log('Anthropic API routes registered successfully');
+  }).catch(err => {
+    console.error('Error loading Anthropic API routes:', err);
+  });
   app.use('/api', apiRouter);
 
   // Create uploads directory if it doesn't exist
