@@ -632,9 +632,7 @@ export async function exportMultipleRequestsToExcel(requests: any[], roleForAudi
 
 /**
  * Export multiple purchase requests to a combined CSV file
- * @deprecated CSV export has been removed as part of standardization on PDF/ZIP only
  */
-/*
 export async function exportMultipleRequestsToCSV(requests: any[], roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   if (!requests || requests.length === 0) {
     throw new Error('No requests to export');
