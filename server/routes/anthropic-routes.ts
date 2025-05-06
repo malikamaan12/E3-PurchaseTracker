@@ -93,7 +93,7 @@ router.post('/analyze/text', isAuthenticated, async (req: Request, res: Response
 });
 
 // Image analysis endpoint
-router.post('/analyze/image', isAuthenticated, upload.single('image'), async (req, res, next) => {
+router.post('/analyze/image', isAuthenticated, upload.single('image'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { prompt } = req.body;
     const file = req.file;
@@ -131,7 +131,7 @@ router.post('/analyze/image', isAuthenticated, upload.single('image'), async (re
 });
 
 // Document analysis endpoint
-router.post('/analyze/document', isAuthenticated, upload.single('document'), async (req, res, next) => {
+router.post('/analyze/document', isAuthenticated, upload.single('document'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { documentType } = req.body;
     const file = req.file;
@@ -164,7 +164,7 @@ router.post('/analyze/document', isAuthenticated, upload.single('document'), asy
 });
 
 // Vendor analysis endpoint
-router.post('/analyze/vendor', isAuthenticated, async (req, res, next) => {
+router.post('/analyze/vendor', isAuthenticated, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { vendorData } = req.body;
     
@@ -187,7 +187,7 @@ router.post('/analyze/vendor', isAuthenticated, async (req, res, next) => {
 });
 
 // Admin-only endpoint for analyzing sensitive data
-router.post('/analyze/sensitive', isAuthenticated, isAdmin, async (req, res, next) => {
+router.post('/analyze/sensitive', isAuthenticated, isAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { text, context } = req.body;
     

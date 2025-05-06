@@ -34,12 +34,11 @@ export const anthropicErrorHandler = async (err: any, req: Request, res: Respons
     // Log error to database
     try {
       await db.insert(errorLogs).values({
-        errorType: 'ANTHROPIC_API',
-        errorMessage: err.message,
-        errorDetails: JSON.stringify(err.details),
-        stackTrace: err.stack,
+        message: err.message,
+        severity: 'error',
+        code: err.errorCode,
+        details: JSON.stringify(err.details),
         userId: req.user?.id,
-        createdAt: new Date(),
       });
     } catch (logError) {
       console.error('Failed to log error to database:', logError);
@@ -88,7 +87,13 @@ export async function analyzeText(prompt: string, options: {
         throw new AnthropicError('Received empty response from Anthropic API', 500, 'empty_response');
       }
       
-      return response.content[0].text;
+      // Check content type and extract text based on type
+      const content = response.content[0];
+      if (content.type === 'text') {
+        return content.text;
+      } else {
+        throw new AnthropicError('Unexpected content type in response', 500, 'unexpected_response_format');
+      }
     } catch (error: any) {
       lastError = error;
       
