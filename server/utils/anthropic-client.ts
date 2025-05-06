@@ -1,269 +1,311 @@
-import { type PurchaseRequestWithRelations } from '@db/schema';
+import Anthropic from '@anthropic-ai/sdk';
+import { Request, Response, NextFunction } from 'express';
+import { db } from '../../db';
+import { errorLogs } from '../../db/schema';
 
-// Enhanced error analysis utility with prediction
-export async function analyzeError(error: Error | string | unknown, context: string): Promise<{
-  message: string;
-  predictions: string[];
-  suggestions: string[];
-}> {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const errorStack = error instanceof Error ? error.stack : undefined;
+// The newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+export const ANTHROPIC_MODEL = 'claude-3-7-sonnet-20250219';
 
-  console.error(`Error in ${context}:`, {
-    message: errorMessage,
-    stack: errorStack,
-  });
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
-  // Analyze error patterns and predict potential issues
-  const predictions = predictPotentialIssues(errorMessage, context);
-  const suggestions = generateSuggestions(errorMessage, context, predictions);
-
-  return {
-    message: `An error occurred in ${context}. ${errorMessage}`,
-    predictions,
-    suggestions
-  };
+// Error class for Anthropic API errors
+export class AnthropicError extends Error {
+  statusCode: number;
+  errorCode: string;
+  details: any;
+  
+  constructor(message: string, statusCode: number = 500, errorCode: string = 'anthropic_error', details: any = {}) {
+    super(message);
+    this.name = 'AnthropicError';
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+    this.details = details;
+  }
 }
 
-// Predict potential issues based on error patterns
-function predictPotentialIssues(errorMessage: string, context: string): string[] {
-  const predictions: string[] = [];
-  const lowerError = errorMessage.toLowerCase();
-
-  // Database related predictions
-  if (context.includes('database') || lowerError.includes('sql')) {
-    predictions.push(
-      'Potential connection timeout issues',
-      'Possible schema inconsistencies',
-      'Risk of data constraints violations'
-    );
+// Custom middleware for error handling
+export const anthropicErrorHandler = async (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AnthropicError) {
+    console.error(`Anthropic API Error: ${err.message}`, err.details);
+    
+    // Log error to database
+    try {
+      await db.insert(errorLogs).values({
+        errorType: 'ANTHROPIC_API',
+        errorMessage: err.message,
+        errorDetails: JSON.stringify(err.details),
+        stackTrace: err.stack,
+        userId: req.user?.id,
+        createdAt: new Date(),
+      });
+    } catch (logError) {
+      console.error('Failed to log error to database:', logError);
+    }
+    
+    return res.status(err.statusCode).json({
+      error: true,
+      code: err.errorCode,
+      message: err.message,
+    });
   }
+  
+  next(err);
+};
 
-  // Authentication related predictions
-  if (context.includes('auth') || lowerError.includes('permission') || lowerError.includes('unauthorized')) {
-    predictions.push(
-      'Session might expire soon',
-      'User roles might need verification',
-      'Possible token validation issues'
-    );
+// Helper for text analysis with retry logic
+export async function analyzeText(prompt: string, options: {
+  maxTokens?: number;
+  temperature?: number;
+  system?: string;
+  maxRetries?: number;
+  retryDelay?: number;
+} = {}): Promise<string> {
+  const {
+    maxTokens = 1024,
+    temperature = 0.7,
+    system = "You're a helpful AI assistant analyzing business data. Be concise and focus on key insights.",
+    maxRetries = 3,
+    retryDelay = 1000,
+  } = options;
+  
+  let retries = 0;
+  let lastError: Error | null = null;
+  
+  while (retries <= maxRetries) {
+    try {
+      const response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        system,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      
+      if (!response.content || response.content.length === 0) {
+        throw new AnthropicError('Received empty response from Anthropic API', 500, 'empty_response');
+      }
+      
+      return response.content[0].text;
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if the error is retryable
+      const isRateLimitError = error.status === 429;
+      const isServerError = error.status >= 500 && error.status < 600;
+      const isNetworkError = !error.status && (error.message.includes('ECONNRESET') || error.message.includes('timeout'));
+      
+      if (isRateLimitError || isServerError || isNetworkError) {
+        retries++;
+        if (retries <= maxRetries) {
+          // Exponential backoff
+          const delay = retryDelay * Math.pow(2, retries - 1);
+          console.log(`Retrying Anthropic API call (${retries}/${maxRetries}) after ${delay}ms`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+      }
+      
+      // Not retryable or max retries reached
+      const errorDetails = {
+        originalError: error.message,
+        status: error.status,
+        type: error.type,
+      };
+      
+      throw new AnthropicError(
+        `Anthropic API error: ${error.message}`,
+        error.status || 500,
+        error.type || 'api_error',
+        errorDetails
+      );
+    }
   }
-
-  // Form submission related predictions
-  if (context.includes('form') || context.includes('submit')) {
-    predictions.push(
-      'Validation errors might occur',
-      'File upload size limits might be reached',
-      'Required fields might be missing'
-    );
-  }
-
-  // API related predictions
-  if (context.includes('api') || lowerError.includes('request failed')) {
-    predictions.push(
-      'Rate limits might be approached',
-      'Network timeout risks',
-      'API endpoint availability issues'
-    );
-  }
-
-  return predictions;
+  
+  // This should never happen, but just in case
+  throw lastError || new AnthropicError('Unknown error when calling Anthropic API');
 }
 
-// Generate suggestions based on error and predictions
-function generateSuggestions(errorMessage: string, context: string, predictions: string[]): string[] {
-  const suggestions: string[] = [];
-  const lowerError = errorMessage.toLowerCase();
-
-  // Generic suggestions
-  suggestions.push('Verify all required fields are filled correctly');
-  suggestions.push('Check your network connection');
-
-  // Context-specific suggestions
-  if (context.includes('database')) {
-    suggestions.push(
-      'Ensure database credentials are correct',
-      'Verify database schema matches expected structure',
-      'Check for any pending migrations'
-    );
+// Function for multimodal analysis with image
+export async function analyzeImage(base64Image: string, prompt: string, options: {
+  maxTokens?: number;
+  temperature?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+} = {}): Promise<string> {
+  const {
+    maxTokens = 1024,
+    temperature = 0.7,
+    maxRetries = 3,
+    retryDelay = 1000,
+  } = options;
+  
+  let retries = 0;
+  let lastError: Error | null = null;
+  
+  while (retries <= maxRetries) {
+    try {
+      const response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: base64Image
+              }
+            }
+          ]
+        }]
+      });
+      
+      if (!response.content || response.content.length === 0) {
+        throw new AnthropicError('Received empty response from Anthropic API for image analysis', 500, 'empty_response');
+      }
+      
+      return response.content[0].text;
+    } catch (error: any) {
+      lastError = error;
+      
+      // Same retry logic as text analysis
+      const isRateLimitError = error.status === 429;
+      const isServerError = error.status >= 500 && error.status < 600;
+      const isNetworkError = !error.status && (error.message.includes('ECONNRESET') || error.message.includes('timeout'));
+      
+      if (isRateLimitError || isServerError || isNetworkError) {
+        retries++;
+        if (retries <= maxRetries) {
+          const delay = retryDelay * Math.pow(2, retries - 1);
+          console.log(`Retrying Anthropic image analysis (${retries}/${maxRetries}) after ${delay}ms`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+      }
+      
+      // Not retryable or max retries reached
+      const errorDetails = {
+        originalError: error.message,
+        status: error.status,
+        type: error.type,
+      };
+      
+      throw new AnthropicError(
+        `Anthropic image analysis error: ${error.message}`,
+        error.status || 500,
+        error.type || 'api_error',
+        errorDetails
+      );
+    }
   }
-
-  if (context.includes('auth')) {
-    suggestions.push(
-      'Try logging out and back in',
-      'Check if your session is still valid',
-      'Verify you have the required permissions'
-    );
-  }
-
-  if (lowerError.includes('timeout')) {
-    suggestions.push(
-      'Try the operation again',
-      'Check your internet connection',
-      'The server might be experiencing high load'
-    );
-  }
-
-  // Add prediction-based suggestions
-  if (predictions.some(p => p.includes('validation'))) {
-    suggestions.push(
-      'Review form input requirements',
-      'Check for any special character restrictions',
-      'Ensure file types match allowed formats'
-    );
-  }
-
-  return suggestions;
+  
+  // This should never happen, but just in case
+  throw lastError || new AnthropicError('Unknown error when calling Anthropic API for image analysis');
 }
 
-// Enhanced purchase request analysis with AI
-export async function analyzePurchaseRequest(request: PurchaseRequestWithRelations) {
+// Function to perform document analysis
+export async function analyzeDocument(document: string, options: {
+  maxTokens?: number;
+  temperature?: number;
+  system?: string;
+  documentType?: string;
+} = {}): Promise<any> {
+  const {
+    maxTokens = 2048,
+    temperature = 0.3, // Lower temperature for more consistent analysis
+    system = "You're a document analysis expert. Extract key information and provide a structured analysis.",
+    documentType = "business document",
+  } = options;
+  
+  const prompt = `
+Analyze the following ${documentType} and extract key information:
+
+${document}
+
+Please provide a structured analysis with the following:
+1. Summary (100 words max)
+2. Key entities mentioned (people, organizations)
+3. Important dates and numbers
+4. Main topics or themes
+5. Recommendations or next steps (if applicable)
+  `;
+  
   try {
-    const totalCost = Number(request.totalEstimatedCost || 0);
-    const hasMandatoryApprovals = request.approvals?.some(a => a.isMandatory);
-    const isUrgent = request.priority === 'urgent';
-
-    let priority: 'low' | 'medium' | 'high' | 'urgent';
-    let score = 50; // Default medium score
-    const warnings: string[] = [];
-    const suggestions: string[] = [];
-
-    // Analyze potential issues
-    if (totalCost > 50000) {
-      warnings.push('High-value request requires additional scrutiny');
-      suggestions.push('Prepare detailed justification documentation');
-    }
-
-    if (request.items?.length === 0) {
-      warnings.push('Request contains no items');
-      suggestions.push('Add at least one item to the request');
-    }
-
-    if (!request.purpose) {
-      warnings.push('Purpose not specified');
-      suggestions.push('Add a clear purpose description');
-    }
-
-    // Determine priority and score
-    if (isUrgent) {
-      priority = 'urgent';
-      score = 90;
-      suggestions.push('Ensure emergency approval procedures are followed');
-    } else if (totalCost > 10000 || hasMandatoryApprovals) {
-      priority = 'high';
-      score = 75;
-      suggestions.push('Prepare comprehensive documentation');
-    } else if (totalCost > 5000) {
-      priority = 'medium';
-      score = 50;
-      suggestions.push('Include detailed cost breakdown');
-    } else {
-      priority = 'low';
-      score = 25;
-      suggestions.push('Standard approval process applies');
-    }
-
-    // Add time-based suggestions
-    const currentHour = new Date().getHours();
-    if (currentHour > 16) { // After 4 PM
-      suggestions.push('Consider submitting during business hours for faster processing');
-    }
-
+    const result = await analyzeText(prompt, {
+      maxTokens,
+      temperature,
+      system,
+    });
+    
     return {
-      priority,
-      score,
-      warnings,
-      suggestions,
-      reason: `Priority based on cost (${totalCost}), urgency (${isUrgent}), and approval requirements`,
+      success: true,
+      analysis: result,
     };
   } catch (error) {
-    console.error('Error analyzing purchase request:', error);
+    if (error instanceof AnthropicError) {
+      throw error; // Re-throw AnthropicError as is
+    }
+    
+    // Convert other errors to AnthropicError
+    throw new AnthropicError(
+      `Failed to analyze document: ${(error as Error).message}`,
+      500,
+      'document_analysis_failed',
+      { originalError: error }
+    );
+  }
+}
+
+// Utility function to format data for vendor analysis
+export async function analyzeVendorPerformance(vendorData: any): Promise<any> {
+  const prompt = `
+Analyze the following vendor performance data and provide actionable insights:
+
+Vendor Data:
+${JSON.stringify(vendorData, null, 2)}
+
+Please provide:
+1. Overall performance rating on a scale of 1-10
+2. Key strengths and weaknesses
+3. Trend analysis (improving, declining, or stable)
+4. Recommendations for vendor management
+5. Risk assessment (low, medium, high)
+  `;
+  
+  try {
+    const result = await analyzeText(prompt, {
+      maxTokens: 1500,
+      temperature: 0.4,
+      system: "You're a vendor management expert. Analyze vendor performance data and provide actionable insights.",
+    });
+    
     return {
-      priority: 'medium',
-      score: 50,
-      warnings: ['Analysis encountered an error'],
-      suggestions: ['Please review all inputs and try again'],
-      reason: 'Unable to analyze - using default priority'
+      success: true,
+      analysis: result,
     };
+  } catch (error) {
+    if (error instanceof AnthropicError) {
+      throw error;
+    }
+    
+    throw new AnthropicError(
+      `Failed to analyze vendor performance: ${(error as Error).message}`,
+      500,
+      'vendor_analysis_failed',
+      { originalError: error }
+    );
   }
 }
 
-// Enhanced UI component analysis
-export async function analyzeUIComponent(
-  componentCode: string,
-  errorDescription: string
-): Promise<{
-  issues: string[];
-  predictions: string[];
-  recommendations: string[];
-}> {
-  const issues: string[] = [];
-  const predictions: string[] = [];
-  const recommendations: string[] = [];
-
-  // Pattern analysis
-  if (errorDescription.toLowerCase().includes('undefined')) {
-    issues.push('Possible null/undefined value access');
-    predictions.push(
-      'Similar undefined errors might occur in related components',
-      'State updates might cause undefined values'
-    );
-    recommendations.push(
-      'Add null checks before accessing properties',
-      'Implement default values for nullable properties',
-      'Consider using optional chaining'
-    );
-  }
-
-  if (errorDescription.toLowerCase().includes('type')) {
-    issues.push('Type mismatch in component');
-    predictions.push(
-      'Similar type errors might exist in child components',
-      'API responses might not match expected types'
-    );
-    recommendations.push(
-      'Verify prop types and event handler parameters',
-      'Add type guards for complex data structures',
-      'Update component interfaces if needed'
-    );
-  }
-
-  // Code analysis
-  if (componentCode.includes('useEffect')) {
-    predictions.push(
-      'Potential memory leaks in effect cleanup',
-      'Possible infinite effect loops'
-    );
-    recommendations.push(
-      'Verify effect dependencies',
-      'Implement proper cleanup functions',
-      'Consider using useCallback for handlers'
-    );
-  }
-
-  if (componentCode.includes('useState')) {
-    predictions.push(
-      'State updates might be batched unexpectedly',
-      'Initial state might be computed unnecessarily'
-    );
-    recommendations.push(
-      'Use functional updates for state changes',
-      'Consider using useMemo for complex initial states'
-    );
-  }
-
-  // Add default recommendations if no specific issues found
-  if (issues.length === 0) {
-    issues.push('Manual review required');
-    predictions.push(
-      'Performance issues might arise with larger datasets',
-      'Component might not handle edge cases'
-    );
-    recommendations.push(
-      'Review component lifecycle',
-      'Add error boundaries',
-      'Implement proper loading states'
-    );
-  }
-
-  return { issues, predictions, recommendations };
-}
+// Export the anthropic client for direct use if needed
+export default anthropic;

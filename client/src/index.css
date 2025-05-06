@@ -10,13 +10,13 @@
     --card-foreground: #1A1A2E;
     --popover: #FFFFFF;
     --popover-foreground: #1A1A2E;
-    --primary: #8A2BE2;
+    --primary: #A020F0;
     --primary-foreground: #FFFFFF;
-    --secondary: #4361EE;
+    --secondary: #6C00F7;
     --secondary-foreground: #FFFFFF;
-    --muted: #F8F9FA;
+    --muted: #F4F4F6;
     --muted-foreground: #4A4B53;
-    --accent: #4361EE;
+    --accent: #00C2FF;
     --accent-foreground: #FFFFFF;
     --destructive: #E63946;
     --destructive-foreground: #FFFFFF;
@@ -37,13 +37,13 @@
     --card-foreground: #F4F5F7;
     --popover: #1E1E1E;
     --popover-foreground: #F4F5F7;
-    --primary: #8A2BE2;
+    --primary: #A020F0;
     --primary-foreground: #FFFFFF;
-    --secondary: #4361EE;
+    --secondary: #6C00F7;
     --secondary-foreground: #FFFFFF;
     --muted: #1E1E1E;
     --muted-foreground: #A0AEC0;
-    --accent: #4361EE;
+    --accent: #00C2FF;
     --accent-foreground: #FFFFFF;
     --destructive: #E63946;
     --destructive-foreground: #FFFFFF;
@@ -101,13 +101,13 @@
     }
   }
   
-  /* Gradient Styles */
+  /* Gradient Styles - Using exact color scheme */
   .bg-gradient-primary {
-    background: linear-gradient(90deg, #8A2BE2, #6C00F7, #00C2FF, #1CD8D2);
+    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
   }
   
   .text-gradient-primary {
-    background: linear-gradient(90deg, #8A2BE2, #6C00F7, #00C2FF, #1CD8D2);
+    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -118,7 +118,7 @@
     background-clip: padding-box, border-box;
     background-origin: padding-box, border-box;
     background-image: linear-gradient(to right, var(--background), var(--background)), 
-                     linear-gradient(90deg, #8A2BE2, #6C00F7, #00C2FF, #1CD8D2);
+                     linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
   }
   
   /* Component Styles */
@@ -201,7 +201,7 @@
   
   .hover-btn:hover {
     filter: brightness(1.1);
-    box-shadow: 0 4px 12px rgba(138, 43, 226, 0.25);
+    box-shadow: 0 4px 12px rgba(160, 32, 240, 0.25);
     transform: translateY(-1px);
   }
   
