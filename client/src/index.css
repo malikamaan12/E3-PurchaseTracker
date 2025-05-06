@@ -336,21 +336,29 @@ label, .text-sm {
   @apply text-gray-200 !important;
 }
 
-/* Fix vendor management text visibility */
+/* Fix vendor management text visibility - with higher specificity */
 table td, table th, 
 .vendor-table td, .vendor-table th,
 .data-table td, .data-table th,
-[class*="Table"] td, [class*="Table"] th {
+[class*="Table"] td, [class*="Table"] th,
+div [class*="TableCell"],
+div [class*="TableHead"] {
   @apply text-gray-900 !important;
   @apply font-medium !important;
+  color: #1A1A2E !important;
 }
 
 .dark table td, .dark table th,
 .dark .vendor-table td, .dark .vendor-table th,
 .dark .data-table td, .dark .data-table th,
-.dark [class*="Table"] td, .dark [class*="Table"] th {
+.dark [class*="Table"] td, .dark [class*="Table"] th,
+.dark div [class*="TableCell"],
+.dark div [class*="TableHead"],
+:is(.dark) [class*="TableCell"],
+:is(.dark) [class*="TableHead"] {
   @apply text-white !important;
   @apply font-medium !important;
+  color: #FFFFFF !important;
 }
 
 /* Special attention to vendor empty states */

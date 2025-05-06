@@ -408,27 +408,27 @@ export default function Dashboard() {
           {requests.map((request) => (
             <div 
               key={request.id} 
-              className="bg-white dark:bg-gray-800 border border-[#35bbba]/20 dark:border-[#35bbba]/40 rounded-lg p-4 shadow-sm"
+              className="bg-white dark:bg-[#1E1E1E] border border-[#A020F0]/20 dark:border-[#A020F0]/30 rounded-lg p-4 shadow-md"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
                     {request.requestNumber}
                   </div>
-                  <h3 className="font-semibold text-base mt-1">{request.title}</h3>
+                  <h3 className="font-semibold text-base mt-1 text-gray-900 dark:text-white">{request.title}</h3>
                 </div>
                 <Badge
                   className={cn(
-                    "transition-colors",
+                    "transition-colors font-medium",
                     request.status === "approved"
-                      ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
+                      ? "bg-[#4CC9A0]/10 text-[#4CC9A0] border-[#4CC9A0]/20 dark:bg-[#4CC9A0]/20 dark:text-white dark:border-[#4CC9A0]/30"
                       : request.status === "rejected"
-                      ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
+                      ? "bg-[#E63946]/10 text-[#E63946] border-[#E63946]/20 dark:bg-[#E63946]/20 dark:text-white dark:border-[#E63946]/30"
                       : request.status === "changes_requested"
-                      ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
+                      ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/30 dark:text-white dark:border-orange-800/30"
                       : request.status === "pending"
-                      ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
-                      : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+                      ? "bg-[#8A2BE2]/10 text-[#8A2BE2] border-[#8A2BE2]/20 dark:bg-[#8A2BE2]/20 dark:text-white dark:border-[#8A2BE2]/30"
+                      : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                   )}
                 >
                   {request.status.toUpperCase().replace("_", " ")}
@@ -456,31 +456,31 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2 pt-2 border-t border-[#A020F0]/10 dark:border-[#A020F0]/20">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setLocation(`/requests/${request.id}`)}
-                  className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
+                  className="text-[#6C00F7] hover:bg-[#6C00F7]/10 hover:text-[#6C00F7] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#6C00F7]/20 transition-colors"
                 >
                   View
                 </Button>
                 {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                    className="text-[#00C2FF] hover:bg-[#00C2FF]/10 hover:text-[#00C2FF] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#00C2FF]/20"
                   >
                     Edit
                   </Button>
                 )}
                 {showApproval && request.status === "pending" && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => setLocation(`/requests/${request.id}`)}
-                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                    className="text-[#1CD8D2] hover:bg-[#1CD8D2]/10 hover:text-[#1CD8D2] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#1CD8D2]/20"
                   >
                     Review
                   </Button>
@@ -491,24 +491,24 @@ export default function Dashboard() {
         </div>
 
         {/* Desktop view - Table */}
-        <div className="hidden md:block rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 overflow-hidden shadow-sm">
+        <div className="hidden md:block rounded-lg border border-[#A020F0]/20 dark:border-[#A020F0]/30 overflow-hidden shadow-md">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-b border-[#7156a2]/20 dark:border-[#7156a2]/40 bg-[#7156a2]/5 dark:bg-[#7156a2]/10">
-                  <TableHead className="font-semibold">Request #</TableHead>
-                  <TableHead className="font-semibold">Title</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Priority</TableHead>
-                  <TableHead className="font-semibold">Department</TableHead>
-                  <TableHead className="font-semibold">Created</TableHead>
-                  <TableHead className="font-semibold">Total Cost</TableHead>
-                  <TableHead className="w-[200px] font-semibold">Actions</TableHead>
+                <TableRow className="border-b border-[#A020F0]/20 dark:border-[#A020F0]/40 bg-gradient-to-r from-[#A020F0]/5 to-[#1CD8D2]/5 dark:from-[#A020F0]/10 dark:to-[#1CD8D2]/10">
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Request #</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Title</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Status</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Priority</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Department</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Created</TableHead>
+                  <TableHead className="font-semibold text-gray-900 dark:text-white">Total Cost</TableHead>
+                  <TableHead className="w-[200px] font-semibold text-gray-900 dark:text-white">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requests.map((request) => (
-                  <TableRow key={request.id} className="hover:bg-[#35bbba]/5 dark:hover:bg-[#35bbba]/10 dark:text-white transition-colors">
+                  <TableRow key={request.id} className="hover:bg-gradient-to-r hover:from-[#A020F0]/5 hover:to-[#1CD8D2]/5 dark:hover:from-[#A020F0]/10 dark:hover:to-[#1CD8D2]/10 text-gray-900 dark:text-white transition-colors">
                     <TableCell className="font-medium">
                       {request.requestNumber}
                     </TableCell>
@@ -516,16 +516,16 @@ export default function Dashboard() {
                     <TableCell>
                       <Badge
                         className={cn(
-                          "transition-colors",
+                          "transition-colors font-medium",
                           request.status === "approved"
-                            ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
+                            ? "bg-[#4CC9A0]/10 text-[#4CC9A0] border-[#4CC9A0]/20 dark:bg-[#4CC9A0]/20 dark:text-white dark:border-[#4CC9A0]/30"
                             : request.status === "rejected"
-                            ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
+                            ? "bg-[#E63946]/10 text-[#E63946] border-[#E63946]/20 dark:bg-[#E63946]/20 dark:text-white dark:border-[#E63946]/30"
                             : request.status === "changes_requested"
-                            ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
+                            ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/30 dark:text-white dark:border-orange-800/30"
                             : request.status === "pending"
-                            ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
-                            : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+                            ? "bg-[#8A2BE2]/10 text-[#8A2BE2] border-[#8A2BE2]/20 dark:bg-[#8A2BE2]/20 dark:text-white dark:border-[#8A2BE2]/30"
+                            : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                         )}
                       >
                         {request.status.toUpperCase().replace("_", " ")}
@@ -544,29 +544,29 @@ export default function Dashboard() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => setLocation(`/requests/${request.id}`)}
-                          className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
+                          className="text-[#6C00F7] hover:bg-[#6C00F7]/10 hover:text-[#6C00F7] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#6C00F7]/20 transition-colors"
                         >
                           View
                         </Button>
                         {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                            className="text-[#00C2FF] hover:bg-[#00C2FF]/10 hover:text-[#00C2FF] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#00C2FF]/20"
                           >
                             Edit
                           </Button>
                         )}
                         {showApproval && request.status === "pending" && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => setLocation(`/requests/${request.id}`)}
-                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
+                            className="text-[#1CD8D2] hover:bg-[#1CD8D2]/10 hover:text-[#1CD8D2] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#1CD8D2]/20"
                           >
                             Review
                           </Button>
