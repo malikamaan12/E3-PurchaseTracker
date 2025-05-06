@@ -1,15 +1,16 @@
 /**
  * Export Utilities
  * 
- * NOTE: This file has been updated to use PDF and ZIP exports only
- * The CSV and Excel export functions have been deprecated and will be removed.
- * All export functionality is standardized on PDF and ZIP formats.
+ * Provides comprehensive export functionality in multiple formats:
+ * - Excel (.xlsx): Comprehensive export with multiple sheets
+ * - CSV: Simple tabular format
+ * - PDF: Professional document format
+ * - ZIP: With attachments and files
  */
 
 import { saveAs } from 'file-saver';
-// Uncomment if needed for backward compatibility testing
-// import * as XLSX from 'xlsx';
-// import { Parser } from '@json2csv/plainjs';
+import * as XLSX from 'xlsx';
+import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -176,9 +177,7 @@ function getApprovalSummary(request: any): string {
 
 /**
  * Export a purchase request to CSV format
- * @deprecated CSV export has been removed as part of standardization on PDF/ZIP only
  */
-/* 
 export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting CSV export for request #${request.id}`);
@@ -217,7 +216,7 @@ export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'a
     try {
       await logPdfAuditEvent(
         request.id,
-        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        'csv_downloaded', // CSV export action
         {
           trackingId,
           exportType: 'csv',
@@ -244,9 +243,7 @@ export async function exportRequestToCSV(request: any, roleForAudit: 'user' | 'a
 
 /**
  * Export a purchase request to Excel format with multiple sheets
- * @deprecated Excel export has been removed as part of standardization on PDF/ZIP only 
  */
-/*
 export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
     console.log(`Starting Excel export for request #${request.id}`);
@@ -344,7 +341,7 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
     try {
       await logPdfAuditEvent(
         request.id,
-        'pdf_downloaded', // We reuse this action type for consistency in reporting
+        'excel_downloaded', // Use a distinct action type for Excel exports
         {
           trackingId,
           exportType: 'excel',
