@@ -345,11 +345,11 @@ export default function TestExportPage() {
     <div className="container py-8">
       <h1 className="text-2xl font-bold mb-6">Export Functionality Test Page</h1>
       
-      <Alert className="mb-4 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/50">
-        <AlertTitle>Export Functionality Updated</AlertTitle>
+      <Alert className="mb-4 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800/50">
+        <AlertTitle>Export Functionality Restored</AlertTitle>
         <AlertDescription>
-          Excel and CSV export options have been removed to standardize on PDF and ZIP formats only, per the project requirements.
-          This test page has been updated to focus on the PDF and ZIP export workflows with enhanced audit logging.
+          All export options (Excel, CSV, PDF, and ZIP) are now available through the new ExportTabs component.
+          This test page has been updated to demonstrate all export formats with enhanced audit logging.
         </AlertDescription>
       </Alert>
 

@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 import RequestTimeline from "@/components/RequestTimeline";
 import ApprovalFlow from "@/components/ApprovalFlow";
 import { ClaudeAIInsights } from "@/components/ClaudeAIInsights";
-import { DownloadOptions } from "@/components/DownloadOptions";
+import { ExportTabs } from "@/components/ExportTabs";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
@@ -92,8 +92,8 @@ export default function ViewRequest() {
             Back to Dashboard
           </Button>
           
-          {/* Download Options */}
-          <DownloadOptions request={request} compact={true} />
+          {/* Export Options */}
+          <ExportTabs request={request} compact={true} />
         </div>
 
         <div className="grid gap-6">
