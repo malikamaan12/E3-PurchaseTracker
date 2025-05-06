@@ -136,22 +136,6 @@ export function registerRoutes(app: Express): Server {
   }).catch(err => {
     console.error('Error loading Anthropic demo routes:', err);
   });
-  
-  // Register Anthropic API routes
-  import('./routes/anthropic-routes').then((anthropicRoutes) => {
-    apiRouter.use('/anthropic', anthropicRoutes.default);
-    console.log('Anthropic API routes registered successfully');
-  }).catch(err => {
-    console.error('Error loading Anthropic API routes:', err);
-  });
-  
-  // Register Anthropic test routes (admin only)
-  import('./routes/anthropic-test-routes').then((anthropicTestRoutes) => {
-    apiRouter.use('/anthropic', anthropicTestRoutes.default);
-    console.log('Anthropic test routes registered successfully');
-  }).catch(err => {
-    console.error('Error loading Anthropic test routes:', err);
-  });
 
   // Register Vendor Analysis routes
   import('./routes/vendor-analysis-routes').then(({ registerVendorAnalysisRoutes }) => {
@@ -160,16 +144,6 @@ export function registerRoutes(app: Express): Server {
   }).catch(err => {
     console.error('Error loading vendor analysis routes:', err);
   });
-  
-  // Register UI Analysis routes
-  import('./routes/ui-analysis-routes').then((routes) => {
-    apiRouter.use('/ui-analysis', routes.default);
-    console.log('UI analysis routes registered successfully');
-  }).catch(err => {
-    console.error('Error loading UI analysis routes:', err);
-  });
-  
-
   app.use('/api', apiRouter);
 
   // Create uploads directory if it doesn't exist

@@ -4,56 +4,48 @@
 
 @layer base {
   :root {
-    --background: #F8F9FA;
-    --foreground: #1A1A2E;
-    --card: #FFFFFF;
-    --card-foreground: #1A1A2E;
-    --popover: #FFFFFF;
-    --popover-foreground: #1A1A2E;
-    --primary: #A020F0;
-    --primary-foreground: #FFFFFF;
-    --secondary: #6C00F7;
-    --secondary-foreground: #FFFFFF;
-    --muted: #F4F4F6;
-    --muted-foreground: #4A4B53;
-    --accent: #00C2FF;
-    --accent-foreground: #FFFFFF;
-    --destructive: #E63946;
-    --destructive-foreground: #FFFFFF;
-    --success: #4CC9A0;
-    --success-foreground: #FFFFFF;
-    --border: #E2E8F0;
-    --input: #FFFFFF;
-    --ring: #8A2BE2;
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 263 31% 48%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 179 56% 47%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 263 31% 95%;
+    --muted-foreground: 263 31% 40%;
+    --accent: 179 56% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 263 31% 48%;
     --radius: 0.5rem;
-    --text-primary: #1A1A2E;
-    --text-secondary: #4A4B53;
   }
 
   .dark {
-    --background: #121212;
-    --foreground: #F4F5F7;
-    --card: #1E1E1E;
-    --card-foreground: #F4F5F7;
-    --popover: #1E1E1E;
-    --popover-foreground: #F4F5F7;
-    --primary: #A020F0;
-    --primary-foreground: #FFFFFF;
-    --secondary: #6C00F7;
-    --secondary-foreground: #FFFFFF;
-    --muted: #1E1E1E;
-    --muted-foreground: #A0AEC0;
-    --accent: #00C2FF;
-    --accent-foreground: #FFFFFF;
-    --destructive: #E63946;
-    --destructive-foreground: #FFFFFF;
-    --success: #4CC9A0;
-    --success-foreground: #FFFFFF;
-    --border: #2D3748;
-    --input: #2D3748;
-    --ring: #8A2BE2;
-    --text-primary: #F4F5F7;
-    --text-secondary: #A0AEC0;
+    --background: 240 10% 10%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 13%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 13%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263 31% 58%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 179 56% 52%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 263 31% 15%;
+    --muted-foreground: 263 31% 85%;
+    --accent: 179 56% 52%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 10% 20%;
+    --input: 240 10% 20%;
+    --ring: 263 31% 58%;
   }
 
   * {
@@ -62,152 +54,13 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-size: 16px;
-    line-height: 1.5;
   }
-
-  /* Typography settings */
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-bold;
-    line-height: 1.2;
-  }
-
-  h1 { font-size: 32px; }
-  h2 { font-size: 24px; }
-  h3 { font-size: 20px; }
-  h4 { font-size: 18px; }
-  h5, h6 { font-size: 16px; }
 
   /* Mobile optimizations */
   @media (max-width: 640px) {
     html {
       font-size: 14px;
     }
-    
-    /* Stack form fields vertically on mobile */
-    .form-row {
-      @apply flex-col;
-    }
-    
-    /* Increase touch targets */
-    button, 
-    [role="button"],
-    .clickable,
-    input, 
-    select, 
-    textarea {
-      min-height: 44px;
-      min-width: 44px;
-    }
-  }
-  
-  /* Gradient Styles - Using exact color scheme */
-  .bg-gradient-primary {
-    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
-  }
-  
-  .text-gradient-primary {
-    background: linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  
-  .border-gradient-primary {
-    border: 2px solid transparent;
-    background-clip: padding-box, border-box;
-    background-origin: padding-box, border-box;
-    background-image: linear-gradient(to right, var(--background), var(--background)), 
-                     linear-gradient(90deg, #A020F0, #6C00F7, #00C2FF, #1CD8D2);
-  }
-  
-  /* Component Styles */
-  .input-field {
-    @apply h-12 px-4 rounded-md border border-border bg-input;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Status Indicators */
-  .status-pill {
-    @apply rounded-full px-3 py-1 text-xs font-semibold;
-  }
-  
-  .status-pending {
-    @apply bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100;
-  }
-  
-  .status-approved {
-    @apply bg-success bg-opacity-10 text-success dark:bg-success dark:bg-opacity-20 dark:text-success-foreground;
-  }
-  
-  .status-rejected {
-    @apply bg-destructive bg-opacity-10 text-destructive dark:bg-destructive dark:bg-opacity-20 dark:text-destructive-foreground;
-  }
-  
-  /* Table Styling */
-  .data-table {
-    @apply w-full border-collapse;
-  }
-  
-  .data-table thead tr {
-    @apply bg-muted dark:bg-muted;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  
-  .data-table th {
-    @apply px-4 py-3 text-left font-semibold text-text-primary dark:text-text-primary;
-  }
-  
-  .data-table tbody tr {
-    @apply border-b border-border;
-  }
-  
-  .data-table tbody tr:nth-child(even) {
-    @apply bg-muted/30 dark:bg-muted/10;
-  }
-  
-  .data-table tbody tr:hover {
-    @apply bg-muted/50 dark:bg-muted/20;
-  }
-  
-  .data-table td {
-    @apply px-4 py-3 text-text-primary dark:text-text-primary;
-  }
-  
-  /* Button Styles */
-  .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-all duration-300;
-    min-height: 48px;
-  }
-  
-  .btn-primary {
-    @apply bg-gradient-primary text-white hover:shadow-md;
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary text-white hover:bg-secondary/90;
-  }
-  
-  .btn-outline {
-    @apply border border-border bg-transparent text-text-primary dark:text-text-primary hover:border-primary;
-  }
-  
-  /* Interactive Elements */
-  .hover-btn {
-    transition: all 300ms ease;
-  }
-  
-  .hover-btn:hover {
-    filter: brightness(1.1);
-    box-shadow: 0 4px 12px rgba(160, 32, 240, 0.25);
-    transform: translateY(-1px);
-  }
-  
-  /* Focus states for accessibility */
-  *:focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
 }
 
@@ -274,112 +127,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-/* Dark Mode Text Visibility Improvements */
-.dark .pdf-label {
-  @apply text-gray-300;
-}
-
-.dark .pdf-value {
-  @apply text-gray-100;
-}
-
-.dark [class*="text-gray-"] {
-  @apply text-gray-300;
-}
-
-.dark [class*="text-slate-"] {
-  @apply text-slate-300;
-}
-
-.dark [class*="text-muted"] {
-  @apply text-gray-300;
-}
-
-/* High-contrast text improvements */
-.text-muted, .text-muted-foreground {
-  @apply text-gray-700 !important;
-}
-
-.dark .text-muted, .dark .text-muted-foreground {
-  @apply text-gray-200 !important;
-}
-
-/* Ensuring high contrast for form fields and tables */
-input, textarea, select {
-  @apply text-gray-900 !important;
-  @apply placeholder:text-gray-500 !important;
-}
-
-.dark input, .dark textarea, .dark select {
-  @apply text-white !important;
-  @apply placeholder:text-gray-400 !important;
-}
-
-/* Ensure header text has enough contrast */
-h1, h2, h3, h4, h5, h6 {
-  @apply text-gray-900 !important;
-}
-
-.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
-  @apply text-white !important;
-}
-
-/* Fix labels and subtle text elements */
-label, .text-sm {
-  @apply text-gray-800 !important;
-  @apply font-medium !important;
-}
-
-.dark label, .dark .text-sm {
-  @apply text-gray-200 !important;
-}
-
-/* Fix vendor management text visibility - with higher specificity */
-table td, table th, 
-.vendor-table td, .vendor-table th,
-.data-table td, .data-table th,
-[class*="Table"] td, [class*="Table"] th,
-div [class*="TableCell"],
-div [class*="TableHead"] {
-  @apply text-gray-900 !important;
-  @apply font-medium !important;
-  color: #1A1A2E !important;
-}
-
-.dark table td, .dark table th,
-.dark .vendor-table td, .dark .vendor-table th,
-.dark .data-table td, .dark .data-table th,
-.dark [class*="Table"] td, .dark [class*="Table"] th,
-.dark div [class*="TableCell"],
-.dark div [class*="TableHead"],
-:is(.dark) [class*="TableCell"],
-:is(.dark) [class*="TableHead"] {
-  @apply text-white !important;
-  @apply font-medium !important;
-  color: #FFFFFF !important;
-}
-
-/* Special attention to vendor empty states */
-.empty-state, .empty-message, .no-data {
-  @apply text-gray-800 !important;
-  @apply font-medium !important;
-}
-
-.dark .empty-state, .dark .empty-message, .dark .no-data {
-  @apply text-gray-100 !important;
-  @apply font-medium !important;
-}
-
-/* Ensure text is visible in dark mode for common components */
-.dark .data-table td,
-.dark .data-table th,
-.dark label,
-.dark p,
-.dark span:not([class*="text-"]),
-.dark div[class*="muted"] {
-  @apply text-white;
 }
 
 /* Print Styles */

@@ -1,73 +1,49 @@
 {
   "variant": "professional",
-  "primary": "#8A2BE2",
+  "primary": "hsl(263 31% 48%)",
   "appearance": "system",
   "radius": 0.5,
-  "accent": "#4361EE",
-  "foreground": "#1A1A2E",
-  "background": "#F8F9FA",
-  "card": "#FFFFFF",
-  "popover": "#FFFFFF",
-  "border": "#E2E8F0",
-  "input": "#FFFFFF",
-  "ring": "#8A2BE2",
-  "text": {
-    "primary": "#1A1A2E",
-    "secondary": "#4A4B53"
-  },
+  "accent": "hsl(179 56% 47%)",
+  "foreground": "hsl(240 10% 3.9%)",
+  "background": "hsl(0 0% 100%)",
+  "card": "hsl(0 0% 100%)",
+  "popover": "hsl(0 0% 100%)",
+  "border": "hsl(240 5.9% 90%)",
+  "input": "hsl(240 5.9% 90%)",
+  "ring": "hsl(263 31% 48%)",
   "muted": {
-    "DEFAULT": "#F8F9FA",
-    "foreground": "#4A4B53"
+    "DEFAULT": "hsl(263 31% 95%)",
+    "foreground": "hsl(263 31% 40%)"
   },
   "secondary": {
-    "DEFAULT": "#4361EE",
-    "foreground": "#FFFFFF"
+    "DEFAULT": "hsl(179 56% 47%)",
+    "foreground": "hsl(0 0% 100%)"
   },
   "destructive": {
-    "DEFAULT": "#E63946",
-    "foreground": "#FFFFFF"
-  },
-  "success": {
-    "DEFAULT": "#4CC9A0",
-    "foreground": "#FFFFFF"
-  },
-  "hover": {
-    "DEFAULT": "#00C2FF",
-    "foreground": "#FFFFFF"
+    "DEFAULT": "hsl(0 84.2% 60.2%)",
+    "foreground": "hsl(0 0% 98%)"
   },
   "dark": {
-    "primary": "#8A2BE2",
-    "accent": "#4361EE",
-    "foreground": "#F4F5F7",
-    "background": "#121212",
-    "card": "#1E1E1E",
-    "popover": "#1E1E1E",
-    "border": "#2D3748",
-    "input": "#2D3748",
-    "ring": "#8A2BE2",
-    "text": {
-      "primary": "#F4F5F7",
-      "secondary": "#A0AEC0"
-    },
+    "primary": "hsl(263 31% 58%)",
+    "accent": "hsl(179 56% 52%)",
+    "foreground": "hsl(0 0% 98%)",
+    "background": "hsl(240 10% 10%)",
+    "card": "hsl(240 10% 13%)",
+    "popover": "hsl(240 10% 13%)",
+    "border": "hsl(240 10% 20%)",
+    "input": "hsl(240 10% 20%)",
+    "ring": "hsl(263 31% 58%)",
     "muted": {
-      "DEFAULT": "#1E1E1E",
-      "foreground": "#A0AEC0"
+      "DEFAULT": "hsl(263 31% 15%)",
+      "foreground": "hsl(263 31% 85%)"
     },
     "secondary": {
-      "DEFAULT": "#4361EE",
-      "foreground": "#FFFFFF"
+      "DEFAULT": "hsl(179 56% 52%)",
+      "foreground": "hsl(0 0% 100%)"
     },
     "destructive": {
-      "DEFAULT": "#E63946",
-      "foreground": "#FFFFFF"
-    },
-    "success": {
-      "DEFAULT": "#4CC9A0",
-      "foreground": "#FFFFFF"
-    },
-    "hover": {
-      "DEFAULT": "#00C2FF",
-      "foreground": "#FFFFFF"
+      "DEFAULT": "hsl(0 62.8% 30.6%)",
+      "foreground": "hsl(0 0% 98%)"
     }
   }
 }

@@ -408,27 +408,27 @@ export default function Dashboard() {
           {requests.map((request) => (
             <div 
               key={request.id} 
-              className="bg-white dark:bg-[#1E1E1E] border border-[#A020F0]/20 dark:border-[#A020F0]/30 rounded-lg p-4 shadow-md"
+              className="bg-white dark:bg-gray-800 border border-[#35bbba]/20 dark:border-[#35bbba]/40 rounded-lg p-4 shadow-sm"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
                     {request.requestNumber}
                   </div>
-                  <h3 className="font-semibold text-base mt-1 text-gray-900 dark:text-white">{request.title}</h3>
+                  <h3 className="font-semibold text-base mt-1">{request.title}</h3>
                 </div>
                 <Badge
                   className={cn(
-                    "transition-colors font-medium",
+                    "transition-colors",
                     request.status === "approved"
-                      ? "bg-[#4CC9A0]/10 text-[#4CC9A0] border-[#4CC9A0]/20 dark:bg-[#4CC9A0]/20 dark:text-white dark:border-[#4CC9A0]/30"
+                      ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
                       : request.status === "rejected"
-                      ? "bg-[#E63946]/10 text-[#E63946] border-[#E63946]/20 dark:bg-[#E63946]/20 dark:text-white dark:border-[#E63946]/30"
+                      ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
                       : request.status === "changes_requested"
-                      ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/30 dark:text-white dark:border-orange-800/30"
+                      ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
                       : request.status === "pending"
-                      ? "bg-[#8A2BE2]/10 text-[#8A2BE2] border-[#8A2BE2]/20 dark:bg-[#8A2BE2]/20 dark:text-white dark:border-[#8A2BE2]/30"
-                      : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                      ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
+                      : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
                   )}
                 >
                   {request.status.toUpperCase().replace("_", " ")}
@@ -456,31 +456,31 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 pt-2 border-t border-[#A020F0]/10 dark:border-[#A020F0]/20">
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => setLocation(`/requests/${request.id}`)}
-                  className="text-[#6C00F7] hover:bg-[#6C00F7]/10 hover:text-[#6C00F7] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#6C00F7]/20 transition-colors"
+                  className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
                 >
                   View
                 </Button>
                 {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                    className="text-[#00C2FF] hover:bg-[#00C2FF]/10 hover:text-[#00C2FF] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#00C2FF]/20"
+                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
                   >
                     Edit
                   </Button>
                 )}
                 {showApproval && request.status === "pending" && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setLocation(`/requests/${request.id}`)}
-                    className="text-[#1CD8D2] hover:bg-[#1CD8D2]/10 hover:text-[#1CD8D2] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#1CD8D2]/20"
+                    className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
                   >
                     Review
                   </Button>
@@ -491,24 +491,24 @@ export default function Dashboard() {
         </div>
 
         {/* Desktop view - Table */}
-        <div className="hidden md:block rounded-lg border border-[#A020F0]/20 dark:border-[#A020F0]/30 overflow-hidden shadow-md">
+        <div className="hidden md:block rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-b border-[#A020F0]/20 dark:border-[#A020F0]/40 bg-gradient-to-r from-[#A020F0]/5 to-[#1CD8D2]/5 dark:from-[#A020F0]/10 dark:to-[#1CD8D2]/10">
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Request #</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Title</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Status</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Priority</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Department</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Created</TableHead>
-                  <TableHead className="font-semibold text-gray-900 dark:text-white">Total Cost</TableHead>
-                  <TableHead className="w-[200px] font-semibold text-gray-900 dark:text-white">Actions</TableHead>
+                <TableRow className="border-b border-[#7156a2]/20 dark:border-[#7156a2]/40 bg-[#7156a2]/5 dark:bg-[#7156a2]/10">
+                  <TableHead className="font-semibold">Request #</TableHead>
+                  <TableHead className="font-semibold">Title</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Priority</TableHead>
+                  <TableHead className="font-semibold">Department</TableHead>
+                  <TableHead className="font-semibold">Created</TableHead>
+                  <TableHead className="font-semibold">Total Cost</TableHead>
+                  <TableHead className="w-[200px] font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requests.map((request) => (
-                  <TableRow key={request.id} className="hover:bg-gradient-to-r hover:from-[#A020F0]/5 hover:to-[#1CD8D2]/5 dark:hover:from-[#A020F0]/10 dark:hover:to-[#1CD8D2]/10 text-gray-900 dark:text-white transition-colors">
+                  <TableRow key={request.id} className="hover:bg-[#35bbba]/5 dark:hover:bg-[#35bbba]/10 transition-colors">
                     <TableCell className="font-medium">
                       {request.requestNumber}
                     </TableCell>
@@ -516,16 +516,16 @@ export default function Dashboard() {
                     <TableCell>
                       <Badge
                         className={cn(
-                          "transition-colors font-medium",
+                          "transition-colors",
                           request.status === "approved"
-                            ? "bg-[#4CC9A0]/10 text-[#4CC9A0] border-[#4CC9A0]/20 dark:bg-[#4CC9A0]/20 dark:text-white dark:border-[#4CC9A0]/30"
+                            ? "bg-[#35bbba]/10 text-[#35bbba] border-[#35bbba]/20 dark:bg-[#35bbba]/20 dark:border-[#35bbba]/30"
                             : request.status === "rejected"
-                            ? "bg-[#E63946]/10 text-[#E63946] border-[#E63946]/20 dark:bg-[#E63946]/20 dark:text-white dark:border-[#E63946]/30"
+                            ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/30"
                             : request.status === "changes_requested"
-                            ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-800/30 dark:text-white dark:border-orange-800/30"
+                            ? "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/30"
                             : request.status === "pending"
-                            ? "bg-[#8A2BE2]/10 text-[#8A2BE2] border-[#8A2BE2]/20 dark:bg-[#8A2BE2]/20 dark:text-white dark:border-[#8A2BE2]/30"
-                            : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                            ? "bg-[#7156a2]/10 text-[#7156a2] border-[#7156a2]/20 dark:bg-[#7156a2]/20 dark:border-[#7156a2]/30"
+                            : "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
                         )}
                       >
                         {request.status.toUpperCase().replace("_", " ")}
@@ -544,29 +544,29 @@ export default function Dashboard() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => setLocation(`/requests/${request.id}`)}
-                          className="text-[#6C00F7] hover:bg-[#6C00F7]/10 hover:text-[#6C00F7] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#6C00F7]/20 transition-colors"
+                          className="hover:bg-[#7156a2]/10 hover:text-[#7156a2] transition-colors dark:hover:bg-[#7156a2]/20"
                         >
                           View
                         </Button>
                         {(isAdmin || (request.status === "draft" && request.requesterId === user?.id)) && (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => setLocation(`/requests/${request.id}/edit`)}
-                            className="text-[#00C2FF] hover:bg-[#00C2FF]/10 hover:text-[#00C2FF] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#00C2FF]/20"
+                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
                           >
                             Edit
                           </Button>
                         )}
                         {showApproval && request.status === "pending" && (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => setLocation(`/requests/${request.id}`)}
-                            className="text-[#1CD8D2] hover:bg-[#1CD8D2]/10 hover:text-[#1CD8D2] dark:text-[#F4F4F6] dark:hover:text-[#F4F4F6] dark:hover:bg-[#1CD8D2]/20"
+                            className="text-[#35bbba] hover:text-[#35bbba] hover:bg-[#35bbba]/10 dark:hover:bg-[#35bbba]/20"
                           >
                             Review
                           </Button>
@@ -647,32 +647,34 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="mb-6 bg-white/80 dark:bg-gray-800/80 rounded-lg p-5 backdrop-blur-sm shadow-sm">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="relative w-full sm:flex-1 mb-3 sm:mb-0">
-              <Input
-                placeholder="Search requests..."
-                value={activeFilters.searchQuery}
-                onChange={(e) => handleFilterChange({
-                  ...activeFilters,
-                  searchQuery: e.target.value,
-                })}
-                className="pl-8 border-0 shadow-sm focus:ring-[#7156a2]/50 dark:focus:ring-[#7156a2]/70"
-              />
-              <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
-            </div>
-            {isAdmin && (
-              <div className="w-full sm:w-auto flex justify-center">
-                <Link href="/export" className="w-full sm:w-auto">
-                  <Button variant="outline" className="w-full sm:w-auto bg-gradient-primary text-white border-0 hover-btn">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Bulk Export
-                  </Button>
-                </Link>
+        <Card className="mb-6 border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative w-full sm:flex-1 mb-3 sm:mb-0">
+                <Input
+                  placeholder="Search requests..."
+                  value={activeFilters.searchQuery}
+                  onChange={(e) => handleFilterChange({
+                    ...activeFilters,
+                    searchQuery: e.target.value,
+                  })}
+                  className="pl-8 border-[#7156a2]/20 focus:border-[#7156a2]/50 focus:ring-[#7156a2]/50 dark:border-[#7156a2]/40 dark:focus:border-[#7156a2]/70 dark:focus:ring-[#7156a2]/70"
+                />
+                <Search className="h-4 w-4 absolute left-2 top-3 text-gray-400 dark:text-gray-500" />
               </div>
-            )}
-          </div>
-        </div>
+              {isAdmin && (
+                <div className="w-full sm:w-auto flex justify-center">
+                  <Link href="/export" className="w-full sm:w-auto">
+                    <Button variant="outline" className="w-full sm:w-auto bg-[#35bbba]/10 hover:bg-[#35bbba]/20 text-[#35bbba] dark:bg-[#35bbba]/20 dark:hover:bg-[#35bbba]/30 dark:text-[#35bbba]">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Bulk Export
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <DashboardFilterPanel
           onFilterChange={handleFilterChange}
@@ -687,8 +689,8 @@ export default function Dashboard() {
           <div className="pb-4">
             {/* Desktop view - standard row */}
             <div className="hidden sm:block overflow-x-auto">
-              <TabsList className="mb-6 bg-white/80 dark:bg-gray-900/80 shadow-sm rounded-lg p-1 w-max min-w-full">
-                <TabsTrigger value="my-requests" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+              <TabsList className="mb-6 bg-white dark:bg-gray-900 border border-[#7156a2]/20 dark:border-[#7156a2]/40 p-1 w-max min-w-full">
+                <TabsTrigger value="my-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                   <span className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
                     <span>My Requests</span>
@@ -697,7 +699,7 @@ export default function Dashboard() {
                     {requestCounts.myRequests}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                <TabsTrigger value="drafts-to-submit" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                   <span className="flex items-center">
                     <FileEdit className="h-4 w-4 mr-2" />
                     <span>Ready to Submit</span>
@@ -708,7 +710,7 @@ export default function Dashboard() {
                 </TabsTrigger>
                 {(isAdmin || isSpecialRole) && (
                   <>
-                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
                         <Files className="h-4 w-4 mr-2" />
                         <span>All Requests</span>
@@ -717,7 +719,7 @@ export default function Dashboard() {
                         {requestCounts.allRequests}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="pending" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="pending" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
                         <span>Pending</span>
@@ -726,7 +728,7 @@ export default function Dashboard() {
                         {requestCounts.pending}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="approved" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="approved" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         <span>Approved</span>
@@ -735,7 +737,7 @@ export default function Dashboard() {
                         {requestCounts.approved}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="rejected" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="rejected" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
                         <XCircle className="h-4 w-4 mr-2" />
                         <span>Rejected</span>
@@ -744,7 +746,7 @@ export default function Dashboard() {
                         {requestCounts.rejected}
                       </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="changes" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                    <TabsTrigger value="changes" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
                         <PencilRuler className="h-4 w-4 mr-2" />
                         <span>Changes Requested</span>
@@ -756,7 +758,7 @@ export default function Dashboard() {
                   </>
                 )}
                 {!isAdmin && !isSpecialRole && showApprovalsTab && (
-                  <TabsTrigger value="approvals" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#A020F0] data-[state=active]:to-[#1CD8D2] data-[state=active]:text-white border-0 text-sm">
+                  <TabsTrigger value="approvals" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                     <span className="flex items-center">
                       <CircleCheck className="h-4 w-4 mr-2" />
                       <span>Pending Approvals</span>
@@ -781,26 +783,26 @@ export default function Dashboard() {
                 <div className="grid grid-cols-4 gap-x-4 mb-6">
                   <div 
                     onClick={() => setActiveTab("my-requests")}
-                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                    className={`flex flex-col items-center ${activeTab === "my-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "my-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                       <FileText className="h-6 w-6" />
                     </div>
                     <div className="text-xs font-medium">My</div>
-                    <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                       {requestCounts.myRequests}
                     </div>
                   </div>
                   
                   <div 
                     onClick={() => setActiveTab("drafts-to-submit")}
-                    className={`flex flex-col items-center ${activeTab === "drafts-to-submit" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                    className={`flex flex-col items-center ${activeTab === "drafts-to-submit" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "drafts-to-submit" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "drafts-to-submit" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                       <FileEdit className="h-6 w-6" />
                     </div>
                     <div className="text-xs font-medium">Drafts</div>
-                    <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                    <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                       {requestCounts.draftsToSubmit}
                     </div>
                   </div>
@@ -808,13 +810,13 @@ export default function Dashboard() {
                   {(isAdmin || isSpecialRole) && (
                     <div 
                       onClick={() => setActiveTab("all-requests")}
-                      className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "all-requests" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "all-requests" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <Files className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">All</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.allRequests}
                       </div>
                     </div>
@@ -825,13 +827,13 @@ export default function Dashboard() {
                   {!isAdmin && !isSpecialRole && showApprovalsTab && (
                     <div 
                       onClick={() => setActiveTab("approvals")}
-                      className={`flex flex-col items-center ${activeTab === "approvals" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "approvals" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approvals" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approvals" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <CircleCheck className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Approvals</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.approvals}
                       </div>
                     </div>
@@ -843,52 +845,52 @@ export default function Dashboard() {
                   <div className="grid grid-cols-4 gap-x-4">
                     <div 
                       onClick={() => setActiveTab("pending")}
-                      className={`flex flex-col items-center ${activeTab === "pending" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "pending" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "pending" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "pending" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <Clock className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Pending</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.pending}
                       </div>
                     </div>
                     
                     <div 
                       onClick={() => setActiveTab("approved")}
-                      className={`flex flex-col items-center ${activeTab === "approved" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "approved" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approved" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "approved" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <CheckCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Approved</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.approved}
                       </div>
                     </div>
                     
                     <div 
                       onClick={() => setActiveTab("rejected")}
-                      className={`flex flex-col items-center ${activeTab === "rejected" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "rejected" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "rejected" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "rejected" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <XCircle className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Rejected</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.rejected}
                       </div>
                     </div>
                     
                     <div 
                       onClick={() => setActiveTab("changes")}
-                      className={`flex flex-col items-center ${activeTab === "changes" ? "text-[#6C00F7] dark:text-[#00C2FF]" : "text-[#444444] dark:text-[#CFCFCF]"}`}
+                      className={`flex flex-col items-center ${activeTab === "changes" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "changes" ? "bg-gradient-primary bg-opacity-10 dark:bg-opacity-20" : "bg-[#F4F4F6] dark:bg-[#2A2A2A]"}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1.5 ${activeTab === "changes" ? "bg-[#eeeaf5] dark:bg-[#7156a2]/20" : "bg-gray-100 dark:bg-gray-800"}`}>
                         <PencilRuler className="h-6 w-6" />
                       </div>
                       <div className="text-xs font-medium">Changes</div>
-                      <div className="bg-[#F4F4F6] dark:bg-[#2A2A2A] text-[#444444] dark:text-[#CFCFCF] text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                         {requestCounts.changes}
                       </div>
                     </div>
@@ -898,7 +900,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-md p-4 sm:p-6 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg p-4 sm:p-6">
             <TabsContent value="my-requests">
               {renderRequestsTable(categorizedRequests.myRequests)}
             </TabsContent>
