@@ -612,8 +612,8 @@ export default function RequestCard({
       <Card className="hover:shadow-md transition-shadow overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-2 gap-4">
           <div className="space-y-1">
-            <CardTitle className="text-xl">{request.title}</CardTitle>
-            <p className="text-sm text-gray-500">
+            <CardTitle className="text-xl dark:text-white">{request.title}</CardTitle>
+            <p className="text-sm text-gray-500 dark:text-white">
               Request #{request.requestNumber}
             </p>
           </div>
@@ -666,8 +666,8 @@ export default function RequestCard({
             <TabsContent value="details">
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900">Description</h4>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{request.description}</p>
+                  <h4 className="font-medium text-gray-900 dark:text-white">Description</h4>
+                  <p className="text-sm text-gray-600 dark:text-white whitespace-pre-wrap">{request.description}</p>
                 </div>
 
                 <div className="space-y-6">
@@ -845,11 +845,11 @@ export default function RequestCard({
           </Tabs>
 
           {showApproval && (
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-lg font-medium">Approval Actions</h3>
+            <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-medium dark:text-white">Approval Actions</h3>
               <div className="space-y-4">
                 <div className="flex flex-col space-y-2">
-                  <label htmlFor="comments" className="text-sm font-medium">
+                  <label htmlFor="comments" className="text-sm font-medium dark:text-white">
                     Comments
                   </label>
                   <Textarea
@@ -918,7 +918,7 @@ export default function RequestCard({
           )}
 
           {showActions && (
-            <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" className="bg-red-50 text-red-600 hover:bg-red-100">
