@@ -478,8 +478,8 @@ export default function RequestCard({
   const renderAttachments = () => {
     if (!request.attachments || request.attachments.length === 0) {
       return (
-        <div className="text-center py-8 text-gray-500">
-          <FileIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+        <div className="text-center py-8 text-gray-500 dark:text-gray-300">
+          <FileIcon className="h-12 w-12 mx-auto mb-3 text-gray-400 dark:text-gray-300" />
           <p>No documents attached to this request</p>
         </div>
       );
@@ -522,7 +522,7 @@ export default function RequestCard({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDownload(file.id)}
-                    className="text-gray-600 hover:text-primary"
+                    className="text-gray-600 dark:text-white hover:text-primary dark:hover:text-primary"
                   >
                     <FileDown className="h-4 w-4 mr-2" />
                     Download
@@ -783,26 +783,26 @@ export default function RequestCard({
                         </TableRow>
                       ))}
                       <TableRow>
-                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium dark:text-white">
                           Items Total
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium dark:text-white">
                           {formatCurrency(itemsTotal)}
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium">
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-medium dark:text-white">
                           Freight Amount
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium dark:text-white">
                           {formatCurrency(freightAmount)}
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold">
+                        <TableCell colSpan={showItemDescriptions ? 4 : 3} className="text-right font-bold dark:text-white">
                           Total Estimated Cost
                         </TableCell>
-                        <TableCell className="font-bold">
+                        <TableCell className="font-bold dark:text-white">
                           {formatCurrency(totalCost)}
                         </TableCell>
                       </TableRow>
