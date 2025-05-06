@@ -82,6 +82,7 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
   const handleExport = async (format: string) => {
     if (isLoading) return;
     
+    console.log(`Starting ${format} export for request:`, request);
     setIsLoading(true);
     setExportType(format);
     
@@ -90,16 +91,24 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
       
       switch(format) {
         case 'excel':
+          console.log('Calling exportRequestToExcel...');
           fileName = await exportRequestToExcel(request);
+          console.log('Excel export returned filename:', fileName);
           break;
         case 'csv':
+          console.log('Calling exportRequestToCSV...');
           fileName = await exportRequestToCSV(request);
+          console.log('CSV export returned filename:', fileName);
           break;
         case 'pdf':
+          console.log('Calling exportRequestToPDF...');
           fileName = await exportRequestToPDF(request);
+          console.log('PDF export returned filename:', fileName);
           break;
         case 'zip':
+          console.log('Calling exportMultipleRequestsAsZip...');
           fileName = await exportMultipleRequestsAsZip([request]);
+          console.log('ZIP export returned filename:', fileName);
           break;
         default:
           throw new Error(`Unsupported export format: ${format}`);

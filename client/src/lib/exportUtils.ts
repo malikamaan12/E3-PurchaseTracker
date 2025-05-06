@@ -21,21 +21,29 @@ import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pd
  * Safely download a file using FileSaver with fallbacks
  */
 export async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
+  console.log("safeDownload called with:", { fileName, blobType: blob.type, blobSize: blob.size });
+  
   try {
+    console.log("Trying primary download method with FileSaver...");
     saveAs(blob, fileName);
+    console.log("Primary download method succeeded");
     return true;
   } catch (error) {
-    console.error("Download error:", error);
+    console.error("Primary download error:", error);
+    
     // Fallback method using object URLs
     try {
+      console.log("Trying fallback download method with URL.createObjectURL...");
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
+      console.log("Clicking download link...");
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      console.log("Fallback download method succeeded");
       return true;
     } catch (fallbackError) {
       console.error("Fallback download error:", fallbackError);
