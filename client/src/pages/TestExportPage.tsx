@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "../components/ui/button";
 import { saveAs } from 'file-saver';
+import { ExportTabs } from "@/components/ExportTabs";
 import { 
   exportRequestToPDF,
   exportMultipleRequestsAsZip,
@@ -352,6 +353,18 @@ export default function TestExportPage() {
           This test page has been updated to demonstrate all export formats with enhanced audit logging.
         </AlertDescription>
       </Alert>
+      
+      <div className="mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Export Tabs Component</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4">The ExportTabs component with the sample request data:</p>
+            <ExportTabs request={mockPurchaseRequest} />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Enhanced Export Utilities</h2>
