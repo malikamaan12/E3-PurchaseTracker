@@ -23,7 +23,7 @@ const TableHeader = React.forwardRef<
   <thead 
     ref={ref} 
     className={cn(
-      "bg-muted dark:bg-muted sticky top-0 z-10 text-text-primary dark:text-text-primary font-semibold", 
+      "bg-muted dark:bg-muted sticky top-0 z-10 text-gray-900 dark:text-white font-semibold", 
       className
     )} 
     {...props} 
@@ -38,7 +38,7 @@ const TableBody = React.forwardRef<
   <tbody
     ref={ref}
     className={cn(
-      "text-text-primary dark:text-text-primary", 
+      "text-gray-900 dark:text-white", 
       className
     )}
     {...props}
@@ -53,7 +53,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t bg-muted/50 font-medium text-text-primary dark:text-text-primary",
+      "border-t bg-muted/50 font-medium text-gray-900 dark:text-white",
       className
     )}
     {...props}
@@ -69,7 +69,7 @@ const TableRow = React.forwardRef<
     ref={ref}
     className={cn(
       "border-b border-border transition-all duration-300 hover:bg-muted/50 dark:hover:bg-muted/20 data-[state=selected]:bg-muted/70",
-      "text-text-primary dark:text-text-primary",
+      "text-gray-900 dark:text-white",
       className
     )}
     {...props}
@@ -84,7 +84,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 py-3 text-left align-middle font-semibold text-text-primary dark:text-text-primary [&:has([role=checkbox])]:pr-0",
+      "h-12 px-4 py-3 text-left align-middle font-semibold text-gray-900 dark:text-white [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -99,7 +99,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      "px-4 py-3 align-middle text-text-primary dark:text-text-primary [&:has([role=checkbox])]:pr-0", 
+      "px-4 py-3 align-middle text-gray-900 dark:text-white [&:has([role=checkbox])]:pr-0", 
       className
     )}
     {...props}
@@ -114,7 +114,7 @@ const TableCaption = React.forwardRef<
   <caption
     ref={ref}
     className={cn(
-      "mt-4 text-sm text-text-secondary dark:text-text-secondary font-medium", 
+      "mt-4 text-sm text-gray-700 dark:text-gray-200 font-medium", 
       className
     )}
     {...props}
