@@ -58,35 +58,35 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
       label: 'Draft Created', 
       date: request.createdAt,
       icon: FileEdit,
-      color: 'text-gray-500'
+      color: 'text-gray-500 dark:text-gray-400'
     },
     { 
       status: 'pending', 
       label: 'Submitted for Approval', 
       date: request.status === 'draft' ? null : request.updatedAt,
       icon: Clock,
-      color: 'text-blue-500'
+      color: 'text-blue-500 dark:text-blue-400'
     },
     { 
       status: 'changes_requested', 
       label: 'Changes Requested', 
       date: effectiveStatus === 'changes_requested' ? request.updatedAt : null,
       icon: AlertTriangle,
-      color: 'text-orange-500'
+      color: 'text-orange-500 dark:text-orange-400'
     },
     { 
       status: 'approved', 
       label: 'Approved', 
       date: effectiveStatus === 'approved' ? request.updatedAt : null,
       icon: CheckCircle2,
-      color: 'text-green-500'
+      color: 'text-green-500 dark:text-green-400'
     },
     { 
       status: 'rejected', 
       label: 'Rejected', 
       date: effectiveStatus === 'rejected' ? request.updatedAt : null,
       icon: XCircle,
-      color: 'text-red-500'
+      color: 'text-red-500 dark:text-red-400'
     }
   ];
 
@@ -103,11 +103,11 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
           <h3 className="text-lg font-semibold">Request Timeline</h3>
           <Badge variant="outline" className={cn(
             "text-sm",
-            effectiveStatus === 'approved' ? "border-green-200 bg-green-50 text-green-700" :
-            effectiveStatus === 'rejected' ? "border-red-200 bg-red-50 text-red-700" :
-            effectiveStatus === 'changes_requested' ? "border-orange-200 bg-orange-50 text-orange-700" :
-            effectiveStatus === 'pending' ? "border-blue-200 bg-blue-50 text-blue-700" :
-            "border-gray-200 bg-gray-50 text-gray-700"
+            effectiveStatus === 'approved' ? "border-green-200 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 dark:border-green-800" :
+            effectiveStatus === 'rejected' ? "border-red-200 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 dark:border-red-800" :
+            effectiveStatus === 'changes_requested' ? "border-orange-200 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 dark:border-orange-800" :
+            effectiveStatus === 'pending' ? "border-blue-200 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 dark:border-blue-800" :
+            "border-gray-200 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 dark:border-gray-700"
           )}>
             {effectiveStatus.toUpperCase().replace('_', ' ')}
           </Badge>
@@ -119,17 +119,17 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
             value={progressPercentage} 
             className={cn(
               "h-2",
-              effectiveStatus === 'approved' ? "bg-green-500" :
-              effectiveStatus === 'rejected' ? "bg-red-500" :
-              effectiveStatus === 'changes_requested' ? "bg-orange-500" :
-              "bg-blue-500"
+              effectiveStatus === 'approved' ? "bg-green-500 dark:bg-green-600" :
+              effectiveStatus === 'rejected' ? "bg-red-500 dark:bg-red-600" :
+              effectiveStatus === 'changes_requested' ? "bg-orange-500 dark:bg-orange-600" :
+              "bg-blue-500 dark:bg-blue-600"
             )} 
           />
         </div>
 
         <div className="relative">
           {/* Vertical timeline line */}
-          <div className="absolute left-[27px] top-4 h-[calc(100%-2rem)] w-px bg-gray-200" />
+          <div className="absolute left-[27px] top-4 h-[calc(100%-2rem)] w-px bg-gray-200 dark:bg-gray-600" />
 
           {/* Timeline events */}
           <div className="space-y-8">
@@ -150,7 +150,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                       ) : isPast ? (
                         <Icon className={cn("h-6 w-6", status.color)} />
                       ) : (
-                        <Circle className="h-6 w-6 text-gray-300" />
+                        <Circle className="h-6 w-6 text-gray-300 dark:text-gray-500" />
                       )}
                     </div>
 
@@ -160,19 +160,19 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                         <p className={cn(
                           "font-medium",
                           isCurrent ? status.color :
-                          isPast ? "text-gray-700" :
-                          "text-gray-400"
+                          isPast ? "text-gray-700 dark:text-gray-200" :
+                          "text-gray-400 dark:text-gray-500"
                         )}>
                           {status.label}
                         </p>
                         {isCurrent && (
-                          <Badge className="text-xs animate-in fade-in-50 duration-300">
+                          <Badge className="text-xs animate-in fade-in-50 duration-300 bg-primary/20 hover:bg-primary/30 dark:text-primary-foreground">
                             Current
                           </Badge>
                         )}
                       </div>
                       {status.date && (
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                           {format(new Date(status.date), "PPp")}
                         </p>
                       )}
@@ -182,7 +182,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                   {/* Connector arrow */}
                   {index < statusFlow.length - 1 && (
                     <div className="absolute left-[27px] top-8 h-8 flex items-center justify-center">
-                      <ArrowRight className="h-4 w-4 text-gray-300 rotate-90" />
+                      <ArrowRight className="h-4 w-4 text-gray-300 dark:text-gray-500 rotate-90" />
                     </div>
                   )}
                 </div>
