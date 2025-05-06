@@ -3,6 +3,30 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../../db';
 import { errorLogs } from '../../db/schema';
 
+// Define types for Anthropic API content blocks
+interface TextContentBlock {
+  type: 'text';
+  text: string;
+}
+
+interface ImageContentBlock {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: string;
+    data: string;
+  };
+}
+
+interface ToolUseBlock {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: Record<string, any>;
+}
+
+type ContentBlock = TextContentBlock | ImageContentBlock | ToolUseBlock;
+
 // The newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
 export const ANTHROPIC_MODEL = 'claude-3-7-sonnet-20250219';
 
@@ -33,12 +57,18 @@ export const anthropicErrorHandler = async (err: any, req: Request, res: Respons
     
     // Log error to database
     try {
+      // Convert details to string if needed
+      const detailsStr = typeof err.details === 'string' 
+        ? err.details 
+        : JSON.stringify(err.details);
+        
       await db.insert(errorLogs).values({
         message: err.message,
         severity: 'error',
-        code: err.errorCode,
-        details: JSON.stringify(err.details),
+        code: err.errorCode || 'anthropic_error',
+        path: req.path,
         userId: req.user?.id,
+        details: detailsStr,
       });
     } catch (logError) {
       console.error('Failed to log error to database:', logError);
@@ -179,7 +209,13 @@ export async function analyzeImage(base64Image: string, prompt: string, options:
         throw new AnthropicError('Received empty response from Anthropic API for image analysis', 500, 'empty_response');
       }
       
-      return response.content[0].text;
+      // Check content type and extract text based on type
+      const content = response.content[0];
+      if (content.type === 'text') {
+        return content.text;
+      } else {
+        throw new AnthropicError('Unexpected content type in response', 500, 'unexpected_response_format');
+      }
     } catch (error: any) {
       lastError = error;
       

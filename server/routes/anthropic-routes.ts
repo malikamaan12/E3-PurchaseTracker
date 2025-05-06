@@ -1,78 +1,55 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
 import { analyzeText, analyzeImage, analyzeDocument, analyzeVendorPerformance, anthropicErrorHandler } from '../utils/anthropic-client';
-import { AppError } from '../utils/errors';
+
+// Configure multer for handling file uploads
+const uploadDir = path.join(process.cwd(), 'uploads', 'temp');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `${file.fieldname}-${uniqueSuffix}-${encodeURIComponent(file.originalname)}`);
+    }
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 const router = Router();
 
-// Configure storage for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads', 'ai-analysis');
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept images and PDFs
-    const fileTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx/;
-    const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = fileTypes.test(file.mimetype);
-    
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image, PDF, and document files are allowed!'));
-    }
-  },
-});
-
-// Middleware to check if user is authenticated
-const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ error: true, message: 'Authentication required' });
-  }
-  next();
-};
-
-// Middleware to check if user is admin
-const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ error: true, message: 'Authentication required' });
-  }
-  
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: true, message: 'Admin access required' });
-  }
-  
-  next();
-};
-
-// Apply error handling middleware
+// Add custom error handler middleware
 router.use(anthropicErrorHandler);
 
-// Text analysis endpoint 
+// Middleware to check if the user is authenticated
+const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+  return res.status(401).json({ message: 'Not authenticated' });
+};
+
+// Middleware to check if the user is an admin
+const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user && (req.user as any).role === 'admin') {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden - Admin only access' });
+};
+
+// Route for text analysis
 router.post('/analyze/text', isAuthenticated, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { text, options = {} } = req.body;
+    const { text, options } = req.body;
     
     if (!text) {
       return res.status(400).json({
@@ -81,7 +58,8 @@ router.post('/analyze/text', isAuthenticated, async (req: Request, res: Response
       });
     }
     
-    const result = await analyzeText(text, options);
+    const analysisOptions = options || {};
+    const result = await analyzeText(text, analysisOptions);
     
     return res.json({
       success: true,
@@ -92,34 +70,28 @@ router.post('/analyze/text', isAuthenticated, async (req: Request, res: Response
   }
 });
 
-// Image analysis endpoint
+// Route for image analysis
 router.post('/analyze/image', isAuthenticated, upload.single('image'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { prompt } = req.body;
-    const file = req.file;
-    
-    if (!file) {
+    if (!req.file) {
       return res.status(400).json({
         error: true,
         message: 'Image file is required',
       });
     }
     
-    if (!prompt) {
-      return res.status(400).json({
-        error: true,
-        message: 'Prompt is required for image analysis',
-      });
-    }
+    const { prompt, options } = req.body;
+    const analysisPrompt = prompt || 'Analyze this image in detail and describe what you see.';
+    const analysisOptions = options ? JSON.parse(options) : {};
     
-    // Read file and convert to base64
-    const imageBuffer = fs.readFileSync(file.path);
+    // Read the uploaded file as base64
+    const imageBuffer = fs.readFileSync(req.file.path);
     const base64Image = imageBuffer.toString('base64');
     
-    // Delete file after reading
-    fs.unlinkSync(file.path);
+    // Clean up the temporary file after reading
+    fs.unlinkSync(req.file.path);
     
-    const result = await analyzeImage(base64Image, prompt);
+    const result = await analyzeImage(base64Image, analysisPrompt, analysisOptions);
     
     return res.json({
       success: true,
@@ -130,40 +102,40 @@ router.post('/analyze/image', isAuthenticated, upload.single('image'), async (re
   }
 });
 
-// Document analysis endpoint
+// Route for document analysis
 router.post('/analyze/document', isAuthenticated, upload.single('document'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { documentType } = req.body;
-    const file = req.file;
-    
-    if (!file) {
+    if (!req.file) {
       return res.status(400).json({
         error: true,
         message: 'Document file is required',
       });
     }
     
-    // For simplicity, we'll just read the file as text
-    // In a real application, you'd need to parse PDFs, Word docs, etc.
-    const document = fs.readFileSync(file.path, 'utf-8');
+    const { options } = req.body;
+    const analysisOptions = options ? JSON.parse(options) : {};
     
-    // Delete file after reading
-    fs.unlinkSync(file.path);
+    // Read the uploaded file content
+    const documentContent = fs.readFileSync(req.file.path, 'utf-8');
     
-    const result = await analyzeDocument(document, {
-      documentType: documentType || 'business document',
+    // Clean up the temporary file after reading
+    fs.unlinkSync(req.file.path);
+    
+    const result = await analyzeDocument(documentContent, {
+      ...analysisOptions,
+      documentType: req.file.originalname.split('.').pop()?.toLowerCase() || 'unknown',
     });
     
     return res.json({
       success: true,
-      result,
+      ...result,
     });
   } catch (error) {
     next(error);
   }
 });
 
-// Vendor analysis endpoint
+// Route for vendor analysis
 router.post('/analyze/vendor', isAuthenticated, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { vendorData } = req.body;
@@ -179,17 +151,17 @@ router.post('/analyze/vendor', isAuthenticated, async (req: Request, res: Respon
     
     return res.json({
       success: true,
-      result,
+      ...result,
     });
   } catch (error) {
     next(error);
   }
 });
 
-// Admin-only endpoint for analyzing sensitive data
+// Admin-only route for sensitive data analysis
 router.post('/analyze/sensitive', isAuthenticated, isAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { text, context } = req.body;
+    const { text, options } = req.body;
     
     if (!text) {
       return res.status(400).json({
@@ -198,12 +170,13 @@ router.post('/analyze/sensitive', isAuthenticated, isAdmin, async (req: Request,
       });
     }
     
-    const system = "You're analyzing sensitive business information. Please be thorough but discreet.";
+    const analysisOptions = options || {};
+    const system = "You're an expert at analyzing potentially sensitive business information. Identify any confidential information, PII, or security concerns.";
     
     const result = await analyzeText(text, {
+      ...analysisOptions,
       system,
-      maxTokens: 2048,
-      temperature: 0.3,
+      temperature: 0.2, // Lower temperature for more factual/consistent responses
     });
     
     return res.json({
