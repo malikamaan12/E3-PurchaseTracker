@@ -672,58 +672,58 @@ export default function RequestCard({
 
                 <div className="space-y-6">
                   {/* Requester Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Requester Information</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Requester Information</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <p className="text-sm text-gray-500">Name</p>
-                        <p className="text-sm font-medium">{request.requester?.username || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Name</p>
+                        <p className="text-sm font-medium dark:text-white">{request.requester?.username || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Department</p>
-                        <p className="text-sm font-medium">{request.requester?.department || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Department</p>
+                        <p className="text-sm font-medium dark:text-white">{request.requester?.department || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
                   
                   {/* Purpose Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Purpose Information</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Purpose Information</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                       <div>
-                        <p className="text-sm text-gray-500">Purpose Type</p>
-                        <p className="text-sm font-medium capitalize">{(request.purposeType || 'general').replace(/_/g, " ")}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Purpose Type</p>
+                        <p className="text-sm font-medium dark:text-white capitalize">{(request.purposeType || 'general').replace(/_/g, " ")}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Sub-Purpose</p>
-                        <p className="text-sm font-medium">{request.subPurpose?.name || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Sub-Purpose</p>
+                        <p className="text-sm font-medium dark:text-white">{request.subPurpose?.name || 'N/A'}</p>
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Description</p>
-                      <p className="text-sm text-gray-600 whitespace-pre-wrap mt-1 bg-white p-2 rounded border border-gray-100">{request.description || 'No description provided'}</p>
+                      <p className="text-sm text-gray-500 dark:text-white">Description</p>
+                      <p className="text-sm text-gray-600 dark:text-white whitespace-pre-wrap mt-1 bg-white dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-600">{request.description || 'No description provided'}</p>
                     </div>
                   </div>
                   
                   {/* Vendor Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Vendor Information</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Vendor Information</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <p className="text-sm text-gray-500">Name</p>
-                        <p className="text-sm font-medium">{request.vendor?.name || request.vendor?.vendorName || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Name</p>
+                        <p className="text-sm font-medium dark:text-white">{request.vendor?.name || request.vendor?.vendorName || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Category</p>
-                        <p className="text-sm font-medium">{request.vendor?.category || request.vendor?.vendorCategory || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Category</p>
+                        <p className="text-sm font-medium dark:text-white">{request.vendor?.category || request.vendor?.vendorCategory || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Contact Person</p>
-                        <p className="text-sm font-medium">{request.vendor?.contactPerson || request.vendor?.contact || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Contact Person</p>
+                        <p className="text-sm font-medium dark:text-white">{request.vendor?.contactPerson || request.vendor?.contact || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Email</p>
-                        <p className="text-sm font-medium">{request.vendor?.email || request.vendor?.contactEmail || 'N/A'}</p>
+                        <p className="text-sm text-gray-500 dark:text-white">Email</p>
+                        <p className="text-sm font-medium dark:text-white">{request.vendor?.email || request.vendor?.contactEmail || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -765,13 +765,13 @@ export default function RequestCard({
                           {showItemDescriptions && (
                             <TableCell>
                               {item.description ? (
-                                <div className="bg-gray-50 p-2 rounded-md">
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded-md">
+                                  <p className="text-sm text-gray-600 dark:text-white whitespace-pre-wrap">
                                     {item.description}
                                   </p>
                                 </div>
                               ) : (
-                                <p className="text-sm text-gray-400 italic">No description provided</p>
+                                <p className="text-sm text-gray-400 dark:text-gray-300 italic">No description provided</p>
                               )}
                             </TableCell>
                           )}
@@ -819,19 +819,19 @@ export default function RequestCard({
             {request.priorityReason && (
               <TabsContent value="analysis">
                 <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900">Priority Analysis</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  <h4 className="font-medium text-gray-900 dark:text-white">Priority Analysis</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-3">
                     <div className="flex items-center gap-2">
                       {getPriorityIcon(request.priority || 'medium')}
-                      <p className="text-sm">
-                        Priority Score: <span className="font-medium">{request.priorityScore}/100</span>
+                      <p className="text-sm dark:text-white">
+                        Priority Score: <span className="font-medium dark:text-white">{request.priorityScore}/100</span>
                       </p>
                     </div>
-                    <p className="text-sm text-gray-600">{request.priorityReason}</p>
+                    <p className="text-sm text-gray-600 dark:text-white">{request.priorityReason}</p>
                     {request.priorityRecommendations && request.priorityRecommendations.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-sm font-medium mb-1">Recommendations:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600">
+                        <p className="text-sm font-medium mb-1 dark:text-white">Recommendations:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 dark:text-white">
                           {request.priorityRecommendations.map((rec, index) => (
                             <li key={index}>{rec}</li>
                           ))}
