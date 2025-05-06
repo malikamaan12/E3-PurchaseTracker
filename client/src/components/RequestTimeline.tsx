@@ -129,7 +129,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
 
         <div className="relative">
           {/* Vertical timeline line */}
-          <div className="absolute left-[27px] top-4 h-[calc(100%-2rem)] w-px bg-gray-200 dark:bg-gray-600" />
+          <div className="absolute left-[27px] top-4 h-[calc(100%-2rem)] w-px bg-gray-200 dark:bg-gray-400" />
 
           {/* Timeline events */}
           <div className="space-y-8">
@@ -150,7 +150,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                       ) : isPast ? (
                         <Icon className={cn("h-6 w-6", status.color)} />
                       ) : (
-                        <Circle className="h-6 w-6 text-gray-300 dark:text-gray-500" />
+                        <Circle className="h-6 w-6 text-gray-300 dark:text-white" />
                       )}
                     </div>
 
@@ -161,7 +161,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                           "font-medium",
                           isCurrent ? status.color :
                           isPast ? "text-gray-700 dark:text-gray-200" :
-                          "text-gray-400 dark:text-gray-500"
+                          "text-gray-400 dark:text-white"
                         )}>
                           {status.label}
                         </p>
@@ -172,7 +172,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                         )}
                       </div>
                       {status.date && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-sm text-gray-500 dark:text-white mt-1">
                           {format(new Date(status.date), "PPp")}
                         </p>
                       )}
@@ -182,7 +182,7 @@ export default function RequestTimeline({ request }: RequestTimelineProps) {
                   {/* Connector arrow */}
                   {index < statusFlow.length - 1 && (
                     <div className="absolute left-[27px] top-8 h-8 flex items-center justify-center">
-                      <ArrowRight className="h-4 w-4 text-gray-300 dark:text-gray-500 rotate-90" />
+                      <ArrowRight className="h-4 w-4 text-gray-300 dark:text-gray-300 rotate-90" />
                     </div>
                   )}
                 </div>
