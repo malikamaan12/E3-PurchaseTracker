@@ -100,6 +100,57 @@ export default function DepartmentDashboard() {
   }, [requests, selectedVendor, selectedPurpose, selectedSubPurpose]);
 
   // Calculate statistics
+  // Cache for currency conversion rates by date
+  const [conversionRatesCache, setConversionRatesCache] = useState<Record<string, Record<string, number>>>({});
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+
+  // Function to get conversion rate from API
+  const getConversionRate = useCallback(async (fromCurrency: string, toCurrency: string, date: string) => {
+    // If it's already QAR, return 1
+    if (fromCurrency === toCurrency) return 1;
+
+    // Check if we have this rate cached for this date
+    if (conversionRatesCache[date] && conversionRatesCache[date][`${fromCurrency}_${toCurrency}`]) {
+      return conversionRatesCache[date][`${fromCurrency}_${toCurrency}`];
+    }
+
+    try {
+      setIsLoadingRates(true);
+      // In a real application, you'd use an API like this:
+      // const response = await fetch(
+      //   `https://api.exchangerate.host/${date}?base=${fromCurrency}&symbols=${toCurrency}`
+      // );
+      // const data = await response.json();
+      // const rate = data.rates[toCurrency];
+
+      // For demo purposes, using fixed rates
+      const demoRates: Record<string, number> = {
+        'USD_QAR': 3.64,
+        'EUR_QAR': 4.00,
+        'GBP_QAR': 4.68,
+      };
+
+      const rateKey = `${fromCurrency}_${toCurrency}`;
+      const rate = demoRates[rateKey] || 1;
+
+      // Cache the rate
+      setConversionRatesCache(prevCache => ({
+        ...prevCache,
+        [date]: {
+          ...(prevCache[date] || {}),
+          [rateKey]: rate
+        }
+      }));
+
+      return rate;
+    } catch (error) {
+      console.error("Error fetching conversion rate:", error);
+      return 1; // Default to 1 if we can't get the rate
+    } finally {
+      setIsLoadingRates(false);
+    }
+  }, [conversionRatesCache]);
+
   const stats = useMemo(() => {
     const total = filteredRequests.length;
     const approved = filteredRequests.filter((r: PurchaseRequest) => r.status === "approved").length;
@@ -108,26 +159,30 @@ export default function DepartmentDashboard() {
     const draft = filteredRequests.filter((r: PurchaseRequest) => r.status === "draft").length;
 
     // Calculate total with currency conversion to QAR
+    // Since API calls are async and useMemo is sync, we need another approach
+    // For now, using the cache we've built up
     const totalAmount = filteredRequests.reduce((sum: number, request: PurchaseRequest) => {
       // Get the amount in the request's currency
       const amount = request.totalEstimatedCost || 0;
       
-      // Apply currency conversion if needed (simplified for now - would use actual conversion rates)
-      // In a production app, we would fetch actual conversion rates for the date the request was created
-      // For now, using some example conversion rates
+      // Apply currency conversion if needed
       let convertedAmount = amount;
       const currency = request.currency || 'QAR';
+      const date = request.createdAt.split('T')[0]; // Get just the date part
+      
       if (currency !== 'QAR') {
-        // Example conversion rates (would be fetched from an API in production)
-        const conversionRates: Record<string, number> = {
-          'USD': 3.64, // 1 USD = 3.64 QAR
-          'EUR': 4.00, // 1 EUR = 4.00 QAR
-          'GBP': 4.68, // 1 GBP = 4.68 QAR
-        };
-        
-        // Convert to QAR if we have a conversion rate
-        const rate = conversionRates[currency];
-        if (rate) {
+        // If we have a cached rate for this date and currency pair, use it
+        if (conversionRatesCache[date] && conversionRatesCache[date][`${currency}_QAR`]) {
+          const rate = conversionRatesCache[date][`${currency}_QAR`];
+          convertedAmount = amount * rate;
+        } else {
+          // Otherwise use a default rate (the API call will happen in useEffect)
+          const defaultRates: Record<string, number> = {
+            'USD': 3.64,
+            'EUR': 4.00,
+            'GBP': 4.68,
+          };
+          const rate = defaultRates[currency] || 1;
           convertedAmount = amount * rate;
         }
       }
@@ -136,7 +191,37 @@ export default function DepartmentDashboard() {
     }, 0);
 
     return { total, approved, rejected, pending, draft, totalAmount };
-  }, [filteredRequests]);
+  }, [filteredRequests, conversionRatesCache]);
+  
+  // Effect to fetch conversion rates for each unique currency and date
+  useEffect(() => {
+    const fetchRates = async () => {
+      // Only do this if we have requests
+      if (!filteredRequests.length) return;
+      
+      // Get unique currency/date pairs that need conversion
+      const requestsNeedingConversion = filteredRequests.filter(
+        r => (r.currency || 'QAR') !== 'QAR'
+      );
+
+      if (!requestsNeedingConversion.length) return;
+      
+      for (const request of requestsNeedingConversion) {
+        const currency = request.currency || 'QAR';
+        const date = request.createdAt.split('T')[0];
+        
+        // Skip if we already have this rate
+        if (conversionRatesCache[date] && conversionRatesCache[date][`${currency}_QAR`]) {
+          continue;
+        }
+        
+        // Fetch rate
+        await getConversionRate(currency, 'QAR', date);
+      }
+    };
+    
+    fetchRates();
+  }, [filteredRequests, conversionRatesCache, getConversionRate]);
 
   // Prepare data for charts
   const statusData = [
