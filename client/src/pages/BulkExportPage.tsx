@@ -193,7 +193,10 @@ export default function BulkExportPage() {
         actions={
           <BulkExportButton
             requests={filteredRequests}
-            filters={filters as RequestFilters}
+            filters={{
+              ...filters,
+              purposeType: filters.purposeType?.length ? filters.purposeType[0] : undefined
+            }}
             onExportComplete={handleExportComplete}
             onExportError={handleExportError}
             disabled={isLoading || filteredRequests.length === 0}
