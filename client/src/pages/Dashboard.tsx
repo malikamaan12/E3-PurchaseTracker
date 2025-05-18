@@ -379,10 +379,10 @@ export default function Dashboard() {
     }
   };
 
-  const formatCurrency = (amount: number | string) => {
+  const formatCurrency = (amount: number | string, currency: string = "QAR") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "QAR",
+      currency: currency,
     }).format(Number(amount));
   };
 
