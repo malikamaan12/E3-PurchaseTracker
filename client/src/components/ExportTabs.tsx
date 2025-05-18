@@ -465,80 +465,75 @@ Items Count: ${request.items?.length || 0}
   }
   
   return (
-    <Tabs defaultValue="excel" className="w-full">
-      <TabsList className="grid grid-cols-4 mb-4">
-        <TabsTrigger 
-          value="excel" 
-          className="flex items-center gap-2"
-          onClick={() => handleExport('excel')}
-          disabled={isLoading}
+    <div className="w-full">
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div 
+          className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
+          onClick={() => !isLoading && handleExport('excel')}
         >
-          {isLoading && exportType === 'excel' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Database className="h-4 w-4" />
-          )}
-          <span>Excel (.xlsx)</span>
-        </TabsTrigger>
+          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-2">
+            {isLoading && exportType === 'excel' ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <Database className="h-6 w-6 text-primary" />
+            )}
+          </div>
+          <h3 className="font-medium text-foreground dark:text-white">Excel (.xlsx)</h3>
+          <p className="text-xs text-muted-foreground text-center mt-1">Comprehensive with multiple sheets</p>
+        </div>
         
-        <TabsTrigger 
-          value="csv" 
-          className="flex items-center gap-2"
-          onClick={() => handleExport('csv')}
-          disabled={isLoading}
+        <div 
+          className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
+          onClick={() => !isLoading && handleExport('csv')}
         >
-          {isLoading && exportType === 'csv' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Table2 className="h-4 w-4" />
-          )}
-          <span>CSV</span>
-        </TabsTrigger>
+          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-2">
+            {isLoading && exportType === 'csv' ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <Table2 className="h-6 w-6 text-primary" />
+            )}
+          </div>
+          <h3 className="font-medium text-foreground dark:text-white">CSV</h3>
+          <p className="text-xs text-muted-foreground text-center mt-1">Simple tabular format</p>
+        </div>
         
-        <TabsTrigger 
-          value="pdf" 
-          className="flex items-center gap-2"
-          onClick={() => handleExport('pdf')}
-          disabled={isLoading}
+        <div 
+          className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
+          onClick={() => !isLoading && handleExport('pdf')}
         >
-          {isLoading && exportType === 'pdf' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <FileText className="h-4 w-4" />
-          )}
-          <span>PDF</span>
-        </TabsTrigger>
+          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-2">
+            {isLoading && exportType === 'pdf' ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <FileText className="h-6 w-6 text-primary" />
+            )}
+          </div>
+          <h3 className="font-medium text-foreground dark:text-white">PDF</h3>
+          <p className="text-xs text-muted-foreground text-center mt-1">Professional document format</p>
+        </div>
         
-        <TabsTrigger 
-          value="zip" 
-          className="flex items-center gap-2"
-          onClick={() => handleExport('zip')}
-          disabled={isLoading}
+        <div 
+          className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
+          onClick={() => !isLoading && handleExport('zip')}
         >
-          {isLoading && exportType === 'zip' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <FileArchive className="h-4 w-4" />
-          )}
-          <span>ZIP</span>
-        </TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="excel" className="text-center text-gray-500 dark:text-gray-400">
-        <p className="text-sm">Comprehensive with multiple sheets</p>
-      </TabsContent>
-      
-      <TabsContent value="csv" className="text-center text-gray-500 dark:text-gray-400">
-        <p className="text-sm">Simple tabular format</p>
-      </TabsContent>
-      
-      <TabsContent value="pdf" className="text-center text-gray-500 dark:text-gray-400">
-        <p className="text-sm">Professional document format</p>
-      </TabsContent>
-      
-      <TabsContent value="zip" className="text-center text-gray-500 dark:text-gray-400">
-        <p className="text-sm">With attachments and files</p>
-      </TabsContent>
-    </Tabs>
+          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-2">
+            {isLoading && exportType === 'zip' ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <FileArchive className="h-6 w-6 text-primary" />
+            )}
+          </div>
+          <h3 className="font-medium text-foreground dark:text-white">ZIP</h3>
+          <p className="text-xs text-muted-foreground text-center mt-1">With attachments and files</p>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="flex justify-center items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <Loader2 className="h-5 w-5 mr-2 animate-spin text-primary" />
+          <p className="text-sm text-foreground dark:text-white">Generating {exportType} export...</p>
+        </div>
+      )}
+    </div>
   );
 }
