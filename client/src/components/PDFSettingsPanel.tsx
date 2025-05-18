@@ -517,7 +517,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Content Visibility Settings */}
-        <TabsContent value="content" className="space-y-4 bg-background">
+        <TabsContent value="content" className="space-y-4 bg-background text-foreground">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -622,7 +622,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Watermark Settings */}
-        <TabsContent value="watermark" className="space-y-4 bg-background">
+        <TabsContent value="watermark" className="space-y-4 bg-background text-foreground">
           <div className="flex items-center space-x-2 mb-4">
             <Switch
               id="useWatermark"
@@ -696,10 +696,10 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Company Information */}
-        <TabsContent value="company" className="space-y-4 bg-background">
+        <TabsContent value="company" className="space-y-4 bg-background text-foreground">
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="companyAddress">Company Address</Label>
+              <Label htmlFor="companyAddress" className="text-foreground">Company Address</Label>
               <Input 
                 id="companyAddress" 
                 value={safeSettings.companyAddress || ''} 
