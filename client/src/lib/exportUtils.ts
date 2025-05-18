@@ -23,30 +23,41 @@ import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pd
 export async function safeDownload(blob: Blob, fileName: string): Promise<boolean> {
   console.log("safeDownload called with:", { fileName, blobType: blob.type, blobSize: blob.size });
   
+  // Direct object URL method (more reliable in most browsers)
   try {
-    console.log("Trying primary download method with FileSaver...");
-    saveAs(blob, fileName);
-    console.log("Primary download method succeeded");
-    return true;
-  } catch (error) {
-    console.error("Primary download error:", error);
+    console.log("Using direct Object URL download method...");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.style.display = 'none';
+    document.body.appendChild(link);
     
-    // Fallback method using object URLs
-    try {
-      console.log("Trying fallback download method with URL.createObjectURL...");
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      console.log("Clicking download link...");
-      link.click();
+    // Use a small timeout to ensure the link is properly added to the DOM
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log("Clicking download link...");
+    link.click();
+    
+    // Cleanup after a small delay to ensure the download starts
+    setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.log("Fallback download method succeeded");
+      console.log("Download link cleanup completed");
+    }, 100);
+    
+    return true;
+  } catch (directError) {
+    console.error("Direct download error:", directError);
+    
+    // FileSaver fallback
+    try {
+      console.log("Trying FileSaver fallback...");
+      saveAs(blob, fileName);
+      console.log("FileSaver method succeeded");
       return true;
     } catch (fallbackError) {
-      console.error("Fallback download error:", fallbackError);
+      console.error("All download methods failed:", fallbackError);
       return false;
     }
   }
