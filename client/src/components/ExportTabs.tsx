@@ -412,7 +412,7 @@ Items Count: ${request.items?.length || 0}
         <button
           onClick={() => handleExport('excel')}
           disabled={isLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:text-white dark:hover:text-white dark:hover:bg-accent"
         >
           {isLoading && exportType === 'excel' ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -425,7 +425,7 @@ Items Count: ${request.items?.length || 0}
         <button
           onClick={() => handleExport('csv')}
           disabled={isLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:text-white dark:hover:text-white dark:hover:bg-accent"
         >
           {isLoading && exportType === 'csv' ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -438,7 +438,7 @@ Items Count: ${request.items?.length || 0}
         <button
           onClick={() => handleExport('pdf')}
           disabled={isLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:text-white dark:hover:text-white dark:hover:bg-accent"
         >
           {isLoading && exportType === 'pdf' ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -451,7 +451,7 @@ Items Count: ${request.items?.length || 0}
         <button
           onClick={() => handleExport('zip')}
           disabled={isLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:text-white dark:hover:text-white dark:hover:bg-accent"
         >
           {isLoading && exportType === 'zip' ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
