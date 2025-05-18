@@ -311,10 +311,22 @@ export default function BulkExportPage() {
                 <Button
                   variant="outline"
                   className="h-auto py-4 flex flex-col items-center"
-                  onClick={() => setExportFormat("excel")}
+                  onClick={() => {
+                    setIsLoading(true);
+                    setExportFormat("excel");
+                    // Trigger the export with a small delay to ensure state is updated
+                    setTimeout(() => {
+                      const hiddenExportBtn = document.querySelector('.hidden-export-btn button') as HTMLButtonElement;
+                      if (hiddenExportBtn) hiddenExportBtn.click();
+                    }, 100);
+                  }}
                   disabled={isLoading || filteredRequests.length === 0}
                 >
-                  <FileText className="h-10 w-10 mb-2" />
+                  {isLoading && exportFormat === "excel" ? (
+                    <Loader2 className="h-10 w-10 mb-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-10 w-10 mb-2" />
+                  )}
                   <span className="font-medium">Excel (.xlsx)</span>
                   <span className="text-xs text-muted-foreground mt-1">Comprehensive with multiple sheets</span>
                 </Button>
@@ -322,10 +334,22 @@ export default function BulkExportPage() {
                 <Button
                   variant="outline"
                   className="h-auto py-4 flex flex-col items-center"
-                  onClick={() => setExportFormat("csv")}
+                  onClick={() => {
+                    setIsLoading(true);
+                    setExportFormat("csv");
+                    // Trigger the export with a small delay to ensure state is updated
+                    setTimeout(() => {
+                      const hiddenExportBtn = document.querySelector('.hidden-export-btn button') as HTMLButtonElement;
+                      if (hiddenExportBtn) hiddenExportBtn.click();
+                    }, 100);
+                  }}
                   disabled={isLoading || filteredRequests.length === 0}
                 >
-                  <FileText className="h-10 w-10 mb-2" />
+                  {isLoading && exportFormat === "csv" ? (
+                    <Loader2 className="h-10 w-10 mb-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-10 w-10 mb-2" />
+                  )}
                   <span className="font-medium">CSV</span>
                   <span className="text-xs text-muted-foreground mt-1">Simple tabular format</span>
                 </Button>
@@ -333,10 +357,22 @@ export default function BulkExportPage() {
                 <Button
                   variant="outline"
                   className="h-auto py-4 flex flex-col items-center"
-                  onClick={() => setExportFormat("pdf")}
+                  onClick={() => {
+                    setIsLoading(true);
+                    setExportFormat("pdf");
+                    // Trigger the export with a small delay to ensure state is updated
+                    setTimeout(() => {
+                      const hiddenExportBtn = document.querySelector('.hidden-export-btn button') as HTMLButtonElement;
+                      if (hiddenExportBtn) hiddenExportBtn.click();
+                    }, 100);
+                  }}
                   disabled={isLoading || filteredRequests.length === 0}
                 >
-                  <FileText className="h-10 w-10 mb-2" />
+                  {isLoading && exportFormat === "pdf" ? (
+                    <Loader2 className="h-10 w-10 mb-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-10 w-10 mb-2" />
+                  )}
                   <span className="font-medium">PDF</span>
                   <span className="text-xs text-muted-foreground mt-1">Professional document format</span>
                 </Button>
@@ -344,24 +380,37 @@ export default function BulkExportPage() {
                 <Button
                   variant="outline"
                   className="h-auto py-4 flex flex-col items-center"
-                  onClick={() => setExportFormat("zip")}
+                  onClick={() => {
+                    setIsLoading(true);
+                    setExportFormat("zip");
+                    // Trigger the export with a small delay to ensure state is updated
+                    setTimeout(() => {
+                      const hiddenExportBtn = document.querySelector('.hidden-export-btn button') as HTMLButtonElement;
+                      if (hiddenExportBtn) hiddenExportBtn.click();
+                    }, 100);
+                  }}
                   disabled={isLoading || filteredRequests.length === 0}
                 >
-                  <FileDown className="h-10 w-10 mb-2" />
+                  {isLoading && exportFormat === "zip" ? (
+                    <Loader2 className="h-10 w-10 mb-2 animate-spin" />
+                  ) : (
+                    <FileDown className="h-10 w-10 mb-2" />
+                  )}
                   <span className="font-medium">ZIP</span>
                   <span className="text-xs text-muted-foreground mt-1">With attachments and files</span>
                 </Button>
                 
-                {exportFormat && (
-                  <BulkExportButton
-                    requests={filteredRequests}
-                    filters={filters as RequestFilters}
-                    format={exportFormat}
-                    onExportComplete={handleExportComplete}
-                    onExportError={handleExportError}
-                    className="hidden"
-                  />
-                )}
+                <div className="hidden-export-btn" style={{ display: 'none' }}>
+                  {exportFormat && (
+                    <BulkExportButton
+                      requests={filteredRequests}
+                      filters={filters as RequestFilters}
+                      format={exportFormat}
+                      onExportComplete={handleExportComplete}
+                      onExportError={handleExportError}
+                    />
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
