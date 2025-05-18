@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -116,36 +116,67 @@ export default function DepartmentDashboard() {
 
     try {
       setIsLoadingRates(true);
-      // In a real application, you'd use an API like this:
-      // const response = await fetch(
-      //   `https://api.exchangerate.host/${date}?base=${fromCurrency}&symbols=${toCurrency}`
-      // );
-      // const data = await response.json();
-      // const rate = data.rates[toCurrency];
-
-      // For demo purposes, using fixed rates
-      const demoRates: Record<string, number> = {
-        'USD_QAR': 3.64,
-        'EUR_QAR': 4.00,
-        'GBP_QAR': 4.68,
-      };
-
-      const rateKey = `${fromCurrency}_${toCurrency}`;
-      const rate = demoRates[rateKey] || 1;
+      
+      // Using a real currency conversion API
+      // Note: In production, you would need to provide your API key
+      const response = await fetch(
+        `https://api.exchangerate.host/${date}?base=${fromCurrency}&symbols=${toCurrency}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch exchange rate: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      let rate = 1;
+      
+      if (data && data.rates && data.rates[toCurrency]) {
+        rate = data.rates[toCurrency];
+      } else {
+        // Fallback to default rates if API call fails or returns incomplete data
+        const defaultRates: Record<string, number> = {
+          'USD_QAR': 3.64,
+          'EUR_QAR': 4.00,
+          'GBP_QAR': 4.68,
+        };
+        const rateKey = `${fromCurrency}_${toCurrency}`;
+        rate = defaultRates[rateKey] || 1;
+        console.warn(`Using fallback rate for ${fromCurrency} to ${toCurrency}: ${rate}`);
+      }
 
       // Cache the rate
       setConversionRatesCache(prevCache => ({
         ...prevCache,
         [date]: {
           ...(prevCache[date] || {}),
-          [rateKey]: rate
+          [`${fromCurrency}_${toCurrency}`]: rate
         }
       }));
 
       return rate;
     } catch (error) {
       console.error("Error fetching conversion rate:", error);
-      return 1; // Default to 1 if we can't get the rate
+      
+      // Use fallback rates if API call fails
+      const fallbackRates: Record<string, number> = {
+        'USD_QAR': 3.64,
+        'EUR_QAR': 4.00,
+        'GBP_QAR': 4.68,
+      };
+      
+      const rateKey = `${fromCurrency}_${toCurrency}`;
+      const fallbackRate = fallbackRates[rateKey] || 1;
+      
+      // Cache the fallback rate to avoid repeated failed API calls
+      setConversionRatesCache(prevCache => ({
+        ...prevCache,
+        [date]: {
+          ...(prevCache[date] || {}),
+          [`${fromCurrency}_${toCurrency}`]: fallbackRate
+        }
+      }));
+      
+      return fallbackRate;
     } finally {
       setIsLoadingRates(false);
     }
@@ -201,7 +232,7 @@ export default function DepartmentDashboard() {
       
       // Get unique currency/date pairs that need conversion
       const requestsNeedingConversion = filteredRequests.filter(
-        r => (r.currency || 'QAR') !== 'QAR'
+        (r: PurchaseRequest) => (r.currency || 'QAR') !== 'QAR'
       );
 
       if (!requestsNeedingConversion.length) return;
