@@ -452,7 +452,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Total:</span>{" "}
-                  <span className="font-medium">{formatCurrency(request.totalEstimatedCost || 0)}</span>
+                  <span className="font-medium">{formatCurrency(request.totalEstimatedCost || 0, request.currency)}</span>
                 </div>
               </div>
               
@@ -539,7 +539,7 @@ export default function Dashboard() {
                       {request.createdAt && format(new Date(request.createdAt), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(request.totalEstimatedCost || 0)}
+                      {formatCurrency(request.totalEstimatedCost || 0, request.currency)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
