@@ -8,12 +8,12 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { 
-  exportRequestToPDF, 
-  exportRequestToExcel,
-  exportRequestToCSV,
-  exportMultipleRequestsAsZip
-} from '@/lib/exportUtils';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import { Parser } from '@json2csv/plainjs';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import JSZip from 'jszip';
 import { 
   logPdfAuditEvent,
   generatePdfTrackingId  
@@ -79,6 +79,279 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
     }
   };
 
+  // Direct file download function
+  const downloadFile = async (data: Blob, fileName: string): Promise<boolean> => {
+    try {
+      console.log(`Initiating download for ${fileName} (${data.size} bytes)`);
+      
+      // Create object URL for the blob
+      const url = URL.createObjectURL(data);
+      
+      // Create a download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      // Add to document
+      document.body.appendChild(link);
+      
+      // Slight delay to ensure DOM update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Trigger download
+      console.log('Clicking download link...');
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('Download link removed');
+      }, 200);
+      
+      return true;
+    } catch (error) {
+      console.error('Error in downloadFile:', error);
+      
+      // Try FileSaver as fallback
+      try {
+        console.log('Trying FileSaver fallback...');
+        saveAs(data, fileName);
+        return true;
+      } catch (fallbackError) {
+        console.error('FileSaver fallback error:', fallbackError);
+        return false;
+      }
+    }
+  };
+  
+  // Excel export implementation
+  const handleExcelExport = async (): Promise<string> => {
+    console.log('Creating Excel export...');
+    
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Format request data for main sheet
+    const mainData = [{
+      'Request ID': request.id || '',
+      'Request Number': request.requestNumber || `PR-${request.id || ''}`,
+      'Title': request.title || '',
+      'Description': request.description || '',
+      'Status': request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : '',
+      'Requester': request.requester?.username || '',
+      'Department': request.requester?.department || '',
+      'Vendor': request.vendor?.companyName || request.vendor?.name || '',
+      'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
+      'Updated Date': request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : ''
+    }];
+    
+    // Create main sheet
+    const mainSheet = XLSX.utils.json_to_sheet(mainData);
+    XLSX.utils.book_append_sheet(wb, mainSheet, 'Request Details');
+    
+    // Add items sheet if present
+    if (request.items && request.items.length > 0) {
+      const itemData = request.items.map((item: any, index: number) => ({
+        'Item #': index + 1,
+        'Name': item.name || '',
+        'Description': item.description || '',
+        'Quantity': Number(item.quantity) || 0,
+        'Unit Cost': (Number(item.estimatedCost) || 0).toFixed(2),
+        'Total Cost': ((Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0)).toFixed(2)
+      }));
+      
+      const itemSheet = XLSX.utils.json_to_sheet(itemData);
+      XLSX.utils.book_append_sheet(wb, itemSheet, 'Items');
+    }
+    
+    // Generate file data
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.xlsx`;
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    // Download the file
+    await downloadFile(blob, fileName);
+    
+    return fileName;
+  };
+  
+  // CSV export implementation
+  const handleCsvExport = async (): Promise<string> => {
+    console.log('Creating CSV export...');
+    
+    // Format request data
+    const requestData = {
+      'Request ID': request.id || '',
+      'Request Number': request.requestNumber || `PR-${request.id || ''}`,
+      'Title': request.title || '',
+      'Description': request.description || '',
+      'Status': request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : '',
+      'Priority': request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : '',
+      'Created Date': request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
+      'Requester': request.requester?.username || '',
+      'Department': request.requester?.department || '',
+      'Items Count': request.items?.length || 0
+    };
+    
+    // Create CSV content
+    const parser = new Parser({ delimiter: ',', header: true });
+    const csv = parser.parse([requestData]);
+    
+    // Add BOM for Excel compatibility
+    const bomPrefix = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const csvContent = new Uint8Array(csv.length);
+    for (let i = 0; i < csv.length; i++) {
+      csvContent[i] = csv.charCodeAt(i);
+    }
+    
+    // Combine BOM and CSV
+    const finalContent = new Uint8Array(bomPrefix.length + csvContent.length);
+    finalContent.set(bomPrefix);
+    finalContent.set(csvContent, bomPrefix.length);
+    
+    // Generate file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.csv`;
+    const blob = new Blob([finalContent], { type: 'text/csv;charset=utf-8' });
+    
+    // Download the file
+    await downloadFile(blob, fileName);
+    
+    return fileName;
+  };
+  
+  // PDF export implementation
+  const handlePdfExport = async (): Promise<string> => {
+    console.log('Creating PDF export...');
+    
+    // Create PDF document
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    // Add header
+    doc.setFontSize(16);
+    doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 15);
+    
+    // Add basic information
+    doc.setFontSize(11);
+    const startY = 25;
+    const lineHeight = 7;
+    
+    doc.text(`Title: ${request.title || 'N/A'}`, 14, startY);
+    doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, 14, startY + lineHeight);
+    doc.text(`Requester: ${request.requester?.username || 'N/A'}`, 14, startY + lineHeight * 2);
+    doc.text(`Department: ${request.requester?.department || 'N/A'}`, 14, startY + lineHeight * 3);
+    doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 4);
+    
+    // Add description
+    doc.setFontSize(11);
+    doc.text('Description:', 14, startY + lineHeight * 5);
+    doc.setFontSize(10);
+    
+    // Split description text to prevent overflow
+    const description = request.description || 'No description provided';
+    const splitDescription = doc.splitTextToSize(description, 180);
+    doc.text(splitDescription, 14, startY + lineHeight * 6);
+    
+    // Add items table if present
+    if (request.items && request.items.length > 0) {
+      const tableY = startY + lineHeight * 7 + splitDescription.length * 5;
+      
+      doc.setFontSize(11);
+      doc.text('Items:', 14, tableY);
+      
+      const tableHead = [['#', 'Name', 'Description', 'Quantity', 'Est. Cost']];
+      const tableBody = request.items.map((item: any, index: number) => [
+        (index + 1).toString(),
+        item.name || 'N/A',
+        item.description || 'N/A',
+        (Number(item.quantity) || 0).toString(),
+        (Number(item.estimatedCost) || 0).toFixed(2)
+      ]);
+      
+      // @ts-ignore - jsPDF-AutoTable adds this method
+      doc.autoTable({
+        head: tableHead,
+        body: tableBody,
+        startY: tableY + 5,
+        margin: { left: 14 },
+        theme: 'grid',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+    }
+    
+    // Create filename and blob
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
+    const blob = doc.output('blob');
+    
+    // Download the file
+    await downloadFile(blob, fileName);
+    
+    return fileName;
+  };
+  
+  // ZIP export implementation
+  const handleZipExport = async (): Promise<string> => {
+    console.log('Creating ZIP export...');
+    
+    // Create ZIP instance
+    const zip = new JSZip();
+    
+    // Add JSON data
+    const requestJson = JSON.stringify(request, null, 2);
+    zip.file(`request-${request.id}-data.json`, requestJson);
+    
+    // Add plain text summary
+    const summary = `
+Purchase Request Summary
+=======================
+Request ID: ${request.id}
+Request Number: ${request.requestNumber || 'N/A'}
+Title: ${request.title || 'N/A'}
+Status: ${request.status || 'N/A'}
+Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}
+Requester: ${request.requester?.username || 'N/A'}
+Department: ${request.requester?.department || 'N/A'}
+Items Count: ${request.items?.length || 0}
+    `;
+    zip.file(`request-${request.id}-summary.txt`, summary);
+    
+    // Add items info if present
+    if (request.items && request.items.length > 0) {
+      let itemsInfo = "ITEMS LIST\n===========\n\n";
+      
+      request.items.forEach((item: any, index: number) => {
+        itemsInfo += `Item #${index + 1}\n`;
+        itemsInfo += `Name: ${item.name || 'N/A'}\n`;
+        itemsInfo += `Description: ${item.description || 'N/A'}\n`;
+        itemsInfo += `Quantity: ${Number(item.quantity) || 0}\n`;
+        itemsInfo += `Estimated Cost: ${(Number(item.estimatedCost) || 0).toFixed(2)}\n\n`;
+      });
+      
+      zip.file(`request-${request.id}-items.txt`, itemsInfo);
+    }
+    
+    // Generate file
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+    const fileName = `purchase-request-${request.id}-${timestamp}.zip`;
+    const content = await zip.generateAsync({ type: 'blob' });
+    
+    // Download the file
+    await downloadFile(content, fileName);
+    
+    return fileName;
+  };
+
   const handleExport = async (format: string) => {
     if (isLoading) return;
     
@@ -89,30 +362,25 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
     try {
       let fileName = '';
       
+      // Use direct export implementations
       switch(format) {
         case 'excel':
-          console.log('Calling exportRequestToExcel...');
-          fileName = await exportRequestToExcel(request);
-          console.log('Excel export returned filename:', fileName);
+          fileName = await handleExcelExport();
           break;
         case 'csv':
-          console.log('Calling exportRequestToCSV...');
-          fileName = await exportRequestToCSV(request);
-          console.log('CSV export returned filename:', fileName);
+          fileName = await handleCsvExport();
           break;
         case 'pdf':
-          console.log('Calling exportRequestToPDF...');
-          fileName = await exportRequestToPDF(request);
-          console.log('PDF export returned filename:', fileName);
+          fileName = await handlePdfExport();
           break;
         case 'zip':
-          console.log('Calling exportMultipleRequestsAsZip...');
-          fileName = await exportMultipleRequestsAsZip([request]);
-          console.log('ZIP export returned filename:', fileName);
+          fileName = await handleZipExport();
           break;
         default:
           throw new Error(`Unsupported export format: ${format}`);
       }
+      
+      console.log(`${format} export completed successfully`);
       
       // Track successful export in audit log
       await trackExport(format, fileName, true);
