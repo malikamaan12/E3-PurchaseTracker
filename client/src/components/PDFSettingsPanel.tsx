@@ -98,7 +98,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
   };
   
   return (
-    <div className="pdf-settings-panel">
+    <div className="pdf-settings-panel bg-background">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full mb-6">
           <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
