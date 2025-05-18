@@ -37,6 +37,7 @@ interface PurchaseRequest {
   createdAt: string;
   vendorId?: number;
   subPurposeId?: number;
+  currency?: string;
 }
 
 interface Vendor {
@@ -106,10 +107,33 @@ export default function DepartmentDashboard() {
     const pending = filteredRequests.filter((r: PurchaseRequest) => r.status === "pending").length;
     const draft = filteredRequests.filter((r: PurchaseRequest) => r.status === "draft").length;
 
-    const totalAmount = filteredRequests.reduce(
-      (sum: number, request: PurchaseRequest) => sum + (request.totalEstimatedCost || 0),
-      0
-    );
+    // Calculate total with currency conversion to QAR
+    const totalAmount = filteredRequests.reduce((sum: number, request: PurchaseRequest) => {
+      // Get the amount in the request's currency
+      const amount = request.totalEstimatedCost || 0;
+      
+      // Apply currency conversion if needed (simplified for now - would use actual conversion rates)
+      // In a production app, we would fetch actual conversion rates for the date the request was created
+      // For now, using some example conversion rates
+      let convertedAmount = amount;
+      const currency = request.currency || 'QAR';
+      if (currency !== 'QAR') {
+        // Example conversion rates (would be fetched from an API in production)
+        const conversionRates: Record<string, number> = {
+          'USD': 3.64, // 1 USD = 3.64 QAR
+          'EUR': 4.00, // 1 EUR = 4.00 QAR
+          'GBP': 4.68, // 1 GBP = 4.68 QAR
+        };
+        
+        // Convert to QAR if we have a conversion rate
+        const rate = conversionRates[currency];
+        if (rate) {
+          convertedAmount = amount * rate;
+        }
+      }
+      
+      return sum + convertedAmount;
+    }, 0);
 
     return { total, approved, rejected, pending, draft, totalAmount };
   }, [filteredRequests]);
@@ -403,7 +427,7 @@ export default function DepartmentDashboard() {
             <div className="text-2xl font-bold">
               {stats.totalAmount.toLocaleString("en-US", {
                 style: "currency",
-                currency: "USD",
+                currency: "QAR",
               })}
             </div>
           </CardContent>
