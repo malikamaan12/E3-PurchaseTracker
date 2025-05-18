@@ -109,7 +109,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsList>
         
         {/* General Settings */}
-        <TabsContent value="general" className="space-y-4">
+        <TabsContent value="general" className="space-y-4 bg-background">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fontFamily">Font Family</Label>
@@ -294,7 +294,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Header & Footer Settings */}
-        <TabsContent value="header" className="space-y-4">
+        <TabsContent value="header" className="space-y-4 bg-background">
           <div className="grid grid-cols-1 gap-4 mb-6">
             <div className="space-y-2">
               <Label htmlFor="headerTitle">Header Title</Label>
@@ -517,7 +517,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Content Visibility Settings */}
-        <TabsContent value="content" className="space-y-4">
+        <TabsContent value="content" className="space-y-4 bg-background">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -622,7 +622,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Watermark Settings */}
-        <TabsContent value="watermark" className="space-y-4">
+        <TabsContent value="watermark" className="space-y-4 bg-background">
           <div className="flex items-center space-x-2 mb-4">
             <Switch
               id="useWatermark"
@@ -696,7 +696,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Company Information */}
-        <TabsContent value="company" className="space-y-4">
+        <TabsContent value="company" className="space-y-4 bg-background">
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="companyAddress">Company Address</Label>
