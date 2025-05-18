@@ -79,10 +79,23 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
     }
   };
 
-  // Direct file download function
+  // Direct file download function with improved reliability
   const downloadFile = async (data: Blob, fileName: string): Promise<boolean> => {
     try {
       console.log(`Initiating download for ${fileName} (${data.size} bytes)`);
+      
+      // Try FileSaver.js first as it's more reliable across browsers
+      try {
+        console.log('Using FileSaver for download...');
+        saveAs(data, fileName);
+        console.log('FileSaver download initiated');
+        return true;
+      } catch (fileSaverError) {
+        console.error('FileSaver error, falling back to manual method:', fileSaverError);
+      }
+      
+      // Fallback to manual download
+      console.log('Using manual download method as fallback');
       
       // Create object URL for the blob
       const url = URL.createObjectURL(data);
@@ -96,33 +109,26 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
       // Add to document
       document.body.appendChild(link);
       
-      // Slight delay to ensure DOM update
+      // Trigger download with a slight delay to ensure browser processes it
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Trigger download
       console.log('Clicking download link...');
       link.click();
       
       // Clean up
       setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        console.log('Download link removed');
-      }, 200);
+        try {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          console.log('Download link cleanup completed');
+        } catch (cleanupError) {
+          console.error('Cleanup error (non-critical):', cleanupError);
+        }
+      }, 300);
       
       return true;
     } catch (error) {
-      console.error('Error in downloadFile:', error);
-      
-      // Try FileSaver as fallback
-      try {
-        console.log('Trying FileSaver fallback...');
-        saveAs(data, fileName);
-        return true;
-      } catch (fallbackError) {
-        console.error('FileSaver fallback error:', fallbackError);
-        return false;
-      }
+      console.error('All download methods failed:', error);
+      return false;
     }
   };
   
