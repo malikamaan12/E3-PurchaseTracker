@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, FileText, Archive, ChevronDown } from "lucide-react";
+import { Loader2, FileText, Archive, ChevronDown, Database, Table2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RequestFilters } from "@/services/requests";
 import * as exportUtils from "@/lib/exportUtils";
@@ -14,7 +14,7 @@ import * as exportUtils from "@/lib/exportUtils";
 export interface BulkExportButtonProps extends Omit<ButtonProps, "children"> {
   requests: any[];
   filters?: RequestFilters;
-  format?: "pdf" | "zip";
+  format?: "excel" | "csv" | "pdf" | "zip";
   includeAttachments?: boolean;
   children?: React.ReactNode; 
   onExportComplete?: (fileName: string) => void;
@@ -33,10 +33,10 @@ export function BulkExportButton({
   ...props
 }: BulkExportButtonProps) {
   const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"pdf" | "zip" | null>(format || null);
+  const [exportFormat, setExportFormat] = useState<"excel" | "csv" | "pdf" | "zip" | null>(format || null);
   const { toast } = useToast();
 
-  const handleExport = async (selectedFormat: "pdf" | "zip") => {
+  const handleExport = async (selectedFormat: "excel" | "csv" | "pdf" | "zip") => {
     if (!requests || requests.length === 0) {
       toast({
         title: "No requests to export",
@@ -63,6 +63,12 @@ export function BulkExportButton({
       // Add format-specific extension to the filename
       let fileExtension = '';
       switch (selectedFormat) {
+        case "excel":
+          fileExtension = '.xlsx';
+          break;
+        case "csv":
+          fileExtension = '.csv';
+          break;
         case "pdf":
         case "zip":
           fileExtension = '.zip';
@@ -84,6 +90,12 @@ export function BulkExportButton({
         console.log(`Starting ${selectedFormat} export for ${requests.length} requests`);
         
         switch (selectedFormat) {
+          case "excel":
+            exportedFileName = await exportUtils.exportMultipleRequestsToExcel(requests);
+            break;
+          case "csv":
+            exportedFileName = await exportUtils.exportMultipleRequestsToCSV(requests);
+            break;
           case "pdf":
             exportedFileName = await exportUtils.exportMultipleRequestsToPDF(requests);
             break;
@@ -147,9 +159,11 @@ export function BulkExportButton({
           <>
             {children || (
               <>
+                {format === "excel" && <Database className="mr-2 h-4 w-4" />}
+                {format === "csv" && <Table2 className="mr-2 h-4 w-4" />}
                 {format === "pdf" && <FileText className="mr-2 h-4 w-4" />}
                 {format === "zip" && <Archive className="mr-2 h-4 w-4" />}
-                Export as {format === "pdf" ? "PDF (ZIP)" : format.toUpperCase()}
+                Export as {format.toUpperCase()}
               </>
             )}
           </>
@@ -184,6 +198,14 @@ export function BulkExportButton({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleExport("excel")}>
+          <Database className="mr-2 h-4 w-4" />
+          Excel (Multi-sheet)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport("csv")}>
+          <Table2 className="mr-2 h-4 w-4" />
+          CSV (Tabular format)
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport("pdf")}>
           <FileText className="mr-2 h-4 w-4" />
           PDF (ZIP with PDFs)

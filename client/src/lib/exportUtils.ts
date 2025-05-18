@@ -6,6 +6,8 @@
  * - CSV: Simple tabular format
  * - PDF: Professional document format
  * - ZIP: With attachments and files
+ * 
+ * This module has been updated to support bulk exports with enhanced reliability
  */
 
 import { saveAs } from 'file-saver';
