@@ -112,7 +112,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         <TabsContent value="general" className="space-y-4 bg-background">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fontFamily">Font Family</Label>
+              <Label htmlFor="fontFamily" className="text-foreground">Font Family</Label>
               <Select 
                 value={safeSettings.fontFamily || 'Arial'} 
                 onValueChange={(value) => handleChange('fontFamily', value)}
@@ -130,7 +130,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="fontSize">Font Size ({safeSettings.fontSize}pt)</Label>
+              <Label htmlFor="fontSize" className="text-foreground">Font Size ({safeSettings.fontSize}pt)</Label>
               <Slider 
                 id="fontSize" 
                 min={8} 
@@ -143,7 +143,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="textColor">Text Color</Label>
+              <Label htmlFor="textColor" className="text-foreground">Text Color</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="color"
@@ -165,7 +165,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="marginTop">Top Margin ({safeSettings.marginTop}px)</Label>
+              <Label htmlFor="marginTop" className="text-foreground">Top Margin ({safeSettings.marginTop}px)</Label>
               <Slider 
                 id="marginTop" 
                 min={0} 
@@ -178,7 +178,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="marginBottom">Bottom Margin ({safeSettings.marginBottom}px)</Label>
+              <Label htmlFor="marginBottom" className="text-foreground">Bottom Margin ({safeSettings.marginBottom}px)</Label>
               <Slider 
                 id="marginBottom" 
                 min={0} 
@@ -220,7 +220,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
           </div>
           
           <div className="pt-2 border-t mt-4">
-            <h3 className="text-sm font-medium mb-2">Display Settings</h3>
+            <h3 className="text-sm font-medium mb-2 text-foreground">Display Settings</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
                 <Switch
