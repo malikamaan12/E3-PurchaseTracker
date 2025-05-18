@@ -98,7 +98,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
   };
   
   return (
-    <div className="pdf-settings-panel bg-background">
+    <div className="pdf-settings-panel bg-background text-foreground">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full mb-6">
           <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
@@ -109,7 +109,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsList>
         
         {/* General Settings */}
-        <TabsContent value="general" className="space-y-4 bg-background">
+        <TabsContent value="general" className="space-y-4 bg-background text-foreground">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fontFamily" className="text-foreground">Font Family</Label>
@@ -294,7 +294,7 @@ const PDFSettingsPanel: React.FC<PDFSettingsPanelProps> = ({
         </TabsContent>
         
         {/* Header & Footer Settings */}
-        <TabsContent value="header" className="space-y-4 bg-background">
+        <TabsContent value="header" className="space-y-4 bg-background text-foreground">
           <div className="grid grid-cols-1 gap-4 mb-6">
             <div className="space-y-2">
               <Label htmlFor="headerTitle">Header Title</Label>
