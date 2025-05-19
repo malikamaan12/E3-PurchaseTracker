@@ -96,16 +96,16 @@ export function BulkExportButton({
         
         switch (selectedFormat) {
           case "excel":
-            exportedFileName = await exportUtils.exportMultipleRequestsToExcel(requests);
+            exportedFileName = await exportMultipleRequestsToExcel(requests);
             break;
           case "csv":
-            exportedFileName = await exportUtils.exportMultipleRequestsToCSV(requests);
+            exportedFileName = await exportMultipleRequestsToCSV(requests);
             break;
           case "pdf":
-            exportedFileName = await exportUtils.exportMultipleRequestsToPDF(requests);
+            exportedFileName = await exportMultipleRequestsToPDF(requests);
             break;
           case "zip":
-            exportedFileName = await exportUtils.exportMultipleRequestsAsZip(requests, includeAttachments);
+            exportedFileName = await exportMultipleRequestsAsZip(requests, includeAttachments);
             break;
           default:
             throw new Error(`Unsupported export format: ${selectedFormat}`);

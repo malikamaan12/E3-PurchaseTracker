@@ -407,7 +407,7 @@ export default function BulkExportPage() {
                   {exportFormat && (
                     <BulkExportButton
                       requests={filteredRequests}
-                      filters={filters as RequestFilters}
+                      filters={filters as unknown as RequestFilters}
                       format={exportFormat}
                       onExportComplete={handleExportComplete}
                       onExportError={handleExportError}
