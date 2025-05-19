@@ -9,7 +9,12 @@ import {
 import { Loader2, FileText, Archive, ChevronDown, Database, Table2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RequestFilters } from "@/services/requests";
-import * as exportUtils from "@/lib/exportUtils";
+import { 
+  exportMultipleRequestsToExcel, 
+  exportMultipleRequestsToCSV, 
+  exportMultipleRequestsToPDF, 
+  exportMultipleRequestsAsZip 
+} from "@/lib/exportUtils";
 
 export interface BulkExportButtonProps extends Omit<ButtonProps, "children"> {
   requests: any[];
