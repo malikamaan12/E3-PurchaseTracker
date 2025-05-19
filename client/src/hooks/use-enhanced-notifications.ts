@@ -41,6 +41,8 @@ export function useEnhancedNotifications(options?: {
   includeRead?: boolean;
   filterType?: string;
   filterPriority?: 'high' | 'normal' | 'low';
+  userRole?: string;
+  userDepartment?: string;
   onActionSuccess?: (actionType: string, notificationId: number, result: any) => void;
   onActionError?: (actionType: string, notificationId: number, error: NotificationError) => void;
 }) {
@@ -50,6 +52,8 @@ export function useEnhancedNotifications(options?: {
     includeRead = true,
     filterType,
     filterPriority,
+    userRole,
+    userDepartment,
     onActionSuccess,
     onActionError
   } = options || {};
@@ -79,9 +83,18 @@ export function useEnhancedNotifications(options?: {
     if (filterPriority) {
       params.append('priority', filterPriority);
     }
+
+    // Add role-based filtering parameters
+    if (userRole) {
+      params.append('userRole', userRole);
+    }
+    
+    if (userDepartment) {
+      params.append('userDepartment', userDepartment);
+    }
     
     return params.toString();
-  }, [lastFetchTime, includeRead, filterType, filterPriority]);
+  }, [lastFetchTime, includeRead, filterType, filterPriority, userRole, userDepartment]);
 
   // Fetch notifications
   const { 

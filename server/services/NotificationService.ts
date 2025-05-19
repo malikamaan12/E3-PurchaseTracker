@@ -180,6 +180,9 @@ export class NotificationService {
           department,
           requestId
         },
+        // For approval notifications, restrict to approver roles and specific department
+        roleRestrictions: ['approver', 'manager', 'admin'],
+        departmentRestrictions: department,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Expires in 7 days
       });
 
@@ -217,8 +220,13 @@ export class NotificationService {
         priority: 'high',
         actionType: 'review',
         actionData: {
-          requestId
-        }
+          requestId,
+          requesterDepartment
+        },
+        // Only approver roles should see these notifications
+        roleRestrictions: ['approver', 'manager', 'admin'],
+        // Approvers from the same department as the requester or managers/admins
+        departmentRestrictions: [requesterDepartment, 'Management', 'Finance']
       });
 
       results.push(notification);
@@ -254,7 +262,9 @@ export class NotificationService {
         actionType: 'view',
         actionData: {
           requestId
-        }
+        },
+        // Only admins and managers should see these notifications
+        roleRestrictions: ['admin', 'manager']
       });
 
       results.push(notification);

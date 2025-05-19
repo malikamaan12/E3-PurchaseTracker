@@ -13,6 +13,14 @@ interface Notification {
   link: string | null;
   requestId?: number;
   isRead: boolean;
+  actionType?: string;
+  actionData?: {
+    roleRestrictions?: string[];
+    departmentRestrictions?: string[];
+    [key: string]: any;
+  } | null;
+  isAcknowledged?: boolean;
+  expiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
