@@ -64,6 +64,9 @@ export default function NotificationsPage() {
     autoPolling: true,
     pollInterval: 30000,
     includeRead: true,
+    // Pass user role and department for role-specific notifications
+    userRole: user?.role,
+    userDepartment: user?.department,
     onActionSuccess: (actionType, notificationId) => {
       // Show success toast for specific actions if not already handled in the hook
       if (!['approve', 'reject', 'update', 'complete'].includes(actionType)) {

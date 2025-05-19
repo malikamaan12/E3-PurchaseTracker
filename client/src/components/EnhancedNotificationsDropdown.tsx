@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEnhancedNotifications } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ export function EnhancedNotificationsDropdown({
   const [open, setOpen] = useState(false);
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useUser();
   
   const { 
     notifications, 
@@ -59,7 +61,10 @@ export function EnhancedNotificationsDropdown({
   } = useEnhancedNotifications({
     autoPolling: true,
     pollInterval: 60000, // Increase to 60 seconds from 30 to reduce API calls
-    includeRead: true
+    includeRead: true,
+    // Pass user role and department for role-specific notifications
+    userRole: user?.role,
+    userDepartment: user?.department
   });
 
   // Format notification date
