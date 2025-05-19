@@ -22,13 +22,22 @@ export function registerNotificationRoutes(app: Express) {
       const type = req.query.type as string | undefined;
       const priority = req.query.priority as 'high' | 'normal' | 'low' | undefined;
 
-      debug(req, 'Fetching notifications', { lastFetchTime, includeRead, type, priority });
+      debug(req, 'Fetching notifications', { 
+        lastFetchTime, 
+        includeRead, 
+        type, 
+        priority,
+        userRole: req.user?.role,
+        userDepartment: req.user?.department
+      });
       
       const results = await notificationService.getNotifications(req.user!.id, {
         lastFetchTime,
         includeRead,
         type,
-        priority
+        priority,
+        userRole: req.user?.role,
+        userDepartment: req.user?.department
       });
 
       debug(req, `Found ${results.length} notifications`);

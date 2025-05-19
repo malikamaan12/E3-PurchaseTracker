@@ -93,8 +93,10 @@ export class NotificationService {
     requestId,
     priority = 'normal',
     actionType,
-    actionData,
-    expiresAt
+    actionData = {},
+    expiresAt,
+    roleRestrictions,
+    departmentRestrictions
   }: {
     userId: number;
     title: string;
@@ -105,9 +107,22 @@ export class NotificationService {
     actionType?: NotificationActionType;
     actionData?: Record<string, any>;
     expiresAt?: Date;
+    roleRestrictions?: string | string[];
+    departmentRestrictions?: string | string[];
   }) {
     // Generate link based on type
     const link = this.generateLink(type, { requestId });
+
+    // Add role and department restrictions to action data if provided
+    const enhancedActionData = { ...actionData };
+    
+    if (roleRestrictions) {
+      enhancedActionData.roleRestrictions = roleRestrictions;
+    }
+    
+    if (departmentRestrictions) {
+      enhancedActionData.departmentRestrictions = departmentRestrictions;
+    }
 
     const notification: InsertNotification = {
       userId,
@@ -121,7 +136,7 @@ export class NotificationService {
       isAcknowledged: false,
       expiresAt,
       actionType: actionType ?? null,
-      actionData: actionData ?? null,
+      actionData: Object.keys(enhancedActionData).length > 0 ? enhancedActionData : null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -256,6 +271,8 @@ export class NotificationService {
     includeRead?: boolean;
     type?: string;
     priority?: NotificationPriority;
+    userRole?: string;
+    userDepartment?: string;
   }) {
     // Build the conditions array
     const conditions = [eq(notifications.userId, userId)];
@@ -292,6 +309,40 @@ export class NotificationService {
       .from(notifications)
       .where(and(...conditions))
       .orderBy(desc(notifications.createdAt));
+
+    // Filter notifications by role and department if provided
+    if (options?.userRole || options?.userDepartment) {
+      return result.filter(notification => {
+        const actionData = notification.actionData as Record<string, any> | null;
+        
+        // If no action data or no role/department restrictions, show to everyone
+        if (!actionData) return true;
+        
+        // Check role-specific restrictions
+        if (actionData.roleRestrictions && options.userRole) {
+          const allowedRoles = Array.isArray(actionData.roleRestrictions) 
+            ? actionData.roleRestrictions 
+            : [actionData.roleRestrictions];
+          
+          if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
+            return false;
+          }
+        }
+        
+        // Check department-specific restrictions
+        if (actionData.departmentRestrictions && options.userDepartment) {
+          const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
+            ? actionData.departmentRestrictions 
+            : [actionData.departmentRestrictions];
+          
+          if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
+    }
 
     return result;
   }
