@@ -31,13 +31,14 @@ export function registerNotificationRoutes(app: Express) {
         userDepartment: req.user?.department
       });
       
+      // Ensure role and department are always passed for strict role-based filtering
       const results = await notificationService.getNotifications(req.user!.id, {
         lastFetchTime,
         includeRead,
         type,
         priority,
-        userRole: req.user?.role,
-        userDepartment: req.user?.department
+        userRole: req.user?.role || 'user', // Default to 'user' if role is undefined
+        userDepartment: req.user?.department || 'General' // Default to 'General' if department is undefined
       });
 
       debug(req, `Found ${results.length} notifications`);

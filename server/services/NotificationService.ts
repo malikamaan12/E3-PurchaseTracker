@@ -320,41 +320,42 @@ export class NotificationService {
       .where(and(...conditions))
       .orderBy(desc(notifications.createdAt));
 
-    // Filter notifications by role and department if provided
-    if (options?.userRole || options?.userDepartment) {
-      return result.filter(notification => {
-        const actionData = notification.actionData as Record<string, any> | null;
-        
-        // If no action data or no role/department restrictions, show to everyone
-        if (!actionData) return true;
-        
-        // Check role-specific restrictions
-        if (actionData.roleRestrictions && options.userRole) {
-          const allowedRoles = Array.isArray(actionData.roleRestrictions) 
-            ? actionData.roleRestrictions 
-            : [actionData.roleRestrictions];
-          
-          if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
-            return false;
-          }
-        }
-        
-        // Check department-specific restrictions
-        if (actionData.departmentRestrictions && options.userDepartment) {
-          const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
-            ? actionData.departmentRestrictions 
-            : [actionData.departmentRestrictions];
-          
-          if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
-            return false;
-          }
-        }
-        
+    // Always apply role-based filtering for enhanced security
+    return result.filter(notification => {
+      const actionData = notification.actionData as Record<string, any> | null;
+      
+      // If no action data, only proceed with filtering if the user's role is provided
+      if (!actionData) {
+        // Allow global notifications without restrictions for all users
         return true;
-      });
-    }
-
-    return result;
+      }
+      
+      // Check role-specific restrictions
+      if (actionData.roleRestrictions && options?.userRole) {
+        const allowedRoles = Array.isArray(actionData.roleRestrictions) 
+          ? actionData.roleRestrictions 
+          : [actionData.roleRestrictions];
+        
+        // If role restrictions exist but user's role isn't included, filter out
+        if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
+          return false;
+        }
+      }
+      
+      // Check department-specific restrictions
+      if (actionData.departmentRestrictions && options?.userDepartment) {
+        const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
+          ? actionData.departmentRestrictions 
+          : [actionData.departmentRestrictions];
+        
+        // If department restrictions exist but user's department isn't included, filter out
+        if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 
   /**
