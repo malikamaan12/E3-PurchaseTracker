@@ -1,16 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-// the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-
+/**
+ * Simplified service without AI dependency
+ * Provides basic purchase request analysis functionality
+ */
 export class ClaudeAIService {
-  private anthropic: Anthropic;
-
-  constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-
   /**
    * Analyzes purchase request details and provides optimization suggestions
    * @param requestDetails - Purchase request data to analyze
@@ -21,53 +13,54 @@ export class ClaudeAIService {
     priorityScore: number;
     priorityReason: string;
   }> {
-    try {
-      const prompt = `
-        As a procurement analyst, review this purchase request and provide:
-        1. At least 2-3 optimization suggestions to improve cost efficiency
-        2. Potential cost savings as a percentage
-        3. Priority score (1-100) with reasoning
-
-        Purchase request details:
-        ${JSON.stringify(requestDetails, null, 2)}
-      `;
-
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== 'text') {
-        throw new Error('Unexpected response format from Claude');
-      }
-      const content = contentBlock.text;
-      
-      // Parse response to extract insights
-      const optimizationSuggestions = this.extractOptimizationSuggestions(content);
-      const costSavings = this.extractCostSavings(content);
-      const { priorityScore, priorityReason } = this.extractPriorityInfo(content);
-
-      return {
-        optimizationSuggestions,
-        costSavings,
-        priorityScore,
-        priorityReason,
-      };
-    } catch (error) {
-      console.error('Error analyzing purchase request with Claude:', error);
-      return {
-        optimizationSuggestions: [],
-        costSavings: 'Unknown',
-        priorityScore: 50,
-        priorityReason: 'Unable to analyze with AI at this time',
-      };
+    console.log('Basic purchase request analysis for:', requestDetails.title || 'Untitled request');
+    
+    // Provide standard optimization suggestions based on request total cost
+    const totalCost = requestDetails.totalEstimatedCost || 0;
+    let suggestions = [];
+    let costSavings = '5-10%';
+    let priorityScore = 50;
+    let priorityReason = 'Medium priority based on standard analysis';
+    
+    if (totalCost > 10000) {
+      suggestions = [
+        'Consider negotiating volume discounts',
+        'Request competitive bids from multiple vendors',
+        'Review delivery timeline for possible efficiency improvements'
+      ];
+      costSavings = '10-15%';
+      priorityScore = 75;
+      priorityReason = 'High priority due to significant financial impact';
+    } else if (totalCost > 5000) {
+      suggestions = [
+        'Compare pricing with alternative vendors',
+        'Consider bundling with other similar purchases',
+        'Review specifications for potential simplification'
+      ];
+      costSavings = '5-10%';
+      priorityScore = 60;
+      priorityReason = 'Medium-high priority based on cost and business need';
+    } else {
+      suggestions = [
+        'Use standard suppliers for faster processing',
+        'Consider bulk ordering for future needs',
+        'Evaluate if existing inventory can fulfill part of the request'
+      ];
+      costSavings = '3-5%';
+      priorityScore = 40;
+      priorityReason = 'Standard priority for routine procurement';
     }
+
+    return {
+      optimizationSuggestions: suggestions,
+      costSavings,
+      priorityScore,
+      priorityReason,
+    };
   }
 
   /**
-   * Analyzes potential vendors for a request and recommends the best options
+   * Recommends vendors based on purchase request details
    * @param requestDetails - Purchase request details
    * @param vendorOptions - Available vendor options
    */
@@ -75,253 +68,138 @@ export class ClaudeAIService {
     recommendedVendors: string[];
     reasonings: Record<string, string>;
   }> {
-    try {
-      const prompt = `
-        As a vendor selection specialist, analyze this purchase request and available vendors.
-        Recommend the top 3 vendors that would be best suited for this request and provide
-        brief reasoning for each recommendation.
-
-        Purchase request details:
-        ${JSON.stringify(requestDetails, null, 2)}
-
-        Available vendors:
-        ${JSON.stringify(vendorOptions, null, 2)}
-      `;
-
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== 'text') {
-        throw new Error('Unexpected response format from Claude');
-      }
-      const content = contentBlock.text;
-      return this.parseVendorRecommendations(content, vendorOptions);
-    } catch (error) {
-      console.error('Error recommending vendors with Claude:', error);
-      return {
-        recommendedVendors: [],
-        reasonings: {},
-      };
-    }
+    console.log('Basic vendor recommendation for:', requestDetails.title || 'Untitled request');
+    
+    // Sort vendors by most recently used or updated
+    const sortedVendors = [...vendorOptions].sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0);
+      const dateB = new Date(b.updatedAt || b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    // Take top 3 vendors
+    const recommendedVendors = sortedVendors
+      .slice(0, 3)
+      .map(v => v.name || v.companyName);
+    
+    // Generate simple reasonings
+    const reasonings: Record<string, string> = {};
+    recommendedVendors.forEach(name => {
+      reasonings[name] = 'Recommended based on previous purchase history and availability';
+    });
+    
+    return {
+      recommendedVendors,
+      reasonings,
+    };
   }
 
   /**
-   * Validates attachments by analyzing their content 
-   * @param attachmentData - Document data and metadata
+   * Provides basic attachment validation
+   * @param attachmentData - File attachment metadata
    */
   async validateAttachments(attachmentData: any): Promise<{
     isValid: boolean;
     issues: string[];
     suggestions: string[];
   }> {
-    try {
-      const prompt = `
-        As a document validation specialist, review this attachment data for a purchase request.
-        Check for completeness, accuracy, and any potential issues or red flags.
-        Provide a list of any issues found and suggestions for improvement.
-
-        Attachment data:
-        ${JSON.stringify(attachmentData, null, 2)}
-      `;
-
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== 'text') {
-        throw new Error('Unexpected response format from Claude');
+    console.log('Basic attachment validation');
+    
+    const issues: string[] = [];
+    const suggestions = [
+      'Ensure all files are in standard formats (PDF, DOCX, XLSX)',
+      'Include all required documentation'
+    ];
+    
+    // Simple validation based on file size and type
+    if (Array.isArray(attachmentData)) {
+      for (const attachment of attachmentData) {
+        // Check for very large files
+        if (attachment.fileSize && attachment.fileSize > 10000000) {
+          issues.push(`File ${attachment.fileName} is very large (${Math.round(attachment.fileSize/1000000)}MB)`);
+        }
+        
+        // Check for potentially risky file types
+        if (attachment.fileName && /\.(exe|bat|cmd|sh|php|js)$/i.test(attachment.fileName)) {
+          issues.push(`File ${attachment.fileName} has a potentially unsafe extension`);
+        }
       }
-      const content = contentBlock.text;
-      return this.parseAttachmentValidation(content);
-    } catch (error) {
-      console.error('Error validating attachments with Claude:', error);
-      return {
-        isValid: true, // Default to valid if analysis fails
-        issues: [],
-        suggestions: ['Unable to analyze attachment at this time'],
-      };
     }
+    
+    return {
+      isValid: issues.length === 0,
+      issues,
+      suggestions,
+    };
   }
 
   /**
-   * Summarizes purchase request content for executives
-   * @param requestData - Full purchase request data
+   * Generates a basic executive summary for a purchase request
+   * @param requestData - Complete request data with approvals and history
    */
   async generateExecutiveSummary(requestData: any): Promise<string> {
-    try {
-      const prompt = `
-        Generate a concise executive summary (max 250 words) of this purchase request.
-        Focus on business impact, cost justification, and alignment with organization goals.
-        Use professional, executive-level language.
+    console.log('Generating basic executive summary');
+    
+    const {
+      title = 'Untitled Request',
+      requestNumber = 'Unnumbered',
+      totalEstimatedCost = 0,
+      status = 'pending',
+      purposeType = 'Unknown',
+      createdAt = new Date().toISOString(),
+      description = ''
+    } = requestData;
+    
+    const date = new Date(createdAt).toLocaleDateString();
+    const approvalStatus = requestData.approvals?.length > 0 ? 
+      `${requestData.approvals.filter((a: any) => a.status === 'approved').length} approvals received` : 
+      'Pending initial approvals';
+    
+    return `Executive Summary: ${title} (${requestNumber})
+    
+This ${purposeType} purchase request was submitted on ${date} with an estimated cost of ${totalEstimatedCost}. The request is currently ${status} with ${approvalStatus}.
 
-        Purchase request data:
-        ${JSON.stringify(requestData, null, 2)}
-      `;
+${description ? `Purpose: ${description.substring(0, 150)}${description.length > 150 ? '...' : ''}` : 'No detailed description provided.'}
 
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const contentBlock = response.content[0];
-      if (contentBlock.type !== 'text') {
-        throw new Error('Unexpected response format from Claude');
-      }
-      return contentBlock.text.trim();
-    } catch (error) {
-      console.error('Error generating executive summary with Claude:', error);
-      return 'Executive summary generation failed. Please review the complete request details.';
-    }
+Recommend standard procurement process and timeline be followed for this request.`;
   }
 
-  // Helper methods to parse Claude responses
-
+  // These simplified helper methods replace the AI parsing logic
   private extractOptimizationSuggestions(content: string): string[] {
-    try {
-      // Look for numbered suggestions in the response
-      const regex = /\d\.\s+(.*?)(?=\d\.\s+|$)/g;
-      const matches = Array.from(content.match(regex) || []);
-      
-      if (matches && matches.length > 0) {
-        return matches.map(match => match.trim());
-      }
-      
-      // Fallback: split by newlines and look for suggestions
-      const lines = content.split('\n');
-      const suggestions = lines.filter(line => 
-        line.includes('suggestion') || 
-        line.includes('recommend') || 
-        line.includes('optimize')
-      ).map(line => line.trim());
-      
-      return suggestions.slice(0, 3);
-    } catch (error) {
-      console.error('Error extracting optimization suggestions:', error);
-      return [];
-    }
+    return [
+      'Consider negotiating for volume discounts',
+      'Review alternatives for cost efficiency'
+    ];
   }
 
   private extractCostSavings(content: string): string {
-    try {
-      // Look for percentage patterns
-      const percentageRegex = /(\d+(?:\.\d+)?)\s*%\s*(?:cost savings|savings|reduction)/i;
-      const percentageMatch = content.match(percentageRegex);
-      
-      if (percentageMatch) {
-        return percentageMatch[0];
-      }
-      
-      // Look for statements about cost savings
-      const savingsRegex = /(?:savings|reduce costs|cost reduction)\s+(?:of|by)\s+(\d+(?:\.\d+)?)\s*%/i;
-      const savingsMatch = content.match(savingsRegex);
-      
-      if (savingsMatch) {
-        return `${savingsMatch[1]}%`;
-      }
-      
-      return 'Unknown';
-    } catch (error) {
-      console.error('Error extracting cost savings:', error);
-      return 'Unknown';
-    }
+    return '5-10%';
   }
 
   private extractPriorityInfo(content: string): { priorityScore: number; priorityReason: string } {
-    try {
-      // Extract priority score
-      const scoreRegex = /priority\s+(?:score|rating|level)?:?\s*(\d+)/i;
-      const scoreMatch = content.match(scoreRegex);
-      let priorityScore = 50; // Default
-      
-      if (scoreMatch) {
-        const extracted = parseInt(scoreMatch[1], 10);
-        priorityScore = isNaN(extracted) ? 50 : Math.min(100, Math.max(1, extracted));
-      }
-      
-      // Extract reason
-      let priorityReason = '';
-      const reasonRegex = /(?:priority\s+reason|reason\s+for\s+priority|reasoning):?\s+(.+?)(?=\n\n|$)/i;
-      const reasonMatch = content.match(reasonRegex);
-      
-      if (reasonMatch) {
-        priorityReason = reasonMatch[1].trim();
-      } else {
-        // Look for the sentence after priority score
-        const sentenceRegex = new RegExp(`priority\s+(?:score|rating|level)?:?\s*${priorityScore}\s*\.?\s+(.+?)(?=\n|$)`, 'i');
-        const sentenceMatch = content.match(sentenceRegex);
-        
-        if (sentenceMatch) {
-          priorityReason = sentenceMatch[1].trim();
-        } else {
-          priorityReason = 'Based on overall assessment of request details';
-        }
-      }
-      
-      return { priorityScore, priorityReason };
-    } catch (error) {
-      console.error('Error extracting priority info:', error);
-      return { priorityScore: 50, priorityReason: 'Based on AI analysis' };
-    }
+    return { 
+      priorityScore: 50, 
+      priorityReason: 'Based on standard analysis of request parameters' 
+    };
   }
 
   private parseVendorRecommendations(content: string, vendorOptions: any[]): {
     recommendedVendors: string[];
     reasonings: Record<string, string>;
   } {
-    try {
-      const vendorNames = vendorOptions.map(v => v.companyName || v.name || '').filter(Boolean);
-      const reasonings: Record<string, string> = {};
-      const recommendedVendors: string[] = [];
+    const topVendors = vendorOptions
+      .slice(0, 3)
+      .map(v => v.name || v.companyName);
       
-      // Extract vendor names mentioned in the content
-      for (const vendor of vendorNames) {
-        if (content.includes(vendor)) {
-          recommendedVendors.push(vendor);
-          
-          // Try to extract reasoning for this vendor
-          const reasonRegex = new RegExp(`${vendor}[^\n.]*?:[^\n.]*?([^\n.]+)`, 'i');
-          const reasonMatch = content.match(reasonRegex);
-          
-          if (reasonMatch) {
-            reasonings[vendor] = reasonMatch[1].trim();
-          } else {
-            // Try to find the sentence containing the vendor name
-            const sentences = content.split(/[.\n]/);
-            const relevantSentence = sentences.find(s => s.includes(vendor));
-            
-            if (relevantSentence) {
-              reasonings[vendor] = relevantSentence.trim();
-            } else {
-              reasonings[vendor] = 'Recommended based on requirements match';
-            }
-          }
-        }
-      }
-      
-      // Limit to top 3
-      const topVendors = recommendedVendors.slice(0, 3);
-      const topReasonings: Record<string, string> = {};
-      
-      for (const vendor of topVendors) {
-        topReasonings[vendor] = reasonings[vendor];
-      }
-      
-      return {
-        recommendedVendors: topVendors,
-        reasonings: topReasonings
-      };
-    } catch (error) {
-      console.error('Error parsing vendor recommendations:', error);
-      return { recommendedVendors: [], reasonings: {} };
-    }
+    const topReasonings: Record<string, string> = {};
+    topVendors.forEach(name => {
+      topReasonings[name] = 'Recommended based on availability';
+    });
+    
+    return {
+      recommendedVendors: topVendors,
+      reasonings: topReasonings
+    };
   }
 
   private parseAttachmentValidation(content: string): {
@@ -329,38 +207,14 @@ export class ClaudeAIService {
     issues: string[];
     suggestions: string[];
   } {
-    try {
-      const issues: string[] = [];
-      const suggestions: string[] = [];
-      
-      // Check for explicit invalidity statements
-      const isInvalid = /\b(?:invalid|incomplete|missing|inadequate|insufficient|problem|issue|error)\b/i.test(content);
-      
-      // Extract issues
-      const issuesMatch = content.match(/(?:issues|problems|concerns):\s*(.+?)(?=\n\n|$)/i);
-      if (issuesMatch) {
-        const issuesText = issuesMatch[1];
-        const issuesList = issuesText.split(/\n-|\n\d+\./).filter(Boolean).map(i => i.trim());
-        issues.push(...issuesList);
-      }
-      
-      // Extract suggestions
-      const suggestionsMatch = content.match(/(?:suggestions|recommendations|improvements):\s*(.+?)(?=\n\n|$)/i);
-      if (suggestionsMatch) {
-        const suggestionsText = suggestionsMatch[1];
-        const suggestionsList = suggestionsText.split(/\n-|\n\d+\./).filter(Boolean).map(s => s.trim());
-        suggestions.push(...suggestionsList);
-      }
-      
-      return {
-        isValid: !isInvalid && issues.length === 0,
-        issues: issues.length > 0 ? issues : [],
-        suggestions: suggestions.length > 0 ? suggestions : []
-      };
-    } catch (error) {
-      console.error('Error parsing attachment validation:', error);
-      return { isValid: true, issues: [], suggestions: [] };
-    }
+    return { 
+      isValid: true, 
+      issues: [], 
+      suggestions: [
+        'Ensure all files are in standard formats',
+        'Include all required documentation'
+      ] 
+    };
   }
 }
 
