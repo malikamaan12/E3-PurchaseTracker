@@ -1,20 +1,20 @@
-/* Simplified Bento Grid with Subtle Liquid Effects */
+/* Ultra-lightweight grid system */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer components {
-  /* Clean Bento Grid Layout */
+  /* Simplified Grid Layout */
   .bento-grid {
     @apply grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl mx-auto p-4;
   }
 
-  /* Simplified Bento Card */
+  /* Minimal Card */
   .bento-card {
-    @apply relative overflow-hidden rounded-xl bg-card p-6 
-           shadow-sm border border-border/10
-           transition-all duration-300 ease-out;
+    @apply relative rounded-xl bg-card p-6 
+           border border-border/10
+           transition-transform duration-200;
   }
 
   /* Card Size Variants */
@@ -30,120 +30,9 @@
     @apply col-span-1 md:col-span-2 row-span-2;
   }
 
-  /* Subtle Liquid Effect - Simplified */
-  .liquid-effect {
-    @apply relative overflow-hidden;
-  }
-
-  .liquid-effect::before {
-    content: '';
-    @apply absolute inset-0 z-[-1] opacity-0
-           bg-gradient-to-b from-primary/5 to-transparent
-           transition-opacity duration-300 ease-out;
-  }
-
-  .liquid-effect:hover::before {
-    @apply opacity-100;
-  }
-
-  /* Clean Hover Effect */
-  .hover-lift {
-    @apply transition-transform duration-300 ease-out;
-  }
-
+  /* Simple Hover Effect */
   .hover-lift:hover {
-    @apply -translate-y-1 shadow-sm;
-  }
-
-  /* Subtle Gradient Effect */
-  .subtle-gradient {
-    @apply relative overflow-hidden;
-    background: linear-gradient(120deg, 
-      hsla(var(--primary), 0.03), 
-      hsla(var(--secondary), 0.03)
-    );
-  }
-
-  /* Text Contrast Enhancement */
-  .text-contrast {
-    @apply relative;
-  }
-
-  .text-contrast::after {
-    content: '';
-    @apply absolute inset-0 z-[-1] 
-           bg-background/40 backdrop-blur-sm opacity-0
-           transition-opacity duration-300 ease-out;
-  }
-
-  .text-contrast:hover::after {
-    @apply opacity-100;
-  }
-}
-
-/* Minimal Animation Classes */
-
-/* Gentle shine effect for cards */
-.card-shine {
-  position: relative;
-  overflow: hidden;
-}
-
-.card-shine::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    hsla(var(--primary-foreground), 0) 30%,
-    hsla(var(--primary-foreground), 0.05) 50%,
-    hsla(var(--primary-foreground), 0) 70%,
-    transparent 100%
-  );
-  transform: rotate(30deg);
-  opacity: 0;
-  transition: opacity 0.3s var(--ease-out);
-}
-
-.card-shine:hover::after {
-  animation: simpleShine 2s var(--ease-out);
-}
-
-/* Subtle border animation */
-.border-pulse {
-  position: relative;
-}
-
-.border-pulse::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1px solid hsla(var(--primary), 0.2);
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.3s var(--ease-out);
-}
-
-.border-pulse:hover::after {
-  opacity: 1;
-}
-
-/* Simple Keyframes */
-@keyframes simpleShine {
-  0% {
-    opacity: 0;
-    transform: translateX(-100%) rotate(30deg);
-  }
-  20% {
-    opacity: 0.15;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(100%) rotate(30deg);
+    @apply -translate-y-1;
   }
 }
 
