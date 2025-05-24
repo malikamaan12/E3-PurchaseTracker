@@ -109,12 +109,23 @@ export function useEnhancedNotifications(options?: {
         const params = buildQueryParams();
         const queryString = params ? `?${params}` : '';
         
-        // Simple fetch without AbortController to avoid abort errors
+        // Enhanced fetch with better error handling
         try {
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
           const response = await fetch(`/api/notifications${queryString}`, {
             credentials: 'include',
-            // No signal here to avoid abort errors
+            signal: controller.signal,
+            headers: {
+              'Cache-Control': 'no-cache, no-store',
+              'Pragma': 'no-cache'
+            }
           });
+          
+          // Clear timeout
+          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Notification API error: ${response.status}`);
@@ -123,7 +134,12 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          console.error("Network error fetching notifications:", fetchErr);
+          // Handle AbortError gracefully
+          if (fetchErr.name === 'AbortError') {
+            console.warn("Notification request timed out - will retry next interval");
+          } else {
+            console.error("Network error fetching notifications:", fetchErr);
+          }
           return [];
         }
       } catch (err) {
