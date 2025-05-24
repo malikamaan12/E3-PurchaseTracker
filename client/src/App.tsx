@@ -7,17 +7,11 @@ import NewPurchaseRequestForm from "./pages/NewPurchaseRequestForm";
 import EditRequest from "./pages/EditRequest";
 import ViewRequest from "./pages/ViewRequest";
 import AdminPanel from "./pages/AdminPanel";
-import ErrorDashboard from "./pages/ErrorDashboard";
-import ErrorLookupGuide from "./components/ErrorLookupGuide";
 import VendorManagement from "./pages/VendorManagement";
 import DepartmentDashboard from "./pages/DepartmentDashboard";
 import BulkExportPage from "./pages/BulkExportPage";
 import NotificationsPage from "./pages/NotificationsPage";
-import PDFDesignerPage from "./pages/PDFDesignerPage";
 import { NotFound } from "@/components/NotFound";
-import BentoLiquidExample from "@/components/ui/BentoLiquidExample";
-
-import TestExportPage from "./pages/TestExportPage";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 function App() {
@@ -48,11 +42,8 @@ function App() {
         <Route path="/requests/:id" component={ViewRequest} />
         <Route path="/requests/:id/edit" component={EditRequest} />
         <Route path="/department-dashboard" component={DepartmentDashboard} />
-
-        <Route path="/test-export" component={TestExportPage} />
         <Route path="/export" component={BulkExportPage} />
         <Route path="/notifications" component={NotificationsPage} />
-        <Route path="/ui-showcase" component={BentoLiquidExample} />
 
         {/* Add admin routes with proper access control */}
         {user.role === "admin" && (
@@ -60,10 +51,6 @@ function App() {
             <Route path="/admin" component={AdminPanel} />
             <Route path="/admin/vendors" component={VendorManagement} />
             <Route path="/admin/account-requests" component={AdminPanel} />
-            <Route path="/admin/error-analytics" component={ErrorDashboard} />
-            <Route path="/admin/error-lookup" component={ErrorLookupGuide} />
-
-            <Route path="/admin/pdf-design" component={PDFDesignerPage} />
           </>
         )}
 
