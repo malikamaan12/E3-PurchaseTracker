@@ -10,11 +10,10 @@
     @apply grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl mx-auto p-4;
   }
 
-  /* Minimal Card */
+  /* Minimal Card - no transitions for ultra-light performance */
   .bento-card {
     @apply relative rounded-xl bg-card p-6 
-           border border-border/10
-           transition-transform duration-200;
+           border border-border/10;
   }
 
   /* Card Size Variants */
@@ -30,9 +29,9 @@
     @apply col-span-1 md:col-span-2 row-span-2;
   }
 
-  /* Simple Hover Effect */
+  /* Minimal hover effect - just opacity for ultra-light performance */
   .hover-lift:hover {
-    @apply -translate-y-1;
+    @apply opacity-90;
   }
 }
 
