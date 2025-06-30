@@ -337,7 +337,7 @@ export function useEnhancedNotifications(options?: {
         variant: "destructive",
       });
 
-      if (onActionError) {
+      if (onActionError && actionType) {
         onActionError(actionType, notificationId, err as NotificationError);
       }
       
