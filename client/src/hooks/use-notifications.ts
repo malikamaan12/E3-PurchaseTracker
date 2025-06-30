@@ -1,6 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { NOTIFICATION_CONFIG, API_ROUTES, ERROR_MESSAGES } from "../../../server/utils/config";
+// Fixed configuration constants - moved inline to avoid import errors
+const NOTIFICATION_CONFIG = {
+  MAX_RETRIES: 3,
+  MIN_RETRY_DELAY: 1000,
+  MAX_RETRY_DELAY: 10000,
+};
+
+const API_ROUTES = {
+  NOTIFICATIONS: '/api/notifications',
+  MARK_READ: (id: number) => `/api/notifications/${id}/read`,
+};
+
+const ERROR_MESSAGES = {
+  UPDATE_FAILED: 'Failed to update notification',
+  NOT_FOUND: 'Notification not found',
+};
 
 // Define our own notification type since importing from schema causes TS errors
 interface Notification {
