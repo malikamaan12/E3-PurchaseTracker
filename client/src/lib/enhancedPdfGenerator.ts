@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
-// Extend jsPDF interface to include autoTable
+// TypeScript interface extension for autoTable
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
