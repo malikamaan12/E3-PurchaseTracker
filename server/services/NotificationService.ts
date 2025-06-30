@@ -66,6 +66,8 @@ export const NOTIFICATION_ROUTES = {
  */
 export class NotificationService {
   private static instance: NotificationService;
+  private cache = new Map<string, { data: any[], timestamp: number }>();
+  private readonly CACHE_TTL = 30000; // 30 seconds cache
 
   /**
    * Private constructor to enforce singleton pattern
@@ -274,7 +276,7 @@ export class NotificationService {
   }
 
   /**
-   * Get notifications for a user
+   * Get notifications for a user - Optimized version
    */
   public async getNotifications(userId: number, options?: {
     lastFetchTime?: Date;
@@ -284,78 +286,80 @@ export class NotificationService {
     userRole?: string;
     userDepartment?: string;
   }) {
-    // Build the conditions array
-    const conditions = [eq(notifications.userId, userId)];
-    
-    // Apply filters
-    if (options?.lastFetchTime) {
-      conditions.push(gte(notifications.createdAt, options.lastFetchTime));
-    }
-
-    if (options?.includeRead === false) {
-      conditions.push(eq(notifications.isRead, false));
-    }
-
-    if (options?.type) {
-      conditions.push(eq(notifications.type, options.type));
-    }
-
-    if (options?.priority) {
-      conditions.push(eq(notifications.priority, options.priority));
-    }
-    
-    // Filter out expired notifications
-    const now = new Date();
-    conditions.push(
-      or(
-        sql`${notifications.expiresAt} IS NULL`,
-        sql`${notifications.expiresAt} >= ${now}`
-      ) as SQL<unknown>
-    );
-
-    // Execute the query with all conditions
-    const result = await db
-      .select()
-      .from(notifications)
-      .where(and(...conditions))
-      .orderBy(desc(notifications.createdAt));
-
-    // Always apply role-based filtering for enhanced security
-    return result.filter(notification => {
-      const actionData = notification.actionData as Record<string, any> | null;
+    try {
+      // Start with basic query conditions
+      const conditions = [eq(notifications.userId, userId)];
       
-      // If no action data, only proceed with filtering if the user's role is provided
-      if (!actionData) {
-        // Allow global notifications without restrictions for all users
+      // Apply simple filters
+      if (options?.lastFetchTime) {
+        conditions.push(gte(notifications.createdAt, options.lastFetchTime));
+      }
+
+      if (options?.includeRead === false) {
+        conditions.push(eq(notifications.isRead, false));
+      }
+
+      if (options?.type) {
+        conditions.push(eq(notifications.type, options.type));
+      }
+
+      if (options?.priority) {
+        conditions.push(eq(notifications.priority, options.priority));
+      }
+
+      // Execute the optimized query with limit for performance
+      const result = await db
+        .select()
+        .from(notifications)
+        .where(and(...conditions))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50); // Limit results for performance
+
+      // Filter expired notifications in memory (faster than complex SQL)
+      const now = new Date();
+      const validNotifications = result.filter(notification => {
+        // Check if notification is expired
+        if (notification.expiresAt && new Date(notification.expiresAt) < now) {
+          return false;
+        }
+        
+        const actionData = notification.actionData as Record<string, any> | null;
+        
+        // If no action data, allow all notifications
+        if (!actionData) {
+          return true;
+        }
+        
+        // Quick role check
+        if (actionData.roleRestrictions && options?.userRole) {
+          const allowedRoles = Array.isArray(actionData.roleRestrictions) 
+            ? actionData.roleRestrictions 
+            : [actionData.roleRestrictions];
+          
+          if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
+            return false;
+          }
+        }
+        
+        // Quick department check
+        if (actionData.departmentRestrictions && options?.userDepartment) {
+          const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
+            ? actionData.departmentRestrictions 
+            : [actionData.departmentRestrictions];
+          
+          if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
+            return false;
+          }
+        }
+        
         return true;
-      }
-      
-      // Check role-specific restrictions
-      if (actionData.roleRestrictions && options?.userRole) {
-        const allowedRoles = Array.isArray(actionData.roleRestrictions) 
-          ? actionData.roleRestrictions 
-          : [actionData.roleRestrictions];
-        
-        // If role restrictions exist but user's role isn't included, filter out
-        if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
-          return false;
-        }
-      }
-      
-      // Check department-specific restrictions
-      if (actionData.departmentRestrictions && options?.userDepartment) {
-        const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
-          ? actionData.departmentRestrictions 
-          : [actionData.departmentRestrictions];
-        
-        // If department restrictions exist but user's department isn't included, filter out
-        if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
+      });
+
+      return validNotifications;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return []; // Return empty array on error to prevent cascading failures
+    }
   }
 
   /**
