@@ -20,6 +20,15 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Add host bypass middleware for Vite compatibility
+app.use((req, res, next) => {
+  // Override host header to bypass Vite's host check
+  if (req.headers.host && req.headers.host.includes('replit.dev')) {
+    req.headers.host = 'localhost:5000';
+  }
+  next();
+});
+
 // Set default content type for API routes
 app.use('/api', (req, res, next) => {
   res.type('application/json');
