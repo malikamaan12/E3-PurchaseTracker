@@ -15,33 +15,8 @@ import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
 
-// Alternative approach - ensure autoTable is available
-let autoTableLoaded = false;
-
-async function ensureAutoTableLoaded() {
-  if (!autoTableLoaded) {
-    try {
-      // Dynamic import of the autoTable plugin
-      await import('jspdf-autotable');
-      autoTableLoaded = true;
-    } catch (error) {
-      console.error('Failed to load jspdf-autotable:', error);
-    }
-  }
-}
-
-// Create jsPDF instance with autoTable support
-export async function createPDFDoc(): Promise<jsPDF & { autoTable: (options: any) => jsPDF }> {
-  await ensureAutoTableLoaded();
-  const doc = new jsPDF() as any;
-  
-  // Ensure autoTable is available
-  if (!doc.autoTable) {
-    throw new Error('autoTable plugin not loaded properly');
-  }
-  
-  return doc;
-}
+// Correct import pattern from official documentation
+import { autoTable } from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
@@ -370,8 +345,12 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
-    // Create PDF document with autoTable support
-    const doc = await createPDFDoc();
+    // Create PDF document
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    }) as any;
     
     // Header with logo or title
     doc.setFontSize(18);
@@ -444,7 +423,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       });
       
       // @ts-ignore - jsPDF-AutoTable adds this method
-      doc.autoTable({
+      autoTable(doc, {
         head: tableHead,
         body: tableBody,
         startY: currentY,
@@ -475,7 +454,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       ]);
       
       // @ts-ignore - jsPDF-AutoTable adds this method
-      doc.autoTable({
+      autoTable(doc, {
         head: tableHead,
         body: tableBody,
         startY: currentY,
@@ -800,7 +779,7 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
           ]);
           
           // @ts-ignore - jsPDF-AutoTable adds this method
-          doc.autoTable({
+          autoTable(doc, {
             head: tableHead,
             body: tableBody,
             startY: tableY + 5,
