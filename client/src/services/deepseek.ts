@@ -1,64 +1,31 @@
-import axios from 'axios';
-
-const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1';
+// Simplified lightweight service - removed external API dependency
 
 export class DeepseekService {
-  private apiKey: string;
-
   constructor() {
-    this.apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-    if (!this.apiKey) {
-      throw new Error('Deepseek API key not found in environment variables');
-    }
+    // Lightweight service without external dependencies
   }
 
-  private async makeRequest(endpoint: string, payload: any) {
-    try {
-      const response = await axios.post(`${DEEPSEEK_API_ENDPOINT}${endpoint}`, payload, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        throw new Error(`Deepseek API error: ${error.response.data.message || error.response.statusText}`);
-      }
-      throw error;
-    }
+  async analyzeExportRequest(data: any): Promise<{
+    success: boolean;
+    message: string;
+    recommendations?: string[];
+  }> {
+    // Basic validation instead of AI analysis
+    const hasValidData = data && (data.requests?.length > 0 || data.vendors?.length > 0);
+    
+    return {
+      success: hasValidData,
+      message: hasValidData 
+        ? "Export data looks good for processing" 
+        : "No data available for export",
+      recommendations: hasValidData 
+        ? ["Data is ready for export"] 
+        : ["Add some data before attempting export"]
+    };
   }
 
-  async generateText(prompt: string) {
-    return this.makeRequest('/completions', {
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1000,
-    });
-  }
-
-  async generateImage(prompt: string) {
-    return this.makeRequest('/images/generations', {
-      prompt,
-      n: 1,
-      size: '1024x1024',
-    });
-  }
-
-  async analyzeImage(imageUrl: string, prompt: string) {
-    return this.makeRequest('/images/analysis', {
-      image: imageUrl,
-      prompt,
-    });
-  }
-
-  async embeddingGeneration(text: string) {
-    return this.makeRequest('/embeddings', {
-      model: 'deepseek-embedding',
-      input: text,
-    });
+  async optimizeQuery(query: string): Promise<string> {
+    // Simple query optimization
+    return query.trim();
   }
 }
-
-// Create a singleton instance
-export const deepseekService = new DeepseekService();
