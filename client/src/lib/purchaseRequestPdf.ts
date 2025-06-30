@@ -617,7 +617,7 @@ function addBasicInfoTable(
     ]);
   }
 
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY,
     theme: "plain",
     styles: { fontSize: 9, cellPadding: 2, overflow: "linebreak" },
@@ -657,7 +657,7 @@ function addVendorInfoTable(
     ],
   ];
 
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY,
     theme: "plain",
     styles: { fontSize: 9, cellPadding: 2, overflow: "linebreak" },
@@ -690,7 +690,7 @@ function addItemsTable(
   }
 
   if (items.length === 0) {
-    (autoTable as any)(doc, {
+    doc.autoTable({
       startY,
       theme: "plain",
       body: [["No items found"]],
@@ -750,7 +750,7 @@ function addItemsTable(
   const descWidth =
     availableWidth - itemWidth - qtyWidth - costWidth - totalWidth;
 
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY,
     head: [["Item", "Description", "Qty", "Unit Cost", "Total"]],
     body: rows,
@@ -808,7 +808,7 @@ function addItemsTable(
   const totalsHeight = 30; // Approximate height for the totals section
   yPos = ensureContentFits(doc, yPos, totalsHeight);
 
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY: yPos,
     theme: "plain",
     styles: { fontSize: 9, cellPadding: 2 },
@@ -846,7 +846,7 @@ function addAttachmentsTable(
   const attachments = request.attachments || [];
 
   if (attachments.length === 0) {
-    (autoTable as any)(doc, {
+    doc.autoTable({
       startY,
       theme: "plain",
       body: [["No attachments"]],
@@ -888,7 +888,7 @@ function addAttachmentsTable(
   const numColumns = 3;
   const columnWidth = availableWidth / numColumns;
 
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY,
     head: [["Document Name", "Type", "Size"]],
     body: rows,
@@ -928,7 +928,7 @@ function addApprovalsTable(
   const approvals = Array.isArray(request.approvals) ? request.approvals : [];
 
   if (approvals.length === 0) {
-    (autoTable as any)(doc, {
+    doc.autoTable({
       startY,
       theme: "plain",
       body: [["No approvals found for this request"]],
@@ -1028,7 +1028,7 @@ function addApprovalsTable(
   const columnWidth = availableWidth / numColumns;
 
   // Add the main approvals table with enhanced styling
-  (autoTable as any)(doc, {
+  doc.autoTable({
     startY,
     head: [["Approver", "Department", "Status", "Comments", "Processed Date"]],
     body: rows,

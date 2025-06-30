@@ -15,6 +15,13 @@ import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+
+// Extend jsPDF interface to include autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
