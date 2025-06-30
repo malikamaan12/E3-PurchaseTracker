@@ -248,12 +248,17 @@ export function EnhancedNotificationsDropdown({
     markAllAsRead();
   };
 
-  // Initial fetch when dropdown opens
+  // Mock refetch function for demo mode
+  const mockRefetch = async () => {
+    // No-op in demo mode
+  };
+
+  // Initial fetch when dropdown opens (disabled in demo mode)
   useEffect(() => {
     if (open) {
-      refetch();
+      mockRefetch();
     }
-  }, [open, refetch]);
+  }, [open]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
