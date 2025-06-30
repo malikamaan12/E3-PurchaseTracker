@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -16,6 +17,21 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 
 function App() {
   const { user, isLoading } = useUser();
+
+  // Global error handler for unhandled promise rejections
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      // Prevent the default behavior which would show the error overlay
+      event.preventDefault();
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
 
   // Create content based on auth state
   const renderContent = () => {

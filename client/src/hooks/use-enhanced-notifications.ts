@@ -134,10 +134,11 @@ export function useEnhancedNotifications(options?: {
         } catch (fetchErr: any) {
           if (fetchErr.name === 'AbortError') {
             console.warn("Notification fetch timed out");
+            return []; // Return empty array for timeout
           } else {
             console.error("Network error fetching notifications:", fetchErr);
+            return []; // Return empty array for network errors
           }
-          return [];
         }
       } catch (err) {
         console.error("Error in notifications query:", err);
@@ -147,7 +148,10 @@ export function useEnhancedNotifications(options?: {
     staleTime: STALE_TIME,
     enabled: true,
     retry: 0, // No retries since we're already handling errors gracefully
-    refetchOnWindowFocus: false // Don't refetch on window focus to reduce requests
+    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
+    throwOnError: false, // Prevent unhandled promise rejections
+    // Provide default data to ensure notifications is always an array
+    placeholderData: [] as Notification[]
   });
 
   // Mark notification as read
