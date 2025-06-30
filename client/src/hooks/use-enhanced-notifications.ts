@@ -329,15 +329,15 @@ export function useEnhancedNotifications(options?: {
 
       return result;
     } catch (err) {
-      console.error(`Error performing quick action ${actionType || 'unknown'}:`, err);
+      console.error(`Error performing quick action ${actionType}:`, err);
       
       toast({
         title: "Error",
-        description: `Failed to ${actionType || 'process'} notification`,
+        description: `Failed to ${actionType} notification`,
         variant: "destructive",
       });
 
-      if (onActionError && actionType) {
+      if (onActionError) {
         onActionError(actionType, notificationId, err as NotificationError);
       }
       
