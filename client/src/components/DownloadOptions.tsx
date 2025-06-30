@@ -130,14 +130,14 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         throw new Error('Invalid response format from PDF API');
       }
       
-      const { data } = jsonData;
+      const { data, pdfSettings } = jsonData;
       
       // Use the consolidated PDF format that works for all user types
       console.log('Generating PDF from data...');
       // Use the user role for audit logging purposes only
       const userRoleForAudit = user?.role === 'admin' ? 'admin' : 
                       (user?.role === 'approver' ? 'approver' : 'user');
-      await exportRequestToPDF(data, userRoleForAudit);
+      await exportRequestToPDF(data, userRoleForAudit, pdfSettings);
       
       // Track successful download
       await trackDownload('pdf', true);

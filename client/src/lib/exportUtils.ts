@@ -343,45 +343,105 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
 /**
  * Export a purchase request to PDF format
  */
-export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
+export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    // Create PDF document
+    // Apply PDF settings if available
+    const settings = pdfSettings || {};
+    
+    // Create PDF document with configurable margins
+    const marginTop = settings.marginTop || 20;
+    const marginLeft = settings.marginLeft || 25;
+    const marginRight = settings.marginRight || 25;
+    const marginBottom = settings.marginBottom || 20;
+    
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
     }) as any;
     
-    // Header with logo or title
-    doc.setFontSize(18);
-    doc.setTextColor(0, 51, 102); // Dark blue
-    doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 20);
+    // Apply font settings
+    const fontSize = settings.fontSize || 11;
+    const fontFamily = settings.fontFamily || 'helvetica';
     
-    // Add basic information
-    doc.setFontSize(11);
+    try {
+      doc.setFont(fontFamily);
+    } catch {
+      doc.setFont('helvetica'); // Fallback
+    }
+    
+    // Header section with configurable styling
+    let currentY = marginTop;
+    
+    // Apply header title and subtitle from settings
+    const headerTitle = settings.headerTitle || `Purchase Request: ${request.requestNumber || request.id}`;
+    const headerSubtitle = settings.headerSubtitle || '';
+    
+    // Parse header color (default to dark blue)
+    let headerR = 0, headerG = 51, headerB = 102;
+    if (settings.headerColor && settings.headerColor.startsWith('#')) {
+      const color = settings.headerColor.substring(1);
+      headerR = parseInt(color.substring(0, 2), 16);
+      headerG = parseInt(color.substring(2, 4), 16);
+      headerB = parseInt(color.substring(4, 6), 16);
+    }
+    
+    doc.setFontSize(18);
+    doc.setTextColor(headerR, headerG, headerB);
+    doc.text(headerTitle, marginLeft, currentY);
+    currentY += 10;
+    
+    if (headerSubtitle) {
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100); // Gray
+      doc.text(headerSubtitle, marginLeft, currentY);
+      currentY += 8;
+    }
+    
+    // Add basic information using settings
+    doc.setFontSize(fontSize);
     doc.setTextColor(0, 0, 0); // Black
-    const startY = 30;
     const lineHeight = 7;
     
-    doc.text(`Title: ${request.title || 'N/A'}`, 14, startY);
-    doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, 14, startY + lineHeight);
-    doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'N/A'}`, 14, startY + lineHeight * 2);
-    doc.text(`Requester: ${request.requester?.username || 'N/A'}`, 14, startY + lineHeight * 3);
-    doc.text(`Department: ${request.requester?.department || 'N/A'}`, 14, startY + lineHeight * 4);
-    doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'}`, 14, startY + lineHeight * 5);
+    // Check what sections to show based on settings
+    let currentLine = 0;
+    
+    if (settings.showBasicInfo !== false) {
+      doc.text(`Title: ${request.title || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+      doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+      doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+    }
+    
+    if (settings.showRequesterDetails !== false) {
+      doc.text(`Requester: ${request.requester?.username || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+      doc.text(`Department: ${request.requester?.department || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+    }
+    
+    if (settings.showDateOfRequest !== false) {
+      doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+    }
+    
+    currentY += lineHeight * currentLine + 10;
     
     // Add description
     doc.setFontSize(12);
-    doc.text('Description:', 14, startY + lineHeight * 7);
+    doc.text('Description:', marginLeft, currentY);
+    currentY += 8;
     doc.setFontSize(10);
     
     // Split description text to prevent overflow
     const description = request.description || 'No description provided';
     const splitDescription = doc.splitTextToSize(description, 180);
-    doc.text(splitDescription, 14, startY + lineHeight * 8);
+    doc.text(splitDescription, marginLeft, currentY);
     
     // Calculate position for items table
-    let currentY = startY + lineHeight * 9 + splitDescription.length * 5;
+    currentY += splitDescription.length * 5 + 10;
     
     // Add vendor information if available
     if (request.vendor && request.vendor.name) {
