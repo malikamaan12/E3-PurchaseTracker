@@ -60,7 +60,7 @@ export function useEnhancedNotifications(options?: {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [pollTimerRef, setPollTimerRef] = useState<number | null>(null);
+
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
 
   // Build query params
@@ -329,41 +329,12 @@ export function useEnhancedNotifications(options?: {
     retry: 0 // No retries since we're handling errors gracefully
   });
 
-  // Setup polling - optimized to prevent excessive API calls
+  // Update lastFetchTime when fetching
   useEffect(() => {
-    // Initialize lastFetchTime on mount to avoid invalid date issues
     if (lastFetchTime === null) {
       setLastFetchTime(new Date());
     }
-    
-    // Only create one interval timer and ensure we don't have multiple timers running
-    if (autoPolling && !pollTimerRef) {
-      // Create a debounced version of the refetch to prevent excessive API calls
-      const debouncedRefetch = () => {
-        // Use a safe way to update the date to avoid invalid date objects
-        const now = new Date();
-        if (!isNaN(now.getTime())) {
-          // Only update if significant time has passed (at least 5 seconds)
-          if (!lastFetchTime || now.getTime() - lastFetchTime.getTime() > 5000) {
-            setLastFetchTime(now);
-            refetch();
-          }
-        }
-      };
-      
-      // Setup the interval timer with a longer interval (60 seconds instead of 30)
-      const id = window.setInterval(debouncedRefetch, 60000);
-      setPollTimerRef(id);
-    }
-
-    // Cleanup polling on unmount
-    return () => {
-      if (pollTimerRef) {
-        window.clearInterval(pollTimerRef);
-        setPollTimerRef(null);
-      }
-    };
-  }, [autoPolling, refetch, lastFetchTime]);
+  }, [lastFetchTime]);
 
   // Safely calculate counts
   const notificationArray = Array.isArray(notifications) ? notifications : [];
