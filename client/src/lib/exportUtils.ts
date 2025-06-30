@@ -14,9 +14,20 @@ import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 
-// TypeScript interface extension for autoTable
+// Proper autoTable plugin loading
+// @ts-ignore
+import * as autoTable from 'jspdf-autotable';
+
+// Ensure autoTable is properly attached to jsPDF
+if (typeof (jsPDF as any).API.autoTable === 'undefined') {
+  // Add autoTable to jsPDF API
+  (jsPDF as any).API.autoTable = function (options: any) {
+    return autoTable.default(this, options);
+  };
+}
+
+// TypeScript interface extension
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
