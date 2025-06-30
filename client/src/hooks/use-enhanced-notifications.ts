@@ -112,7 +112,7 @@ export function useEnhancedNotifications(options?: {
         // Simplified fetch with timeout and better error handling
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          const timeoutId = setTimeout(() => controller.abort('Request timeout'), 10000); // 10 second timeout
           
           const response = await fetch(`/api/notifications${queryString}`, {
             signal: controller.signal,
