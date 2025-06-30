@@ -1,5 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+
+// Create a toast function that can be used outside of React components
+let globalToast: any = null;
+export const setGlobalToast = (toastFunction: any) => {
+  globalToast = toastFunction;
+};
 
 // Helper to validate URLs
 const isValidUrl = (url: string) => {
@@ -68,11 +74,14 @@ export const queryClient = new QueryClient({
             }
 
             const errorMessage = errorData?.message || `${res.status}: ${res.statusText}`;
-            toast({
-              title: "Error",
-              description: errorMessage,
-              variant: "destructive",
-            });
+            // Only show toast for non-404 errors to reduce noise
+            if (res.status !== 404 && globalToast) {
+              globalToast({
+                title: "Error",
+                description: errorMessage,
+                variant: "destructive",
+              });
+            }
 
             throw new Error(errorMessage);
           }
@@ -83,12 +92,14 @@ export const queryClient = new QueryClient({
         } catch (error) {
           logQueryError(error, url);
 
-          // Show user-friendly error message
-          toast({
-            title: "Error",
-            description: error instanceof Error ? error.message : "Failed to fetch data",
-            variant: "destructive",
-          });
+          // Only show toast for network errors to reduce noise
+          if (isRetryableError(error) && globalToast) {
+            globalToast({
+              title: "Connection Issue", 
+              description: "Network connection problem. Please check your connection.",
+              variant: "destructive",
+            });
+          }
 
           throw error;
         }
@@ -106,11 +117,13 @@ export const queryClient = new QueryClient({
     mutations: {
       onError: (error) => {
         logQueryError(error, 'mutation');
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "An error occurred",
-          variant: "destructive",
-        });
+        if (globalToast) {
+          globalToast({
+            title: "Error",
+            description: error instanceof Error ? error.message : "An error occurred",
+            variant: "destructive",
+          });
+        }
       }
     }
   }
@@ -138,17 +151,21 @@ export const prefetchQuery = async (queryKey: string | string[]) => {
 export const handleQueryError = (error: unknown) => {
   if (error instanceof Error) {
     console.error('[Error Handler]', error);
-    toast({
-      title: "Error",
-      description: error.message,
-      variant: "destructive",
-    });
+    if (globalToast) {
+      globalToast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   } else {
     console.error('[Error Handler] Unknown error:', error);
-    toast({
-      title: "Error",
-      description: "An unexpected error occurred",
-      variant: "destructive",
-    });
+    if (globalToast) {
+      globalToast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
   }
 };
