@@ -482,7 +482,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     const trackingId = generatePdfTrackingId(requestId);
     
     // Apply a subtle watermark
-    applyPdfWatermark(doc, trackingId, roleForAudit);
+    applyPdfWatermark(doc, trackingId, 0.1);
     
     // Generate timestamp for filename
     const timestamp = format(new Date(), 'yyyy-MM-dd-HH-mm');

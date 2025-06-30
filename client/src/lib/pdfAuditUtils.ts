@@ -130,6 +130,12 @@ export function generatePdfTrackingId(requestId: number, userId?: number): strin
  */
 export function applyPdfWatermark(doc: any, text: string, opacity: number = 0.1): void {
   try {
+    // Ensure doc is valid and has required methods
+    if (!doc || typeof doc.getNumberOfPages !== 'function') {
+      console.warn('Invalid jsPDF document passed to applyPdfWatermark');
+      return;
+    }
+    
     const pageCount = doc.getNumberOfPages();
     
     for (let i = 1; i <= pageCount; i++) {
@@ -141,16 +147,20 @@ export function applyPdfWatermark(doc: any, text: string, opacity: number = 0.1)
       // Save current state
       doc.saveGraphicsState();
       
-      // Set watermark properties
-      doc.setTextColor(0, 0, 0);
-      doc.setGState(new doc.GState({ opacity }));
+      // Set watermark properties - simplified to avoid GState issues
+      doc.setTextColor(200, 200, 200); // Light gray color instead of opacity
       doc.setFontSize(20);
-      doc.setFont('helvetica', 'italic');
+      try {
+        doc.setFont('helvetica', 'italic');
+      } catch {
+        // Fallback if font setting fails
+        doc.setFontSize(20);
+      }
       
-      // Rotate and position watermark
-      doc.translate(pageWidth / 2, pageHeight / 2);
-      doc.rotate(-45);
-      doc.text(text, 0, 0, { align: 'center' });
+      // Add watermark text without rotation to avoid transform issues
+      const x = pageWidth / 2;
+      const y = pageHeight / 2;
+      doc.text(text, x, y, { align: 'center' });
       
       // Restore state
       doc.restoreGraphicsState();
