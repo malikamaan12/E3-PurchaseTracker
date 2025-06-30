@@ -1,5 +1,12 @@
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
+
+// Extend jsPDF interface to include autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 import { applyPdfWatermark } from "./pdfAuditUtils";
 
 // =========== Utility Types & Functions =========== //

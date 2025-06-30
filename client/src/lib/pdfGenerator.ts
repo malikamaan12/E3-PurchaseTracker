@@ -1,5 +1,12 @@
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
+
+// Extend jsPDF interface to include autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const defaultColor: [number, number, number] = [26, 54, 93]; // #1a365d
@@ -1119,7 +1126,7 @@ export async function generateRequestPDF(
         ],
       ];
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: basicInfo,
         theme: "plain",
@@ -1137,7 +1144,7 @@ export async function generateRequestPDF(
         ],
       ];
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: description,
         theme: "plain",
@@ -1172,7 +1179,7 @@ export async function generateRequestPDF(
         ],
       ];
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: requesterInfo,
         theme: "plain",
@@ -1203,7 +1210,7 @@ export async function generateRequestPDF(
 
       yPos = addSection(doc, "Date Information", yPos);
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: [
           [
@@ -1228,7 +1235,7 @@ export async function generateRequestPDF(
       const purposeType = request.purposeType || "N/A";
       const subPurpose = request.subPurpose?.name || "N/A";
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: [
           [
@@ -1257,7 +1264,7 @@ export async function generateRequestPDF(
       const vendorEmail = vendor.email || "N/A";
       const vendorPhone = vendor.phone || vendor.contactNumber || "N/A";
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: [
           [
@@ -1319,7 +1326,7 @@ export async function generateRequestPDF(
           maximumFractionDigits: 0,
         }).format(amount);
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         head: [["Item", "Description", "Qty", "Unit Cost", "Total"]],
         body: items.map((item: any) => [
@@ -1402,7 +1409,7 @@ export async function generateRequestPDF(
           : "N/A",
       ]);
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         head: [["Document Name", "Type", "Size"]],
         body: attachments,
@@ -1463,7 +1470,7 @@ export async function generateRequestPDF(
           approval.comments || "",
         ]);
 
-        autoTable(doc, {
+        doc.autoTable({
           startY: yPos,
           head: [["Approver", "Department", "Status", "Date", "Comments"]],
           body: approvalRows,
@@ -1494,7 +1501,7 @@ export async function generateRequestPDF(
           margin: { left: margin, right: margin },
         });
       } else {
-        autoTable(doc, {
+        doc.autoTable({
           startY: yPos,
           body: [["No approval information available"]],
           theme: "plain",
@@ -1546,7 +1553,7 @@ export async function generateRequestPDF(
         ],
       ];
 
-      autoTable(doc, {
+      doc.autoTable({
         startY: yPos,
         body: auditInfo,
         theme: "plain",
