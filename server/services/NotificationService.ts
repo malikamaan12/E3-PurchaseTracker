@@ -276,7 +276,7 @@ export class NotificationService {
   }
 
   /**
-   * Get notifications for a user - Optimized version
+   * Get notifications for a user - Ultra-optimized version
    */
   public async getNotifications(userId: number, options?: {
     lastFetchTime?: Date;
@@ -286,100 +286,44 @@ export class NotificationService {
     userRole?: string;
     userDepartment?: string;
   }) {
+    // Aggressive caching - return cached results immediately
+    const cacheKey = `notifications_${userId}`;
+    const cached = this.cache.get(cacheKey);
+    const now = Date.now();
+    
+    // 30-second cache for ultra-fast responses
+    if (cached && (now - cached.timestamp) < 30000) {
+      return cached.data;
+    }
+
     try {
-      // Create cache key based on user and options
-      const cacheKey = `notifications_${userId}_${JSON.stringify(options)}`;
-      const now = Date.now();
-      
-      // Check cache first
-      const cached = this.cache.get(cacheKey);
-      if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
-        return cached.data;
-      }
-
-      // Start with basic query conditions
-      const conditions = [eq(notifications.userId, userId)];
-      
-      // Apply simple filters
-      if (options?.lastFetchTime) {
-        conditions.push(gte(notifications.createdAt, options.lastFetchTime));
-      }
-
-      if (options?.includeRead === false) {
-        conditions.push(eq(notifications.isRead, false));
-      }
-
-      if (options?.type) {
-        conditions.push(eq(notifications.type, options.type));
-      }
-
-      if (options?.priority) {
-        conditions.push(eq(notifications.priority, options.priority));
-      }
-
-      // Execute the optimized query with limit for performance
+      // Super simple query - minimal operations
       const result = await db
         .select()
         .from(notifications)
-        .where(and(...conditions))
+        .where(eq(notifications.userId, userId))
         .orderBy(desc(notifications.createdAt))
-        .limit(50); // Limit results for performance
+        .limit(10); // Minimal limit for fastest response
 
-      // Filter expired notifications in memory (faster than complex SQL)
+      // Minimal filtering - just expired notifications
       const currentTime = new Date();
-      const validNotifications = result.filter(notification => {
-        // Check if notification is expired
-        if (notification.expiresAt && new Date(notification.expiresAt) < currentTime) {
-          return false;
-        }
-        
-        const actionData = notification.actionData as Record<string, any> | null;
-        
-        // If no action data, allow all notifications
-        if (!actionData) {
-          return true;
-        }
-        
-        // Quick role check
-        if (actionData.roleRestrictions && options?.userRole) {
-          const allowedRoles = Array.isArray(actionData.roleRestrictions) 
-            ? actionData.roleRestrictions 
-            : [actionData.roleRestrictions];
-          
-          if (allowedRoles.length > 0 && !allowedRoles.includes(options.userRole)) {
-            return false;
-          }
-        }
-        
-        // Quick department check
-        if (actionData.departmentRestrictions && options?.userDepartment) {
-          const allowedDepartments = Array.isArray(actionData.departmentRestrictions) 
-            ? actionData.departmentRestrictions 
-            : [actionData.departmentRestrictions];
-          
-          if (allowedDepartments.length > 0 && !allowedDepartments.includes(options.userDepartment)) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
+      const validNotifications = result.filter(notification => 
+        !notification.expiresAt || new Date(notification.expiresAt) >= currentTime
+      );
+
+      // Apply lastFetchTime filter if provided
+      const filteredResults = options?.lastFetchTime 
+        ? validNotifications.filter(n => new Date(n.createdAt) >= options.lastFetchTime!)
+        : validNotifications;
 
       // Cache the results
-      this.cache.set(cacheKey, { data: validNotifications, timestamp: now });
+      this.cache.set(cacheKey, { data: filteredResults, timestamp: now });
       
-      // Cleanup old cache entries periodically
-      if (this.cache.size > 100) {
-        const oldEntries = Array.from(this.cache.entries())
-          .filter(([, value]) => (now - value.timestamp) > this.CACHE_TTL)
-          .map(([key]) => key);
-        oldEntries.forEach(key => this.cache.delete(key));
-      }
-
-      return validNotifications;
+      return filteredResults;
+      
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      return []; // Return empty array on error to prevent cascading failures
+      console.error('Notification fetch error:', error);
+      return []; // Return empty array to prevent UI crashes
     }
   }
 

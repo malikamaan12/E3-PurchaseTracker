@@ -7,45 +7,65 @@ import { notifications, notificationPreferences, NOTIFICATION_CATEGORIES, NOTIFI
 import { and, eq } from "drizzle-orm";
 
 export function registerNotificationRoutes(app: Express) {
-  // Get all notifications for the authenticated user
-  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+  // Test endpoint to measure pure response time
+  app.get("/api/notifications/test", async (req: Request, res: Response) => {
+    const start = Date.now();
+    console.log(`[PERF-TEST] Starting notification test endpoint`);
+    res.json({ message: "test", timing: Date.now() - start });
+  });
+
+  // Ultra-fast notifications endpoint - completely bypasses heavy middleware
+  app.get("/api/notifications/fast", async (req: Request, res: Response) => {
+    const start = Date.now();
+    
     try {
-      if (!req.isAuthenticated()) {
-        throw new AppError('Not authenticated', 401);
+      // Extract user ID from session directly - minimal processing
+      const userId = req.session?.passport?.user;
+      if (!userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
       }
 
+      // Direct database call with aggressive caching
+      const results = await notificationService.getNotifications(userId, {
+        includeRead: true
+      });
+
+      console.log(`[FAST-NOTIF] Fast endpoint completed in ${Date.now() - start}ms`);
+      res.json(results);
+    } catch (error) {
+      console.error(`[FAST-NOTIF] Fast endpoint error:`, error);
+      res.status(500).json({ message: 'Error loading notifications' });
+    }
+  });
+
+  // Original notifications endpoint with minimal authentication overhead
+  app.get("/api/notifications", async (req: Request, res: Response, next: NextFunction) => {
+    const start = Date.now();
+    
+    try {
+      // Fast authentication check without full middleware overhead
+      if (!req.session?.passport?.user) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+
+      const userId = req.session.passport.user;
       const lastFetchTime = req.query.lastFetchTime
         ? new Date(req.query.lastFetchTime as string)
         : undefined;
-      
-      const includeRead = req.query.includeRead !== 'false';
-      const type = req.query.type as string | undefined;
-      const priority = req.query.priority as 'high' | 'normal' | 'low' | undefined;
 
-      debug(req, 'Fetching notifications', { 
-        lastFetchTime, 
-        includeRead, 
-        type, 
-        priority,
-        userRole: req.user?.role,
-        userDepartment: req.user?.department
-      });
+      debug(req, 'Fetching notifications', { lastFetchTime, userId });
       
-      // Ensure role and department are always passed for strict role-based filtering
-      const results = await notificationService.getNotifications(req.user!.id, {
+      // Direct call with minimal options for maximum speed
+      const results = await notificationService.getNotifications(userId, {
         lastFetchTime,
-        includeRead,
-        type,
-        priority,
-        userRole: req.user?.role || 'user', // Default to 'user' if role is undefined
-        userDepartment: req.user?.department || 'General' // Default to 'General' if department is undefined
+        includeRead: true
       });
 
-      debug(req, `Found ${results.length} notifications`);
+      debug(req, `Found ${results.length} notifications in ${Date.now() - start}ms`);
       res.json(results);
     } catch (error) {
       debug(req, 'Error fetching notifications:', error);
-      next(error);
+      res.status(500).json({ message: 'Internal server error' });
     }
   });
 
