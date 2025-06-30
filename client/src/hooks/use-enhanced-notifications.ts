@@ -3,8 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 
-// Constants
-const POLLING_INTERVAL = 30000; // 30 seconds
+// Constants - reduced polling to prevent excessive refreshing
+const POLLING_INTERVAL = 120000; // 2 minutes (reduced from 30 seconds)
 const API_BASE_URL = '/api/notifications';
 
 export interface Notification {
@@ -47,7 +47,7 @@ export function useEnhancedNotifications(options?: {
   onActionError?: (actionType: string, notificationId: number, error: NotificationError) => void;
 }) {
   const {
-    autoPolling = true,
+    autoPolling = false, // Disabled to prevent excessive refreshing
     pollInterval = POLLING_INTERVAL,
     includeRead = true,
     filterType,
@@ -107,12 +107,11 @@ export function useEnhancedNotifications(options?: {
       const params = buildQueryParams();
       const queryString = params ? `?${params}` : '';
       
-      // Use fast endpoint to bypass middleware bottleneck
+      // Use fast endpoint with client-side caching to reduce server calls
       const response = await fetch(`/api/notifications/fast`, {
         credentials: 'include',
         headers: {
-          'Cache-Control': 'no-cache, no-store',
-          'Pragma': 'no-cache'
+          'Content-Type': 'application/json'
         }
       });
 
@@ -134,10 +133,9 @@ export function useEnhancedNotifications(options?: {
 
   // Setup polling with cleanup
   useEffect(() => {
-    // Initial fetch
-    fetchNotifications();
-
+    // Only fetch on mount if autoPolling is enabled, otherwise manual only
     if (autoPolling) {
+      fetchNotifications();
       const interval = setInterval(fetchNotifications, pollInterval);
       return () => clearInterval(interval);
     }
