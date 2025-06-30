@@ -47,7 +47,7 @@ export function useEnhancedNotifications(options?: {
   onActionError?: (actionType: string, notificationId: number, error: NotificationError) => void;
 }) {
   const {
-    autoPolling = false, // Disabled to prevent excessive refreshing
+    autoPolling = true, // Re-enabled with aggressive caching
     pollInterval = POLLING_INTERVAL,
     includeRead = true,
     filterType,
@@ -98,16 +98,33 @@ export function useEnhancedNotifications(options?: {
     return params.toString();
   }, [lastFetchTime, includeRead, filterType, filterPriority, userRole, userDepartment]);
 
-  // Safe fetch function with comprehensive error handling
+  // Optimized fetch function with aggressive client-side caching
   const fetchNotifications = useCallback(async (): Promise<void> => {
+    // Check localStorage cache first (5-minute cache)
+    const cacheKey = 'notifications_cache';
+    const cached = localStorage.getItem(cacheKey);
+    const now = Date.now();
+    
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        if (now - timestamp < 300000) { // 5 minutes cache
+          console.log('Using cached notifications');
+          setNotifications(Array.isArray(data) ? data : []);
+          setIsLoading(false);
+          setError(null);
+          return;
+        }
+      } catch (e) {
+        // Invalid cache, continue to fetch
+      }
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       
-      const params = buildQueryParams();
-      const queryString = params ? `?${params}` : '';
-      
-      // Use fast endpoint with client-side caching to reduce server calls
+      // Use fast endpoint
       const response = await fetch(`/api/notifications/fast`, {
         credentials: 'include',
         headers: {
@@ -120,16 +137,38 @@ export function useEnhancedNotifications(options?: {
       }
 
       const data = await response.json();
-      setNotifications(Array.isArray(data) ? data : []);
+      const notifications = Array.isArray(data) ? data : [];
+      
+      setNotifications(notifications);
       setLastFetchTime(new Date());
+      
+      // Cache the result
+      localStorage.setItem(cacheKey, JSON.stringify({
+        data: notifications,
+        timestamp: now
+      }));
+      
     } catch (err) {
       console.error('Error fetching notifications:', err);
       setError(err);
-      // Don't update notifications on error to maintain current state
+      // Use cached data if available on error
+      if (cached) {
+        try {
+          const { data } = JSON.parse(cached);
+          setNotifications(Array.isArray(data) ? data : []);
+        } catch (e) {
+          setNotifications([]);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [buildQueryParams]);
+  }, []);
+
+  // Clear cache function
+  const clearNotificationsCache = useCallback(() => {
+    localStorage.removeItem('notifications_cache');
+  }, []);
 
   // Setup polling with cleanup
   useEffect(() => {
@@ -158,7 +197,8 @@ export function useEnhancedNotifications(options?: {
 
         const result = await response.json();
         
-        // Refetch notifications after successful mutation
+        // Clear cache and refetch notifications after successful mutation
+        clearNotificationsCache();
         await fetchNotifications();
         
         return result;
@@ -170,8 +210,8 @@ export function useEnhancedNotifications(options?: {
   };
 
   // Action handlers
-  const markAsRead = useCallback(createSafeMutation('/api/notifications/:id/read'), []);
-  const acknowledgeNotification = useCallback(createSafeMutation('/api/notifications/:id/acknowledge'), []);
+  const markAsRead = useCallback(createSafeMutation('/api/notifications/:id/read'), [clearNotificationsCache]);
+  const acknowledgeNotification = useCallback(createSafeMutation('/api/notifications/:id/acknowledge'), [clearNotificationsCache]);
   
   const markAllAsRead = useCallback(async () => {
     try {
@@ -185,6 +225,7 @@ export function useEnhancedNotifications(options?: {
         throw new Error(`HTTP ${response.status}`);
       }
 
+      clearNotificationsCache();
       await fetchNotifications();
       
       toast({
