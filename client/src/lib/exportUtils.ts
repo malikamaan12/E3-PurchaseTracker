@@ -15,23 +15,32 @@ import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
 
-// Proper autoTable plugin loading
-// @ts-ignore
-import * as autoTable from 'jspdf-autotable';
+// Alternative approach - ensure autoTable is available
+let autoTableLoaded = false;
 
-// Ensure autoTable is properly attached to jsPDF
-if (typeof (jsPDF as any).API.autoTable === 'undefined') {
-  // Add autoTable to jsPDF API
-  (jsPDF as any).API.autoTable = function (options: any) {
-    return autoTable.default(this, options);
-  };
+async function ensureAutoTableLoaded() {
+  if (!autoTableLoaded) {
+    try {
+      // Dynamic import of the autoTable plugin
+      await import('jspdf-autotable');
+      autoTableLoaded = true;
+    } catch (error) {
+      console.error('Failed to load jspdf-autotable:', error);
+    }
+  }
 }
 
-// TypeScript interface extension
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
+// Create jsPDF instance with autoTable support
+export async function createPDFDoc(): Promise<jsPDF & { autoTable: (options: any) => jsPDF }> {
+  await ensureAutoTableLoaded();
+  const doc = new jsPDF() as any;
+  
+  // Ensure autoTable is available
+  if (!doc.autoTable) {
+    throw new Error('autoTable plugin not loaded properly');
   }
+  
+  return doc;
 }
 import JSZip from 'jszip';
 import { format } from 'date-fns';
@@ -361,12 +370,8 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user'): Promise<string> {
   try {
-    // Create PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    // Create PDF document with autoTable support
+    const doc = await createPDFDoc();
     
     // Header with logo or title
     doc.setFontSize(18);

@@ -18,7 +18,6 @@ import {
   exportRequestToPDF, 
   exportMultipleRequestsAsZip
 } from "@/lib/exportUtils";
-import { testAutoTable } from "@/lib/pdfTest";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { quickDiagnoseExportError } from "@/services/export-analyzer";
