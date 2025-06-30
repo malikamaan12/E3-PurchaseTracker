@@ -287,6 +287,16 @@ export class NotificationService {
     userDepartment?: string;
   }) {
     try {
+      // Create cache key based on user and options
+      const cacheKey = `notifications_${userId}_${JSON.stringify(options)}`;
+      const now = Date.now();
+      
+      // Check cache first
+      const cached = this.cache.get(cacheKey);
+      if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+        return cached.data;
+      }
+
       // Start with basic query conditions
       const conditions = [eq(notifications.userId, userId)];
       
@@ -316,10 +326,10 @@ export class NotificationService {
         .limit(50); // Limit results for performance
 
       // Filter expired notifications in memory (faster than complex SQL)
-      const now = new Date();
+      const currentTime = new Date();
       const validNotifications = result.filter(notification => {
         // Check if notification is expired
-        if (notification.expiresAt && new Date(notification.expiresAt) < now) {
+        if (notification.expiresAt && new Date(notification.expiresAt) < currentTime) {
           return false;
         }
         
@@ -354,6 +364,17 @@ export class NotificationService {
         
         return true;
       });
+
+      // Cache the results
+      this.cache.set(cacheKey, { data: validNotifications, timestamp: now });
+      
+      // Cleanup old cache entries periodically
+      if (this.cache.size > 100) {
+        const oldEntries = Array.from(this.cache.entries())
+          .filter(([, value]) => (now - value.timestamp) > this.CACHE_TTL)
+          .map(([key]) => key);
+        oldEntries.forEach(key => this.cache.delete(key));
+      }
 
       return validNotifications;
     } catch (error) {
