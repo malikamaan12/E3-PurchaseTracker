@@ -96,63 +96,86 @@ export function useEnhancedNotifications(options?: {
     return params.toString();
   }, [lastFetchTime, includeRead, filterType, filterPriority, userRole, userDepartment]);
 
-  // Fetch notifications
-  const { 
-    data: notifications = [], 
-    isLoading,
-    error,
-    refetch
-  } = useQuery<Notification[]>({
-    queryKey: ['/api/notifications', includeRead, filterType, filterPriority],
-    queryFn: async () => {
-      try {
-        const params = buildQueryParams();
-        const queryString = params ? `?${params}` : '';
-        
-        // Simplified fetch with timeout and better error handling
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort('Request timeout'), 10000); // 10 second timeout
-          
-          const response = await fetch(`/api/notifications${queryString}`, {
-            signal: controller.signal,
-            credentials: 'include',
-            headers: {
-              'Cache-Control': 'no-cache, no-store',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            console.error(`Notification API error: ${response.status}`);
-            return [];
-          }
-          
-          return await response.json();
-        } catch (fetchErr: any) {
-          if (fetchErr.name === 'AbortError') {
-            console.warn("Notification fetch timed out");
-            return []; // Return empty array for timeout
-          } else {
-            console.error("Network error fetching notifications:", fetchErr);
-            return []; // Return empty array for network errors
-          }
+  // Use a simpler approach with manual state management to avoid React Query issues
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<any>(null);
+
+  // Manual fetch function that never throws
+  const fetchNotifications = useCallback(async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const params = buildQueryParams();
+      const queryString = params ? `?${params}` : '';
+      
+      // Simple fetch without AbortController to avoid any issues
+      const response = await fetch(`/api/notifications${queryString}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache'
         }
-      } catch (err) {
-        console.error("Error in notifications query:", err);
-        return [];
+      }).catch((fetchErr) => {
+        // Catch any network errors and return null
+        console.error("Network error fetching notifications:", fetchErr);
+        return null;
+      });
+      
+      if (!response) {
+        setNotifications([]);
+        return;
       }
-    },
-    staleTime: STALE_TIME,
-    enabled: true,
-    retry: 0, // No retries since we're already handling errors gracefully
-    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce requests
-    throwOnError: false, // Prevent unhandled promise rejections
-    // Provide default data to ensure notifications is always an array
-    placeholderData: [] as Notification[]
-  });
+      
+      if (!response.ok) {
+        console.error(`Notification API error: ${response.status}`);
+        setNotifications([]);
+        return;
+      }
+      
+      try {
+        const data = await response.json();
+        setNotifications(Array.isArray(data) ? data : []);
+      } catch (jsonErr) {
+        console.error("JSON parsing error:", jsonErr);
+        setNotifications([]);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+      setNotifications([]);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [buildQueryParams]);
+
+  // Create a refetch function
+  const refetch = useCallback(() => {
+    fetchNotifications().catch((err) => {
+      console.error("Error in refetch:", err);
+      // Don't throw, just log
+    });
+  }, [fetchNotifications]);
+
+  // Initial fetch and polling setup
+  useEffect(() => {
+    // Initial fetch
+    fetchNotifications().catch((err) => {
+      console.error("Error in initial fetch:", err);
+    });
+
+    // Setup polling if enabled
+    if (autoPolling) {
+      const interval = setInterval(() => {
+        fetchNotifications().catch((err) => {
+          console.error("Error in polling fetch:", err);
+        });
+      }, pollInterval);
+
+      return () => clearInterval(interval);
+    }
+  }, [fetchNotifications, autoPolling, pollInterval]);
 
   // Mark notification as read
   const markAsRead = useMutation({
@@ -189,7 +212,7 @@ export function useEnhancedNotifications(options?: {
     },
     onSuccess: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetch();
     },
     onError: (error: NotificationError) => {
       console.error("Failed to mark notification as read:", error);
@@ -239,7 +262,7 @@ export function useEnhancedNotifications(options?: {
     },
     onSuccess: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetch();
     },
     onError: (error: NotificationError) => {
       console.error("Failed to acknowledge notification:", error);
@@ -289,7 +312,7 @@ export function useEnhancedNotifications(options?: {
     },
     onSuccess: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetch();
       toast({
         title: "Success",
         description: "All notifications marked as read",
@@ -456,12 +479,12 @@ export function useEnhancedNotifications(options?: {
     },
     onSuccess: (data, variables) => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetch();
       
       // If we have a requestId, also invalidate the requests query
       if (variables.requestId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/requests'] });
-        queryClient.invalidateQueries({ queryKey: [`/api/requests/${variables.requestId}`] });
+        refetch();
+        refetch();
       }
       
       // Call the provided success callback if any
@@ -548,7 +571,7 @@ export function useEnhancedNotifications(options?: {
       const now = new Date();
       if (!isNaN(now.getTime())) {
         setLastFetchTime(now);
-        return queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+        return refetch();
       }
       return Promise.resolve();
     }
