@@ -133,67 +133,13 @@ export function useEnhancedNotifications(options?: {
 
   // Setup polling with cleanup
   useEffect(() => {
-    // Add sample notifications to demonstrate quick actions
-    const sampleNotifications: Notification[] = [
-      {
-        id: 1,
-        userId: 32,
-        requestId: 177,
-        title: "Purchase Request Approval Required",
-        message: "Trade Show Booth Materials request requires your approval. Total cost: $4,200",
-        type: "approval_required",
-        priority: "high",
-        isRead: false,
-        isAcknowledged: false,
-        link: "/requests/177",
-        actionType: "approve",
-        actionData: { requestId: 177 },
-        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 2,
-        userId: 32,
-        requestId: 178,
-        title: "Request Needs Review",
-        message: "Marketing Materials request has been updated and needs review",
-        type: "review_required",
-        priority: "normal",
-        isRead: false,
-        isAcknowledged: false,
-        link: "/requests/178",
-        actionType: "review",
-        actionData: { requestId: 178 },
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 3,
-        userId: 32,
-        requestId: 179,
-        title: "System Notification",
-        message: "Budget threshold exceeded for Q2 2025. Please acknowledge this alert.",
-        type: "system_alert",
-        priority: "low",
-        isRead: false,
-        isAcknowledged: false,
-        link: "/dashboard",
-        actionType: "acknowledge",
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-        updatedAt: new Date().toISOString()
-      }
-    ];
+    // Initial fetch
+    fetchNotifications();
 
-    // Set sample notifications instead of fetching
-    setNotifications(sampleNotifications);
-    setIsLoading(false);
-
-    // Uncomment the lines below to enable real API calls
-    // fetchNotifications();
-    // if (autoPolling) {
-    //   const interval = setInterval(fetchNotifications, pollInterval);
-    //   return () => clearInterval(interval);
-    // }
+    if (autoPolling) {
+      const interval = setInterval(fetchNotifications, pollInterval);
+      return () => clearInterval(interval);
+    }
   }, [fetchNotifications, autoPolling, pollInterval]);
 
   // Safe mutation function wrapper
