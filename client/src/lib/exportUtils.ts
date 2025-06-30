@@ -443,27 +443,30 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     // Calculate position for items table
     currentY += splitDescription.length * 5 + 10;
     
-    // Add vendor information if available
-    if (request.vendor && request.vendor.name) {
+    // Add vendor information if available and enabled in settings
+    if (request.vendor && request.vendor.name && settings.showVendorDetails !== false) {
       doc.setFontSize(12);
-      doc.text('Vendor Information:', 14, currentY);
-      doc.setFontSize(10);
-      doc.text(`Name: ${request.vendor.name}`, 14, currentY + lineHeight);
+      doc.text('Vendor Information:', marginLeft, currentY);
+      currentY += 5;
+      doc.setFontSize(fontSize);
+      doc.text(`Name: ${request.vendor.name}`, marginLeft, currentY);
+      currentY += lineHeight;
       
       if (request.vendor.contactName || request.vendor.contactEmail || request.vendor.contactPhone) {
-        doc.text(`Contact: ${request.vendor.contactName || 'N/A'}`, 14, currentY + lineHeight * 2);
-        doc.text(`Email: ${request.vendor.contactEmail || 'N/A'}`, 14, currentY + lineHeight * 3);
-        doc.text(`Phone: ${request.vendor.contactPhone || 'N/A'}`, 14, currentY + lineHeight * 4);
-        currentY += lineHeight * 5;
-      } else {
-        currentY += lineHeight * 2;
+        doc.text(`Contact: ${request.vendor.contactName || 'N/A'}`, marginLeft, currentY);
+        currentY += lineHeight;
+        doc.text(`Email: ${request.vendor.contactEmail || 'N/A'}`, marginLeft, currentY);
+        currentY += lineHeight;
+        doc.text(`Phone: ${request.vendor.contactPhone || 'N/A'}`, marginLeft, currentY);
+        currentY += lineHeight;
       }
+      currentY += 5;
     }
     
-    // Add items table
-    if (request.items && request.items.length > 0) {
+    // Add items table if enabled in settings
+    if (request.items && request.items.length > 0 && settings.showItemsTable !== false) {
       doc.setFontSize(12);
-      doc.text('Items:', 14, currentY);
+      doc.text('Items:', marginLeft, currentY);
       currentY += lineHeight;
       
       const tableHead = [['#', 'Name', 'Description', 'Quantity', 'Unit Cost', 'Total']];
@@ -482,15 +485,24 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         ];
       });
       
+      // Parse table header color from settings
+      let tableHeaderR = 0, tableHeaderG = 51, tableHeaderB = 102;
+      if (settings.tableHeaderColor && settings.tableHeaderColor.startsWith('#')) {
+        const color = settings.tableHeaderColor.substring(1);
+        tableHeaderR = parseInt(color.substring(0, 2), 16);
+        tableHeaderG = parseInt(color.substring(2, 4), 16);
+        tableHeaderB = parseInt(color.substring(4, 6), 16);
+      }
+
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
         head: tableHead,
         body: tableBody,
         startY: currentY,
-        margin: { left: 14 },
+        margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [0, 51, 102] }
+        styles: { fontSize: fontSize - 2 },
+        headStyles: { fillColor: [tableHeaderR, tableHeaderG, tableHeaderB] }
       });
       
       // Get the latest Y position after adding the table
@@ -534,15 +546,17 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Page ${i} of ${pageCount} - Generated on ${new Date().toLocaleString()}`, 14, doc.internal.pageSize.height - 10);
+      doc.text(`Page ${i} of ${pageCount} - Generated on ${new Date().toLocaleString()}`, marginLeft, doc.internal.pageSize.height - marginBottom);
     }
     
     // Add tracking ID and audit watermark for security
     const requestId = request.id || 'unknown';
     const trackingId = generatePdfTrackingId(requestId);
     
-    // Apply a subtle watermark
-    applyPdfWatermark(doc, trackingId, 0.1);
+    // Apply watermark using settings
+    const watermarkText = settings.watermarkText || trackingId;
+    const watermarkOpacity = settings.watermarkOpacity ? settings.watermarkOpacity / 100 : 0.1;
+    applyPdfWatermark(doc, watermarkText, watermarkOpacity);
     
     // Generate timestamp for filename
     const timestamp = format(new Date(), 'yyyy-MM-dd-HH-mm');
