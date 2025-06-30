@@ -9,7 +9,13 @@ import {
   Info, 
   X,
   CheckSquare,
-  XCircle
+  XCircle,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  FileText,
+  Settings
 } from 'lucide-react';
 import { useEnhancedNotifications } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
@@ -57,12 +63,12 @@ export function EnhancedNotificationsDropdown({
     markAsRead,
     acknowledgeNotification,
     markAllAsRead,
-    refetch 
+    refetch,
+    performAction
   } = useEnhancedNotifications({
-    autoPolling: true,
-    pollInterval: 60000, // Increase to 60 seconds from 30 to reduce API calls
+    autoPolling: false, // Temporarily disabled for stability
+    pollInterval: 60000,
     includeRead: true,
-    // Pass user role and department for role-specific notifications
     userRole: user?.role,
     userDepartment: user?.department
   });
@@ -320,43 +326,151 @@ export function EnhancedNotificationsDropdown({
                         {notification.message}
                       </p>
                       
-                      {notification.actionType && (
-                        <div className="mt-2 flex items-center gap-2">
+                      {/* Enhanced Quick Action Buttons */}
+                      <div className="mt-2 flex items-center gap-1 flex-wrap">
+                        {/* Primary Action Button */}
+                        {notification.actionType && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
+                            variant={notification.priority === 'high' ? 'default' : 'outline'}
+                            className="h-7 px-2 text-xs font-medium"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleNotificationClick(notification);
+                              if (performAction && notification.actionType) {
+                                performAction({
+                                  actionType: notification.actionType,
+                                  notificationId: notification.id,
+                                  requestId: notification.requestId
+                                });
+                              } else {
+                                handleNotificationClick(notification);
+                              }
                             }}
                           >
-                            {notification.actionType === 'approve' && 'Review & Approve'}
-                            {notification.actionType === 'reject' && 'Review & Reject'}
-                            {notification.actionType === 'review' && 'Review'}
-                            {notification.actionType === 'acknowledge' && 'Acknowledge'}
-                            {notification.actionType === 'update' && 'Update'}
-                            {notification.actionType === 'view' && 'View'}
-                            {notification.actionType === 'complete' && 'Complete'}
+                            {notification.actionType === 'approve' && (
+                              <>
+                                <ThumbsUp className="mr-1 h-3 w-3" />
+                                Approve
+                              </>
+                            )}
+                            {notification.actionType === 'reject' && (
+                              <>
+                                <ThumbsDown className="mr-1 h-3 w-3" />
+                                Reject
+                              </>
+                            )}
+                            {notification.actionType === 'review' && (
+                              <>
+                                <Eye className="mr-1 h-3 w-3" />
+                                Review
+                              </>
+                            )}
+                            {notification.actionType === 'acknowledge' && (
+                              <>
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                                Acknowledge
+                              </>
+                            )}
+                            {notification.actionType === 'update' && (
+                              <>
+                                <Settings className="mr-1 h-3 w-3" />
+                                Update
+                              </>
+                            )}
+                            {notification.actionType === 'view' && (
+                              <>
+                                <FileText className="mr-1 h-3 w-3" />
+                                View
+                              </>
+                            )}
+                            {notification.actionType === 'complete' && (
+                              <>
+                                <CheckSquare className="mr-1 h-3 w-3" />
+                                Complete
+                              </>
+                            )}
+                            {!['approve', 'reject', 'review', 'acknowledge', 'update', 'view', 'complete'].includes(notification.actionType) && (
+                              <>
+                                <Eye className="mr-1 h-3 w-3" />
+                                {notification.actionType}
+                              </>
+                            )}
                           </Button>
+                        )}
+                        
+                        {/* Secondary Action: View Details */}
+                        {notification.requestId && (
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
-                              markAsRead(notification.id);
-                              toast({
-                                title: "Notification marked as read",
-                                description: "You can find it in your notification history.",
-                              });
+                              handleNotificationClick(notification);
                             }}
                           >
-                            <X className="mr-1 h-3 w-3" />
-                            Dismiss
+                            <Eye className="mr-1 h-3 w-3" />
+                            Details
                           </Button>
-                        </div>
-                      )}
+                        )}
+                        
+                        {/* Quick Actions Menu */}
+                        {notification.actionType === 'approve' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (performAction) {
+                                performAction({
+                                  actionType: 'reject',
+                                  notificationId: notification.id,
+                                  requestId: notification.requestId
+                                });
+                              }
+                            }}
+                          >
+                            <ThumbsDown className="mr-1 h-3 w-3" />
+                            Reject
+                          </Button>
+                        )}
+                        
+                        {/* Comment/Message Action */}
+                        {notification.requestId && notification.actionType !== 'view' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation(`/requests/${notification.requestId}#comments`);
+                              setOpen(false);
+                            }}
+                          >
+                            <MessageSquare className="mr-1 h-3 w-3" />
+                            Comment
+                          </Button>
+                        )}
+                        
+                        {/* Dismiss Button */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notification.id);
+                            toast({
+                              title: "Notification dismissed",
+                              description: "You can find it in your notification history.",
+                            });
+                          }}
+                        >
+                          <X className="mr-1 h-3 w-3" />
+                          Dismiss
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </DropdownMenuItem>
