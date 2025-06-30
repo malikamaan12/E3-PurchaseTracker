@@ -109,15 +109,21 @@ export function useEnhancedNotifications(options?: {
         const params = buildQueryParams();
         const queryString = params ? `?${params}` : '';
         
-        // Simplified fetch without abort controller to prevent timeout issues
+        // Simplified fetch with timeout and better error handling
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
           const response = await fetch(`/api/notifications${queryString}`, {
+            signal: controller.signal,
             credentials: 'include',
             headers: {
               'Cache-Control': 'no-cache, no-store',
               'Pragma': 'no-cache'
             }
           });
+          
+          clearTimeout(timeoutId);
           
           if (!response.ok) {
             console.error(`Notification API error: ${response.status}`);
@@ -126,7 +132,11 @@ export function useEnhancedNotifications(options?: {
           
           return await response.json();
         } catch (fetchErr: any) {
-          console.error("Network error fetching notifications:", fetchErr);
+          if (fetchErr.name === 'AbortError') {
+            console.warn("Notification fetch timed out");
+          } else {
+            console.error("Network error fetching notifications:", fetchErr);
+          }
           return [];
         }
       } catch (err) {

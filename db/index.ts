@@ -3,14 +3,28 @@ import { sql } from "drizzle-orm";
 import ws from "ws";
 import * as schema from "@db/schema";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+// Database connection logic supporting both Replit/Neon and DigitalOcean
+function getDatabaseConnection() {
+  // Check for production DigitalOcean database first
+  const prodConnectionString = process.env.PROD_DATABASE_URL;
+  const devConnectionString = process.env.DATABASE_URL;
+  
+  const connectionString = prodConnectionString || devConnectionString;
+  
+  if (!connectionString) {
+    throw new Error("Neither PROD_DATABASE_URL nor DATABASE_URL is set");
+  }
+  
+  const dbType = prodConnectionString ? 'DigitalOcean (Production)' : 'Replit/Neon (Development)';
+  console.log(`Using database: ${dbType}`);
+  
+  return connectionString;
 }
 
+const connectionString = getDatabaseConnection();
+
 export const db = drizzle({
-  connection: process.env.DATABASE_URL,
+  connection: connectionString,
   schema,
   ws: ws,
 });
