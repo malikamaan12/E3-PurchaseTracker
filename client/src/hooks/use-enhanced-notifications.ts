@@ -107,7 +107,8 @@ export function useEnhancedNotifications(options?: {
       const params = buildQueryParams();
       const queryString = params ? `?${params}` : '';
       
-      const response = await fetch(`/api/notifications${queryString}`, {
+      // Use fast endpoint to bypass middleware bottleneck
+      const response = await fetch(`/api/notifications/fast`, {
         credentials: 'include',
         headers: {
           'Cache-Control': 'no-cache, no-store',
