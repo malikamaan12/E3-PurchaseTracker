@@ -61,5 +61,12 @@ A modern, lightweight purchase management system optimized for performance and u
 7. **Transition Optimization**: Replaced transform transitions with lightweight opacity changes
 8. **Tailwind Cleanup**: Removed unused keyframes reducing bundle size by approximately 40%
 
+## DigitalOcean Hybrid Setup (June 2025)
+- **Database Support**: Added automatic detection for production DigitalOcean database
+- **Migration Tools**: Created database migration scripts for seamless data transfer
+- **Hybrid Architecture**: App runs on Replit with option to use DigitalOcean database and custom domain
+- **Connection Logic**: Smart database switching between development (Replit/Neon) and production (DigitalOcean)
+- **Cost Optimization**: Hybrid approach provides professional features at lower cost than full deployment
+
 ## Current Status
-The application is now significantly lighter and more performant while maintaining its modern aesthetic and full functionality. All core features remain intact with improved user experience.
+The application is ready for DigitalOcean hybrid deployment with automatic database switching, migration tools, and sample data. All core features remain intact with improved user experience and production readiness.
