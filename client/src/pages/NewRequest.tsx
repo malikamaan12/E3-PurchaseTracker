@@ -628,7 +628,7 @@ export default function NewRequest() {
                           These departments must approve your request:
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {['Finance', 'Management'].map((dept) => (
+                          {['CEO Office', 'Finance', 'Director'].map((dept) => (
                             <Badge key={dept} variant="secondary" className="bg-[#7058a3]/10 text-[#7058a3]">
                               {dept}
                             </Badge>
@@ -648,7 +648,7 @@ export default function NewRequest() {
                         onChange={handleDepartmentChange}
                         value={selectedDepartments}
                         multiple={true}
-                        excludeDepartments={['Finance', 'Management']} // Exclude mandatory approvers
+                        excludeDepartments={['CEO Office', 'Finance', 'Director']} // Exclude mandatory approvers
                         name="additionalApprovers"
                         id="additionalApprovers"
                       />
@@ -658,7 +658,7 @@ export default function NewRequest() {
                     <div className="mt-4">
                       <h4 className="text-sm font-medium text-[#7058a3] mb-2">Approval Flow Preview</h4>
                       <div className="space-y-2">
-                        {[...['Finance', 'Management'], ...selectedDepartments].map((dept, index) => (
+                        {[...['CEO Office', 'Finance', 'Director'], ...selectedDepartments].map((dept, index) => (
                           <div
                             key={dept}
                             className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#7058a3]/10"
@@ -667,7 +667,7 @@ export default function NewRequest() {
                               {index + 1}
                             </div>
                             <span className="text-sm font-medium">{dept}</span>
-                            {index < 2 && (
+                            {index < 3 && (
                               <Badge variant="outline" className="ml-auto text-xs">
                                 Mandatory
                               </Badge>

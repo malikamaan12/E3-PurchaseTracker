@@ -719,7 +719,17 @@ export function registerRoutes(app: Express): Server {
               return true;
             }
 
-            // 3. User's department is in additionalApprovers for this request
+            // 3. User's department is a mandatory approver department
+            const mandatoryApproverDepartments = ["CEO Office", "Finance", "Director"];
+            if (
+              req.user?.department &&
+              mandatoryApproverDepartments.includes(req.user.department) &&
+              request.status === "pending"
+            ) {
+              return true;
+            }
+
+            // 4. User's department is in additionalApprovers for this request
             const additionalApprovers =
               typeof request.additionalApprovers === "string"
                 ? JSON.parse(request.additionalApprovers)
