@@ -350,8 +350,8 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     
     // Create PDF document with configurable margins
     const marginTop = settings.marginTop || 20;
-    const marginLeft = settings.marginLeft || 25;
-    const marginRight = settings.marginRight || 25;
+    const marginLeft = settings.marginLeft || 20;
+    const marginRight = settings.marginRight || 20;
     const marginBottom = settings.marginBottom || 20;
     
     const doc = new jsPDF({
@@ -361,7 +361,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     }) as any;
     
     // Apply font settings
-    const fontSize = settings.fontSize || 11;
+    const fontSize = settings.fontSize || 10;
     const fontFamily = settings.fontFamily || 'helvetica';
     
     try {
@@ -370,193 +370,150 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       doc.setFont('helvetica'); // Fallback
     }
     
-    // Header section with configurable styling
     let currentY = marginTop;
+    const pageWidth = 210 - marginLeft - marginRight; // A4 width minus margins
     
-    // Apply header title and subtitle from settings
-    const headerTitle = settings.headerTitle || `Purchase Request: ${request.requestNumber || request.id}`;
-    const headerSubtitle = settings.headerSubtitle || '';
+    // Header with title and request info
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PURCHASE REQUEST', marginLeft, currentY);
     
-    // Parse header color (default to dark blue)
-    let headerR = 0, headerG = 51, headerB = 102;
-    if (settings.headerColor && settings.headerColor.startsWith('#')) {
-      const color = settings.headerColor.substring(1);
-      headerR = parseInt(color.substring(0, 2), 16);
-      headerG = parseInt(color.substring(2, 4), 16);
-      headerB = parseInt(color.substring(4, 6), 16);
-    }
+    // Request number and date on the right
+    const requestNumber = request.requestNumber || `PR-${request.id}`;
+    const dateCreated = request.createdAt ? new Date(request.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
     
-    doc.setFontSize(18);
-    doc.setTextColor(headerR, headerG, headerB);
-    doc.text(headerTitle, marginLeft, currentY);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const rightColumnX = marginLeft + pageWidth - 50;
+    doc.text(`PR #PR-${request.id}`, rightColumnX, currentY - 5);
+    doc.text(`Date: ${dateCreated}`, rightColumnX, currentY + 2);
+    
+    currentY += 15;
+    
+    // Top info section with gray background
+    doc.setFillColor(240, 240, 240);
+    doc.rect(marginLeft, currentY, pageWidth, 20, 'F');
+    
+    currentY += 5;
+    
+    // Two column layout for basic info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    // Left column
+    doc.text('Requester:', marginLeft + 5, currentY);
+    doc.text(request.requester?.username || 'N/A', marginLeft + 25, currentY);
+    
+    // Right column  
+    doc.text('Department:', marginLeft + pageWidth/2, currentY);
+    doc.text(request.requester?.department || 'N/A', marginLeft + pageWidth/2 + 25, currentY);
+    
+    currentY += 7;
+    
+    // Second row
+    doc.text('Status:', marginLeft + 5, currentY);
+    doc.text((request.status || 'PENDING').toUpperCase(), marginLeft + 25, currentY);
+    
+    doc.text('Priority:', marginLeft + pageWidth/2, currentY);
+    doc.text((request.priority || 'MEDIUM').toUpperCase(), marginLeft + pageWidth/2 + 25, currentY);
+    
     currentY += 10;
     
-    if (headerSubtitle) {
-      doc.setFontSize(12);
-      doc.setTextColor(100, 100, 100); // Gray
-      doc.text(headerSubtitle, marginLeft, currentY);
-      currentY += 8;
-    }
+    // BASIC INFORMATION Section
+    doc.setFillColor(0, 0, 0);
+    doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
     
-    // Add basic information using settings
-    doc.setFontSize(fontSize);
-    doc.setTextColor(0, 0, 0); // Black
-    const lineHeight = 7;
-    
-    // Check what sections to show based on settings
-    let currentLine = 0;
-    
-    if (settings.showBasicInfo !== false) {
-      doc.text(`Title: ${request.title || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-      doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-      doc.text(`Priority: ${request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-    }
-    
-    if (settings.showRequesterDetails !== false) {
-      doc.text(`Requester: ${request.requester?.username || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-      doc.text(`Department: ${request.requester?.department || 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-    }
-    
-    if (settings.showDateOfRequest !== false) {
-      doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-    }
-
-    // Add request number prominently if not already shown
-    if (request.requestNumber && settings.showRequestNumber !== false) {
-      doc.text(`Request Number: ${request.requestNumber}`, marginLeft, currentY + lineHeight * currentLine);
-      currentLine++;
-    }
-    
-    currentY += lineHeight * currentLine + 10;
-    
-    // Add description
-    doc.setFontSize(12);
-    doc.text('Description:', marginLeft, currentY);
-    currentY += 8;
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BASIC INFORMATION', marginLeft + 2, currentY + 5);
     
-    // Split description text to prevent overflow
+    currentY += 15;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    
+    // Basic info fields
+    doc.text('Title:', marginLeft + 5, currentY);
+    doc.text(request.title || 'N/A', marginLeft + 25, currentY);
+    currentY += 7;
+    
+    doc.text('Description:', marginLeft + 5, currentY);
     const description = request.description || 'No description provided';
-    const splitDescription = doc.splitTextToSize(description, 180);
-    doc.text(splitDescription, marginLeft, currentY);
+    doc.text(description, marginLeft + 25, currentY);
+    currentY += 7;
     
-    // Calculate position for items table
-    currentY += splitDescription.length * 5 + 10;
+    doc.text('Purpose Type:', marginLeft + 5, currentY);
+    doc.text(request.purposeType || 'N/A', marginLeft + 25, currentY);
     
-    // Add purpose and sub-purpose information if enabled in settings
-    if (settings.showPurposeDetails !== false && (request.purposeType || request.subPurpose)) {
-      doc.setFontSize(12);
-      doc.text('Purpose Information:', marginLeft, currentY);
-      currentY += 5;
-      doc.setFontSize(fontSize);
+    doc.text('Sub-purpose:', marginLeft + pageWidth/2, currentY);
+    doc.text(request.subPurpose?.name || 'N/A', marginLeft + pageWidth/2 + 25, currentY);
+    currentY += 7;
+    
+    doc.text('Contact Info:', marginLeft + 5, currentY);
+    const contactInfo = `Email: ${request.requester?.email || 'N/A'}`;
+    doc.text(contactInfo, marginLeft + 25, currentY);
+    
+    currentY += 15;
+    
+    // VENDOR INFORMATION Section
+    if (request.vendor && (request.vendor.companyName || request.vendor.name)) {
+      doc.setFillColor(0, 0, 0);
+      doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
-      if (request.purposeType) {
-        doc.text(`Purpose Type: ${request.purposeType}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('VENDOR INFORMATION', marginLeft + 2, currentY + 5);
       
-      if (request.subPurpose && request.subPurpose.name) {
-        doc.text(`Sub-Purpose: ${request.subPurpose.name}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
-      currentY += 5;
-    }
-
-    // Add vendor information if available and enabled in settings
-    if (request.vendor && (request.vendor.companyName || request.vendor.name) && settings.showVendorDetails !== false) {
-      doc.setFontSize(12);
-      doc.text('Vendor Information:', marginLeft, currentY);
-      currentY += 5;
-      doc.setFontSize(fontSize);
+      currentY += 15;
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
       
+      // Vendor info in two columns
       const vendorName = request.vendor.companyName || request.vendor.name;
-      doc.text(`Company: ${vendorName}`, marginLeft, currentY);
-      currentY += lineHeight;
+      doc.text('Vendor Name:', marginLeft + 5, currentY);
+      doc.text(vendorName, marginLeft + 30, currentY);
       
-      if (request.vendor.contactPerson) {
-        doc.text(`Contact Person: ${request.vendor.contactPerson}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
+      doc.text('Contact Person:', marginLeft + pageWidth/2, currentY);
+      doc.text(request.vendor.contactPerson || 'N/A', marginLeft + pageWidth/2 + 30, currentY);
+      currentY += 7;
       
-      if (request.vendor.email) {
-        doc.text(`Email: ${request.vendor.email}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
+      doc.text('Email:', marginLeft + 5, currentY);
+      doc.text(request.vendor.email || 'N/A', marginLeft + 30, currentY);
       
-      if (request.vendor.contactNumber) {
-        doc.text(`Phone: ${request.vendor.contactNumber}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
+      doc.text('Phone:', marginLeft + pageWidth/2, currentY);
+      doc.text(request.vendor.contactNumber || 'N/A', marginLeft + pageWidth/2 + 30, currentY);
       
-      if (request.vendor.address) {
-        doc.text(`Address: ${request.vendor.address}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
-      
-      currentY += 5;
-    }
-
-    // Add financial information if enabled in settings
-    if (settings.showFinancialDetails !== false) {
-      doc.setFontSize(12);
-      doc.text('Financial Information:', marginLeft, currentY);
-      currentY += 5;
-      doc.setFontSize(fontSize);
-      
-      if (request.currency) {
-        doc.text(`Currency: ${request.currency}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
-      
-      if (request.freightAmount) {
-        doc.text(`Freight Amount: ${request.currency || ''} ${Number(request.freightAmount).toFixed(2)}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
-      
-      if (request.totalEstimatedCost) {
-        doc.text(`Total Estimated Cost: ${request.currency || ''} ${Number(request.totalEstimatedCost).toFixed(2)}`, marginLeft, currentY);
-        currentY += lineHeight;
-      }
-      
-      currentY += 5;
+      currentY += 15;
     }
     
-    // Add items table if enabled in settings
-    if (request.items && request.items.length > 0 && settings.showItemsTable !== false) {
-      doc.setFontSize(12);
-      doc.text('Items:', marginLeft, currentY);
-      currentY += lineHeight;
+    // ITEMS Section
+    if (request.items && request.items.length > 0) {
+      doc.setFillColor(0, 0, 0);
+      doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
-      const tableHead = [['#', 'Name', 'Description', 'Quantity', 'Unit Cost', 'Total']];
-      const tableBody = request.items.map((item: any, index: number) => {
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ITEMS', marginLeft + 2, currentY + 5);
+      
+      currentY += 15;
+      doc.setTextColor(0, 0, 0);
+      
+      const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
+      const tableBody = request.items.map((item: any) => {
         const quantity = Number(item.quantity) || 0;
         const unitCost = Number(item.estimatedCost) || 0;
         const totalCost = quantity * unitCost;
         
         return [
-          (index + 1).toString(),
           item.name || 'N/A',
           item.description || 'N/A',
           quantity.toString(),
-          `${request.currency || '$'}${unitCost.toFixed(2)}`,
-          `${request.currency || '$'}${totalCost.toFixed(2)}`
+          `${request.currency || 'USD'} ${unitCost.toFixed(2)}`,
+          `${request.currency || 'USD'} ${totalCost.toFixed(2)}`
         ];
       });
-      
-      // Parse table header color from settings
-      let tableHeaderR = 0, tableHeaderG = 51, tableHeaderB = 102;
-      if (settings.tableHeaderColor && settings.tableHeaderColor.startsWith('#')) {
-        const color = settings.tableHeaderColor.substring(1);
-        tableHeaderR = parseInt(color.substring(0, 2), 16);
-        tableHeaderG = parseInt(color.substring(2, 4), 16);
-        tableHeaderB = parseInt(color.substring(4, 6), 16);
-      }
 
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
@@ -565,81 +522,100 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         startY: currentY,
         margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: fontSize - 2 },
-        headStyles: { fillColor: [tableHeaderR, tableHeaderG, tableHeaderB] }
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 30, halign: 'right' }
+        }
       });
       
-      // Get the latest Y position after adding the table
       // @ts-ignore - jsPDF-AutoTable adds this property
-      currentY = doc.lastAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 5;
+      
+      // Add financial summary
+      const itemsTotal = request.items.reduce((sum: number, item: any) => {
+        return sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0);
+      }, 0);
+      
+      const rightAlign = marginLeft + pageWidth - 40;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text('Items Total:', rightAlign - 30, currentY);
+      doc.text(`${request.currency || 'USD'} ${itemsTotal.toFixed(2)}`, rightAlign, currentY);
+      currentY += 7;
+      
+      if (request.freightAmount) {
+        doc.text('Freight:', rightAlign - 30, currentY);
+        doc.text(`${request.currency || 'USD'} ${Number(request.freightAmount).toFixed(2)}`, rightAlign, currentY);
+        currentY += 7;
+      }
+      
+      const totalCost = request.totalEstimatedCost || (itemsTotal + (Number(request.freightAmount) || 0));
+      doc.setFont('helvetica', 'bold');
+      doc.text('Total Cost:', rightAlign - 30, currentY);
+      doc.text(`${request.currency || 'USD'} ${Number(totalCost).toFixed(2)}`, rightAlign, currentY);
+      
+      currentY += 15;
     }
     
-    // Add additional approvers information if enabled in settings
-    if (settings.showApprovalWorkflow !== false && request.additionalApprovers && request.additionalApprovers.length > 0) {
-      doc.setFontSize(12);
-      doc.text('Required Approvers:', marginLeft, currentY);
-      currentY += 5;
-      doc.setFontSize(fontSize);
+    // ATTACHED DOCUMENTS Section
+    if (request.attachments && request.attachments.length > 0) {
+      doc.setFillColor(0, 0, 0);
+      doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
-      const approversList = request.additionalApprovers.join(', ');
-      doc.text(`Departments: ${approversList}`, marginLeft, currentY);
-      currentY += lineHeight + 5;
-    }
-
-    // Add approvals section if enabled in settings
-    if (settings.showApprovalHistory !== false && request.approvals && request.approvals.length > 0) {
-      doc.setFontSize(12);
-      doc.text('Approval History:', marginLeft, currentY);
-      currentY += lineHeight;
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ATTACHED DOCUMENTS', marginLeft + 2, currentY + 5);
       
-      const tableHead = [['Department', 'Status', 'Processed By', 'Date', 'Comments']];
-      const tableBody = request.approvals.map((approval: any) => [
-        approval.department || 'N/A',
-        approval.status ? approval.status.charAt(0).toUpperCase() + approval.status.slice(1) : 'N/A',
-        approval.approver?.username || 'N/A',
-        approval.processedAt ? new Date(approval.processedAt).toLocaleString() : 'N/A',
-        approval.comments || 'No comments'
+      currentY += 15;
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      
+      // Attachments table
+      const attachmentHead = [['Document Name', 'Type', 'Size']];
+      const attachmentBody = request.attachments.map((attachment: any) => [
+        attachment.fileName || 'N/A',
+        attachment.fileType || 'Unknown',
+        attachment.fileSize ? `${(attachment.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       ]);
-      
-      // Parse table header color from settings for approval table
-      let approvalTableHeaderR = 0, approvalTableHeaderG = 51, approvalTableHeaderB = 102;
-      if (settings.tableHeaderColor && settings.tableHeaderColor.startsWith('#')) {
-        const color = settings.tableHeaderColor.substring(1);
-        approvalTableHeaderR = parseInt(color.substring(0, 2), 16);
-        approvalTableHeaderG = parseInt(color.substring(2, 4), 16);
-        approvalTableHeaderB = parseInt(color.substring(4, 6), 16);
-      }
 
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
+        head: attachmentHead,
+        body: attachmentBody,
         startY: currentY,
         margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: fontSize - 2 },
-        headStyles: { fillColor: [approvalTableHeaderR, approvalTableHeaderG, approvalTableHeaderB] }
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
       });
       
       // @ts-ignore - jsPDF-AutoTable adds this property
-      currentY = doc.lastAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 15;
     }
 
-    // Add attachments information if enabled in settings
-    if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
-      doc.setFontSize(12);
-      doc.text('Attachments:', marginLeft, currentY);
-      currentY += 5;
-      doc.setFontSize(fontSize);
-      
-      request.attachments.forEach((attachment: any, index: number) => {
-        const fileSize = attachment.fileSize ? `(${(attachment.fileSize / 1024).toFixed(1)} KB)` : '';
-        doc.text(`${index + 1}. ${attachment.fileName} ${fileSize}`, marginLeft, currentY);
-        currentY += lineHeight;
-      });
-      
-      currentY += 5;
-    }
+    // SIGNATURES Section
+    doc.setFillColor(0, 0, 0);
+    doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SIGNATURES', marginLeft + 2, currentY + 5);
+    
+    currentY += 20;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    
+    // Add signature lines (placeholder)
+    // This section would be filled when approvals are processed
+    
+    currentY += 30;
     
     // Add footer with page number
     const pageCount = doc.internal.getNumberOfPages();
