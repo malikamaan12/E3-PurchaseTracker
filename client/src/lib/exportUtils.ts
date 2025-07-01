@@ -617,13 +617,21 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     
     currentY += 30;
     
-    // Add footer with page number
+    // Add footer information
+    currentY = doc.internal.pageSize.height - 25;
+    
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com', marginLeft, currentY);
+    doc.text('Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar', marginLeft, currentY + 5);
+    
+    // Page number
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Page ${i} of ${pageCount} - Generated on ${new Date().toLocaleString()}`, marginLeft, doc.internal.pageSize.height - marginBottom);
+      doc.text(`Page ${i} of ${pageCount}`, marginLeft + pageWidth - 20, currentY + 10);
     }
     
     // Add tracking ID and audit watermark for security
