@@ -426,6 +426,12 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleString() : 'N/A'}`, marginLeft, currentY + lineHeight * currentLine);
       currentLine++;
     }
+
+    // Add request number prominently if not already shown
+    if (request.requestNumber && settings.showRequestNumber !== false) {
+      doc.text(`Request Number: ${request.requestNumber}`, marginLeft, currentY + lineHeight * currentLine);
+      currentLine++;
+    }
     
     currentY += lineHeight * currentLine + 10;
     
@@ -443,23 +449,81 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     // Calculate position for items table
     currentY += splitDescription.length * 5 + 10;
     
+    // Add purpose and sub-purpose information if enabled in settings
+    if (settings.showPurposeDetails !== false && (request.purposeType || request.subPurpose)) {
+      doc.setFontSize(12);
+      doc.text('Purpose Information:', marginLeft, currentY);
+      currentY += 5;
+      doc.setFontSize(fontSize);
+      
+      if (request.purposeType) {
+        doc.text(`Purpose Type: ${request.purposeType}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      if (request.subPurpose && request.subPurpose.name) {
+        doc.text(`Sub-Purpose: ${request.subPurpose.name}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      currentY += 5;
+    }
+
     // Add vendor information if available and enabled in settings
-    if (request.vendor && request.vendor.name && settings.showVendorDetails !== false) {
+    if (request.vendor && (request.vendor.companyName || request.vendor.name) && settings.showVendorDetails !== false) {
       doc.setFontSize(12);
       doc.text('Vendor Information:', marginLeft, currentY);
       currentY += 5;
       doc.setFontSize(fontSize);
-      doc.text(`Name: ${request.vendor.name}`, marginLeft, currentY);
+      
+      const vendorName = request.vendor.companyName || request.vendor.name;
+      doc.text(`Company: ${vendorName}`, marginLeft, currentY);
       currentY += lineHeight;
       
-      if (request.vendor.contactName || request.vendor.contactEmail || request.vendor.contactPhone) {
-        doc.text(`Contact: ${request.vendor.contactName || 'N/A'}`, marginLeft, currentY);
-        currentY += lineHeight;
-        doc.text(`Email: ${request.vendor.contactEmail || 'N/A'}`, marginLeft, currentY);
-        currentY += lineHeight;
-        doc.text(`Phone: ${request.vendor.contactPhone || 'N/A'}`, marginLeft, currentY);
+      if (request.vendor.contactPerson) {
+        doc.text(`Contact Person: ${request.vendor.contactPerson}`, marginLeft, currentY);
         currentY += lineHeight;
       }
+      
+      if (request.vendor.email) {
+        doc.text(`Email: ${request.vendor.email}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      if (request.vendor.contactNumber) {
+        doc.text(`Phone: ${request.vendor.contactNumber}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      if (request.vendor.address) {
+        doc.text(`Address: ${request.vendor.address}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      currentY += 5;
+    }
+
+    // Add financial information if enabled in settings
+    if (settings.showFinancialDetails !== false) {
+      doc.setFontSize(12);
+      doc.text('Financial Information:', marginLeft, currentY);
+      currentY += 5;
+      doc.setFontSize(fontSize);
+      
+      if (request.currency) {
+        doc.text(`Currency: ${request.currency}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      if (request.freightAmount) {
+        doc.text(`Freight Amount: ${request.currency || ''} ${Number(request.freightAmount).toFixed(2)}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
+      if (request.totalEstimatedCost) {
+        doc.text(`Total Estimated Cost: ${request.currency || ''} ${Number(request.totalEstimatedCost).toFixed(2)}`, marginLeft, currentY);
+        currentY += lineHeight;
+      }
+      
       currentY += 5;
     }
     
@@ -480,8 +544,8 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
           item.name || 'N/A',
           item.description || 'N/A',
           quantity.toString(),
-          `$${unitCost.toFixed(2)}`,
-          `$${totalCost.toFixed(2)}`
+          `${request.currency || '$'}${unitCost.toFixed(2)}`,
+          `${request.currency || '$'}${totalCost.toFixed(2)}`
         ];
       });
       
@@ -510,10 +574,22 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       currentY = doc.lastAutoTable.finalY + 10;
     }
     
-    // Add approvals section
-    if (request.approvals && request.approvals.length > 0) {
+    // Add additional approvers information if enabled in settings
+    if (settings.showApprovalWorkflow !== false && request.additionalApprovers && request.additionalApprovers.length > 0) {
       doc.setFontSize(12);
-      doc.text('Approval History:', 14, currentY);
+      doc.text('Required Approvers:', marginLeft, currentY);
+      currentY += 5;
+      doc.setFontSize(fontSize);
+      
+      const approversList = request.additionalApprovers.join(', ');
+      doc.text(`Departments: ${approversList}`, marginLeft, currentY);
+      currentY += lineHeight + 5;
+    }
+
+    // Add approvals section if enabled in settings
+    if (settings.showApprovalHistory !== false && request.approvals && request.approvals.length > 0) {
+      doc.setFontSize(12);
+      doc.text('Approval History:', marginLeft, currentY);
       currentY += lineHeight;
       
       const tableHead = [['Department', 'Status', 'Processed By', 'Date', 'Comments']];
@@ -525,19 +601,44 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         approval.comments || 'No comments'
       ]);
       
+      // Parse table header color from settings for approval table
+      let approvalTableHeaderR = 0, approvalTableHeaderG = 51, approvalTableHeaderB = 102;
+      if (settings.tableHeaderColor && settings.tableHeaderColor.startsWith('#')) {
+        const color = settings.tableHeaderColor.substring(1);
+        approvalTableHeaderR = parseInt(color.substring(0, 2), 16);
+        approvalTableHeaderG = parseInt(color.substring(2, 4), 16);
+        approvalTableHeaderB = parseInt(color.substring(4, 6), 16);
+      }
+
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
         head: tableHead,
         body: tableBody,
         startY: currentY,
-        margin: { left: 14 },
+        margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [0, 51, 102] }
+        styles: { fontSize: fontSize - 2 },
+        headStyles: { fillColor: [approvalTableHeaderR, approvalTableHeaderG, approvalTableHeaderB] }
       });
       
       // @ts-ignore - jsPDF-AutoTable adds this property
       currentY = doc.lastAutoTable.finalY + 10;
+    }
+
+    // Add attachments information if enabled in settings
+    if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
+      doc.setFontSize(12);
+      doc.text('Attachments:', marginLeft, currentY);
+      currentY += 5;
+      doc.setFontSize(fontSize);
+      
+      request.attachments.forEach((attachment: any, index: number) => {
+        const fileSize = attachment.fileSize ? `(${(attachment.fileSize / 1024).toFixed(1)} KB)` : '';
+        doc.text(`${index + 1}. ${attachment.fileName} ${fileSize}`, marginLeft, currentY);
+        currentY += lineHeight;
+      });
+      
+      currentY += 5;
     }
     
     // Add footer with page number
