@@ -3,7 +3,17 @@
 ## Overview
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
-## Recent Changes (June 2025)
+## Recent Changes (July 2025)
+- **PDF Settings Integration**: Complete dynamic integration of admin panel PDF settings into PDF generation
+- **Real-time PDF Configuration**: All PDF customization (fonts, colors, margins, watermarks, section visibility) immediately reflected in downloads
+- **Professional PDF Template**: Redesigned PDF export with structured sections matching business document standards
+- **Dynamic Section Visibility**: PDF sections (vendor info, items table, attachments, signatures) can be toggled via admin settings
+- **Advanced Color Configuration**: Full color customization for headers, text, table headers, and section backgrounds
+- **Watermark Support**: Dynamic watermark application with configurable opacity and text
+- **Font Management**: Complete font family and size configuration throughout PDF documents
+- **Footer Customization**: Configurable footer text and company address information
+- **Conditional Field Display**: Individual field visibility control (title, description, purpose details, contact info)
+- **Enhanced Table Styling**: Dynamic table header colors and font settings for all tables
 - **UI Optimization**: Removed heavy animations and liquid effects from BentoLiquidExample component
 - **Dashboard Simplification**: Streamlined Dashboard background and removed complex gradients
 - **CSS Optimization**: Minimized animations.css and bento-liquid.css for better performance

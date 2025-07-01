@@ -383,6 +383,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     
     const textColor = parseColor(settings.textColor || '#000000');
     const headerColor = parseColor(settings.headerColor || '#000000');
+    const tableHeaderColor = parseColor(settings.tableHeaderColor || '#f0f0f0');
     
     let currentY = marginTop;
     const pageWidth = 210 - marginLeft - marginRight; // A4 width minus margins
@@ -451,26 +452,35 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     doc.setFont(fontFamily, 'normal');
     
-    // Basic info fields
-    doc.text('Title:', marginLeft + 5, currentY);
-    doc.text(request.title || 'N/A', marginLeft + 25, currentY);
-    currentY += 7;
+    // Basic info fields - conditionally show based on settings
+    if (settings.showTitle !== false) {
+      doc.text('Title:', marginLeft + 5, currentY);
+      doc.text(request.title || 'N/A', marginLeft + 25, currentY);
+      currentY += 7;
+    }
     
-    doc.text('Description:', marginLeft + 5, currentY);
-    const description = request.description || 'No description provided';
-    doc.text(description, marginLeft + 25, currentY);
-    currentY += 7;
+    if (settings.showDescription !== false) {
+      doc.text('Description:', marginLeft + 5, currentY);
+      const description = request.description || 'No description provided';
+      doc.text(description, marginLeft + 25, currentY);
+      currentY += 7;
+    }
     
-    doc.text('Purpose Type:', marginLeft + 5, currentY);
-    doc.text(request.purposeType || 'N/A', marginLeft + 25, currentY);
+    if (settings.showPurposeDetails !== false) {
+      doc.text('Purpose Type:', marginLeft + 5, currentY);
+      doc.text(request.purposeType || 'N/A', marginLeft + 25, currentY);
+      
+      doc.text('Sub-purpose:', marginLeft + pageWidth/2, currentY);
+      doc.text(request.subPurpose?.name || 'N/A', marginLeft + pageWidth/2 + 25, currentY);
+      currentY += 7;
+    }
     
-    doc.text('Sub-purpose:', marginLeft + pageWidth/2, currentY);
-    doc.text(request.subPurpose?.name || 'N/A', marginLeft + pageWidth/2 + 25, currentY);
-    currentY += 7;
-    
-    doc.text('Contact Info:', marginLeft + 5, currentY);
-    const contactInfo = `Email: ${request.requester?.email || 'N/A'}`;
-    doc.text(contactInfo, marginLeft + 25, currentY);
+    if (settings.showContactInfo !== false) {
+      doc.text('Contact Info:', marginLeft + 5, currentY);
+      const contactInfo = `Email: ${request.requester?.email || 'N/A'}`;
+      doc.text(contactInfo, marginLeft + 25, currentY);
+      currentY += 7;
+    }
     
     currentY += 15;
     
@@ -534,9 +544,6 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         ];
       });
 
-      // Apply dynamic table header color from settings
-      const tableHeaderColor = parseColor(settings.tableHeaderColor || '#f0f0f0');
-      
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
         head: tableHead,
@@ -641,37 +648,47 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       currentY = doc.lastAutoTable.finalY + 15;
     }
 
-    // SIGNATURES Section
-    doc.setFillColor(0, 0, 0);
-    doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
+    // SIGNATURES Section (if enabled in settings)
+    if (settings.showSignatures !== false) {
+      doc.setFillColor(sectionHeaderBgColor[0], sectionHeaderBgColor[1], sectionHeaderBgColor[2]);
+      doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(fontSize);
+      doc.setFont(fontFamily, 'bold');
+      doc.text('SIGNATURES', marginLeft + 2, currentY + 5);
+      
+      currentY += 20;
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFont(fontFamily, 'normal');
+      
+      // Add signature lines (placeholder)
+      // This section would be filled when approvals are processed
+      
+      currentY += 30;
+    }
     
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SIGNATURES', marginLeft + 2, currentY + 5);
+    // Apply watermark if enabled in settings
+    if (settings.watermarkText && settings.showWatermark !== false) {
+      applyPdfWatermark(doc, settings.watermarkText, settings.watermarkOpacity || 0.1);
+    }
     
-    currentY += 20;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'normal');
-    
-    // Add signature lines (placeholder)
-    // This section would be filled when approvals are processed
-    
-    currentY += 30;
-    
-    // Add footer information
+    // Add footer information using settings
     currentY = doc.internal.pageSize.height - 25;
     
-    doc.setFontSize(8);
+    doc.setFontSize(fontSize - 2);
     doc.setTextColor(100, 100, 100);
-    doc.text('Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com', marginLeft, currentY);
-    doc.text('Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar', marginLeft, currentY + 5);
+    const footerInfo = settings.footerText || 'Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com';
+    const footerAddress = settings.footerAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
+    
+    doc.text(footerInfo, marginLeft, currentY);
+    doc.text(footerAddress, marginLeft, currentY + 5);
     
     // Page number
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
+      doc.setFontSize(fontSize - 2);
       doc.setTextColor(100, 100, 100);
       doc.text(`Page ${i} of ${pageCount}`, marginLeft + pageWidth - 20, currentY + 10);
     }
