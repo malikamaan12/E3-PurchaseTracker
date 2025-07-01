@@ -20,6 +20,7 @@ import { autoTable } from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
+import { generateProfessionalPdf } from './professionalPdfGenerator';
 
 /**
  * Safely download a file using FileSaver with fallbacks
@@ -344,6 +345,20 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  * Export a purchase request to PDF format
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
+  try {
+    // Use the new professional PDF generator
+    await generateProfessionalPdf(request, pdfSettings || {});
+    
+    // Return filename for audit purposes
+    const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
+    return fileName;
+  } catch (error) {
+    console.error("PDF export error:", error);
+    throw error;
+  }
+}
+
+export async function exportRequestToPDFOld(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
     // Apply PDF settings if available
     const settings = pdfSettings || {};
