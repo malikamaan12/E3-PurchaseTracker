@@ -360,7 +360,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       format: 'a4'
     }) as any;
     
-    // Apply font settings
+    // Apply font settings from admin panel
     const fontSize = settings.fontSize || 10;
     const fontFamily = settings.fontFamily || 'helvetica';
     
@@ -370,35 +370,53 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
       doc.setFont('helvetica'); // Fallback
     }
     
+    // Apply text colors from settings
+    const parseColor = (colorHex: string): [number, number, number] => {
+      if (!colorHex || !colorHex.startsWith('#')) return [0, 0, 0];
+      const hex = colorHex.substring(1);
+      return [
+        parseInt(hex.substring(0, 2), 16),
+        parseInt(hex.substring(2, 4), 16),
+        parseInt(hex.substring(4, 6), 16)
+      ];
+    };
+    
+    const textColor = parseColor(settings.textColor || '#000000');
+    const headerColor = parseColor(settings.headerColor || '#000000');
+    
     let currentY = marginTop;
     const pageWidth = 210 - marginLeft - marginRight; // A4 width minus margins
     
-    // Header with title and request info
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PURCHASE REQUEST', marginLeft, currentY);
+    // Header with title and request info - use header color from settings
+    doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
+    doc.setFontSize(settings.headerFontSize || 16);
+    doc.setFont(fontFamily, 'bold');
+    doc.text(settings.companyName || 'PURCHASE REQUEST', marginLeft, currentY);
     
     // Request number and date on the right
     const requestNumber = request.requestNumber || `PR-${request.id}`;
     const dateCreated = request.createdAt ? new Date(request.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
     
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontSize);
+    doc.setFont(fontFamily, 'normal');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     const rightColumnX = marginLeft + pageWidth - 50;
-    doc.text(`PR #PR-${request.id}`, rightColumnX, currentY - 5);
+    doc.text(`PR #${request.id}`, rightColumnX, currentY - 5);
     doc.text(`Date: ${dateCreated}`, rightColumnX, currentY + 2);
     
     currentY += 15;
     
-    // Top info section with gray background
-    doc.setFillColor(240, 240, 240);
+    // Top info section with configurable background color
+    const sectionBgColor = parseColor(settings.sectionBackgroundColor || '#f0f0f0');
+    doc.setFillColor(sectionBgColor[0], sectionBgColor[1], sectionBgColor[2]);
     doc.rect(marginLeft, currentY, pageWidth, 20, 'F');
     
     currentY += 5;
     
-    // Two column layout for basic info
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    // Two column layout for basic info - use settings
+    doc.setFontSize(fontSize);
+    doc.setFont(fontFamily, 'normal');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     
     // Left column
     doc.text('Requester:', marginLeft + 5, currentY);
@@ -419,18 +437,19 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     
     currentY += 10;
     
-    // BASIC INFORMATION Section
-    doc.setFillColor(0, 0, 0);
+    // BASIC INFORMATION Section - use settings for section headers
+    const sectionHeaderBgColor = parseColor(settings.sectionHeaderColor || '#000000');
+    doc.setFillColor(sectionHeaderBgColor[0], sectionHeaderBgColor[1], sectionHeaderBgColor[2]);
     doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSize);
+    doc.setFont(fontFamily, 'bold');
     doc.text('BASIC INFORMATION', marginLeft + 2, currentY + 5);
     
     currentY += 15;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.setFont(fontFamily, 'normal');
     
     // Basic info fields
     doc.text('Title:', marginLeft + 5, currentY);
@@ -456,18 +475,18 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     currentY += 15;
     
     // VENDOR INFORMATION Section
-    if (request.vendor && (request.vendor.companyName || request.vendor.name)) {
-      doc.setFillColor(0, 0, 0);
+    if (request.vendor && (request.vendor.companyName || request.vendor.name) && settings.showVendorDetails !== false) {
+      doc.setFillColor(sectionHeaderBgColor[0], sectionHeaderBgColor[1], sectionHeaderBgColor[2]);
       doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fontSize);
+      doc.setFont(fontFamily, 'bold');
       doc.text('VENDOR INFORMATION', marginLeft + 2, currentY + 5);
       
       currentY += 15;
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFont(fontFamily, 'normal');
       
       // Vendor info in two columns
       const vendorName = request.vendor.companyName || request.vendor.name;
@@ -488,17 +507,17 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     }
     
     // ITEMS Section
-    if (request.items && request.items.length > 0) {
-      doc.setFillColor(0, 0, 0);
+    if (request.items && request.items.length > 0 && settings.showItemsTable !== false) {
+      doc.setFillColor(sectionHeaderBgColor[0], sectionHeaderBgColor[1], sectionHeaderBgColor[2]);
       doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fontSize);
+      doc.setFont(fontFamily, 'bold');
       doc.text('ITEMS', marginLeft + 2, currentY + 5);
       
       currentY += 15;
-      doc.setTextColor(0, 0, 0);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       
       const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
       const tableBody = request.items.map((item: any) => {
@@ -515,6 +534,9 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         ];
       });
 
+      // Apply dynamic table header color from settings
+      const tableHeaderColor = parseColor(settings.tableHeaderColor || '#f0f0f0');
+      
       // @ts-ignore - jsPDF-AutoTable adds this method
       autoTable(doc, {
         head: tableHead,
@@ -522,8 +544,18 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         startY: currentY,
         margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+        styles: { 
+          fontSize: fontSize - 1, 
+          cellPadding: 2,
+          font: fontFamily,
+          textColor: textColor
+        },
+        headStyles: { 
+          fillColor: tableHeaderColor,
+          textColor: [0, 0, 0], 
+          fontStyle: 'bold',
+          font: fontFamily
+        },
         columnStyles: {
           0: { cellWidth: 30 },
           1: { cellWidth: 60 },
@@ -563,18 +595,18 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     }
     
     // ATTACHED DOCUMENTS Section
-    if (request.attachments && request.attachments.length > 0) {
-      doc.setFillColor(0, 0, 0);
+    if (request.attachments && request.attachments.length > 0 && settings.showAttachments !== false) {
+      doc.setFillColor(sectionHeaderBgColor[0], sectionHeaderBgColor[1], sectionHeaderBgColor[2]);
       doc.rect(marginLeft, currentY, pageWidth, 8, 'F');
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fontSize);
+      doc.setFont(fontFamily, 'bold');
       doc.text('ATTACHED DOCUMENTS', marginLeft + 2, currentY + 5);
       
       currentY += 15;
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFont(fontFamily, 'normal');
       
       // Attachments table
       const attachmentHead = [['Document Name', 'Type', 'Size']];
@@ -591,8 +623,18 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
         startY: currentY,
         margin: { left: marginLeft, right: marginRight },
         theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
+        styles: { 
+          fontSize: fontSize - 1, 
+          cellPadding: 2,
+          font: fontFamily,
+          textColor: textColor
+        },
+        headStyles: { 
+          fillColor: tableHeaderColor,
+          textColor: [0, 0, 0], 
+          fontStyle: 'bold',
+          font: fontFamily
+        }
       });
       
       // @ts-ignore - jsPDF-AutoTable adds this property
