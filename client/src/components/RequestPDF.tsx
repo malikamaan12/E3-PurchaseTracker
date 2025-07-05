@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { generateRequestPDF } from '@/lib/pdfGenerator';
+import { exportRequestToPDF } from '@/lib/exportUtils';
 
 interface RequestPDFProps {
   request: any; // Replace with proper type from your schema
@@ -14,11 +14,41 @@ interface RequestPDFProps {
 export function RequestPDF({ request, isOpen, onClose }: RequestPDFProps) {
   const { toast } = useToast();
 
-  // Handle PDF download
+  // Handle PDF download using the working approach
   const handleDownload = async () => {
     try {
-      const doc = await generateRequestPDF(request);
-      doc.save(`Purchase_Request_${request.requestNumber}.pdf`);
+      // Get the request ID from the current request
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
+      
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
+      
+      // Fetch request data with full details for PDF generation
+      const response = await fetch(`/api/requests/${requestId}/pdf`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch PDF data');
+      }
+      
+      const jsonData = await response.json();
+      
+      if (!jsonData || !jsonData.data) {
+        throw new Error('Invalid response format from PDF API');
+      }
+      
+      const { data, pdfSettings } = jsonData;
+      
+      // Use the working PDF generation approach
+      await exportRequestToPDF(data, 'user', pdfSettings);
 
       toast({
         title: "Success",

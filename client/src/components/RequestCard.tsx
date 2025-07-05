@@ -54,7 +54,7 @@ import ApprovalFlow from "@/components/ApprovalFlow";
 import RequestStatusTimeline from "./RequestStatusTimeline";
 import { useToast } from "@/hooks/use-toast";
 import FilePreviewCarousel from "@/components/FilePreviewCarousel";
-import { generateRequestPDF } from "@/lib/pdfGenerator";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilePreview } from "@/components/FilePreview";

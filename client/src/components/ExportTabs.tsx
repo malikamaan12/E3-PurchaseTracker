@@ -11,13 +11,12 @@ import {
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 import JSZip from 'jszip';
 import { 
   logPdfAuditEvent,
   generatePdfTrackingId  
 } from '@/lib/pdfAuditUtils';
+import { exportRequestToPDF } from '@/lib/exportUtils';
 
 interface ExportTabsProps {
   request: any;
@@ -231,79 +230,58 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
     return fileName;
   };
   
-  // PDF export implementation
+  // PDF export implementation using the working approach
   const handlePdfExport = async (): Promise<string> => {
-    console.log('Creating PDF export...');
+    console.log('Creating PDF export using working approach...');
     
-    // Create PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    // Add header
-    doc.setFontSize(16);
-    doc.text(`Purchase Request: ${request.requestNumber || request.id}`, 14, 15);
-    
-    // Add basic information
-    doc.setFontSize(11);
-    const startY = 25;
-    const lineHeight = 7;
-    
-    doc.text(`Title: ${request.title || 'N/A'}`, 14, startY);
-    doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, 14, startY + lineHeight);
-    doc.text(`Requester: ${request.requester?.username || 'N/A'}`, 14, startY + lineHeight * 2);
-    doc.text(`Department: ${request.requester?.department || 'N/A'}`, 14, startY + lineHeight * 3);
-    doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 4);
-    
-    // Add description
-    doc.setFontSize(11);
-    doc.text('Description:', 14, startY + lineHeight * 5);
-    doc.setFontSize(10);
-    
-    // Split description text to prevent overflow
-    const description = request.description || 'No description provided';
-    const splitDescription = doc.splitTextToSize(description, 180);
-    doc.text(splitDescription, 14, startY + lineHeight * 6);
-    
-    // Add items table if present
-    if (request.items && request.items.length > 0) {
-      const tableY = startY + lineHeight * 7 + splitDescription.length * 5;
+    try {
+      // Get the request ID from the current request
+      const requestId = request?.id ? parseInt(String(request.id)) : null;
       
-      doc.setFontSize(11);
-      doc.text('Items:', 14, tableY);
+      // Validate the request ID is a valid number
+      if (!requestId || isNaN(requestId)) {
+        throw new Error('Invalid request ID');
+      }
       
-      const tableHead = [['#', 'Name', 'Description', 'Quantity', 'Est. Cost']];
-      const tableBody = request.items.map((item: any, index: number) => [
-        (index + 1).toString(),
-        item.name || 'N/A',
-        item.description || 'N/A',
-        (Number(item.quantity) || 0).toString(),
-        (Number(item.estimatedCost) || 0).toFixed(2)
-      ]);
-      
-      // @ts-ignore - jsPDF-AutoTable adds this method
-      doc.autoTable({
-        head: tableHead,
-        body: tableBody,
-        startY: tableY + 5,
-        margin: { left: 14 },
-        theme: 'grid',
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 139, 202] }
+      // Fetch request data with full details for PDF generation
+      console.log(`Fetching PDF data for request ${requestId}`);
+      const response = await fetch(`/api/requests/${requestId}/pdf`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch PDF data');
+      }
+      
+      const jsonData = await response.json();
+      console.log('PDF API response structure:', Object.keys(jsonData));
+      
+      if (!jsonData || !jsonData.data) {
+        throw new Error('Invalid response format from PDF API');
+      }
+      
+      const { data, pdfSettings } = jsonData;
+      
+      // Use the working PDF generation approach
+      console.log('Generating PDF using working approach...');
+      const userRoleForAudit = user?.role === 'admin' ? 'admin' : 
+                      (user?.role === 'approver' ? 'approver' : 'user');
+      
+      // Call the working PDF export function
+      const fileName = await exportRequestToPDF(data, userRoleForAudit, pdfSettings);
+      
+      console.log('PDF generated successfully:', fileName);
+      return fileName;
+      
+    } catch (error) {
+      console.error('PDF export error:', error);
+      throw error;
     }
-    
-    // Create filename and blob
-    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-    const fileName = `purchase-request-${request.id}-${timestamp}.pdf`;
-    const blob = doc.output('blob');
-    
-    // Download the file
-    await downloadFile(blob, fileName);
-    
-    return fileName;
   };
   
   // ZIP export implementation

@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import PurchaseRequestForm from "@/components/PurchaseRequestForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
-import { generateRequestPDF } from "@/lib/pdfGenerator";
+import { exportRequestToPDF } from "@/lib/exportUtils";
 
 export default function NewPurchaseRequestForm() {
   const [, setLocation] = useLocation();
@@ -46,8 +46,24 @@ export default function NewPurchaseRequestForm() {
     try {
       console.log("Starting PDF generation with branding:", branding);
 
-      const doc = await generateRequestPDF(formData);
-      doc.save(`${formData.title || 'purchase-request'}.pdf`);
+      // For form data that hasn't been submitted yet, use the working PDF generation approach
+      // We need to format the form data to match the expected structure
+      const formattedData = {
+        ...formData,
+        requestNumber: `Draft-${Date.now()}`,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        requester: {
+          id: 0,
+          username: 'Current User',
+          department: 'Draft'
+        },
+        approvals: [],
+        attachments: []
+      };
+
+      // Use the working PDF generation approach with default settings
+      await exportRequestToPDF(formattedData, 'user', null);
 
       toast({
         title: "Success",

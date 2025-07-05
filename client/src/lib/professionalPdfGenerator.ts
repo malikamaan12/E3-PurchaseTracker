@@ -210,11 +210,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       currentY += 12;
     }
     
-    // Add watermark if specified
+    // Add watermark if specified (simplified for browser compatibility)
     if (settings.watermarkText) {
-      const watermarkOpacity = settings.watermarkOpacity || 0.1;
-      doc.setGState(new doc.GState({opacity: watermarkOpacity}));
-      doc.setTextColor(180, 180, 180);
+      doc.setTextColor(220, 220, 220); // Light gray instead of opacity
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(60);
       
@@ -227,7 +225,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       // Rotate and place watermark text
       doc.text(settings.watermarkText, watermarkX, watermarkY);
       doc.restoreGraphicsState();
-      doc.setGState(new doc.GState({opacity: 1}));
+      
+      // Reset text color
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     }
     
     // ITEMS SECTION
