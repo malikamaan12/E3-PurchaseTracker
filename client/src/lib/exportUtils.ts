@@ -342,15 +342,26 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
 }
 
 /**
- * Export a purchase request to PDF format
+ * Export a purchase request to PDF format with dynamic settings
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    // Use the ultra clean PDF generator - NO WATERMARKS
-    await generateUltraCleanPdf(request);
+    // Use the enhanced PDF generator that supports dynamic settings
+    const { generateEnhancedPDF } = await import('./enhancedPdfGenerator');
     
-    // Return filename for audit purposes
+    // Generate PDF with dynamic settings
+    const pdfDoc = await generateEnhancedPDF(request, roleForAudit, pdfSettings);
+    
+    // Generate filename
     const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
+    console.log('Generating PDF with dynamic settings for request:', request.id);
+    
+    // Save the PDF
+    const pdfBlob = pdfDoc.output('blob');
+    const { saveAs } = await import('file-saver');
+    saveAs(pdfBlob, fileName);
+    
+    console.log('PDF with dynamic settings generated successfully');
     return fileName;
   } catch (error) {
     console.error("PDF export error:", error);

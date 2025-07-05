@@ -119,12 +119,31 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     // Add company logo if available
     if (pdfSettings?.headerImage) {
       try {
+        // Convert blob URL to base64 data URL if needed
+        let imageDataUrl = pdfSettings.headerImage;
+        if (pdfSettings.headerImage.startsWith('blob:')) {
+          console.log('Converting blob URL to base64 for header image');
+          try {
+            const response = await fetch(pdfSettings.headerImage);
+            const blob = await response.blob();
+            imageDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(pdfSettings.headerImage); // Fallback to original
+              reader.readAsDataURL(blob);
+            });
+          } catch (blobError) {
+            console.warn('Failed to convert blob URL to base64:', blobError);
+            imageDataUrl = pdfSettings.headerImage; // Use original URL as fallback
+          }
+        }
+        
         // Load image
         const img = new Image();
-        img.src = pdfSettings.headerImage;
+        img.src = imageDataUrl;
         await new Promise<void>((resolve) => {
           img.onload = () => resolve();
-          setTimeout(() => resolve(), 1000); // Add timeout as fallback
+          setTimeout(() => resolve(), 2000); // Increased timeout for blob conversion
           img.onerror = () => {
             console.error('Error loading header image');
             resolve();
@@ -444,11 +463,30 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     // Add footer image if available
     if (pdfSettings?.footerImage) {
       try {
+        // Convert blob URL to base64 data URL if needed
+        let imageDataUrl = pdfSettings.footerImage;
+        if (pdfSettings.footerImage.startsWith('blob:')) {
+          console.log('Converting blob URL to base64 for footer image');
+          try {
+            const response = await fetch(pdfSettings.footerImage);
+            const blob = await response.blob();
+            imageDataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(pdfSettings.footerImage);
+              reader.readAsDataURL(blob);
+            });
+          } catch (blobError) {
+            console.warn('Failed to convert blob URL to base64:', blobError);
+            imageDataUrl = pdfSettings.footerImage;
+          }
+        }
+        
         const img = new Image();
-        img.src = pdfSettings.footerImage;
+        img.src = imageDataUrl;
         await new Promise<void>((resolve) => {
           img.onload = () => resolve();
-          setTimeout(() => resolve(), 1000); // Add timeout as fallback
+          setTimeout(() => resolve(), 2000); // Increased timeout for blob conversion
           img.onerror = () => {
             console.error('Error loading footer image');
             resolve();
