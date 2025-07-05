@@ -381,6 +381,8 @@ export function registerRoutes(app: Express): Server {
           // Check if user has permission to view this request
           // Admin can see all requests
           const isAdmin = req.user?.role === "admin";
+          // CEO Office can see all requests
+          const isCEO = req.user?.department === "CEO Office";
           // User created the request
           const isRequester = request.requesterId === req.user?.id;
 
@@ -413,6 +415,7 @@ export function registerRoutes(app: Express): Server {
           // If user doesn't have permission to view, return 403
           if (
             !isAdmin &&
+            !isCEO &&
             !isRequester &&
             !isApprover &&
             !isAdditionalApprover
@@ -672,9 +675,9 @@ export function registerRoutes(app: Express): Server {
         // Get all requests first - we'll filter based on visibility permissions
         let requests = [];
 
-        // Admin can see all requests
-        if (req.user?.role === "admin") {
-          debug(req, "User is admin - fetching all requests");
+        // Admin or CEO Office can see all requests
+        if (req.user?.role === "admin" || req.user?.department === "CEO Office") {
+          debug(req, "User is admin or CEO Office - fetching all requests");
           requests = await db
             .select()
             .from(purchaseRequests)
