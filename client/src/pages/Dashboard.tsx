@@ -138,6 +138,31 @@ export default function Dashboard() {
     user?.department === "Finance"
   ), [user?.role, user?.department]);
 
+  // Check if user is an additional approver for any requests
+  const isAdditionalApprover = useMemo(() => {
+    if (!user?.department || !Array.isArray(safeRequests)) return false;
+    
+    return safeRequests.some(request => {
+      let additionalApprovers: string[] = [];
+      
+      // Handle both string and array formats for additionalApprovers
+      if (typeof request.additionalApprovers === 'string') {
+        try {
+          additionalApprovers = JSON.parse(request.additionalApprovers);
+        } catch (e) {
+          additionalApprovers = [];
+        }
+      } else if (Array.isArray(request.additionalApprovers)) {
+        additionalApprovers = request.additionalApprovers;
+      }
+      
+      return additionalApprovers.includes(user.department);
+    });
+  }, [user?.department, safeRequests]);
+
+  // Enhanced role check that includes additional approvers
+  const hasExtendedAccess = useMemo(() => isAdmin || isSpecialRole || isAdditionalApprover, [isAdmin, isSpecialRole, isAdditionalApprover]);
+
   // Safe requests array
   const safeRequests = useMemo(() => requests || [], [requests]);
 
@@ -708,7 +733,7 @@ export default function Dashboard() {
                     {requestCounts.draftsToSubmit}
                   </Badge>
                 </TabsTrigger>
-                {(isAdmin || isSpecialRole) && (
+                {(isAdmin || hasExtendedAccess) && (
                   <>
                     <TabsTrigger value="all-requests" className="data-[state=active]:bg-[#7156a2] data-[state=active]:text-white text-sm">
                       <span className="flex items-center">
@@ -807,7 +832,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   
-                  {(isAdmin || isSpecialRole) && (
+                  {(isAdmin || hasExtendedAccess) && (
                     <div 
                       onClick={() => setActiveTab("all-requests")}
                       className={`flex flex-col items-center ${activeTab === "all-requests" ? "text-[#7156a2]" : "text-gray-600 dark:text-gray-400"}`}
@@ -841,7 +866,7 @@ export default function Dashboard() {
                 </div>
                 
                 {/* Second row for status tabs (4 items) */}
-                {(isAdmin || isSpecialRole) && (
+                {(isAdmin || hasExtendedAccess) && (
                   <div className="grid grid-cols-4 gap-x-4">
                     <div 
                       onClick={() => setActiveTab("pending")}
@@ -907,7 +932,7 @@ export default function Dashboard() {
             <TabsContent value="drafts-to-submit">
               {renderRequestsTable(categorizedRequests.draftsToSubmit)}
             </TabsContent>
-            {(isAdmin || isSpecialRole) && (
+            {(isAdmin || hasExtendedAccess) && (
               <>
                 <TabsContent value="all-requests">
                   {renderRequestsTable(categorizedRequests.allRequests)}
