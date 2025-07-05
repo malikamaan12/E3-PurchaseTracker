@@ -14,13 +14,9 @@ import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { Parser } from '@json2csv/plainjs';
 import { jsPDF } from 'jspdf';
-
-// Correct import pattern from official documentation
-import { autoTable } from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
-import { generateProfessionalPdf } from './professionalPdfGenerator';
 
 /**
  * Safely download a file using FileSaver with fallbacks
@@ -580,36 +576,26 @@ export async function exportRequestToPDFOld(request: any, roleForAudit: 'user' |
         ];
       });
 
-      // @ts-ignore - jsPDF-AutoTable adds this method
-      autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
-        startY: currentY,
-        margin: { left: marginLeft, right: marginRight },
-        theme: 'grid',
-        styles: { 
-          fontSize: fontSize - 1, 
-          cellPadding: 2,
-          font: fontFamily,
-          textColor: textColor
-        },
-        headStyles: { 
-          fillColor: tableHeaderColor,
-          textColor: [0, 0, 0], 
-          fontStyle: 'bold',
-          font: fontFamily
-        },
-        columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 30, halign: 'right' },
-          4: { cellWidth: 30, halign: 'right' }
+      // Simple table rendering without autoTable
+      doc.setFontSize(fontSize - 1);
+      doc.setFont(fontFamily, 'bold');
+      doc.text('Items:', marginLeft, currentY);
+      currentY += 10;
+      
+      doc.setFont(fontFamily, 'normal');
+      request.items.forEach((item: any, index: number) => {
+        const itemText = `${index + 1}. ${item.name || 'N/A'} - Qty: ${item.quantity || 0} - Cost: ${request.currency || 'USD'} ${(item.estimatedCost || 0).toFixed(2)}`;
+        doc.text(itemText, marginLeft + 5, currentY);
+        currentY += 7;
+        
+        if (item.description) {
+          doc.text(`   Description: ${item.description}`, marginLeft + 5, currentY);
+          currentY += 7;
         }
+        currentY += 3;
       });
       
-      // @ts-ignore - jsPDF-AutoTable adds this property
-      currentY = doc.lastAutoTable.finalY + 5;
+      currentY += 10;
       
       // Add financial summary
       const itemsTotal = request.items.reduce((sum: number, item: any) => {
@@ -659,29 +645,31 @@ export async function exportRequestToPDFOld(request: any, roleForAudit: 'user' |
         attachment.fileSize ? `${(attachment.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
       ]);
 
-      // @ts-ignore - jsPDF-AutoTable adds this method
-      autoTable(doc, {
-        head: attachmentHead,
-        body: attachmentBody,
-        startY: currentY,
-        margin: { left: marginLeft, right: marginRight },
-        theme: 'grid',
-        styles: { 
-          fontSize: fontSize - 1, 
-          cellPadding: 2,
-          font: fontFamily,
-          textColor: textColor
-        },
-        headStyles: { 
-          fillColor: tableHeaderColor,
-          textColor: [0, 0, 0], 
-          fontStyle: 'bold',
-          font: fontFamily
+      // Simple attachments list without autoTable
+      doc.setFontSize(fontSize - 1);
+      doc.setFont(fontFamily, 'bold');
+      doc.text('Attachments:', marginLeft, currentY);
+      currentY += 10;
+      
+      doc.setFont(fontFamily, 'normal');
+      request.attachments.forEach((attachment: any, index: number) => {
+        const attachmentText = `${index + 1}. ${attachment.fileName || 'Unknown File'}`;
+        doc.text(attachmentText, marginLeft + 5, currentY);
+        currentY += 7;
+        
+        if (attachment.fileType) {
+          doc.text(`   Type: ${attachment.fileType}`, marginLeft + 5, currentY);
+          currentY += 7;
         }
+        
+        if (attachment.fileSize) {
+          doc.text(`   Size: ${(attachment.fileSize / 1024 / 1024).toFixed(2)} MB`, marginLeft + 5, currentY);
+          currentY += 7;
+        }
+        currentY += 3;
       });
       
-      // @ts-ignore - jsPDF-AutoTable adds this property
-      currentY = doc.lastAutoTable.finalY + 15;
+      currentY += 10;
     }
 
     // SIGNATURES Section (if enabled in settings)
@@ -1032,15 +1020,17 @@ export async function exportMultipleRequestsToPDF(requests: any[]): Promise<stri
             (Number(item.estimatedCost) || 0).toFixed(2)
           ]);
           
-          // @ts-ignore - jsPDF-AutoTable adds this method
-          autoTable(doc, {
-            head: tableHead,
-            body: tableBody,
-            startY: tableY + 5,
-            margin: { left: 14 },
-            theme: 'grid',
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [66, 139, 202] }
+          // Simple table rendering without autoTable
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Items:', 14, tableY + 10);
+          let itemsY = tableY + 20;
+          
+          doc.setFont('helvetica', 'normal');
+          request.items.forEach((item: any, index: number) => {
+            const itemText = `${index + 1}. ${item.name || 'N/A'} - Qty: ${item.quantity || 0} - Cost: ${(item.estimatedCost || 0).toFixed(2)}`;
+            doc.text(itemText, 18, itemsY);
+            itemsY += 8;
           });
         }
         
