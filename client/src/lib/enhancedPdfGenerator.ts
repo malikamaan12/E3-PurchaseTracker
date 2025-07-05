@@ -1,6 +1,12 @@
 import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
-// No autoTable plugin - using simple table rendering instead
+// TypeScript interface extension for autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 import { PurchaseRequestWithRelations } from '../types/requests';
 import { applyPdfWatermark, applySecurityWatermark, generatePdfTrackingId, logPdfAuditEvent } from './pdfAuditUtils';
 
@@ -202,7 +208,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     };
     
     // Create the request info table
-    doc.autoTable({
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -773,7 +779,7 @@ export async function generateEnhancedPDF(
       : 'N/A';
     
     // Create a more optimized layout without duplicates
-    doc.autoTable({
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -802,7 +808,7 @@ export async function generateEnhancedPDF(
     yPos = addSection(doc, 'Vendor Information', yPos, 15, textColor);
     
     const vendor = request.vendor || {};
-    doc.autoTable({
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -852,7 +858,7 @@ export async function generateEnhancedPDF(
     };
     
     if (items.length > 0) {
-      doc.autoTable({
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -881,7 +887,7 @@ export async function generateEnhancedPDF(
       const totalCost = itemsTotal + freightAmount;
       
       // Add totals section
-      doc.autoTable({
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -898,7 +904,7 @@ export async function generateEnhancedPDF(
         ]
       });
     } else {
-      doc.autoTable({
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -917,7 +923,7 @@ export async function generateEnhancedPDF(
     if (request.attachments && request.attachments.length > 0) {
       yPos = addSection(doc, 'Attached Documents', yPos, 15, textColor);
       
-      doc.autoTable({
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -943,7 +949,7 @@ export async function generateEnhancedPDF(
       yPos = addSection(doc, 'Approval Status', yPos, 15, textColor);
       
       if (request.approvals && request.approvals.length > 0) {
-        doc.autoTable({
+        doc.doc.autoTable({
           startY: yPos,
           theme: 'striped',
           styles: { 
@@ -963,7 +969,7 @@ export async function generateEnhancedPDF(
           ])
         });
       } else {
-        doc.autoTable({
+        doc.doc.autoTable({
           startY: yPos,
           theme: 'plain',
           styles: { 
