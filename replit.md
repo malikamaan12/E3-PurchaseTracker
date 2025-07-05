@@ -4,7 +4,8 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
-- **CEO Office Access Fix**: Fixed permission system to grant CEO Office full access to all purchase requests and approval rights
+- **Executive Access Fix**: Fixed permission system to grant CEO Office, Director, and Finance departments full access to all purchase requests and approval rights
+- **Additional Approver Access**: Ensured additional approvers have proper access to their assigned requests regardless of status
 - **Error Handling Improvement**: Updated error responses to properly return 403 instead of 500 for permission denied scenarios
 - **PDF Settings Integration**: Complete dynamic integration of admin panel PDF settings into PDF generation
 - **Real-time PDF Configuration**: All PDF customization (fonts, colors, margins, watermarks, section visibility) immediately reflected in downloads

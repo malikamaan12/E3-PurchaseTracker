@@ -381,8 +381,10 @@ export function registerRoutes(app: Express): Server {
           // Check if user has permission to view this request
           // Admin can see all requests
           const isAdmin = req.user?.role === "admin";
-          // CEO Office can see all requests
-          const isCEO = req.user?.department === "CEO Office";
+          // High-level departments can see all requests
+          const hasFullAccess = req.user?.department === "CEO Office" ||
+                               req.user?.department === "Director" ||
+                               req.user?.department === "Finance";
           // User created the request
           const isRequester = request.requesterId === req.user?.id;
 
@@ -415,7 +417,7 @@ export function registerRoutes(app: Express): Server {
           // If user doesn't have permission to view, return 403
           if (
             !isAdmin &&
-            !isCEO &&
+            !hasFullAccess &&
             !isRequester &&
             !isApprover &&
             !isAdditionalApprover
@@ -675,9 +677,14 @@ export function registerRoutes(app: Express): Server {
         // Get all requests first - we'll filter based on visibility permissions
         let requests = [];
 
-        // Admin or CEO Office can see all requests
-        if (req.user?.role === "admin" || req.user?.department === "CEO Office") {
-          debug(req, "User is admin or CEO Office - fetching all requests");
+        // Admin or high-level departments can see all requests
+        const hasFullAccess = req.user?.role === "admin" || 
+                             req.user?.department === "CEO Office" ||
+                             req.user?.department === "Director" ||
+                             req.user?.department === "Finance";
+        
+        if (hasFullAccess) {
+          debug(req, "User has full access - fetching all requests");
           requests = await db
             .select()
             .from(purchaseRequests)
