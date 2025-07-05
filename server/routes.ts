@@ -725,11 +725,13 @@ export function registerRoutes(app: Express): Server {
           requests = allRequests.filter((request) => {
             // 1. User created the request
             if (request.requesterId === req.user?.id) {
+              console.log(`Request ${request.id}: Visible - User is requester`);
               return true;
             }
 
             // 2. User is a mandatory approver (already covered in approvalRequestIds)
             if (approvalRequestIds.includes(request.id)) {
+              console.log(`Request ${request.id}: Visible - User has approval record`);
               return true;
             }
 
@@ -739,6 +741,7 @@ export function registerRoutes(app: Express): Server {
               req.user?.department &&
               mandatoryApproverDepartments.includes(req.user.department)
             ) {
+              console.log(`Request ${request.id}: Visible - User is mandatory approver (${req.user.department})`);
               return true;
             }
 
@@ -754,9 +757,11 @@ export function registerRoutes(app: Express): Server {
               req.user?.department &&
               additionalApprovers.includes(req.user.department)
             ) {
+              console.log(`Request ${request.id}: Visible - User department (${req.user.department}) is additional approver. Status: ${request.status}. Additional approvers: [${additionalApprovers.join(', ')}]`);
               return true;
             }
 
+            console.log(`Request ${request.id}: NOT visible - No access rule matched. User dept: ${req.user?.department}, Status: ${request.status}, Additional approvers: [${additionalApprovers.join(', ')}]`);
             // Not visible to this user
             return false;
           });
