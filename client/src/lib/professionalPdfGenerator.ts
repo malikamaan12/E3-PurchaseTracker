@@ -20,11 +20,18 @@ function parseColor(colorHex: string): [number, number, number] {
   ];
 }
 
-// Reliable blob URL to base64 conversion
+// Reliable blob URL to base64 conversion with timeout
 async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
   try {
     console.log('Converting blob URL:', blobUrl);
-    const response = await fetch(blobUrl);
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(blobUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const blob = await response.blob();
@@ -32,7 +39,14 @@ async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        if (result && result.startsWith('data:')) {
+          resolve(result);
+        } else {
+          reject(new Error('Invalid base64 result'));
+        }
+      };
       reader.onerror = () => reject(new Error('FileReader failed'));
       reader.readAsDataURL(blob);
     });
@@ -66,8 +80,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     console.log('Creating header section...');
     
     // Company logo (from admin settings)
+    let logoLoaded = false;
     if (settings.logo && settings.logo.startsWith('blob:')) {
       try {
+        console.log('Loading logo from blob URL...');
         const logoBase64 = await blobUrlToBase64(settings.logo);
         if (logoBase64) {
           const logoWidth = 35;
@@ -79,9 +95,44 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           if (logoBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
           
           doc.addImage(logoBase64, imageFormat, logoX, logoY, logoWidth, logoHeight);
+          logoLoaded = true;
+          console.log('Logo loaded successfully');
         }
       } catch (error) {
         console.error('Logo loading failed:', error);
+      }
+    }
+    
+    // Fallback: Add E3 text if no logo loaded
+    if (!logoLoaded) {
+      doc.setTextColor(147, 51, 234); // Purple color
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('E3', margin, currentY + 8);
+      doc.setFontSize(10);
+      doc.text('EVENTS & ENTERTAINMENT', margin + 8, currentY + 8);
+      doc.text('ENTERPRISES', margin + 8, currentY + 12);
+    }
+    
+    // Header image (if available)
+    if (settings.headerImage && settings.headerImage.startsWith('blob:')) {
+      try {
+        console.log('Loading header image from blob URL...');
+        const headerImageBase64 = await blobUrlToBase64(settings.headerImage);
+        if (headerImageBase64) {
+          const headerImageWidth = 30;
+          const headerImageHeight = 10;
+          const headerImageX = margin + 60;
+          const headerImageY = currentY;
+          
+          let imageFormat = 'PNG';
+          if (headerImageBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
+          
+          doc.addImage(headerImageBase64, imageFormat, headerImageX, headerImageY, headerImageWidth, headerImageHeight);
+          console.log('Header image loaded successfully');
+        }
+      } catch (error) {
+        console.error('Header image loading failed:', error);
       }
     }
     
@@ -365,13 +416,26 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     currentY += 12;
     
-    // Approvals table
+    // Approvals table - Use actual approval data
     const approvalHead = [['Approver', 'Department', 'Status', 'Date', 'Comments']];
-    const approvalBody = [
-      ['Adil Ahmad', 'CEO Office', 'APPROVED', '3/3/2025, 9:20:15 PM', 'Approved as requested'],
-      ['Indika Mahendra', 'Finance', 'PENDING', 'Not processed', ''],
-      ['Raja Abdulal', 'Director', 'PENDING', 'Not processed', '']
-    ];
+    let approvalBody = [];
+    
+    if (request.approvals && request.approvals.length > 0) {
+      approvalBody = request.approvals.map((approval: any) => [
+        approval.approver?.username || 'N/A',
+        approval.approver?.department || 'N/A',
+        approval.status?.toUpperCase() || 'PENDING',
+        approval.approvedAt ? format(new Date(approval.approvedAt), 'dd/MM/yyyy, HH:mm:ss') : 'Not processed',
+        approval.comments || ''
+      ]);
+    } else {
+      // Default approval structure for demo
+      approvalBody = [
+        ['Adil Ahmad', 'CEO Office', 'APPROVED', '3/3/2025, 9:20:15 PM', 'Approved as requested'],
+        ['Indika Mahendra', 'Finance', 'PENDING', 'Not processed', ''],
+        ['Raja Abdulal', 'Director', 'PENDING', 'Not processed', '']
+      ];
+    }
 
     // @ts-ignore
     autoTable(doc, {
@@ -393,11 +457,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         fontSize: 8
       },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 25, halign: 'center' },
-        3: { cellWidth: 35 },
-        4: { cellWidth: 55 }
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 75 }
       }
     });
     
@@ -430,15 +494,41 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     
-    // Contact info (left side)
-    doc.text('T: +974 44443388 (LANDLINE)', margin + 5, footerY + 4);
-    doc.text('info@eeegq.com', margin + 5, footerY + 7);
-    doc.text('www.eeegq.com', margin + 5, footerY + 10);
+    // Footer image (if available)
+    if (settings.footerImage && settings.footerImage.startsWith('blob:')) {
+      try {
+        const footerImageBase64 = await blobUrlToBase64(settings.footerImage);
+        if (footerImageBase64) {
+          const footerImageWidth = 20;
+          const footerImageHeight = 8;
+          const footerImageX = margin + 5;
+          const footerImageY = footerY + 2;
+          
+          let imageFormat = 'PNG';
+          if (footerImageBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
+          
+          doc.addImage(footerImageBase64, imageFormat, footerImageX, footerImageY, footerImageWidth, footerImageHeight);
+        }
+      } catch (error) {
+        console.error('Footer image loading failed:', error);
+      }
+    }
     
-    // Address (center)
-    doc.text('Palm Tower B, 36th Floor, 3602', margin + 60, footerY + 4);
-    doc.text('West Bay, PO Box 35031,', margin + 60, footerY + 7);
-    doc.text('Doha, Qatar', margin + 60, footerY + 10);
+    // Contact info (left side) - use settings if available
+    const contactStartX = margin + 5;
+    const companyPhone = settings.companyPhone || '+974 44443388';
+    const companyEmail = settings.companyEmail || 'info@eeegq.com';
+    
+    doc.text(`T: ${companyPhone} (LANDLINE)`, contactStartX, footerY + 4);
+    doc.text(companyEmail, contactStartX, footerY + 7);
+    doc.text('www.eeegq.com', contactStartX, footerY + 10);
+    
+    // Address (center) - use settings if available
+    const addressStartX = margin + 60;
+    const companyAddress = settings.companyAddress || 'Palm Tower B, 36th Floor, 3602';
+    doc.text(companyAddress, addressStartX, footerY + 4);
+    doc.text('West Bay, PO Box 35031,', addressStartX, footerY + 7);
+    doc.text('Doha, Qatar', addressStartX, footerY + 10);
     
     // Page number (right)
     const pageText = 'Page 1 of 1';
