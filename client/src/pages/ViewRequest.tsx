@@ -42,20 +42,29 @@ export default function ViewRequest() {
   }
 
   if (isError || !request) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const isPermissionError = errorMessage.includes("permission") || errorMessage.includes("403");
+    
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="flex items-center mb-4 text-red-500">
           <AlertCircle className="h-6 w-6 mr-2" />
-          <h1 className="text-2xl font-bold">Request Not Found</h1>
+          <h1 className="text-2xl font-bold">
+            {isPermissionError ? "Access Denied" : "Request Not Found"}
+          </h1>
         </div>
         <p className="text-gray-600 mb-4">
-          {error instanceof Error 
-            ? error.message 
-            : "The request you're looking for doesn't exist or could not be loaded."}
+          {isPermissionError 
+            ? "You don't have permission to view this request. Contact your administrator if you believe this is incorrect."
+            : errorMessage.includes("Failed to fetch request")
+              ? "The request you're looking for doesn't exist or could not be loaded."
+              : errorMessage}
         </p>
-        <Button onClick={() => refetch()} className="mb-4">
-          Retry Loading
-        </Button>
+        {!isPermissionError && (
+          <Button onClick={() => refetch()} className="mb-4">
+            Retry Loading
+          </Button>
+        )}
         <Button onClick={() => setLocation("/")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard

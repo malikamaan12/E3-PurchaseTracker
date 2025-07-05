@@ -524,6 +524,10 @@ export function registerRoutes(app: Express): Server {
           res.json(result);
         } catch (error) {
           console.error("[GET /api/requests/:id] Database error:", error);
+          // If it's already an AppError (like permission denied), don't wrap it
+          if (error instanceof AppError) {
+            throw error;
+          }
           throw new DatabaseError("Failed to fetch request data from database");
         }
       } catch (error) {

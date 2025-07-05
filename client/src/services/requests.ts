@@ -84,12 +84,16 @@ export async function getRequest(id: number): Promise<PurchaseRequest> {
         errorMessage = errorText || `Failed to fetch request: ${response.status}`;
       }
 
-      // Show toast for fetch errors
-      ToastService.error(
-        "Error Loading Request",
-        errorMessage,
-        7000
-      );
+      // Don't show toast for permission errors as they're handled in the UI
+      const isPermissionError = response.status === 403 || errorMessage.includes('permission');
+      
+      if (!isPermissionError) {
+        ToastService.error(
+          "Error Loading Request",
+          errorMessage,
+          7000
+        );
+      }
 
       throw new Error(errorMessage);
     }
