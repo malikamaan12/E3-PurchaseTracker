@@ -20,7 +20,7 @@ import { autoTable } from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
-import { generateCleanPdf } from './cleanPdfGenerator';
+import { generateUltraCleanPdf } from './ultraCleanPdfGenerator';
 
 /**
  * Safely download a file using FileSaver with fallbacks
@@ -346,8 +346,8 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    // Use the clean PDF generator for reliable output
-    await generateCleanPdf(request, pdfSettings || {});
+    // Use the ultra clean PDF generator - NO WATERMARKS
+    await generateUltraCleanPdf(request);
     
     // Return filename for audit purposes
     const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
