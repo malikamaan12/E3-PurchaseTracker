@@ -267,11 +267,11 @@ export function useEnhancedNotifications(options?: {
       switch (actionType) {
         case 'approve':
           endpoint = `/api/requests/${requestId}/approvals`;
-          body = { action: 'approve', ...actionData };
+          body = { status: 'approved', ...actionData };
           break;
         case 'reject':
           endpoint = `/api/requests/${requestId}/approvals`;
-          body = { action: 'reject', ...actionData };
+          body = { status: 'rejected', ...actionData };
           break;
         case 'acknowledge':
           endpoint = `/api/notifications/${notificationId}/acknowledge`;

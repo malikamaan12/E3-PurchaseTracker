@@ -5,7 +5,8 @@ A modern, lightweight purchase management system optimized for performance and u
 
 ## Recent Changes (July 2025)
 - **Executive Access Fix**: Fixed permission system to grant CEO Office, Director, and Finance departments full access to all purchase requests and approval rights
-- **Additional Approver Access**: Ensured additional approvers have proper access to their assigned requests regardless of status
+- **Additional Approver Dashboard**: Ensured additional approvers can see all their assigned requests in dashboard, including approved ones
+- **Approval Process Fix**: Fixed approval creation endpoint to automatically use user's department and handle missing fields
 - **Error Handling Improvement**: Updated error responses to properly return 403 instead of 500 for permission denied scenarios
 - **PDF Settings Integration**: Complete dynamic integration of admin panel PDF settings into PDF generation
 - **Real-time PDF Configuration**: All PDF customization (fonts, colors, margins, watermarks, section visibility) immediately reflected in downloads

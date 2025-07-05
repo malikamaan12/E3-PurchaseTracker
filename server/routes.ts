@@ -737,8 +737,7 @@ export function registerRoutes(app: Express): Server {
             const mandatoryApproverDepartments = ["CEO Office", "Finance", "Director"];
             if (
               req.user?.department &&
-              mandatoryApproverDepartments.includes(req.user.department) &&
-              request.status === "pending"
+              mandatoryApproverDepartments.includes(req.user.department)
             ) {
               return true;
             }
@@ -2117,7 +2116,8 @@ export function registerRoutes(app: Express): Server {
         }
 
         const requestId = parseInt(req.params.requestId);
-        const { status, department, comments } = req.body;
+        const { status, comments } = req.body;
+        const department = req.user.department; // Use user's department automatically
 
         debug(req, "Creating approval with data:", {
           requestId,
