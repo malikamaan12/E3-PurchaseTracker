@@ -1,8 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { registerPdfRoutes } from "./routes/pdf-routes";
-import { registerUnifiedPdfRoutes } from "./routes/unified-pdf-routes";
-import { registerPdfAnalysisRoutes } from "./routes/pdf-analysis-routes";
+// Removed redundant PDF route imports - now using consolidated approach
 import { setupVite, serveStatic, log } from "./vite";
 import { db } from "@db";
 import fs from 'fs';
@@ -135,10 +133,7 @@ async function initializeServer() {
 
     // Set up routes
     const server = registerRoutes(app);
-    // Use the new unified PDF routes instead of the old ones
-    registerUnifiedPdfRoutes(app);
-    // Register AI-powered PDF analysis routes
-    registerPdfAnalysisRoutes(app);
+    // PDF routes are now consolidated within registerRoutes()
     log("Routes registered successfully");
 
     // Global error handler with proper async handling

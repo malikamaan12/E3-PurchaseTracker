@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import UserManagement from "@/components/UserManagement";
 import VendorManagement from "@/pages/VendorManagement";
 import DepartmentDashboard from "@/pages/DepartmentDashboard";
-import PDFSettingsPanel from "@/components/PDFSettingsPanel";
+import { SimplePDFSettings } from "@/components/SimplePDFSettings";
 import TestExportPage from "@/pages/TestExportPage";
 import {
   Card,
@@ -1106,10 +1106,9 @@ export default function AdminPanel() {
                 Customize appearance and content of exported PDF documents
               </CardDescription>
             </CardHeader>
-            <CardContent className="bg-[#111827] text-white rounded-b-md">
-              <PDFSettingsPanel 
-                settings={pdfSettings}
-                onSettingsChange={handlePdfSettingsChange}
+            <CardContent>
+              <SimplePDFSettings 
+                onSave={handlePdfSettingsChange}
               />
             </CardContent>
           </Card>
