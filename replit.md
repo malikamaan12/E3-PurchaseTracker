@@ -14,6 +14,10 @@ A modern, lightweight purchase management system optimized for performance and u
 - **Footer Customization**: Configurable footer text and company address information
 - **Conditional Field Display**: Individual field visibility control (title, description, purpose details, contact info)
 - **Enhanced Table Styling**: Dynamic table header colors and font settings for all tables
+- **Blob URL Image Processing**: Fixed critical issue where admin panel logo/header/footer images weren't loading in PDFs
+- **Asynchronous Image Loading**: Implemented proper blob URL to base64 conversion for all PDF images (logo, header, footer)
+- **Real-time Image Updates**: Logo, header images, and footer images now dynamically reflect admin panel changes
+- **Professional Image Placement**: Optimized image positioning and sizing for business document standards
 - **UI Optimization**: Removed heavy animations and liquid effects from BentoLiquidExample component
 - **Dashboard Simplification**: Streamlined Dashboard background and removed complex gradients
 - **CSS Optimization**: Minimized animations.css and bento-liquid.css for better performance

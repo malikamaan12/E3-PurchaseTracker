@@ -20,6 +20,23 @@ function parseColor(colorHex: string): [number, number, number] {
   ];
 }
 
+// Helper function to convert blob URL to base64 synchronously
+async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(blobUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn('Could not convert blob URL to base64:', error);
+    return null;
+  }
+}
+
 export async function generateProfessionalPdf(request: any, settings: any = {}): Promise<void> {
   console.log("Generating professional PDF for request:", request.id);
   console.log("PDF settings received:", settings);
@@ -81,20 +98,30 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         const logoY = currentY - 5;
         
         // Convert blob URL to base64 for PDF
-        const response = await fetch(logoField);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          try {
-            doc.addImage(base64data, 'PNG', logoX, logoY, logoWidth, logoHeight);
-          } catch (e) {
-            console.warn('Could not add logo:', e);
-          }
-        };
-        reader.readAsDataURL(blob);
+        const base64Logo = await blobUrlToBase64(logoField);
+        if (base64Logo) {
+          doc.addImage(base64Logo, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        }
       } catch (error) {
         console.warn('Could not load logo from blob URL:', error);
+      }
+    }
+    
+    // Add header image if available and different from logo
+    const headerImageField = settings.headerImage;
+    if (headerImageField && headerImageField.startsWith('blob:') && headerImageField !== logoField) {
+      try {
+        const headerImageWidth = 40;
+        const headerImageHeight = 15;
+        const headerImageX = (pageWidth - headerImageWidth) / 2; // Center the header image
+        const headerImageY = currentY - 5;
+        
+        const base64HeaderImage = await blobUrlToBase64(headerImageField);
+        if (base64HeaderImage) {
+          doc.addImage(base64HeaderImage, 'PNG', headerImageX, headerImageY, headerImageWidth, headerImageHeight);
+        }
+      } catch (error) {
+        console.warn('Could not load header image from blob URL:', error);
       }
     }
     
@@ -406,9 +433,29 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // FOOTER with admin settings
     const footerY = pageHeight - 12;
     
+    // Apply footer color from settings
+    const footerColor = parseColor(settings.footerColor || '#888888');
     doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
     doc.setFont('helvetica', 'normal');
+    
+    // Add footer image if available
+    const footerImageField = settings.footerImage;
+    if (footerImageField && footerImageField.startsWith('blob:')) {
+      try {
+        const footerImageWidth = 20;
+        const footerImageHeight = 10;
+        const footerImageX = pageWidth - marginRight - footerImageWidth;
+        const footerImageY = footerY - 8;
+        
+        const base64FooterImage = await blobUrlToBase64(footerImageField);
+        if (base64FooterImage) {
+          doc.addImage(base64FooterImage, 'PNG', footerImageX, footerImageY, footerImageWidth, footerImageHeight);
+        }
+      } catch (error) {
+        console.warn('Could not load footer image from blob URL:', error);
+      }
+    }
     
     // Use footer from admin settings or default
     const footerText = settings.footerText || 
