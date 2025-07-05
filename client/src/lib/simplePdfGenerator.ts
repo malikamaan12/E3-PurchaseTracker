@@ -361,11 +361,11 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
         fontSize: 8
       },
       columnStyles: {
-        0: { cellWidth: 28 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 22, halign: 'center' },
-        3: { cellWidth: 32 },
-        4: { cellWidth: 66 }
+        0: { cellWidth: 24 },
+        1: { cellWidth: 19 },
+        2: { cellWidth: 17, halign: 'center' },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 76 }
       }
     });
     
@@ -431,9 +431,19 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
     // Log audit event
     try {
       const trackingId = generatePdfTrackingId();
-      const requestId = parseInt(String(request.id), 10);
+      let requestId: number;
       
-      if (!isNaN(requestId)) {
+      // Handle different request ID formats
+      if (typeof request.id === 'number') {
+        requestId = request.id;
+      } else if (typeof request.id === 'string') {
+        requestId = parseInt(request.id, 10);
+      } else {
+        console.warn('Request ID is not a number or string:', request.id, typeof request.id);
+        requestId = NaN;
+      }
+      
+      if (!isNaN(requestId) && requestId > 0) {
         await logPdfAuditEvent({
           requestId,
           action: 'pdf_downloaded',
@@ -449,8 +459,9 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
             type: 'admin'
           }
         });
+        console.log('Audit event logged successfully for request:', requestId);
       } else {
-        console.warn('Invalid request ID for audit logging:', request.id);
+        console.warn('Invalid request ID for audit logging:', request.id, 'parsed as:', requestId);
       }
     } catch (auditError) {
       console.error('Audit logging failed:', auditError);
