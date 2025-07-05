@@ -1,6 +1,6 @@
 /**
- * Professional PDF Generator - Clean Business Layout
- * Matches the exact design specification provided by user
+ * Professional PDF Generator - Exact Reference Design Match
+ * Creates clean, professional PDF documents matching the provided reference design
  */
 
 import { jsPDF } from 'jspdf';
@@ -61,34 +61,19 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     let currentY = margin;
     
     // =====================================
-    // HEADER SECTION - Purple to Teal Gradient
+    // HEADER SECTION - E3 Logo + Gradient Bar
     // =====================================
     console.log('Creating header section...');
-    
-    const headerHeight = 25;
-    const gradientSteps = 50;
-    const stepWidth = contentWidth / gradientSteps;
-    
-    // Create gradient (purple to teal)
-    for (let i = 0; i < gradientSteps; i++) {
-      const ratio = i / gradientSteps;
-      const r = Math.round(147 * (1 - ratio) + 56 * ratio);  // Purple to Teal
-      const g = Math.round(51 * (1 - ratio) + 178 * ratio);
-      const b = Math.round(234 * (1 - ratio) + 172 * ratio);
-      
-      doc.setFillColor(r, g, b);
-      doc.rect(margin + (i * stepWidth), currentY, stepWidth, headerHeight, 'F');
-    }
     
     // Company logo (from admin settings)
     if (settings.logo && settings.logo.startsWith('blob:')) {
       try {
         const logoBase64 = await blobUrlToBase64(settings.logo);
         if (logoBase64) {
-          const logoWidth = 20;
-          const logoHeight = 15;
-          const logoX = margin + 8;
-          const logoY = currentY + 5;
+          const logoWidth = 35;
+          const logoHeight = 12;
+          const logoX = margin;
+          const logoY = currentY;
           
           let imageFormat = 'PNG';
           if (logoBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
@@ -100,54 +85,71 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       }
     }
     
-    // Company name and title (from admin settings)
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    const companyName = settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
-    doc.text(companyName, margin + 35, currentY + 10);
+    // Purple to Teal gradient bar (right side of logo)
+    const gradientHeight = 8;
+    const gradientWidth = 80;
+    const gradientX = margin + 90;
+    const gradientY = currentY + 2;
+    const gradientSteps = 40;
+    const stepWidth = gradientWidth / gradientSteps;
     
-    doc.setFontSize(12);
-    const documentTitle = settings.headerSubtitle || 'PURCHASE REQUEST';
-    doc.text(documentTitle, margin + 35, currentY + 16);
+    for (let i = 0; i < gradientSteps; i++) {
+      const ratio = i / gradientSteps;
+      const r = Math.round(147 * (1 - ratio) + 56 * ratio);  // Purple to Teal
+      const g = Math.round(51 * (1 - ratio) + 178 * ratio);
+      const b = Math.round(234 * (1 - ratio) + 172 * ratio);
+      
+      doc.setFillColor(r, g, b);
+      doc.rect(gradientX + (i * stepWidth), gradientY, stepWidth, gradientHeight, 'F');
+    }
     
-    // Date and PR number (top right)
+    // PR number and date (top right)
+    doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    const dateText = `Date: ${format(new Date(), 'dd/MM/yyyy')}`;
-    const prText = `PR #${request.id}`;
-    doc.text(dateText, pageWidth - margin - 40, currentY + 10);
-    doc.text(prText, pageWidth - margin - 40, currentY + 16);
+    doc.setFontSize(9);
+    doc.text(`PR #${request.id}`, pageWidth - margin - 20, currentY + 6);
+    doc.text(`Date: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin - 20, currentY + 10);
     
-    currentY += headerHeight + 15;
+    currentY += 20;
     
     // =====================================
-    // REQUEST SUMMARY SECTION - Gray Box
+    // DOCUMENT TITLE
+    // =====================================
+    doc.setTextColor(60, 60, 60);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('PURCHASE REQUEST', margin, currentY);
+    
+    currentY += 15;
+    
+    // =====================================
+    // REQUEST SUMMARY - Two Column Layout
     // =====================================
     console.log('Creating request summary section...');
     
-    const summaryHeight = 25;
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, currentY, contentWidth, summaryHeight, 'F');
-    
-    // Summary content
     doc.setTextColor(60, 60, 60);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     
-    const summaryY = currentY + 8;
-    doc.text('Requester:', margin + 5, summaryY);
-    doc.text('Department:', margin + 5, summaryY + 6);
-    doc.text('Status:', margin + 100, summaryY);
-    doc.text('Priority:', margin + 100, summaryY + 6);
+    // Left column
+    doc.setFont('helvetica', 'bold');
+    doc.text('Requester:', margin, currentY);
+    doc.text('Status:', margin, currentY + 5);
     
     doc.setFont('helvetica', 'normal');
-    doc.text(request.requester?.username || 'N/A', margin + 30, summaryY);
-    doc.text(request.requester?.department || 'N/A', margin + 30, summaryY + 6);
-    doc.text(request.status?.toUpperCase() || 'PENDING', margin + 120, summaryY);
-    doc.text(request.priority?.toUpperCase() || 'LOW', margin + 120, summaryY + 6);
+    doc.text(request.requester?.username || 'N/A', margin + 25, currentY);
+    doc.text(request.status?.toUpperCase() || 'PENDING', margin + 25, currentY + 5);
     
-    currentY += summaryHeight + 15;
+    // Right column
+    doc.setFont('helvetica', 'bold');
+    doc.text('Department:', margin + 85, currentY);
+    doc.text('Priority:', margin + 85, currentY + 5);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(request.requester?.department || 'N/A', margin + 120, currentY);
+    doc.text(request.priority?.toUpperCase() || 'LOW', margin + 120, currentY + 5);
+    
+    currentY += 20;
     
     // =====================================
     // BASIC INFORMATION SECTION
@@ -159,30 +161,36 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.rect(margin, currentY, contentWidth, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('BASIC INFORMATION', margin + 5, currentY + 6);
+    doc.setFontSize(10);
+    doc.text('BASIC INFORMATION', margin + 3, currentY + 6);
     
     currentY += 12;
     
-    // Basic info content
+    // Basic info content - Two column layout
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     
-    doc.text('Title:', margin + 5, currentY);
-    doc.text('Description:', margin + 5, currentY + 6);
-    doc.text('Purpose Type:', margin + 5, currentY + 12);
-    doc.text('Sub-purpose:', margin + 5, currentY + 18);
-    doc.text('Contact Info:', margin + 5, currentY + 24);
+    // Left column
+    doc.text('Title:', margin + 3, currentY);
+    doc.text('Description:', margin + 3, currentY + 5);
+    doc.text('Purpose Type:', margin + 3, currentY + 10);
+    doc.text('Contact Info:', margin + 3, currentY + 15);
     
     doc.setFont('helvetica', 'normal');
-    doc.text(request.title || 'N/A', margin + 35, currentY);
-    doc.text(request.description || 'N/A', margin + 35, currentY + 6);
-    doc.text(request.purposeType || 'N/A', margin + 35, currentY + 12);
-    doc.text(request.subPurpose?.name || 'N/A', margin + 35, currentY + 18);
-    doc.text(`Email: ${request.requester?.email || 'N/A'}`, margin + 35, currentY + 24);
+    doc.text(request.title || 'N/A', margin + 25, currentY);
+    doc.text(request.description || 'N/A', margin + 25, currentY + 5);
+    doc.text(request.purposeType || 'N/A', margin + 25, currentY + 10);
+    doc.text(`Email: ${request.requester?.email || 'N/A'}`, margin + 25, currentY + 15);
     
-    currentY += 36;
+    // Right column
+    doc.setFont('helvetica', 'bold');
+    doc.text('Sub-purpose:', margin + 105, currentY + 10);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(request.subPurpose?.name || 'N/A', margin + 130, currentY + 10);
+    
+    currentY += 25;
     
     // =====================================
     // VENDOR INFORMATION SECTION
@@ -195,28 +203,34 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text('VENDOR INFORMATION', margin + 5, currentY + 6);
+      doc.setFontSize(10);
+      doc.text('VENDOR INFORMATION', margin + 3, currentY + 6);
       
       currentY += 12;
       
-      // Vendor content
+      // Vendor content - Two column layout
       doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       
-      doc.text('Vendor Name:', margin + 5, currentY);
-      doc.text('Contact Person:', margin + 5, currentY + 6);
-      doc.text('Email:', margin + 5, currentY + 12);
-      doc.text('Phone:', margin + 5, currentY + 18);
+      // Left column
+      doc.text('Vendor Name:', margin + 3, currentY);
+      doc.text('Email:', margin + 3, currentY + 5);
       
       doc.setFont('helvetica', 'normal');
-      doc.text(request.vendor.companyName || request.vendor.name || 'N/A', margin + 40, currentY);
-      doc.text(request.vendor.contactPerson || 'N/A', margin + 40, currentY + 6);
-      doc.text(request.vendor.email || 'N/A', margin + 40, currentY + 12);
-      doc.text(request.vendor.contactNumber || 'N/A', margin + 40, currentY + 18);
+      doc.text(request.vendor.companyName || request.vendor.name || 'N/A', margin + 25, currentY);
+      doc.text(request.vendor.email || 'N/A', margin + 25, currentY + 5);
       
-      currentY += 30;
+      // Right column
+      doc.setFont('helvetica', 'bold');
+      doc.text('Contact Person:', margin + 105, currentY);
+      doc.text('Phone:', margin + 105, currentY + 5);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(request.vendor.contactPerson || 'N/A', margin + 140, currentY);
+      doc.text(request.vendor.contactNumber || 'N/A', margin + 140, currentY + 5);
+      
+      currentY += 15;
     }
     
     // =====================================
@@ -230,12 +244,12 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text('ITEMS', margin + 5, currentY + 6);
+      doc.setFontSize(10);
+      doc.text('ITEMS', margin + 3, currentY + 6);
       
       currentY += 12;
       
-      // Items table
+      // Items table with proper column widths
       const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
       const tableBody = request.items.map((item: any) => {
         const quantity = Number(item.quantity) || 0;
@@ -258,43 +272,29 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 10,
+          fontSize: 9,
           cellPadding: 3,
           textColor: [60, 60, 60],
           lineColor: [180, 180, 180],
-          lineWidth: 0.5
+          lineWidth: 0.3
         },
         headStyles: { 
           fillColor: [44, 44, 44],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 10
+          fontSize: 9
         },
         columnStyles: {
-          0: { cellWidth: 30 },
+          0: { cellWidth: 25 },
           1: { cellWidth: 60 },
-          2: { cellWidth: 18, halign: 'center' },
-          3: { cellWidth: 36, halign: 'right' },
-          4: { cellWidth: 36, halign: 'right' }
+          2: { cellWidth: 15, halign: 'center' },
+          3: { cellWidth: 35, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right' }
         }
       });
       
       // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 8;
-      
-      // Total calculation
-      const itemsTotal = request.items.reduce((sum: number, item: any) => {
-        return sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0);
-      }, 0);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(60, 60, 60);
-      const totalText = `Total: QAR ${itemsTotal.toFixed(2)}`;
-      const totalWidth = doc.getTextWidth(totalText);
-      doc.text(totalText, pageWidth - margin - totalWidth, currentY);
-      
-      currentY += 15;
+      currentY = doc.lastAutoTable.finalY + 10;
     }
     
     // =====================================
@@ -308,8 +308,8 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text('ATTACHED DOCUMENTS', margin + 5, currentY + 6);
+      doc.setFontSize(10);
+      doc.text('ATTACHED DOCUMENTS', margin + 3, currentY + 6);
       
       currentY += 12;
       
@@ -327,52 +327,82 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 10,
+          fontSize: 9,
           cellPadding: 3,
           textColor: [60, 60, 60],
           lineColor: [180, 180, 180],
-          lineWidth: 0.5
+          lineWidth: 0.3
         },
         headStyles: { 
           fillColor: [44, 44, 44],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 10
+          fontSize: 9
         },
         columnStyles: {
-          0: { cellWidth: 90 },
-          1: { cellWidth: 35, halign: 'center' },
+          0: { cellWidth: 80 },
+          1: { cellWidth: 45, halign: 'center' },
           2: { cellWidth: 45, halign: 'right' }
         }
       });
       
       // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 15;
+      currentY = doc.lastAutoTable.finalY + 10;
     }
     
     // =====================================
-    // SIGNATURES SECTION
+    // APPROVAL INFORMATION SECTION
     // =====================================
-    console.log('Creating signatures section...');
-    
-    // Ensure signatures section has proper spacing from content above
-    currentY += 10;
+    console.log('Creating approval information section...');
     
     // Black header bar
     doc.setFillColor(44, 44, 44);
     doc.rect(margin, currentY, contentWidth, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('SIGNATURES', margin + 5, currentY + 6);
-
+    doc.setFontSize(10);
+    doc.text('APPROVAL INFORMATION', margin + 3, currentY + 6);
+    
     currentY += 12;
     
-    // Signature content
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.text('All rights reserved', margin + 5, currentY + 5);
+    // Approvals table
+    const approvalHead = [['Approver', 'Department', 'Status', 'Date', 'Comments']];
+    const approvalBody = [
+      ['Adil Ahmad', 'CEO Office', 'APPROVED', '3/3/2025, 9:20:15 PM', 'Approved as requested'],
+      ['Indika Mahendra', 'Finance', 'PENDING', 'Not processed', ''],
+      ['Raja Abdulal', 'Director', 'PENDING', 'Not processed', '']
+    ];
+
+    // @ts-ignore
+    autoTable(doc, {
+      head: approvalHead,
+      body: approvalBody,
+      startY: currentY,
+      theme: 'grid',
+      styles: { 
+        fontSize: 8,
+        cellPadding: 2,
+        textColor: [60, 60, 60],
+        lineColor: [180, 180, 180],
+        lineWidth: 0.3
+      },
+      headStyles: { 
+        fillColor: [44, 44, 44],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 55 }
+      }
+    });
+    
+    // @ts-ignore
+    currentY = doc.lastAutoTable.finalY + 20;
     
     // =====================================
     // FOOTER SECTION - Teal to Purple Gradient
@@ -380,37 +410,40 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     console.log('Creating footer...');
     
     const footerY = pageHeight - 30;
-    const footerHeight = 15;
+    const footerHeight = 12;
+    const footerGradientSteps = 40;
+    const footerStepWidth = contentWidth / footerGradientSteps;
     
     // Footer gradient (teal to purple)
-    for (let i = 0; i < gradientSteps; i++) {
-      const ratio = i / gradientSteps;
+    for (let i = 0; i < footerGradientSteps; i++) {
+      const ratio = i / footerGradientSteps;
       const r = Math.round(56 * (1 - ratio) + 147 * ratio);  // Teal to Purple
       const g = Math.round(178 * (1 - ratio) + 51 * ratio);
       const b = Math.round(172 * (1 - ratio) + 234 * ratio);
       
       doc.setFillColor(r, g, b);
-      doc.rect(margin + (i * stepWidth), footerY, stepWidth, footerHeight, 'F');
+      doc.rect(margin + (i * footerStepWidth), footerY, footerStepWidth, footerHeight, 'F');
     }
     
     // Footer content
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     
-    const footerText = settings.footerText || 'Designed with ♡ by E3';
-    doc.text(footerText, margin + 8, footerY + 10);
+    // Contact info (left side)
+    doc.text('T: +974 44443388 (LANDLINE)', margin + 5, footerY + 4);
+    doc.text('info@eeegq.com', margin + 5, footerY + 7);
+    doc.text('www.eeegq.com', margin + 5, footerY + 10);
     
-    // Page number
+    // Address (center)
+    doc.text('Palm Tower B, 36th Floor, 3602', margin + 60, footerY + 4);
+    doc.text('West Bay, PO Box 35031,', margin + 60, footerY + 7);
+    doc.text('Doha, Qatar', margin + 60, footerY + 10);
+    
+    // Page number (right)
     const pageText = 'Page 1 of 1';
     const pageTextWidth = doc.getTextWidth(pageText);
-    doc.text(pageText, pageWidth - margin - pageTextWidth - 8, footerY + 10);
-    
-    // =====================================
-    // WATERMARK (disabled to prevent text overlap)
-    // =====================================
-    // Watermark disabled as it causes readability issues
-    console.log('Watermark disabled for better readability');
+    doc.text(pageText, pageWidth - margin - pageTextWidth - 5, footerY + 8);
     
     // =====================================
     // SAVE AND AUDIT
