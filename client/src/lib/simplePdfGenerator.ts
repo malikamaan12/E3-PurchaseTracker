@@ -12,6 +12,13 @@ import { logPdfAuditEvent, generatePdfTrackingId } from './pdfAuditUtils';
 export async function generateSimplePdf(request: any, settings: any = {}): Promise<void> {
   try {
     console.log('Generating simple PDF for request:', request.id);
+    console.log('Request data received:', {
+      id: request.id,
+      status: request.status,
+      approvals: request.approvals?.length || 0,
+      items: request.items?.length || 0,
+      vendor: request.vendor ? 'Present' : 'Missing'
+    });
     
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -215,10 +222,31 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
           item.name || 'N/A',
           item.description || 'N/A',
           quantity.toString(),
-          `QAR ${unitCost.toFixed(2)}`,
-          `QAR ${totalCost.toFixed(2)}`
+          `${request.currency || 'QAR'} ${unitCost.toFixed(2)}`,
+          `${request.currency || 'QAR'} ${totalCost.toFixed(2)}`
         ];
       });
+      
+      // Add freight row if present
+      if (request.freightAmount && Number(request.freightAmount) > 0) {
+        tableBody.push([
+          'Freight/Shipping',
+          'Additional shipping costs',
+          '-',
+          '-',
+          `${request.currency || 'QAR'} ${Number(request.freightAmount).toFixed(2)}`
+        ]);
+      }
+      
+      // Add total row
+      const grandTotal = Number(request.totalEstimatedCost) || 0;
+      tableBody.push([
+        'TOTAL',
+        '',
+        '',
+        '',
+        `${request.currency || 'QAR'} ${grandTotal.toFixed(2)}`
+      ]);
 
       // @ts-ignore
       autoTable(doc, {
@@ -320,24 +348,25 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
     
     currentY += 12;
     
-    // Approvals table - Use actual approval data
+    // Approvals table - Use actual approval data from database
     const approvalHead = [['Approver', 'Department', 'Status', 'Date', 'Comments']];
     let approvalBody = [];
     
+    console.log('Request approvals data:', request.approvals);
+    
     if (request.approvals && request.approvals.length > 0) {
+      // Use actual approval data from the database
       approvalBody = request.approvals.map((approval: any) => [
-        approval.approver?.username || 'N/A',
-        approval.approver?.department || 'N/A',
+        approval.approver?.username || approval.approverName || 'N/A',
+        approval.approver?.department || approval.department || 'N/A',
         approval.status?.toUpperCase() || 'PENDING',
         approval.approvedAt ? format(new Date(approval.approvedAt), 'dd/MM/yyyy, HH:mm:ss') : 'Not processed',
-        approval.comments || ''
+        approval.comments || approval.comment || ''
       ]);
     } else {
-      // Default approval structure for demo
+      // Show "No approvals required" when there are no approvals
       approvalBody = [
-        ['Adil Ahmad', 'CEO Office', 'APPROVED', '3/3/2025, 9:20:15 PM', 'Approved as requested'],
-        ['Indika Mahendra', 'Finance', 'PENDING', 'Not processed', ''],
-        ['Raja Abdulal', 'Director', 'PENDING', 'Not processed', '']
+        ['No approvals required', '-', '-', '-', 'This request does not require approvals']
       ];
     }
 
@@ -361,11 +390,11 @@ export async function generateSimplePdf(request: any, settings: any = {}): Promi
         fontSize: 8
       },
       columnStyles: {
-        0: { cellWidth: 24 },
-        1: { cellWidth: 19 },
-        2: { cellWidth: 17, halign: 'center' },
-        3: { cellWidth: 24 },
-        4: { cellWidth: 76 }
+        0: { cellWidth: 28 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 56 }
       }
     });
     
