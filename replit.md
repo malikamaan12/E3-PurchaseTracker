@@ -18,6 +18,10 @@ A modern, lightweight purchase management system optimized for performance and u
 - **Asynchronous Image Loading**: Implemented proper blob URL to base64 conversion for all PDF images (logo, header, footer)
 - **Real-time Image Updates**: Logo, header images, and footer images now dynamically reflect admin panel changes
 - **Professional Image Placement**: Optimized image positioning and sizing for business document standards
+- **PDF Export Fix (July 5)**: Replaced hardcoded ultraCleanPdfGenerator with dynamic enhancedPdfGenerator
+- **Blob URL Conversion**: Enhanced blob URL to base64 conversion with proper error handling
+- **AutoTable TypeScript Fixes**: Corrected jsPDF autoTable method calls throughout enhanced PDF generator
+- **Graceful Image Fallbacks**: PDF generation continues with default styling when custom images fail to load
 - **UI Optimization**: Removed heavy animations and liquid effects from BentoLiquidExample component
 - **Dashboard Simplification**: Streamlined Dashboard background and removed complex gradients
 - **CSS Optimization**: Minimized animations.css and bento-liquid.css for better performance

@@ -125,16 +125,21 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
           console.log('Converting blob URL to base64 for header image');
           try {
             const response = await fetch(pdfSettings.headerImage);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const blob = await response.blob();
-            imageDataUrl = await new Promise<string>((resolve) => {
+            imageDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => resolve(pdfSettings.headerImage); // Fallback to original
+              reader.onerror = () => reject(new Error('FileReader failed'));
               reader.readAsDataURL(blob);
             });
+            console.log('Successfully converted blob URL to base64');
           } catch (blobError) {
             console.warn('Failed to convert blob URL to base64:', blobError);
-            imageDataUrl = pdfSettings.headerImage; // Use original URL as fallback
+            // Skip header image if conversion fails
+            throw new Error('Header image conversion failed');
           }
         }
         
@@ -173,7 +178,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
           'F'                      // Fill style
         );
       } catch (error) {
-        console.error('Error adding header image:', error);
+        console.warn('Header image not available, using default header:', error instanceof Error ? error.message : String(error));
         // Use our helper to ensure valid RGB colors with proper defaults
         const defaultPurple: RGBColor = [111/255, 42/255, 230/255]; // Default E3 purple
         const defaultTeal: RGBColor = [31/255, 211/255, 219/255]; // Default E3 teal
@@ -227,7 +232,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     };
     
     // Create the request info table
-    doc.doc.autoTable({
+    doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -469,16 +474,21 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
           console.log('Converting blob URL to base64 for footer image');
           try {
             const response = await fetch(pdfSettings.footerImage);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const blob = await response.blob();
-            imageDataUrl = await new Promise<string>((resolve) => {
+            imageDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => resolve(pdfSettings.footerImage);
+              reader.onerror = () => reject(new Error('FileReader failed'));
               reader.readAsDataURL(blob);
             });
+            console.log('Successfully converted blob URL to base64 for footer');
           } catch (blobError) {
             console.warn('Failed to convert blob URL to base64:', blobError);
-            imageDataUrl = pdfSettings.footerImage;
+            // Skip footer image if conversion fails
+            throw new Error('Footer image conversion failed');
           }
         }
         
@@ -508,7 +518,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
           imgHeight
         );
       } catch (error) {
-        console.error('Error adding footer image:', error);
+        console.warn('Footer image not available, using default footer:', error instanceof Error ? error.message : String(error));
         renderDefaultFooter(doc, footerColor, accentColor, margin, footerY, pageWidth);
       }
     } else {
@@ -817,7 +827,7 @@ export async function generateEnhancedPDF(
       : 'N/A';
     
     // Create a more optimized layout without duplicates
-    doc.doc.autoTable({
+    doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -846,7 +856,7 @@ export async function generateEnhancedPDF(
     yPos = addSection(doc, 'Vendor Information', yPos, 15, textColor);
     
     const vendor = request.vendor || {};
-    doc.doc.autoTable({
+    doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -896,7 +906,7 @@ export async function generateEnhancedPDF(
     };
     
     if (items.length > 0) {
-      doc.doc.autoTable({
+      doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -925,7 +935,7 @@ export async function generateEnhancedPDF(
       const totalCost = itemsTotal + freightAmount;
       
       // Add totals section
-      doc.doc.autoTable({
+      doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -942,7 +952,7 @@ export async function generateEnhancedPDF(
         ]
       });
     } else {
-      doc.doc.autoTable({
+      doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -961,7 +971,7 @@ export async function generateEnhancedPDF(
     if (request.attachments && request.attachments.length > 0) {
       yPos = addSection(doc, 'Attached Documents', yPos, 15, textColor);
       
-      doc.doc.autoTable({
+      doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -987,7 +997,7 @@ export async function generateEnhancedPDF(
       yPos = addSection(doc, 'Approval Status', yPos, 15, textColor);
       
       if (request.approvals && request.approvals.length > 0) {
-        doc.doc.autoTable({
+        doc.autoTable({
           startY: yPos,
           theme: 'striped',
           styles: { 
@@ -1007,7 +1017,7 @@ export async function generateEnhancedPDF(
           ])
         });
       } else {
-        doc.doc.autoTable({
+        doc.autoTable({
           startY: yPos,
           theme: 'plain',
           styles: { 
