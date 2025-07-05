@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 // TypeScript interface extension for autoTable
 declare module "jspdf" {
@@ -119,36 +119,12 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
     // Add company logo if available
     if (pdfSettings?.headerImage) {
       try {
-        // Convert blob URL to base64 data URL if needed
-        let imageDataUrl = pdfSettings.headerImage;
-        if (pdfSettings.headerImage.startsWith('blob:')) {
-          console.log('Converting blob URL to base64 for header image');
-          try {
-            const response = await fetch(pdfSettings.headerImage);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const blob = await response.blob();
-            imageDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error('FileReader failed'));
-              reader.readAsDataURL(blob);
-            });
-            console.log('Successfully converted blob URL to base64');
-          } catch (blobError) {
-            console.warn('Failed to convert blob URL to base64:', blobError);
-            // Skip header image if conversion fails
-            throw new Error('Header image conversion failed');
-          }
-        }
-        
         // Load image
         const img = new Image();
-        img.src = imageDataUrl;
+        img.src = pdfSettings.headerImage;
         await new Promise<void>((resolve) => {
           img.onload = () => resolve();
-          setTimeout(() => resolve(), 2000); // Increased timeout for blob conversion
+          setTimeout(() => resolve(), 1000); // Add timeout as fallback
           img.onerror = () => {
             console.error('Error loading header image');
             resolve();
@@ -178,7 +154,7 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
           'F'                      // Fill style
         );
       } catch (error) {
-        console.warn('Header image not available, using default header:', error instanceof Error ? error.message : String(error));
+        console.error('Error adding header image:', error);
         // Use our helper to ensure valid RGB colors with proper defaults
         const defaultPurple: RGBColor = [111/255, 42/255, 230/255]; // Default E3 purple
         const defaultTeal: RGBColor = [31/255, 211/255, 219/255]; // Default E3 teal
@@ -231,25 +207,36 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       }
     };
     
-    // Create the request info table matching the design
-    autoTable(doc, {
+    // Create the request info table
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
         fontSize: fontSize, 
-        cellPadding: 4,
-        textColor: [0, 0, 0] 
+        cellPadding: cellPadding,
+        textColor: [textColor[0], textColor[1], textColor[2]] 
       },
-      columnStyles: { 
-        0: { fontStyle: 'bold', cellWidth: 30 }, 
-        1: { cellWidth: 'auto' },
-        2: { fontStyle: 'bold', cellWidth: 30 }, 
-        3: { cellWidth: 'auto' }
-      },
+      columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
       margin: { left: marginLeft, right: marginRight },
       body: [
-        ['Requester:', request.requester?.username || 'N/A', 'Department:', request.requester?.department || 'N/A'],
-        ['Status:', request.status?.toUpperCase() || 'N/A', 'Priority:', request.priority?.toUpperCase() || 'N/A']
+        [
+          'Purchase Request #' + (request.requestNumber || ''),
+          '',
+          'Status:',
+          request.status?.toUpperCase() || 'N/A'
+        ],
+        [
+          'Requester:',
+          request.requester?.username || 'N/A',
+          'Department:',
+          request.requester?.department || 'N/A',
+        ],
+        [
+          'Date:',
+          formatDate(request.createdAt),
+          'Priority:',
+          request.priority?.toUpperCase() || 'N/A'
+        ]
       ],
       didDrawCell: (data) => {
         // Add border around the entire table
@@ -457,35 +444,11 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
     // Add footer image if available
     if (pdfSettings?.footerImage) {
       try {
-        // Convert blob URL to base64 data URL if needed
-        let imageDataUrl = pdfSettings.footerImage;
-        if (pdfSettings.footerImage.startsWith('blob:')) {
-          console.log('Converting blob URL to base64 for footer image');
-          try {
-            const response = await fetch(pdfSettings.footerImage);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const blob = await response.blob();
-            imageDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error('FileReader failed'));
-              reader.readAsDataURL(blob);
-            });
-            console.log('Successfully converted blob URL to base64 for footer');
-          } catch (blobError) {
-            console.warn('Failed to convert blob URL to base64:', blobError);
-            // Skip footer image if conversion fails
-            throw new Error('Footer image conversion failed');
-          }
-        }
-        
         const img = new Image();
-        img.src = imageDataUrl;
+        img.src = pdfSettings.footerImage;
         await new Promise<void>((resolve) => {
           img.onload = () => resolve();
-          setTimeout(() => resolve(), 2000); // Increased timeout for blob conversion
+          setTimeout(() => resolve(), 1000); // Add timeout as fallback
           img.onerror = () => {
             console.error('Error loading footer image');
             resolve();
@@ -507,7 +470,7 @@ async function addFooter(doc: jsPDF, currentPage: number, totalPages: number, pd
           imgHeight
         );
       } catch (error) {
-        console.warn('Footer image not available, using default footer:', error instanceof Error ? error.message : String(error));
+        console.error('Error adding footer image:', error);
         renderDefaultFooter(doc, footerColor, accentColor, margin, footerY, pageWidth);
       }
     } else {
@@ -816,7 +779,7 @@ export async function generateEnhancedPDF(
       : 'N/A';
     
     // Create a more optimized layout without duplicates
-    autoTable(doc, {
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -845,7 +808,7 @@ export async function generateEnhancedPDF(
     yPos = addSection(doc, 'Vendor Information', yPos, 15, textColor);
     
     const vendor = request.vendor || {};
-    autoTable(doc, {
+    doc.doc.autoTable({
       startY: yPos,
       theme: 'plain',
       styles: { 
@@ -895,7 +858,7 @@ export async function generateEnhancedPDF(
     };
     
     if (items.length > 0) {
-      autoTable(doc, {
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -924,7 +887,7 @@ export async function generateEnhancedPDF(
       const totalCost = itemsTotal + freightAmount;
       
       // Add totals section
-      autoTable(doc, {
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -941,7 +904,7 @@ export async function generateEnhancedPDF(
         ]
       });
     } else {
-      autoTable(doc, {
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'plain',
         styles: { 
@@ -960,7 +923,7 @@ export async function generateEnhancedPDF(
     if (request.attachments && request.attachments.length > 0) {
       yPos = addSection(doc, 'Attached Documents', yPos, 15, textColor);
       
-      autoTable(doc, {
+      doc.doc.autoTable({
         startY: yPos,
         theme: 'striped',
         styles: { 
@@ -986,7 +949,7 @@ export async function generateEnhancedPDF(
       yPos = addSection(doc, 'Approval Status', yPos, 15, textColor);
       
       if (request.approvals && request.approvals.length > 0) {
-        autoTable(doc, {
+        doc.doc.autoTable({
           startY: yPos,
           theme: 'striped',
           styles: { 
@@ -1006,7 +969,7 @@ export async function generateEnhancedPDF(
           ])
         });
       } else {
-        autoTable(doc, {
+        doc.doc.autoTable({
           startY: yPos,
           theme: 'plain',
           styles: { 
