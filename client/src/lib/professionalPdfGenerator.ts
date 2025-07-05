@@ -20,15 +20,60 @@ function parseColor(colorHex: string): [number, number, number] {
   ];
 }
 
-// Helper function to convert blob URL to base64 synchronously
+// Helper function to convert blob URL to base64 synchronously with image optimization
 async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
   try {
     const response = await fetch(blobUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch blob: ${response.statusText}`);
+    }
     const blob = await response.blob();
+    if (blob.size === 0) {
+      throw new Error('Empty blob received');
+    }
+    
+    // Optimize image size if it's too large (>2MB)
+    if (blob.size > 2 * 1024 * 1024) {
+      return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+          // Calculate optimal dimensions (max 800x600)
+          const maxWidth = 800;
+          const maxHeight = 600;
+          let { width, height } = img;
+          
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width *= ratio;
+            height *= ratio;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        
+        img.onerror = () => reject(new Error('Image load error'));
+        img.src = URL.createObjectURL(blob);
+      });
+    }
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        if (result && result.startsWith('data:')) {
+          resolve(result);
+        } else {
+          reject(new Error('Invalid base64 data'));
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
       reader.readAsDataURL(blob);
     });
   } catch (error) {
@@ -41,7 +86,13 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
   console.log("Generating professional PDF for request:", request.id);
   console.log("PDF settings received:", settings);
   
+  // Track PDF generation progress
+  let progressStep = 'initializing';
+  
   try {
+    progressStep = 'creating_document';
+    console.log('PDF Progress: Creating document');
+    
     // Create PDF document
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -88,6 +139,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     }
     
     // Add company logo if available (check different logo field names)
+    progressStep = 'loading_logo';
+    console.log('PDF Progress: Loading company logo');
+    
     const logoField = settings.logo || settings.companyLogo || settings.headerImage;
     if (logoField && logoField.startsWith('blob:')) {
       try {
@@ -100,7 +154,18 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         // Convert blob URL to base64 for PDF
         const base64Logo = await blobUrlToBase64(logoField);
         if (base64Logo) {
-          doc.addImage(base64Logo, 'PNG', logoX, logoY, logoWidth, logoHeight);
+          try {
+            // Detect image format from base64 data
+            let imageFormat = 'PNG';
+            if (base64Logo.includes('data:image/jpeg') || base64Logo.includes('data:image/jpg')) {
+              imageFormat = 'JPEG';
+            } else if (base64Logo.includes('data:image/png')) {
+              imageFormat = 'PNG';
+            }
+            doc.addImage(base64Logo, imageFormat, logoX, logoY, logoWidth, logoHeight);
+          } catch (imageError) {
+            console.warn('Could not add logo image to PDF:', imageError);
+          }
         }
       } catch (error) {
         console.warn('Could not load logo from blob URL:', error);
@@ -118,7 +183,18 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         
         const base64HeaderImage = await blobUrlToBase64(headerImageField);
         if (base64HeaderImage) {
-          doc.addImage(base64HeaderImage, 'PNG', headerImageX, headerImageY, headerImageWidth, headerImageHeight);
+          try {
+            // Detect image format from base64 data
+            let imageFormat = 'PNG';
+            if (base64HeaderImage.includes('data:image/jpeg') || base64HeaderImage.includes('data:image/jpg')) {
+              imageFormat = 'JPEG';
+            } else if (base64HeaderImage.includes('data:image/png')) {
+              imageFormat = 'PNG';
+            }
+            doc.addImage(base64HeaderImage, imageFormat, headerImageX, headerImageY, headerImageWidth, headerImageHeight);
+          } catch (imageError) {
+            console.warn('Could not add header image to PDF:', imageError);
+          }
         }
       } catch (error) {
         console.warn('Could not load header image from blob URL:', error);
@@ -450,7 +526,18 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         
         const base64FooterImage = await blobUrlToBase64(footerImageField);
         if (base64FooterImage) {
-          doc.addImage(base64FooterImage, 'PNG', footerImageX, footerImageY, footerImageWidth, footerImageHeight);
+          try {
+            // Detect image format from base64 data
+            let imageFormat = 'PNG';
+            if (base64FooterImage.includes('data:image/jpeg') || base64FooterImage.includes('data:image/jpg')) {
+              imageFormat = 'JPEG';
+            } else if (base64FooterImage.includes('data:image/png')) {
+              imageFormat = 'PNG';
+            }
+            doc.addImage(base64FooterImage, imageFormat, footerImageX, footerImageY, footerImageWidth, footerImageHeight);
+          } catch (imageError) {
+            console.warn('Could not add footer image to PDF:', imageError);
+          }
         }
       } catch (error) {
         console.warn('Could not load footer image from blob URL:', error);
@@ -502,11 +589,21 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     await logPdfAuditEvent(Number(request.id), 'pdf_downloaded', auditDetails, 'admin');
     
     // Download the file
+    progressStep = 'saving_pdf';
+    console.log('PDF Progress: Saving PDF');
     saveAs(pdfBlob, fileName);
     console.log("Professional PDF generated successfully");
     
   } catch (error) {
-    console.error("Professional PDF generation error:", error);
+    console.error(`Professional PDF generation error at step '${progressStep}':`, error);
+    
+    // Provide more user-friendly error handling
+    if (progressStep === 'loading_logo') {
+      throw new Error('Logo image loading failed. Please check your admin panel logo settings or try generating PDF without custom logo.');
+    } else if (progressStep.includes('image')) {
+      throw new Error('Image loading failed. Please check your admin panel image settings or try generating PDF without custom images.');
+    }
+    
     throw error;
   }
 }
