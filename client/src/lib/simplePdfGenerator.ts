@@ -1,6 +1,6 @@
 /**
- * Professional PDF Generator - Exact Reference Design Match
- * Creates clean, professional PDF documents matching the provided reference design
+ * Simple PDF Generator - Clean and Reliable
+ * Creates professional PDF documents without complex blob URL handling
  */
 
 import { jsPDF } from 'jspdf';
@@ -9,104 +9,9 @@ import { format } from 'date-fns';
 import { saveAs } from 'file-saver';
 import { logPdfAuditEvent, generatePdfTrackingId } from './pdfAuditUtils';
 
-// Helper function to parse color from hex to RGB
-function parseColor(colorHex: string): [number, number, number] {
-  if (!colorHex || !colorHex.startsWith('#')) return [0, 0, 0];
-  const hex = colorHex.substring(1);
-  return [
-    parseInt(hex.substring(0, 2), 16),
-    parseInt(hex.substring(2, 4), 16),
-    parseInt(hex.substring(4, 6), 16)
-  ];
-}
-
-// Convert blob URL to base64 with multiple fallback methods
-async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
-  if (!blobUrl || !blobUrl.startsWith('blob:')) {
-    console.warn('Invalid blob URL provided:', blobUrl);
-    return null;
-  }
-
+export async function generateSimplePdf(request: any, settings: any = {}): Promise<void> {
   try {
-    console.log('Converting blob URL:', blobUrl);
-    
-    // Method 1: Direct fetch with timeout
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      const response = await fetch(blobUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size > 0) {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              if (result && result.startsWith('data:')) {
-                resolve(result);
-              } else {
-                reject(new Error('Invalid base64 result'));
-              }
-            };
-            reader.onerror = () => reject(new Error('FileReader failed'));
-            reader.readAsDataURL(blob);
-          });
-          console.log('Blob conversion successful');
-          return base64;
-        }
-      }
-    } catch (fetchError) {
-      console.warn('Direct fetch failed:', fetchError);
-    }
-
-    // Method 2: Try canvas approach for images
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      const imageBase64 = await new Promise<string>((resolve, reject) => {
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Canvas context failed');
-            
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            const dataURL = canvas.toDataURL('image/png');
-            resolve(dataURL);
-          } catch (canvasError) {
-            reject(canvasError);
-          }
-        };
-        img.onerror = () => reject(new Error('Image load failed'));
-        img.src = blobUrl;
-      });
-      
-      console.log('Canvas conversion successful');
-      return imageBase64;
-    } catch (canvasError) {
-      console.warn('Canvas conversion failed:', canvasError);
-    }
-
-    console.error('All blob conversion methods failed');
-    return null;
-    
-  } catch (error) {
-    console.error('Blob conversion error:', error);
-    return null;
-  }
-}
-
-export async function generateProfessionalPdf(request: any, settings: any = {}): Promise<void> {
-  try {
-    console.log('Generating professional PDF for request:', request.id);
-    console.log('PDF settings received:', settings);
+    console.log('Generating simple PDF for request:', request.id);
     
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -126,66 +31,14 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // =====================================
     console.log('Creating header section...');
     
-    // Company logo (from admin settings)
-    let logoLoaded = false;
-    if (settings.logo && settings.logo.startsWith('blob:')) {
-      try {
-        console.log('Loading logo from blob URL...');
-        const logoBase64 = await blobUrlToBase64(settings.logo);
-        if (logoBase64) {
-          const logoWidth = 35;
-          const logoHeight = 12;
-          const logoX = margin;
-          const logoY = currentY;
-          
-          let imageFormat = 'PNG';
-          if (logoBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
-          
-          doc.addImage(logoBase64, imageFormat, logoX, logoY, logoWidth, logoHeight);
-          logoLoaded = true;
-          console.log('Logo loaded successfully');
-        } else {
-          console.warn('Logo base64 conversion returned null');
-        }
-      } catch (error) {
-        console.error('Logo loading failed:', error);
-      }
-    } else {
-      console.warn('No valid logo blob URL found in settings');
-    }
-    
-    // Fallback: Add E3 text if no logo loaded
-    if (!logoLoaded) {
-      doc.setTextColor(147, 51, 234); // Purple color
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text('E3', margin, currentY + 8);
-      doc.setFontSize(10);
-      doc.text('EVENTS & ENTERTAINMENT', margin + 8, currentY + 8);
-      doc.text('ENTERPRISES', margin + 8, currentY + 12);
-    }
-    
-    // Header image (if available)
-    if (settings.headerImage && settings.headerImage.startsWith('blob:')) {
-      try {
-        console.log('Loading header image from blob URL...');
-        const headerImageBase64 = await blobUrlToBase64(settings.headerImage);
-        if (headerImageBase64) {
-          const headerImageWidth = 30;
-          const headerImageHeight = 10;
-          const headerImageX = margin + 60;
-          const headerImageY = currentY;
-          
-          let imageFormat = 'PNG';
-          if (headerImageBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
-          
-          doc.addImage(headerImageBase64, imageFormat, headerImageX, headerImageY, headerImageWidth, headerImageHeight);
-          console.log('Header image loaded successfully');
-        }
-      } catch (error) {
-        console.error('Header image loading failed:', error);
-      }
-    }
+    // E3 Company branding (text-based for reliability)
+    doc.setTextColor(147, 51, 234); // Purple color
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('E3', margin, currentY + 8);
+    doc.setFontSize(10);
+    doc.text('EVENTS & ENTERTAINMENT', margin + 8, currentY + 8);
+    doc.text('ENTERPRISES', margin + 8, currentY + 12);
     
     // Purple to Teal gradient bar (right side of logo)
     const gradientHeight = 8;
@@ -508,11 +361,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         fontSize: 8
       },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 18 },
-        2: { cellWidth: 18, halign: 'center' },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 84 }
+        0: { cellWidth: 28 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 32 },
+        4: { cellWidth: 66 }
       }
     });
     
@@ -544,26 +397,6 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    
-    // Footer image (if available)
-    if (settings.footerImage && settings.footerImage.startsWith('blob:')) {
-      try {
-        const footerImageBase64 = await blobUrlToBase64(settings.footerImage);
-        if (footerImageBase64) {
-          const footerImageWidth = 20;
-          const footerImageHeight = 8;
-          const footerImageX = margin + 5;
-          const footerImageY = footerY + 2;
-          
-          let imageFormat = 'PNG';
-          if (footerImageBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
-          
-          doc.addImage(footerImageBase64, imageFormat, footerImageX, footerImageY, footerImageWidth, footerImageHeight);
-        }
-      } catch (error) {
-        console.error('Footer image loading failed:', error);
-      }
-    }
     
     // Contact info (left side) - use settings if available
     const contactStartX = margin + 5;
@@ -623,10 +456,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       console.error('Audit logging failed:', auditError);
     }
     
-    console.log('Professional PDF generated successfully');
+    console.log('Simple PDF generated successfully');
     
   } catch (error) {
-    console.error('Error generating professional PDF:', error);
+    console.error('Error generating simple PDF:', error);
     throw error;
   }
 }
