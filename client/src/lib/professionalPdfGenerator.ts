@@ -118,44 +118,47 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     let currentY = marginTop + 5;
     
-    // HEADER SECTION with dynamic settings
-    const headerColor = parseColor(settings.headerColor || '#000000');
-    const headerFontSize = settings.headerFontSize || 20;
-    const headerFontFamily = settings.headerFontFamily || baseFontFamily;
+    // HEADER SECTION - matching reference design
+    progressStep = 'creating_header';
+    console.log('PDF Progress: Creating header section');
     
-    doc.setFont(headerFontFamily, 'bold');
-    doc.setFontSize(headerFontSize);
-    doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
+    // Top colored header band (purple-teal gradient area)
+    const headerBandHeight = 12;
+    const gradientColors = [
+      [128, 90, 165], // Purple
+      [64, 188, 175]  // Teal
+    ];
     
-    // Custom header title from admin settings - use the actual title from settings
-    const headerTitle = settings.headerTitle || 'PURCHASE REQUEST';
-    doc.text(headerTitle, marginLeft, currentY + 8);
-    
-    // Add header subtitle if available
-    if (settings.headerSubtitle) {
-      doc.setFontSize(12);
-      doc.setFont(headerFontFamily, 'normal');
-      doc.text(settings.headerSubtitle, marginLeft, currentY + 16);
+    // Create gradient effect with rectangles
+    const gradientSteps = 20;
+    const stepWidth = contentWidth / gradientSteps;
+    for (let i = 0; i < gradientSteps; i++) {
+      const ratio = i / gradientSteps;
+      const r = Math.round(gradientColors[0][0] * (1 - ratio) + gradientColors[1][0] * ratio);
+      const g = Math.round(gradientColors[0][1] * (1 - ratio) + gradientColors[1][1] * ratio);
+      const b = Math.round(gradientColors[0][2] * (1 - ratio) + gradientColors[1][2] * ratio);
+      
+      doc.setFillColor(r, g, b);
+      doc.rect(marginLeft + (i * stepWidth), currentY, stepWidth, headerBandHeight, 'F');
     }
     
-    // Add company logo if available (check different logo field names)
+    currentY += headerBandHeight + 8;
+    
+    // Company logo on the left (matching reference design position)
     progressStep = 'loading_logo';
     console.log('PDF Progress: Loading company logo');
     
     const logoField = settings.logo || settings.companyLogo || settings.headerImage;
     if (logoField && logoField.startsWith('blob:')) {
       try {
-        // Add logo on the right side of header
-        const logoWidth = 30;
-        const logoHeight = 20;
-        const logoX = pageWidth - marginRight - logoWidth;
-        const logoY = currentY - 5;
+        const logoWidth = 35;
+        const logoHeight = 16;
+        const logoX = marginLeft;
+        const logoY = currentY;
         
-        // Convert blob URL to base64 for PDF
         const base64Logo = await blobUrlToBase64(logoField);
         if (base64Logo) {
           try {
-            // Detect image format from base64 data
             let imageFormat = 'PNG';
             if (base64Logo.includes('data:image/jpeg') || base64Logo.includes('data:image/jpg')) {
               imageFormat = 'JPEG';
@@ -172,171 +175,170 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       }
     }
     
-    // Add header image if available and different from logo
-    const headerImageField = settings.headerImage;
-    if (headerImageField && headerImageField.startsWith('blob:') && headerImageField !== logoField) {
-      try {
-        const headerImageWidth = 40;
-        const headerImageHeight = 15;
-        const headerImageX = (pageWidth - headerImageWidth) / 2; // Center the header image
-        const headerImageY = currentY - 5;
-        
-        const base64HeaderImage = await blobUrlToBase64(headerImageField);
-        if (base64HeaderImage) {
-          try {
-            // Detect image format from base64 data
-            let imageFormat = 'PNG';
-            if (base64HeaderImage.includes('data:image/jpeg') || base64HeaderImage.includes('data:image/jpg')) {
-              imageFormat = 'JPEG';
-            } else if (base64HeaderImage.includes('data:image/png')) {
-              imageFormat = 'PNG';
-            }
-            doc.addImage(base64HeaderImage, imageFormat, headerImageX, headerImageY, headerImageWidth, headerImageHeight);
-          } catch (imageError) {
-            console.warn('Could not add header image to PDF:', imageError);
-          }
-        }
-      } catch (error) {
-        console.warn('Could not load header image from blob URL:', error);
-      }
-    }
+    // Main title "PURCHASE REQUEST" - bold and prominent
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.setTextColor(44, 44, 44); // Dark gray
+    const titleY = currentY + 12;
+    doc.text('PURCHASE REQUEST', marginLeft, titleY);
     
-    // Request info on right side
-    doc.setFont(baseFontFamily, 'normal');
+    // Request info on the right side (PR# and Date)
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    const rightAlign = pageWidth - marginRight;
+    doc.setTextColor(102, 102, 102); // Medium gray
     
+    const rightInfoX = pageWidth - marginRight;
     const prNumber = `PR #${request.id}`;
     const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
     
-    doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), currentY + 3);
-    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), currentY + 8);
+    doc.text(prNumber, rightInfoX - doc.getTextWidth(prNumber), currentY + 5);
+    doc.text(dateText, rightInfoX - doc.getTextWidth(dateText), currentY + 12);
     
-    currentY += settings.headerSubtitle ? 25 : 20;
+    currentY = titleY + 15;
     
-    // Separator line
-    doc.setDrawColor(220, 220, 220);
-    doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
-    currentY += 8;
+    // Top info section (gray box matching reference design)
+    progressStep = 'creating_info_section';
+    console.log('PDF Progress: Creating info section');
     
-    // TOP INFO SECTION (Gray background box)
-    doc.setFillColor(245, 245, 245);
-    doc.rect(marginLeft, currentY, contentWidth, 16, 'F');
+    // Light gray background box
+    const infoBoxHeight = 20;
+    doc.setFillColor(240, 240, 240);
+    doc.rect(marginLeft, currentY, contentWidth, infoBoxHeight, 'F');
     
+    // Info section content
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     
-    // Two columns layout
-    const leftColX = marginLeft + 3;
-    const rightColX = marginLeft + (contentWidth / 2) + 3;
+    const leftColX = marginLeft + 5;
+    const midColX = marginLeft + (contentWidth * 0.4);
+    const rightColX = marginLeft + (contentWidth * 0.7);
     
-    // Left column
-    doc.text('Requester:', leftColX, currentY + 4);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.requester?.username || 'N/A', leftColX + 22, currentY + 4);
+    currentY += 7;
     
-    doc.setFont('helvetica', 'normal');
-    doc.text('Status:', leftColX, currentY + 9);
+    // Left column - Requester and Status
+    doc.text('Requester:', leftColX, currentY);
     doc.setFont('helvetica', 'bold');
-    doc.text((request.status || 'PENDING').toUpperCase(), leftColX + 22, currentY + 9);
-    
-    // Right column
-    doc.setFont('helvetica', 'normal');
-    doc.text('Department:', rightColX, currentY + 4);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.requester?.department || 'N/A', rightColX + 25, currentY + 4);
+    doc.text(request.requester?.username || 'N/A', leftColX + 25, currentY);
     
     doc.setFont('helvetica', 'normal');
-    doc.text('Priority:', rightColX, currentY + 9);
+    doc.text('Status:', leftColX, currentY + 6);
     doc.setFont('helvetica', 'bold');
-    doc.text((request.priority || 'MEDIUM').toUpperCase(), rightColX + 25, currentY + 9);
+    doc.text((request.status || 'pending').toUpperCase(), leftColX + 25, currentY + 6);
+    
+    // Middle column - Department
+    doc.setFont('helvetica', 'normal');
+    doc.text('Department:', midColX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.requester?.department || 'N/A', midColX + 25, currentY);
+    
+    // Right column - Priority
+    doc.setFont('helvetica', 'normal');
+    doc.text('Priority:', rightColX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text((request.priority || 'LOW').toUpperCase(), rightColX + 20, currentY);
     
     currentY += 22;
     
-    // BASIC INFORMATION SECTION with admin settings
-    const sectionHeaderColor = parseColor(settings.sectionHeaderColor || '#000000');
+    // BASIC INFORMATION SECTION - Black header bar matching reference design
+    progressStep = 'creating_basic_info';
+    console.log('PDF Progress: Creating basic information section');
     
-    // Show basic information section if enabled
-    if (settings.showBasicInfo !== false) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('BASIC INFORMATION', marginLeft + 2, currentY + 4);
+    // Black header bar
+    doc.setFillColor(44, 44, 44);
+    doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('BASIC INFORMATION', marginLeft + 3, currentY + 6);
     
-    currentY += 10;
-    doc.setTextColor(40, 40, 40);
+    currentY += 12;
+    
+    // Content in the white area below the black header
+    doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     
-    // Basic info fields
-    doc.text('Title:', leftColX, currentY);
+    const basicInfoLeftX = marginLeft + 3;
+    const basicInfoRightX = marginLeft + (contentWidth * 0.55);
+    
+    // Title
+    doc.text('Title:', basicInfoLeftX, currentY);
     doc.setFont('helvetica', 'bold');
-    doc.text(request.title || 'N/A', leftColX + 15, currentY);
+    doc.text(request.title || 'N/A', basicInfoLeftX + 20, currentY);
     currentY += 5;
     
+    // Description
     doc.setFont('helvetica', 'normal');
-    doc.text('Description:', leftColX, currentY);
-    doc.setFont('helvetica', 'normal');
+    doc.text('Description:', basicInfoLeftX, currentY);
     const description = request.description || 'No description provided';
-    // Handle long descriptions
-    const lines = doc.splitTextToSize(description, contentWidth - 25);
-    doc.text(lines, leftColX + 25, currentY);
-    currentY += Math.max(5, lines.length * 3.5);
+    const descLines = doc.splitTextToSize(description, contentWidth - 30);
+    doc.text(descLines, basicInfoLeftX + 25, currentY);
+    currentY += Math.max(5, descLines.length * 4);
     
-    doc.text('Purpose Type:', leftColX, currentY);
+    // Purpose Type and Sub-purpose on same line
+    doc.text('Purpose Type:', basicInfoLeftX, currentY);
     doc.setFont('helvetica', 'bold');
-    doc.text(request.purposeType || 'N/A', leftColX + 25, currentY);
+    doc.text(request.purposeType || 'N/A', basicInfoLeftX + 28, currentY);
     
     doc.setFont('helvetica', 'normal');
-    doc.text('Sub-purpose:', rightColX, currentY);
+    doc.text('Sub-purpose:', basicInfoRightX, currentY);
     doc.setFont('helvetica', 'bold');
-    doc.text(request.subPurpose?.name || 'N/A', rightColX + 25, currentY);
+    doc.text(request.subPurpose?.name || 'N/A', basicInfoRightX + 25, currentY);
     currentY += 5;
     
+    // Contact Info
     doc.setFont('helvetica', 'normal');
-    doc.text('Contact Info:', leftColX, currentY);
-    doc.text(`Email: ${request.requester?.email || 'N/A'}`, leftColX + 25, currentY);
+    doc.text('Contact Info:', basicInfoLeftX, currentY);
+    doc.text(`Email: ${request.requester?.email || 'N/A'}`, basicInfoLeftX + 28, currentY);
     
-    currentY += 12;
-    } // End of basic information section
+    currentY += 15;
     
-    // VENDOR INFORMATION SECTION
-    if (settings.showVendorInfo !== false && request.vendor && (request.vendor.companyName || request.vendor.name)) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
+    // Define section header color from admin settings
+    const sectionHeaderColor = parseColor(settings.sectionHeaderColor || '#2c2c2c');
+    
+    // VENDOR INFORMATION SECTION - Black header bar matching reference design
+    if (request.vendor && (request.vendor.companyName || request.vendor.name)) {
+      progressStep = 'creating_vendor_info';
+      console.log('PDF Progress: Creating vendor information section');
+      
+      // Black header bar
+      doc.setFillColor(44, 44, 44);
+      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('VENDOR INFORMATION', marginLeft + 2, currentY + 4);
+      doc.setFontSize(10);
+      doc.text('VENDOR INFORMATION', marginLeft + 3, currentY + 6);
       
-      currentY += 10;
-      doc.setTextColor(40, 40, 40);
+      currentY += 12;
+      
+      // Content in the white area below the black header
+      doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
+      
+      const vendorLeftX = marginLeft + 3;
+      const vendorRightX = marginLeft + (contentWidth * 0.55);
       
       const vendorName = request.vendor.companyName || request.vendor.name;
-      doc.text('Vendor Name:', leftColX, currentY);
+      doc.text('Vendor Name:', vendorLeftX, currentY);
       doc.setFont('helvetica', 'bold');
-      doc.text(vendorName, leftColX + 25, currentY);
+      doc.text(vendorName, vendorLeftX + 28, currentY);
       
       doc.setFont('helvetica', 'normal');
-      doc.text('Contact Person:', rightColX, currentY);
+      doc.text('Contact Person:', vendorRightX, currentY);
       doc.setFont('helvetica', 'bold');
-      doc.text(request.vendor.contactPerson || 'N/A', rightColX + 30, currentY);
+      doc.text(request.vendor.contactPerson || 'N/A', vendorRightX + 30, currentY);
       currentY += 5;
       
       doc.setFont('helvetica', 'normal');
-      doc.text('Email:', leftColX, currentY);
-      doc.text(request.vendor.email || 'N/A', leftColX + 15, currentY);
+      doc.text('Email:', vendorLeftX, currentY);
+      doc.text(request.vendor.email || 'N/A', vendorLeftX + 15, currentY);
       
-      doc.text('Phone:', rightColX, currentY);
-      doc.text(request.vendor.contactNumber || 'N/A', rightColX + 15, currentY);
+      doc.text('Phone:', vendorRightX, currentY);
+      doc.text(request.vendor.contactNumber || 'N/A', vendorRightX + 18, currentY);
       
-      currentY += 12;
+      currentY += 15;
     }
     
     // Add watermark if specified
