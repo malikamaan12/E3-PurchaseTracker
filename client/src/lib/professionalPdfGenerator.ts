@@ -361,17 +361,22 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.setGState(new doc.GState({opacity: 1}));
     }
     
-    // ITEMS SECTION
-    if (settings.showItems !== false && request.items && request.items.length > 0) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
+    // ITEMS SECTION - Black header bar matching reference design
+    if (request.items && request.items.length > 0) {
+      progressStep = 'creating_items_section';
+      console.log('PDF Progress: Creating items section');
+      
+      // Black header bar
+      doc.setFillColor(44, 44, 44);
+      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ITEMS', marginLeft + 2, currentY + 4);
+      doc.setFontSize(10);
+      doc.text('ITEMS', marginLeft + 3, currentY + 6);
       
-      currentY += 10;
+      currentY += 12;
       
+      // Items table with proper structure matching reference design
       const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
       const tableBody = request.items.map((item: any) => {
         const quantity = Number(item.quantity) || 0;
@@ -394,22 +399,22 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: [40, 40, 40],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
+          fontSize: 9,
+          cellPadding: 4,
+          textColor: [60, 60, 60],
+          lineColor: [180, 180, 180],
+          lineWidth: 0.3
         },
         headStyles: { 
-          fillColor: parseColor(settings.tableHeaderColor || '#f0f0f0'),
-          textColor: [40, 40, 40],
+          fillColor: [44, 44, 44],
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 8
+          fontSize: 9
         },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 15, halign: 'center' },
+          0: { cellWidth: 30 },
+          1: { cellWidth: 80 },
+          2: { cellWidth: 20, halign: 'center' },
           3: { cellWidth: 30, halign: 'right' },
           4: { cellWidth: 30, halign: 'right' }
         }
@@ -449,16 +454,20 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       currentY += 12;
     }
     
-    // ATTACHED DOCUMENTS SECTION
-    if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
+    // ATTACHED DOCUMENTS SECTION - Black header bar matching reference design
+    if (request.attachments && request.attachments.length > 0) {
+      progressStep = 'creating_attachments_section';
+      console.log('PDF Progress: Creating attachments section');
+      
+      // Black header bar
+      doc.setFillColor(44, 44, 44);
+      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ATTACHED DOCUMENTS', marginLeft + 2, currentY + 4);
+      doc.setFontSize(10);
+      doc.text('ATTACHED DOCUMENTS', marginLeft + 3, currentY + 6);
       
-      currentY += 10;
+      currentY += 12;
       
       const attachmentHead = [['Document Name', 'Type', 'Size']];
       const attachmentBody = request.attachments.map((attachment: any) => [
@@ -474,17 +483,22 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: [40, 40, 40],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
+          fontSize: 9,
+          cellPadding: 4,
+          textColor: [60, 60, 60],
+          lineColor: [180, 180, 180],
+          lineWidth: 0.3
         },
         headStyles: { 
-          fillColor: parseColor(settings.tableHeaderColor || '#f0f0f0'),
-          textColor: [40, 40, 40],
+          fillColor: [44, 44, 44],
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 8
+          fontSize: 9
+        },
+        columnStyles: {
+          0: { cellWidth: 120 },
+          1: { cellWidth: 30, halign: 'center' },
+          2: { cellWidth: 40, halign: 'right' }
         }
       });
       
@@ -492,75 +506,65 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       currentY = doc.lastAutoTable.finalY + 12;
     }
 
-    // SIGNATURES SECTION
-    if (settings.showSignatures !== false) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('SIGNATURES', marginLeft + 2, currentY + 4);
+    // SIGNATURES SECTION - Black header bar matching reference design
+    progressStep = 'creating_signatures_section';
+    console.log('PDF Progress: Creating signatures section');
     
-      currentY += 10;
-      doc.setTextColor(120, 120, 120);
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.text('ALL RIGHTS RESERVED', marginLeft + 2, currentY);
-    } // End of signatures section
+    // Black header bar
+    doc.setFillColor(44, 44, 44);
+    doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('SIGNATURES', marginLeft + 3, currentY + 6);
+
+    currentY += 12;
     
-    // FOOTER with admin settings
-    const footerY = pageHeight - 12;
+    // Signature content area
+    doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.text('ALL RIGHTS RESERVED', marginLeft + 3, currentY + 5);
     
-    // Apply footer color from settings
-    const footerColor = parseColor(settings.footerColor || '#888888');
-    doc.setFontSize(7);
-    doc.setTextColor(footerColor[0], footerColor[1], footerColor[2]);
-    doc.setFont('helvetica', 'normal');
+    currentY += 15;
     
-    // Add footer image if available
-    const footerImageField = settings.footerImage;
-    if (footerImageField && footerImageField.startsWith('blob:')) {
-      try {
-        const footerImageWidth = 20;
-        const footerImageHeight = 10;
-        const footerImageX = pageWidth - marginRight - footerImageWidth;
-        const footerImageY = footerY - 8;
-        
-        const base64FooterImage = await blobUrlToBase64(footerImageField);
-        if (base64FooterImage) {
-          try {
-            // Detect image format from base64 data
-            let imageFormat = 'PNG';
-            if (base64FooterImage.includes('data:image/jpeg') || base64FooterImage.includes('data:image/jpg')) {
-              imageFormat = 'JPEG';
-            } else if (base64FooterImage.includes('data:image/png')) {
-              imageFormat = 'PNG';
-            }
-            doc.addImage(base64FooterImage, imageFormat, footerImageX, footerImageY, footerImageWidth, footerImageHeight);
-          } catch (imageError) {
-            console.warn('Could not add footer image to PDF:', imageError);
-          }
-        }
-      } catch (error) {
-        console.warn('Could not load footer image from blob URL:', error);
-      }
+    // FOOTER - Colored footer band matching reference design
+    progressStep = 'creating_footer';
+    console.log('PDF Progress: Creating footer');
+    
+    const footerY = pageHeight - 25;
+    
+    // Footer colored band (teal-purple gradient area)
+    const footerBandHeight = 15;
+    const footerGradientSteps = 20;
+    const footerStepWidth = contentWidth / footerGradientSteps;
+    
+    for (let i = 0; i < footerGradientSteps; i++) {
+      const ratio = i / footerGradientSteps;
+      const r = Math.round(gradientColors[1][0] * (1 - ratio) + gradientColors[0][0] * ratio);
+      const g = Math.round(gradientColors[1][1] * (1 - ratio) + gradientColors[0][1] * ratio);
+      const b = Math.round(gradientColors[1][2] * (1 - ratio) + gradientColors[0][2] * ratio);
+      
+      doc.setFillColor(r, g, b);
+      doc.rect(marginLeft + (i * footerStepWidth), footerY, footerStepWidth, footerBandHeight, 'F');
     }
     
-    // Use footer from admin settings or default
-    const footerText = settings.footerText || 
-      `Phone: ${settings.companyPhone || '+974 30488565'} | Email: ${settings.companyEmail || 'info@eeegq.com'} | Web: ${settings.companyWebsite || 'www.eeegq.com'}`;
-    const footerAddress = settings.companyAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
+    // Footer content
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
     
-    doc.text(footerText, marginLeft, footerY);
-    doc.text(footerAddress, marginLeft, footerY + 3);
+    const footerText = settings.footerText || settings.companyAddress || 'Company Information';
+    doc.text(footerText, marginLeft + 5, footerY + 10);
     
-    // Page number
+    // Page number on the right in the footer band
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       const pageText = `Page ${i} of ${pageCount}`;
       const pageTextWidth = doc.getTextWidth(pageText);
-      doc.text(pageText, pageWidth - marginLeft - pageTextWidth, footerY + 3);
+      doc.setTextColor(255, 255, 255);
+      doc.text(pageText, pageWidth - marginRight - pageTextWidth - 5, footerY + 10);
     }
     
     // Save the PDF
