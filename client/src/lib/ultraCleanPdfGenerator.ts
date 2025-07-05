@@ -25,25 +25,30 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
     let currentY = margin;
     
     // =====================================
-    // HEADER SECTION
+    // HEADER SECTION - EXACT ARTBOARD MATCH
     // =====================================
     
-    // E3 Company branding
+    // E3 Logo and company name (left side)
     doc.setTextColor(147, 51, 234);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.text('E3', margin, currentY + 8);
-    doc.setFontSize(10);
-    doc.text('EVENTS & ENTERTAINMENT ENTERPRISES', margin + 15, currentY + 8);
     
-    // Purple to Teal gradient bar
-    const gradientHeight = 6;
-    const gradientWidth = 100;
-    const gradientX = margin + 70;
-    const gradientY = currentY + 3;
+    doc.setTextColor(60, 60, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('EVENTS &', margin + 20, currentY + 4);
+    doc.text('ENTERTAINMENT', margin + 20, currentY + 7);
+    doc.text('ENTERPRISES', margin + 20, currentY + 10);
     
-    for (let i = 0; i < 50; i++) {
-      const ratio = i / 50;
+    // Gradient bar (center) - matching artboard position
+    const gradientHeight = 8;
+    const gradientWidth = 80;
+    const gradientX = margin + 75;
+    const gradientY = currentY + 2;
+    
+    for (let i = 0; i < 40; i++) {
+      const ratio = i / 40;
       const r = Math.round(147 * (1 - ratio) + 56 * ratio);
       const g = Math.round(51 * (1 - ratio) + 178 * ratio);
       const b = Math.round(234 * (1 - ratio) + 172 * ratio);
@@ -52,12 +57,12 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
       doc.rect(gradientX + (i * 2), gradientY, 2, gradientHeight, 'F');
     }
     
-    // PR number and date (top right)
+    // PR number and date (top right) - matching artboard
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`PR #${request.id}`, pageWidth - margin - 20, currentY + 6);
-    doc.text(`Date: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin - 20, currentY + 10);
+    doc.text(`PR #${request.id}`, pageWidth - margin - 25, currentY + 4);
+    doc.text(`Date: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin - 25, currentY + 8);
     
     currentY += 25;
     
@@ -179,28 +184,24 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
       
       currentY += 15;
       
-      // Items table headers
+      // Items table headers - matching artboard spacing
       doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       
-      doc.text('Item', margin + 3, currentY);
-      doc.text('Description', margin + 40, currentY);
-      doc.text('Qty', margin + 90, currentY);
-      doc.text('Unit Cost', margin + 110, currentY);
-      doc.text('Total', margin + 145, currentY);
+      doc.text('Item', margin + 5, currentY);
+      doc.text('Description', margin + 45, currentY);
+      doc.text('Qty', margin + 105, currentY);
+      doc.text('Unit Cost', margin + 125, currentY);
+      doc.text('Total', margin + 155, currentY);
       
-      currentY += 8;
-      
-      // Draw header line
-      doc.setLineWidth(0.5);
-      doc.setDrawColor(180, 180, 180);
-      doc.line(margin, currentY - 2, margin + contentWidth, currentY - 2);
+      currentY += 6;
       
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       
       let itemsTotal = 0;
+      const currency = request.currency || 'QAR';
       
       // Items rows
       for (const item of request.items) {
@@ -209,11 +210,11 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
         const totalCost = quantity * unitCost;
         itemsTotal += totalCost;
         
-        doc.text(item.name || 'N/A', margin + 3, currentY);
-        doc.text(item.description || 'N/A', margin + 40, currentY);
-        doc.text(quantity.toString(), margin + 90, currentY);
-        doc.text(`QAR ${unitCost.toFixed(2)}`, margin + 110, currentY);
-        doc.text(`QAR ${totalCost.toFixed(2)}`, margin + 145, currentY);
+        doc.text(item.name || 'N/A', margin + 5, currentY);
+        doc.text(item.description || 'N/A', margin + 45, currentY);
+        doc.text(quantity.toString(), margin + 105, currentY);
+        doc.text(`${currency} ${unitCost.toFixed(2)}`, margin + 125, currentY);
+        doc.text(`${currency} ${totalCost.toFixed(2)}`, margin + 155, currentY);
         
         currentY += 6;
       }
@@ -221,19 +222,19 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
       // Add freight if present
       if (request.freightAmount && Number(request.freightAmount) > 0) {
         const freightCost = Number(request.freightAmount);
-        doc.text('Freight/Shipping', margin + 3, currentY);
-        doc.text('-', margin + 90, currentY);
-        doc.text('-', margin + 110, currentY);
-        doc.text(`QAR ${freightCost.toFixed(2)}`, margin + 145, currentY);
+        doc.text('Freight/Shipping', margin + 5, currentY);
+        doc.text('-', margin + 105, currentY);
+        doc.text('-', margin + 125, currentY);
+        doc.text(`${currency} ${freightCost.toFixed(2)}`, margin + 155, currentY);
         currentY += 6;
         itemsTotal += freightCost;
       }
       
-      // Total line
+      // Total section - matching artboard
+      currentY += 8;
       doc.setFont('helvetica', 'bold');
-      doc.line(margin + 110, currentY - 2, margin + contentWidth, currentY - 2);
-      doc.text('TOTAL:', margin + 110, currentY + 3);
-      doc.text(`QAR ${itemsTotal.toFixed(2)}`, margin + 145, currentY + 3);
+      doc.setFontSize(10);
+      doc.text(`TOTAL: ${currency} ${itemsTotal.toFixed(2)}`, margin + 125, currentY);
       
       currentY += 15;
     }
@@ -329,12 +330,12 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
     currentY += 20;
     
     // =====================================
-    // FOOTER
+    // FOOTER - EXACT ARTBOARD MATCH
     // =====================================
-    const footerY = pageHeight - 30;
-    const footerHeight = 12;
+    const footerY = pageHeight - 25;
+    const footerHeight = 10;
     
-    // Footer gradient
+    // Footer gradient (teal to purple - reverse of header)
     for (let i = 0; i < 85; i++) {
       const ratio = i / 85;
       const r = Math.round(56 * (1 - ratio) + 147 * ratio);
@@ -345,22 +346,26 @@ export async function generateUltraCleanPdf(request: any): Promise<void> {
       doc.rect(margin + (i * 2), footerY, 2, footerHeight, 'F');
     }
     
-    // Footer content
+    // Footer content - matching artboard layout
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    
+    // Left side contact info
+    doc.text('T: +974 4448 7727 | LANDLINE', margin + 3, footerY + 4);
+    doc.text('info@eeegq.com', margin + 3, footerY + 7);
+    doc.text('www.eeegq.com', margin + 3, footerY + 10);
+    
+    // Right side address
+    doc.text('P.O Box 35031, Address: Land Royal Building,', margin + 90, footerY + 4);
+    doc.text('Flat No. 210,Building No- 25, Area 26, Street No. 951, Doha, Qatar', margin + 90, footerY + 7);
+    
+    // Page number (bottom right)
+    doc.setTextColor(60, 60, 60);
     doc.setFontSize(8);
-    
-    doc.text('T: 55875904 (LANDLINE)', margin + 5, footerY + 4);
-    doc.text('amaanmalik12@gmail.com', margin + 5, footerY + 8);
-    doc.text('www.eeegq.com', margin + 5, footerY + 12);
-    
-    doc.text('Land Royal Building, Flat No. 210,', margin + 80, footerY + 4);
-    doc.text('West Bay, PO Box 35031,', margin + 80, footerY + 8);
-    doc.text('Doha, Qatar', margin + 80, footerY + 12);
-    
     const pageText = 'Page 1 of 1';
     const pageTextWidth = doc.getTextWidth(pageText);
-    doc.text(pageText, pageWidth - margin - pageTextWidth - 5, footerY + 8);
+    doc.text(pageText, pageWidth - margin - pageTextWidth, footerY + 15);
     
     // =====================================
     // SAVE PDF - NO AUDIT CALLS
