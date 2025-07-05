@@ -1,6 +1,6 @@
 /**
- * Professional PDF Generator - Fixed Version
- * Creates clean, professional PDF documents with proper admin settings integration
+ * Professional PDF Generator - Clean Business Layout
+ * Matches the exact design specification provided by user
  */
 
 import { jsPDF } from 'jspdf';
@@ -20,36 +20,24 @@ function parseColor(colorHex: string): [number, number, number] {
   ];
 }
 
-// Simplified blob URL to base64 conversion
+// Reliable blob URL to base64 conversion
 async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
   try {
     console.log('Converting blob URL:', blobUrl);
-    
     const response = await fetch(blobUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const blob = await response.blob();
-    if (blob.size === 0) {
-      throw new Error('Empty blob received');
-    }
+    if (blob.size === 0) throw new Error('Empty blob');
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        console.log('Base64 conversion successful');
-        resolve(result);
-      };
-      reader.onerror = (error) => {
-        console.error('FileReader error:', error);
-        reject(new Error('Failed to read blob'));
-      };
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('FileReader failed'));
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('Blob URL conversion failed:', error);
+    console.error('Blob conversion failed:', error);
     return null;
   }
 }
@@ -59,7 +47,6 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     console.log('Generating professional PDF for request:', request.id);
     console.log('PDF settings received:', settings);
     
-    // Create PDF document
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -68,22 +55,21 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     const pageWidth = 210;
     const pageHeight = 297;
-    const marginLeft = settings.marginLeft || 15;
-    const marginRight = settings.marginRight || 15;
-    const marginTop = settings.marginTop || 15;
-    const marginBottom = settings.marginBottom || 15;
-    const contentWidth = pageWidth - marginLeft - marginRight;
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
     
-    let currentY = marginTop;
+    let currentY = margin;
     
-    // HEADER SECTION WITH GRADIENT
+    // =====================================
+    // HEADER SECTION - Purple to Teal Gradient
+    // =====================================
     console.log('Creating header section...');
     
-    // Purple to Teal gradient header
-    const gradientHeight = 15;
-    const gradientSteps = 30;
+    const headerHeight = 25;
+    const gradientSteps = 50;
     const stepWidth = contentWidth / gradientSteps;
     
+    // Create gradient (purple to teal)
     for (let i = 0; i < gradientSteps; i++) {
       const ratio = i / gradientSteps;
       const r = Math.round(147 * (1 - ratio) + 56 * ratio);  // Purple to Teal
@@ -91,150 +77,155 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       const b = Math.round(234 * (1 - ratio) + 172 * ratio);
       
       doc.setFillColor(r, g, b);
-      doc.rect(marginLeft + (i * stepWidth), currentY, stepWidth, gradientHeight, 'F');
+      doc.rect(margin + (i * stepWidth), currentY, stepWidth, headerHeight, 'F');
     }
     
-    // Company logo from admin settings
+    // Company logo (from admin settings)
     if (settings.logo && settings.logo.startsWith('blob:')) {
       try {
-        console.log('Loading company logo...');
         const logoBase64 = await blobUrlToBase64(settings.logo);
         if (logoBase64) {
-          const logoWidth = 25;
-          const logoHeight = 12;
-          const logoX = marginLeft + 5;
-          const logoY = currentY + 2;
+          const logoWidth = 20;
+          const logoHeight = 15;
+          const logoX = margin + 8;
+          const logoY = currentY + 5;
           
           let imageFormat = 'PNG';
-          if (logoBase64.includes('data:image/jpeg')) {
-            imageFormat = 'JPEG';
-          }
+          if (logoBase64.includes('data:image/jpeg')) imageFormat = 'JPEG';
           
           doc.addImage(logoBase64, imageFormat, logoX, logoY, logoWidth, logoHeight);
-          console.log('Logo added successfully');
         }
       } catch (error) {
-        console.error('Failed to load logo:', error);
+        console.error('Logo loading failed:', error);
       }
     }
     
-    // Title from admin settings
+    // Company name and title (from admin settings)
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    const title = settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
-    doc.text(title, marginLeft + 35, currentY + 8);
+    doc.setFontSize(14);
+    const companyName = settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
+    doc.text(companyName, margin + 35, currentY + 10);
     
     doc.setFontSize(12);
-    const subtitle = settings.headerSubtitle || 'PURCHASE REQUEST';
-    doc.text(subtitle, marginLeft + 35, currentY + 12);
+    const documentTitle = settings.headerSubtitle || 'PURCHASE REQUEST';
+    doc.text(documentTitle, margin + 35, currentY + 16);
     
-    // Request info in top right
-    doc.setTextColor(255, 255, 255);
+    // Date and PR number (top right)
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text(`PR #${request.id}`, pageWidth - marginRight - 20, currentY + 6);
-    doc.text(`Date: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - marginRight - 20, currentY + 10);
+    doc.setFontSize(10);
+    const dateText = `Date: ${format(new Date(), 'dd/MM/yyyy')}`;
+    const prText = `PR #${request.id}`;
+    doc.text(dateText, pageWidth - margin - 40, currentY + 10);
+    doc.text(prText, pageWidth - margin - 40, currentY + 16);
     
-    currentY += 20;
+    currentY += headerHeight + 15;
     
-    // GRAY INFO SECTION
-    console.log('Creating info section...');
+    // =====================================
+    // REQUEST SUMMARY SECTION - Gray Box
+    // =====================================
+    console.log('Creating request summary section...');
     
-    const infoSectionHeight = 20;
+    const summaryHeight = 25;
     doc.setFillColor(240, 240, 240);
-    doc.rect(marginLeft, currentY, contentWidth, infoSectionHeight, 'F');
+    doc.rect(margin, currentY, contentWidth, summaryHeight, 'F');
     
-    // Info content
+    // Summary content
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     
-    const infoY = currentY + 5;
-    doc.text('Requester:', marginLeft + 5, infoY);
-    doc.text('Department:', marginLeft + 5, infoY + 5);
-    doc.text('Status:', marginLeft + 5, infoY + 10);
-    doc.text('Priority:', marginLeft + 5, infoY + 15);
+    const summaryY = currentY + 8;
+    doc.text('Requester:', margin + 5, summaryY);
+    doc.text('Department:', margin + 5, summaryY + 6);
+    doc.text('Status:', margin + 100, summaryY);
+    doc.text('Priority:', margin + 100, summaryY + 6);
     
     doc.setFont('helvetica', 'normal');
-    doc.text(request.requester?.username || 'N/A', marginLeft + 25, infoY);
-    doc.text(request.requester?.department || 'N/A', marginLeft + 25, infoY + 5);
-    doc.text(request.status?.toUpperCase() || 'PENDING', marginLeft + 25, infoY + 10);
-    doc.text(request.priority?.toUpperCase() || 'LOW', marginLeft + 25, infoY + 15);
+    doc.text(request.requester?.username || 'N/A', margin + 30, summaryY);
+    doc.text(request.requester?.department || 'N/A', margin + 30, summaryY + 6);
+    doc.text(request.status?.toUpperCase() || 'PENDING', margin + 120, summaryY);
+    doc.text(request.priority?.toUpperCase() || 'LOW', margin + 120, summaryY + 6);
     
-    currentY += infoSectionHeight + 10;
+    currentY += summaryHeight + 15;
     
+    // =====================================
     // BASIC INFORMATION SECTION
+    // =====================================
     console.log('Creating basic information section...');
     
-    // Black header
+    // Black header bar
     doc.setFillColor(44, 44, 44);
-    doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+    doc.rect(margin, currentY, contentWidth, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('BASIC INFORMATION', marginLeft + 3, currentY + 6);
+    doc.setFontSize(11);
+    doc.text('BASIC INFORMATION', margin + 5, currentY + 6);
     
     currentY += 12;
     
     // Basic info content
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     
-    doc.text('Title:', marginLeft + 5, currentY);
-    doc.text('Description:', marginLeft + 5, currentY + 5);
-    doc.text('Purpose Type:', marginLeft + 5, currentY + 10);
-    doc.text('Contact Info:', marginLeft + 5, currentY + 15);
+    doc.text('Title:', margin + 5, currentY);
+    doc.text('Description:', margin + 5, currentY + 6);
+    doc.text('Purpose Type:', margin + 5, currentY + 12);
+    doc.text('Contact Info:', margin + 5, currentY + 18);
     
     doc.setFont('helvetica', 'normal');
-    doc.text(request.title || 'N/A', marginLeft + 25, currentY);
-    doc.text(request.description || 'N/A', marginLeft + 25, currentY + 5);
-    doc.text(request.purposeType || 'N/A', marginLeft + 25, currentY + 10);
-    doc.text(`Email: ${request.requester?.email || 'N/A'}`, marginLeft + 25, currentY + 15);
+    doc.text(request.title || 'N/A', margin + 35, currentY);
+    doc.text(request.description || 'N/A', margin + 35, currentY + 6);
+    doc.text(request.purposeType || 'N/A', margin + 35, currentY + 12);
+    doc.text(`Email: ${request.requester?.email || 'N/A'}`, margin + 35, currentY + 18);
     
-    currentY += 25;
+    currentY += 30;
     
+    // =====================================
     // VENDOR INFORMATION SECTION
+    // =====================================
     if (request.vendor) {
       console.log('Creating vendor information section...');
       
-      // Black header
+      // Black header bar
       doc.setFillColor(44, 44, 44);
-      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+      doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('VENDOR INFORMATION', marginLeft + 3, currentY + 6);
+      doc.setFontSize(11);
+      doc.text('VENDOR INFORMATION', margin + 5, currentY + 6);
       
       currentY += 12;
       
       // Vendor content
       doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       
-      doc.text('Vendor Name:', marginLeft + 5, currentY);
-      doc.text('Email:', marginLeft + 5, currentY + 5);
+      doc.text('Vendor Name:', margin + 5, currentY);
+      doc.text('Email:', margin + 5, currentY + 6);
       
       doc.setFont('helvetica', 'normal');
-      doc.text(request.vendor.name || 'N/A', marginLeft + 25, currentY);
-      doc.text(request.vendor.email || 'N/A', marginLeft + 25, currentY + 5);
+      doc.text(request.vendor.name || 'N/A', margin + 35, currentY);
+      doc.text(request.vendor.email || 'N/A', margin + 35, currentY + 6);
       
-      currentY += 15;
+      currentY += 20;
     }
     
-    // ITEMS SECTION
+    // =====================================
+    // ITEMS TABLE SECTION
+    // =====================================
     if (request.items && request.items.length > 0) {
       console.log('Creating items section...');
       
-      // Black header
+      // Black header bar
       doc.setFillColor(44, 44, 44);
-      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+      doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('ITEMS', marginLeft + 3, currentY + 6);
+      doc.setFontSize(11);
+      doc.text('ITEMS', margin + 5, currentY + 6);
       
       currentY += 12;
       
@@ -249,8 +240,8 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           item.name || 'N/A',
           item.description || 'N/A',
           quantity.toString(),
-          `${request.currency || 'QAR'} ${unitCost.toFixed(2)}`,
-          `${request.currency || 'QAR'} ${totalCost.toFixed(2)}`
+          `QAR ${unitCost.toFixed(2)}`,
+          `QAR ${totalCost.toFixed(2)}`
         ];
       });
 
@@ -261,29 +252,29 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 9,
-          cellPadding: 4,
+          fontSize: 10,
+          cellPadding: 3,
           textColor: [60, 60, 60],
           lineColor: [180, 180, 180],
-          lineWidth: 0.3
+          lineWidth: 0.5
         },
         headStyles: { 
           fillColor: [44, 44, 44],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9
+          fontSize: 10
         },
         columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 80 },
+          0: { cellWidth: 35 },
+          1: { cellWidth: 70 },
           2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 30, halign: 'right' },
-          4: { cellWidth: 30, halign: 'right' }
+          3: { cellWidth: 32, halign: 'right' },
+          4: { cellWidth: 32, halign: 'right' }
         }
       });
       
       // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 5;
+      currentY = doc.lastAutoTable.finalY + 8;
       
       // Total calculation
       const itemsTotal = request.items.reduce((sum: number, item: any) => {
@@ -291,26 +282,28 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       }, 0);
       
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setTextColor(60, 60, 60);
-      const totalText = `Total: ${request.currency || 'QAR'} ${itemsTotal.toFixed(2)}`;
+      const totalText = `Total: QAR ${itemsTotal.toFixed(2)}`;
       const totalWidth = doc.getTextWidth(totalText);
-      doc.text(totalText, pageWidth - marginRight - totalWidth, currentY);
+      doc.text(totalText, pageWidth - margin - totalWidth, currentY);
       
-      currentY += 10;
+      currentY += 15;
     }
     
+    // =====================================
     // ATTACHED DOCUMENTS SECTION
+    // =====================================
     if (request.attachments && request.attachments.length > 0) {
       console.log('Creating attachments section...');
       
-      // Black header
+      // Black header bar
       doc.setFillColor(44, 44, 44);
-      doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+      doc.rect(margin, currentY, contentWidth, 8, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('ATTACHED DOCUMENTS', marginLeft + 3, currentY + 6);
+      doc.setFontSize(11);
+      doc.text('ATTACHED DOCUMENTS', margin + 5, currentY + 6);
       
       currentY += 12;
       
@@ -328,83 +321,92 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         startY: currentY,
         theme: 'grid',
         styles: { 
-          fontSize: 9,
-          cellPadding: 4,
+          fontSize: 10,
+          cellPadding: 3,
           textColor: [60, 60, 60],
           lineColor: [180, 180, 180],
-          lineWidth: 0.3
+          lineWidth: 0.5
         },
         headStyles: { 
           fillColor: [44, 44, 44],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9
+          fontSize: 10
+        },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 40, halign: 'center' },
+          2: { cellWidth: 30, halign: 'right' }
         }
       });
       
       // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 15;
     }
     
+    // =====================================
     // SIGNATURES SECTION
+    // =====================================
     console.log('Creating signatures section...');
     
-    // Black header
+    // Black header bar
     doc.setFillColor(44, 44, 44);
-    doc.rect(marginLeft, currentY, contentWidth, 8, 'F');
+    doc.rect(margin, currentY, contentWidth, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('SIGNATURES', marginLeft + 3, currentY + 6);
+    doc.setFontSize(11);
+    doc.text('SIGNATURES', margin + 5, currentY + 6);
 
     currentY += 12;
     
     // Signature content
     doc.setTextColor(120, 120, 120);
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.text('ALL RIGHTS RESERVED', marginLeft + 3, currentY + 5);
+    doc.setFontSize(9);
+    doc.text('All rights reserved', margin + 5, currentY + 10);
     
-    // FOOTER with gradient and admin settings
+    // =====================================
+    // FOOTER SECTION - Teal to Purple Gradient
+    // =====================================
     console.log('Creating footer...');
     
-    const footerY = pageHeight - 25;
+    const footerY = pageHeight - 30;
+    const footerHeight = 15;
     
-    // Footer gradient
-    const footerGradientHeight = 15;
-    const footerGradientSteps = 30;
-    const footerStepWidth = contentWidth / footerGradientSteps;
-    
-    for (let i = 0; i < footerGradientSteps; i++) {
-      const ratio = i / footerGradientSteps;
+    // Footer gradient (teal to purple)
+    for (let i = 0; i < gradientSteps; i++) {
+      const ratio = i / gradientSteps;
       const r = Math.round(56 * (1 - ratio) + 147 * ratio);  // Teal to Purple
       const g = Math.round(178 * (1 - ratio) + 51 * ratio);
       const b = Math.round(172 * (1 - ratio) + 234 * ratio);
       
       doc.setFillColor(r, g, b);
-      doc.rect(marginLeft + (i * footerStepWidth), footerY, footerStepWidth, footerGradientHeight, 'F');
+      doc.rect(margin + (i * stepWidth), footerY, stepWidth, footerHeight, 'F');
     }
     
-    // Footer content from admin settings
+    // Footer content
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(10);
     
-    const footerText = settings.footerText || 'Designed with ❤️ by E3';
-    doc.text(footerText, marginLeft + 5, footerY + 10);
+    const footerText = settings.footerText || 'Designed with ♡ by E3';
+    doc.text(footerText, margin + 8, footerY + 10);
     
     // Page number
     const pageText = 'Page 1 of 1';
     const pageTextWidth = doc.getTextWidth(pageText);
-    doc.text(pageText, pageWidth - marginRight - pageTextWidth - 5, footerY + 10);
+    doc.text(pageText, pageWidth - margin - pageTextWidth - 8, footerY + 10);
     
-    // Add watermark if enabled
+    // =====================================
+    // WATERMARK (if enabled)
+    // =====================================
     if (settings.watermarkText && settings.watermarkOpacity > 0) {
       console.log('Adding watermark...');
+      // @ts-ignore
       doc.setGState(new doc.GState({opacity: settings.watermarkOpacity / 100}));
       doc.setTextColor(200, 200, 200);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(48);
+      doc.setFontSize(50);
       
       const watermarkText = settings.watermarkText;
       const watermarkWidth = doc.getTextWidth(watermarkText);
@@ -412,10 +414,13 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       const watermarkY = pageHeight / 2;
       
       doc.text(watermarkText, watermarkX, watermarkY, { angle: 45 });
+      // @ts-ignore
       doc.setGState(new doc.GState({opacity: 1}));
     }
     
-    // Save and download
+    // =====================================
+    // SAVE AND AUDIT
+    // =====================================
     const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
     console.log('Saving PDF as:', fileName);
     
@@ -425,7 +430,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // Log audit event
     const trackingId = generatePdfTrackingId();
     await logPdfAuditEvent({
-      requestId: request.id,
+      requestId: Number(request.id),
       action: 'pdf_downloaded',
       type: 'admin',
       details: {
