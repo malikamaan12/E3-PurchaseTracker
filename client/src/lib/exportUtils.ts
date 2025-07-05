@@ -342,11 +342,11 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    console.log('Creating PDF export using enhanced PDF generator...');
+    console.log('Creating PDF export using simple browser-compatible generator...');
     
-    // Use the enhanced PDF generator that's working on the purchase request page
-    const { generateEnhancedPDF } = await import('./enhancedPdfGenerator');
-    const doc = await generateEnhancedPDF(request, roleForAudit, pdfSettings);
+    // Use the simple browser-compatible PDF generator
+    const { generateSimpleBrowserPDF } = await import('./simpleBrowserPdfGenerator');
+    const doc = await generateSimpleBrowserPDF(request);
     
     // Generate PDF blob
     const pdfBlob = doc.output('blob');
@@ -366,7 +366,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     // Cleanup
     URL.revokeObjectURL(url);
     
-    console.log('PDF export completed successfully using enhanced generator');
+    console.log('PDF export completed successfully using simple browser generator');
     return fileName;
   } catch (error) {
     console.error("PDF export error:", error);

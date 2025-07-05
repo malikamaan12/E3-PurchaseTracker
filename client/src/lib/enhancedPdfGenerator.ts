@@ -1,14 +1,6 @@
 import { jsPDF } from 'jspdf';
 
-// Import and apply autoTable plugin
-require('jspdf-autotable');
-
-// TypeScript interface extension for autoTable
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+// No autoTable plugin - using simple table rendering instead
 import { PurchaseRequestWithRelations } from '../types/requests';
 import { applyPdfWatermark, applySecurityWatermark, generatePdfTrackingId, logPdfAuditEvent } from './pdfAuditUtils';
 
