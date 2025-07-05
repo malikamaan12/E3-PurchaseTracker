@@ -172,15 +172,17 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.text('Title:', margin + 5, currentY);
     doc.text('Description:', margin + 5, currentY + 6);
     doc.text('Purpose Type:', margin + 5, currentY + 12);
-    doc.text('Contact Info:', margin + 5, currentY + 18);
+    doc.text('Sub-purpose:', margin + 5, currentY + 18);
+    doc.text('Contact Info:', margin + 5, currentY + 24);
     
     doc.setFont('helvetica', 'normal');
     doc.text(request.title || 'N/A', margin + 35, currentY);
     doc.text(request.description || 'N/A', margin + 35, currentY + 6);
     doc.text(request.purposeType || 'N/A', margin + 35, currentY + 12);
-    doc.text(`Email: ${request.requester?.email || 'N/A'}`, margin + 35, currentY + 18);
+    doc.text(request.subPurpose?.name || 'N/A', margin + 35, currentY + 18);
+    doc.text(`Email: ${request.requester?.email || 'N/A'}`, margin + 35, currentY + 24);
     
-    currentY += 30;
+    currentY += 36;
     
     // =====================================
     // VENDOR INFORMATION SECTION
@@ -204,13 +206,17 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.setFontSize(10);
       
       doc.text('Vendor Name:', margin + 5, currentY);
-      doc.text('Email:', margin + 5, currentY + 6);
+      doc.text('Contact Person:', margin + 5, currentY + 6);
+      doc.text('Email:', margin + 5, currentY + 12);
+      doc.text('Phone:', margin + 5, currentY + 18);
       
       doc.setFont('helvetica', 'normal');
-      doc.text(request.vendor.name || 'N/A', margin + 35, currentY);
-      doc.text(request.vendor.email || 'N/A', margin + 35, currentY + 6);
+      doc.text(request.vendor.companyName || request.vendor.name || 'N/A', margin + 40, currentY);
+      doc.text(request.vendor.contactPerson || 'N/A', margin + 40, currentY + 6);
+      doc.text(request.vendor.email || 'N/A', margin + 40, currentY + 12);
+      doc.text(request.vendor.contactNumber || 'N/A', margin + 40, currentY + 18);
       
-      currentY += 20;
+      currentY += 30;
     }
     
     // =====================================
@@ -265,11 +271,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           fontSize: 10
         },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 32, halign: 'right' },
-          4: { cellWidth: 32, halign: 'right' }
+          0: { cellWidth: 30 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 36, halign: 'right' },
+          4: { cellWidth: 36, halign: 'right' }
         }
       });
       
@@ -334,9 +340,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           fontSize: 10
         },
         columnStyles: {
-          0: { cellWidth: 100 },
-          1: { cellWidth: 40, halign: 'center' },
-          2: { cellWidth: 30, halign: 'right' }
+          0: { cellWidth: 90 },
+          1: { cellWidth: 35, halign: 'center' },
+          2: { cellWidth: 45, halign: 'right' }
         }
       });
       
@@ -348,6 +354,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // SIGNATURES SECTION
     // =====================================
     console.log('Creating signatures section...');
+    
+    // Ensure signatures section has proper spacing from content above
+    currentY += 10;
     
     // Black header bar
     doc.setFillColor(44, 44, 44);
@@ -363,7 +372,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.setTextColor(120, 120, 120);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
-    doc.text('All rights reserved', margin + 5, currentY + 10);
+    doc.text('All rights reserved', margin + 5, currentY + 5);
     
     // =====================================
     // FOOTER SECTION - Teal to Purple Gradient
@@ -398,25 +407,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.text(pageText, pageWidth - margin - pageTextWidth - 8, footerY + 10);
     
     // =====================================
-    // WATERMARK (if enabled)
+    // WATERMARK (disabled to prevent text overlap)
     // =====================================
-    if (settings.watermarkText && settings.watermarkOpacity > 0) {
-      console.log('Adding watermark...');
-      // @ts-ignore
-      doc.setGState(new doc.GState({opacity: settings.watermarkOpacity / 100}));
-      doc.setTextColor(200, 200, 200);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(50);
-      
-      const watermarkText = settings.watermarkText;
-      const watermarkWidth = doc.getTextWidth(watermarkText);
-      const watermarkX = (pageWidth - watermarkWidth) / 2;
-      const watermarkY = pageHeight / 2;
-      
-      doc.text(watermarkText, watermarkX, watermarkY, { angle: 45 });
-      // @ts-ignore
-      doc.setGState(new doc.GState({opacity: 1}));
-    }
+    // Watermark disabled as it causes readability issues
+    console.log('Watermark disabled for better readability');
     
     // =====================================
     // SAVE AND AUDIT
