@@ -138,6 +138,9 @@ export default function Dashboard() {
     user?.department === "Finance"
   ), [user?.role, user?.department]);
 
+  // Safe requests array
+  const safeRequests = useMemo(() => requests || [], [requests]);
+
   // Check if user is an additional approver for any requests
   const isAdditionalApprover = useMemo(() => {
     if (!user?.department || !Array.isArray(safeRequests)) return false;
@@ -162,9 +165,6 @@ export default function Dashboard() {
 
   // Enhanced role check that includes additional approvers
   const hasExtendedAccess = useMemo(() => isAdmin || isSpecialRole || isAdditionalApprover, [isAdmin, isSpecialRole, isAdditionalApprover]);
-
-  // Safe requests array
-  const safeRequests = useMemo(() => requests || [], [requests]);
 
   // Filtering logic
   const getFilteredRequests = useCallback((currentTab: string): RequestData[] => {
