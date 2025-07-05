@@ -342,19 +342,18 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    console.log('Creating PDF export...');
+    console.log('Creating PDF export using enhanced PDF generator...');
     
-    // Use the new simple PDF generator that doesn't rely on autoTable
-    const { generateSimplePDF } = await import('./simplePdfGenerator');
-    const result = await generateSimplePDF(request, 'purchase');
+    // Use the enhanced PDF generator that's working on the purchase request page
+    const { generateEnhancedPDF } = await import('./enhancedPdfGenerator');
+    const doc = await generateEnhancedPDF(request, roleForAudit, pdfSettings);
     
-    if (!result.success) {
-      throw new Error(result.error || 'PDF generation failed');
-    }
+    // Generate PDF blob
+    const pdfBlob = doc.output('blob');
     
     // Create download link
     const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
-    const url = URL.createObjectURL(result.blob!);
+    const url = URL.createObjectURL(pdfBlob);
     
     // Trigger download
     const link = document.createElement('a');
@@ -367,7 +366,7 @@ export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'a
     // Cleanup
     URL.revokeObjectURL(url);
     
-    console.log('PDF export completed successfully');
+    console.log('PDF export completed successfully using enhanced generator');
     return fileName;
   } catch (error) {
     console.error("PDF export error:", error);
