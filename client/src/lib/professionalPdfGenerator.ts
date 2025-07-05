@@ -35,48 +35,74 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // Page settings
     const pageWidth = 210;
     const pageHeight = 297;
-    const margin = 15;
-    const contentWidth = pageWidth - (margin * 2);
+    
+    // Apply margins from settings
+    const marginTop = settings.marginTop || 15;
+    const marginLeft = settings.marginLeft || 15;
+    const marginRight = settings.marginRight || 15;
+    const marginBottom = settings.marginBottom || 15;
+    const contentWidth = pageWidth - marginLeft - marginRight;
     
     // Apply global font settings
     const baseFontSize = settings.fontSize || 9;
     const baseFontFamily = settings.fontFamily || 'helvetica';
     const textColor = parseColor(settings.textColor || '#000000');
     
-    let currentY = margin + 5;
+    let currentY = marginTop + 5;
     
     // HEADER SECTION with dynamic settings
     const headerColor = parseColor(settings.headerColor || '#000000');
     const headerFontSize = settings.headerFontSize || 20;
-    const headerFontFamily = settings.headerFontFamily || 'helvetica';
+    const headerFontFamily = settings.headerFontFamily || baseFontFamily;
     
     doc.setFont(headerFontFamily, 'bold');
     doc.setFontSize(headerFontSize);
     doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
     
-    // Custom header title from admin settings
+    // Custom header title from admin settings - use the actual title from settings
     const headerTitle = settings.headerTitle || 'PURCHASE REQUEST';
-    doc.text(headerTitle, margin, currentY + 8);
+    doc.text(headerTitle, marginLeft, currentY + 8);
     
-    // Add company logo if available
-    if (settings.companyLogo) {
+    // Add header subtitle if available
+    if (settings.headerSubtitle) {
+      doc.setFontSize(12);
+      doc.setFont(headerFontFamily, 'normal');
+      doc.text(settings.headerSubtitle, marginLeft, currentY + 16);
+    }
+    
+    // Add company logo if available (check different logo field names)
+    const logoField = settings.logo || settings.companyLogo || settings.headerImage;
+    if (logoField && logoField.startsWith('blob:')) {
       try {
         // Add logo on the right side of header
         const logoWidth = 30;
         const logoHeight = 20;
-        const logoX = pageWidth - margin - logoWidth;
+        const logoX = pageWidth - marginRight - logoWidth;
         const logoY = currentY - 5;
         
-        doc.addImage(settings.companyLogo, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        // Convert blob URL to base64 for PDF
+        const response = await fetch(logoField);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          try {
+            doc.addImage(base64data, 'PNG', logoX, logoY, logoWidth, logoHeight);
+          } catch (e) {
+            console.warn('Could not add logo:', e);
+          }
+        };
+        reader.readAsDataURL(blob);
       } catch (error) {
-        console.warn('Could not add logo to PDF:', error);
+        console.warn('Could not load logo from blob URL:', error);
       }
     }
     
     // Request info on right side
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(baseFontFamily, 'normal');
     doc.setFontSize(10);
-    const rightAlign = pageWidth - margin;
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    const rightAlign = pageWidth - marginRight;
     
     const prNumber = `PR #${request.id}`;
     const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
@@ -84,24 +110,24 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), currentY + 3);
     doc.text(dateText, rightAlign - doc.getTextWidth(dateText), currentY + 8);
     
-    currentY += 20;
+    currentY += settings.headerSubtitle ? 25 : 20;
     
     // Separator line
     doc.setDrawColor(220, 220, 220);
-    doc.line(margin, currentY, pageWidth - margin, currentY);
+    doc.line(marginLeft, currentY, pageWidth - marginRight, currentY);
     currentY += 8;
     
     // TOP INFO SECTION (Gray background box)
     doc.setFillColor(245, 245, 245);
-    doc.rect(margin, currentY, contentWidth, 16, 'F');
+    doc.rect(marginLeft, currentY, contentWidth, 16, 'F');
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     
     // Two columns layout
-    const leftColX = margin + 3;
-    const rightColX = margin + (contentWidth / 2) + 3;
+    const leftColX = marginLeft + 3;
+    const rightColX = marginLeft + (contentWidth / 2) + 3;
     
     // Left column
     doc.text('Requester:', leftColX, currentY + 4);
@@ -132,11 +158,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // Show basic information section if enabled
     if (settings.showBasicInfo !== false) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
+      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('BASIC INFORMATION', margin + 2, currentY + 4);
+      doc.text('BASIC INFORMATION', marginLeft + 2, currentY + 4);
     
     currentY += 10;
     doc.setTextColor(40, 40, 40);
@@ -178,11 +204,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // VENDOR INFORMATION SECTION
     if (settings.showVendorInfo !== false && request.vendor && (request.vendor.companyName || request.vendor.name)) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
+      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('VENDOR INFORMATION', margin + 2, currentY + 4);
+      doc.text('VENDOR INFORMATION', marginLeft + 2, currentY + 4);
       
       currentY += 10;
       doc.setTextColor(40, 40, 40);
@@ -233,11 +259,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // ITEMS SECTION
     if (settings.showItems !== false && request.items && request.items.length > 0) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
+      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('ITEMS', margin + 2, currentY + 4);
+      doc.text('ITEMS', marginLeft + 2, currentY + 4);
       
       currentY += 10;
       
@@ -261,7 +287,6 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         head: tableHead,
         body: tableBody,
         startY: currentY,
-        margin: { left: margin, right: margin },
         theme: 'grid',
         styles: { 
           fontSize: 8,
@@ -293,7 +318,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         return sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0);
       }, 0);
       
-      const summaryX = pageWidth - margin - 65;
+      const summaryX = pageWidth - marginLeft - 65;
       
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
@@ -322,11 +347,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // ATTACHED DOCUMENTS SECTION
     if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
+      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('ATTACHED DOCUMENTS', margin + 2, currentY + 4);
+      doc.text('ATTACHED DOCUMENTS', marginLeft + 2, currentY + 4);
       
       currentY += 10;
       
@@ -342,7 +367,6 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         head: attachmentHead,
         body: attachmentBody,
         startY: currentY,
-        margin: { left: margin, right: margin },
         theme: 'grid',
         styles: { 
           fontSize: 8,
@@ -366,17 +390,17 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     // SIGNATURES SECTION
     if (settings.showSignatures !== false) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
+      doc.rect(marginLeft, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('SIGNATURES', margin + 2, currentY + 4);
+      doc.text('SIGNATURES', marginLeft + 2, currentY + 4);
     
       currentY += 10;
       doc.setTextColor(120, 120, 120);
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(8);
-      doc.text('ALL RIGHTS RESERVED', margin + 2, currentY);
+      doc.text('ALL RIGHTS RESERVED', marginLeft + 2, currentY);
     } // End of signatures section
     
     // FOOTER with admin settings
@@ -387,11 +411,12 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.setFont('helvetica', 'normal');
     
     // Use footer from admin settings or default
-    const footerText = settings.footerText || 'Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com';
+    const footerText = settings.footerText || 
+      `Phone: ${settings.companyPhone || '+974 30488565'} | Email: ${settings.companyEmail || 'info@eeegq.com'} | Web: ${settings.companyWebsite || 'www.eeegq.com'}`;
     const footerAddress = settings.companyAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
     
-    doc.text(footerText, margin, footerY);
-    doc.text(footerAddress, margin, footerY + 3);
+    doc.text(footerText, marginLeft, footerY);
+    doc.text(footerAddress, marginLeft, footerY + 3);
     
     // Page number
     const pageCount = doc.internal.getNumberOfPages();
@@ -399,7 +424,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.setPage(i);
       const pageText = `Page ${i} of ${pageCount}`;
       const pageTextWidth = doc.getTextWidth(pageText);
-      doc.text(pageText, pageWidth - margin - pageTextWidth, footerY + 3);
+      doc.text(pageText, pageWidth - marginLeft - pageTextWidth, footerY + 3);
     }
     
     // Save the PDF
