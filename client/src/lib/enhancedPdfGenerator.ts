@@ -231,36 +231,25 @@ async function addHeader(doc: jsPDF, request: PurchaseRequestWithRelations, pdfS
       }
     };
     
-    // Create the request info table
+    // Create the request info table matching the design
     autoTable(doc, {
       startY: yPos,
       theme: 'plain',
       styles: { 
         fontSize: fontSize, 
-        cellPadding: cellPadding,
-        textColor: [textColor[0], textColor[1], textColor[2]] 
+        cellPadding: 4,
+        textColor: [0, 0, 0] 
       },
-      columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } },
+      columnStyles: { 
+        0: { fontStyle: 'bold', cellWidth: 30 }, 
+        1: { cellWidth: 'auto' },
+        2: { fontStyle: 'bold', cellWidth: 30 }, 
+        3: { cellWidth: 'auto' }
+      },
       margin: { left: marginLeft, right: marginRight },
       body: [
-        [
-          'Purchase Request #' + (request.requestNumber || ''),
-          '',
-          'Status:',
-          request.status?.toUpperCase() || 'N/A'
-        ],
-        [
-          'Requester:',
-          request.requester?.username || 'N/A',
-          'Department:',
-          request.requester?.department || 'N/A',
-        ],
-        [
-          'Date:',
-          formatDate(request.createdAt),
-          'Priority:',
-          request.priority?.toUpperCase() || 'N/A'
-        ]
+        ['Requester:', request.requester?.username || 'N/A', 'Department:', request.requester?.department || 'N/A'],
+        ['Status:', request.status?.toUpperCase() || 'N/A', 'Priority:', request.priority?.toUpperCase() || 'N/A']
       ],
       didDrawCell: (data) => {
         // Add border around the entire table

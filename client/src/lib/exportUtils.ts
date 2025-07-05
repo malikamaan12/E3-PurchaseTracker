@@ -21,6 +21,7 @@ import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { logPdfAuditEvent, generatePdfTrackingId, applyPdfWatermark } from './pdfAuditUtils';
 import { generateUltraCleanPdf } from './ultraCleanPdfGenerator';
+import { generateDesignMatchedPdf } from './designMatchedPdfGenerator';
 
 /**
  * Safely download a file using FileSaver with fallbacks
@@ -346,22 +347,18 @@ export async function exportRequestToExcel(request: any, roleForAudit: 'user' | 
  */
 export async function exportRequestToPDF(request: any, roleForAudit: 'user' | 'approver' | 'admin' = 'user', pdfSettings?: any): Promise<string> {
   try {
-    // Use the enhanced PDF generator that supports dynamic settings
-    const { generateEnhancedPDF } = await import('./enhancedPdfGenerator');
-    
-    // Generate PDF with dynamic settings
-    const pdfDoc = await generateEnhancedPDF(request, roleForAudit, pdfSettings);
+    // Use the design-matched PDF generator that follows the exact design specification
+    const { pdfBlob, trackingId } = await generateDesignMatchedPdf(request, pdfSettings);
     
     // Generate filename
     const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
-    console.log('Generating PDF with dynamic settings for request:', request.id);
+    console.log('Generating PDF with design-matched layout for request:', request.id);
     
     // Save the PDF
-    const pdfBlob = pdfDoc.output('blob');
     const { saveAs } = await import('file-saver');
     saveAs(pdfBlob, fileName);
     
-    console.log('PDF with dynamic settings generated successfully');
+    console.log('Design-matched PDF generated successfully');
     return fileName;
   } catch (error) {
     console.error("PDF export error:", error);
