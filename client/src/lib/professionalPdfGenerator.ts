@@ -433,12 +433,12 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           if (existingApproval) {
             allExpectedApprovers.push(existingApproval);
           } else {
-            // Add placeholder for missing required approver
+            // Add placeholder for missing required approver with proper status
             allExpectedApprovers.push({
-              approver: { department: dept, username: 'Not Assigned' },
+              approver: { department: dept, username: 'Pending Assignment' },
               status: 'pending',
               processedAt: null,
-              comments: null
+              comments: 'Approval pending'
             });
           }
         });
@@ -449,12 +449,12 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           if (existingApproval) {
             allExpectedApprovers.push(existingApproval);
           } else {
-            // Add placeholder for missing additional approver
+            // Add placeholder for missing additional approver with proper status
             allExpectedApprovers.push({
-              approver: { department: deptName, username: 'Not Assigned' },
+              approver: { department: deptName, username: 'Pending Assignment' },
               status: 'pending',
               processedAt: null,
-              comments: null
+              comments: 'Additional approval required'
             });
           }
         });

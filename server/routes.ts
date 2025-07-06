@@ -4330,7 +4330,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const settings = req.body;
-      console.log('Processing PDF settings:', settings);
+      console.log('Processing PDF settings with logo data size:', settings.companyLogo ? settings.companyLogo.length : 'null', 'and logo field:', settings.logo ? settings.logo.length : 'null');
 
       // First, delete existing settings
       await db.delete(pdfSettings);
