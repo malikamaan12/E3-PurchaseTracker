@@ -944,27 +944,21 @@ function addApprovalsTable(
     let statusStyle = {};
     let statusIcon = "";
 
-    // Apply color styling based on approval status with icons
+    // Use consistent styling for all statuses - no colorful indicators
+    statusStyle = {
+      fontSize: 9,
+      textColor: [0, 0, 0], // Black text for consistency
+    };
+    
+    // Simple status text without icons
     if (status === "APPROVED") {
-      statusStyle = {
-        fillColor: [230, 255, 230],
-        textColor: [0, 128, 0],
-        fontStyle: "bold",
-      };
-      statusIcon = "✓ ";
+      statusIcon = "";
     } else if (status === "REJECTED") {
-      statusStyle = {
-        fillColor: [255, 230, 230],
-        textColor: [192, 0, 0],
-        fontStyle: "bold",
-      };
-      statusIcon = "✗ ";
+      statusIcon = "";
     } else if (status === "PENDING") {
-      statusStyle = { fillColor: [240, 248, 255], textColor: [0, 102, 204] };
-      statusIcon = "⋯ ";
+      statusIcon = "";
     } else if (status === "CHANGES") {
-      statusStyle = { fillColor: [255, 248, 225], textColor: [186, 104, 0] };
-      statusIcon = "! ";
+      statusIcon = "";
     }
 
     // Format the date in a more readable way
@@ -972,28 +966,17 @@ function addApprovalsTable(
       ? formatDate(app.processedAt)
       : "Awaiting";
 
-    // Get approver name with multiple fallback strategies
-    let approverName = "N/A";
+    // Get approver name - leave blank if no real approver assigned
+    let approverName = "";
     
-    // Debug logging for approval data
-    console.log("Processing approval:", {
-      id: app.id,
-      approverId: app.approverId,
-      department: app.department,
-      status: app.status,
-      approver: app.approver
-    });
-    
-    if (app.approver?.username) {
+    if (app.approver?.username && app.approver.username !== "Pending Assignment") {
       approverName = app.approver.username;
-    } else if (app.approver?.name) {
+    } else if (app.approver?.name && app.approver.name !== "Pending Assignment") {
       approverName = app.approver.name;
-    } else if (app.approverId) {
-      // If we have an approver ID but no name, show the ID with a note
-      approverName = `User ID: ${app.approverId}`;
+    } else {
+      // Leave blank for pending assignments instead of showing placeholder text
+      approverName = "";
     }
-    
-    console.log("Final approver name:", approverName);
 
     rows.push([
       approverName,
@@ -1124,9 +1107,10 @@ function addApprovalsTable(
     "F",
   );
 
-  // Calculate progress percentage based on approvals
-  const totalApprovers = approvals.length;
-  let progressPercentage = approvedCount / totalApprovers;
+  // Calculate progress percentage based on actual approvals (only count real approvals, not pending assignments)
+  const realApprovals = approvals.filter(app => app.approver && app.approver.username && app.approver.username !== "Pending Assignment");
+  const totalApprovers = realApprovals.length;
+  let progressPercentage = totalApprovers > 0 ? approvedCount / totalApprovers : 0;
 
   // Draw the colored progress indicator
   if (progressPercentage > 0) {
@@ -1205,18 +1189,18 @@ function addApprovalsTable(
 
   // Add overall approval status
   const statusTextY = progressBarY + progressBarHeight + 10;
-  let overallStatus = "In Progress";
-  let statusColor = [0, 123, 255]; // Blue for in progress
+  let overallStatus = "Pending";
+  let statusColor = [0, 0, 0]; // Black for consistent color
 
   if (rejectedCount > 0) {
     overallStatus = "Rejected";
-    statusColor = [220, 53, 69]; // Red
-  } else if (pendingCount === 0 && approvedCount === totalApprovers) {
+    statusColor = [0, 0, 0]; // Keep consistent black color
+  } else if (totalApprovers > 0 && approvedCount === totalApprovers) {
     overallStatus = "Fully Approved";
-    statusColor = [46, 174, 52]; // Green
+    statusColor = [0, 0, 0]; // Keep consistent black color
   } else if (changesCount > 0) {
     overallStatus = "Changes Requested";
-    statusColor = [255, 193, 7]; // Amber
+    statusColor = [0, 0, 0]; // Keep consistent black color
   }
 
   doc.setFont("helvetica", "bold");

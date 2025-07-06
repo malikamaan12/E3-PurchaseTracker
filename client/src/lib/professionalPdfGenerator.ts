@@ -459,13 +459,14 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           }
         });
         
-        // Approval progress summary based on all expected approvers
-        const totalExpected = allExpectedApprovers.length;
-        const actualApprovals = allExpectedApprovers.filter(a => a.status !== 'pending' || a.approver?.username !== 'Not Assigned');
+        // Only count real approvals that have been processed (not placeholders)
+        const realApprovals = approvals.filter(a => a.approver && a.approver.username && a.approver.username !== 'Pending Assignment');
+        const completedApprovals = realApprovals.filter(a => a.status === 'approved');
+        const totalExpected = realApprovals.length;
         
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(`Progress: ${actualApprovals.length}/${totalExpected} approvals completed`, margin + 2, currentY);
+        doc.text(`Progress: ${completedApprovals.length}/${totalExpected} approvals completed`, margin + 2, currentY);
         currentY += 6;
         
         // Individual approval details in a professional table format
@@ -494,27 +495,24 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           
           currentY += rowHeight;
           
-          // Draw approval rows using all expected approvers
-          allExpectedApprovers.forEach((approval, rowIndex) => {
+          // Only show approvals that have real approvers assigned (not placeholders)
+          const displayableApprovals = allExpectedApprovers.filter(approval => 
+            approval.approver?.username && approval.approver.username !== 'Pending Assignment'
+          );
+          
+          displayableApprovals.forEach((approval, rowIndex) => {
             const status = (approval.status || 'pending').toUpperCase();
-            let statusIcon = '';
-            let statusColor = [0, 102, 204]; // Blue for pending
             
-            if (status === 'APPROVED') {
-              statusIcon = '✓';
-              statusColor = [46, 174, 52]; // Green
-            } else if (status === 'REJECTED') {
-              statusIcon = '✗';
-              statusColor = [220, 53, 69]; // Red
-            } else if (status === 'CHANGES_REQUESTED') {
-              statusIcon = '!';
-              statusColor = [255, 193, 7]; // Amber
-            } else {
-              statusIcon = '○';
-            }
+            // Use consistent black text for all statuses, no icons or colors
+            const statusColor = [0, 0, 0]; // Black text
             
-            const approverName = approval.approver?.username || 'Unknown';
-            const department = approval.approver?.department || 'N/A';
+            // Only display actual assigned approvers, not placeholders
+            const approverName = (approval.approver?.username && approval.approver.username !== 'Pending Assignment') 
+              ? approval.approver.username 
+              : '';
+            const department = (approval.approver?.department && approval.approver.username !== 'Pending Assignment') 
+              ? approval.approver.department 
+              : '';
             const processedDate = approval.processedAt ? 
               new Date(approval.processedAt).toLocaleDateString('en-GB') : '-';
             const comments = approval.comments ? 
@@ -539,7 +537,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
             doc.line(currentX, currentY + rowHeight, currentX + colWidths.reduce((a, b) => a + b, 0), currentY + rowHeight); // Bottom border
             
             // Draw cell content with consistent fonts
-            const cellData = [department, approverName, `${statusIcon} ${status}`, processedDate, comments];
+            const cellData = [department, approverName, status, processedDate, comments];
             let cellX = currentX + 2;
             
             cellData.forEach((text, i) => {
@@ -547,12 +545,8 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
               doc.setFont('helvetica', 'normal');
               doc.setFontSize(baseFontSize - 1);
               
-              if (i === 2) { // Status column - use color coding
-                doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-                doc.setFont('helvetica', 'bold');
-              } else {
-                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-              }
+              // Use consistent black text for all columns
+              doc.setTextColor(textColor[0], textColor[1], textColor[2]);
               
               // Truncate text if it's too long for the cell
               const maxWidth = colWidths[i] - 4;
