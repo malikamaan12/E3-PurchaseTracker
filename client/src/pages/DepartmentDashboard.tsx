@@ -12,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download, Share2 } from "lucide-react";
+import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download, Share2, Copy } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +58,8 @@ export default function DepartmentDashboard() {
   const [selectedPurpose, setSelectedPurpose] = useState<string>("all");
   const [selectedSubPurpose, setSelectedSubPurpose] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -330,7 +341,7 @@ export default function DepartmentDashboard() {
       toast({
         title: "Export Successful",
         description: "Dashboard data has been exported to CSV",
-        className: "bg-green-50 border-green-200",
+        className: "bg-green-50 border-green-200 text-green-800",
       });
     } catch (error) {
       toast({
@@ -343,7 +354,7 @@ export default function DepartmentDashboard() {
     }
   };
 
-  const shareInsights = async () => {
+  const shareInsights = () => {
     try {
       // Get the current dashboard state including filters
       const dashboardState = {
@@ -359,20 +370,36 @@ export default function DepartmentDashboard() {
       // Create a shareable URL with state - point to admin panel with analytics tab
       const stateParam = encodeURIComponent(JSON.stringify(dashboardState));
       const shareableUrl = `${window.location.origin}/admin?tab=department-analytics&filters=${stateParam}`;
+      
+      setShareUrl(shareableUrl);
+      setShowShareDialog(true);
+    } catch (error) {
+      console.error('Share error:', error);
+      toast({
+        title: "Share Failed",
+        description: "Failed to generate share link. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
+  const copyShareUrl = async () => {
+    try {
       // Check if clipboard API is available
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(shareableUrl);
+        await navigator.clipboard.writeText(shareUrl);
         
         toast({
-          title: "Share Link Copied",
+          title: "✅ Share Link Copied",
           description: "Dashboard link has been copied to clipboard",
-          className: "bg-green-50 border-green-200",
+          className: "bg-green-50 border-green-200 text-green-800 shadow-lg",
         });
+        
+        setShowShareDialog(false);
       } else {
         // Fallback for browsers without clipboard API
         const textArea = document.createElement('textarea');
-        textArea.value = shareableUrl;
+        textArea.value = shareUrl;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
@@ -383,14 +410,15 @@ export default function DepartmentDashboard() {
         try {
           document.execCommand('copy');
           toast({
-            title: "Share Link Copied",
+            title: "✅ Share Link Copied", 
             description: "Dashboard link has been copied to clipboard",
-            className: "bg-green-50 border-green-200",
+            className: "bg-green-50 border-green-200 text-green-800 shadow-lg",
           });
+          setShowShareDialog(false);
         } catch (err) {
           toast({
-            title: "Share Link Ready",
-            description: "Please copy this link manually: " + shareableUrl,
+            title: "Copy Manually",
+            description: "Please copy the link from the dialog",
             variant: "default",
           });
         }
@@ -398,10 +426,10 @@ export default function DepartmentDashboard() {
         document.body.removeChild(textArea);
       }
     } catch (error) {
-      console.error('Share error:', error);
+      console.error('Copy error:', error);
       toast({
-        title: "Share Failed",
-        description: "Failed to generate share link. Please try again.",
+        title: "Copy Failed",
+        description: "Failed to copy link. Please copy manually.",
         variant: "destructive",
       });
     }
@@ -605,6 +633,54 @@ export default function DepartmentDashboard() {
           }}
         />
       </div>
+
+      {/* Share Dialog */}
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share Dashboard Analytics
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Share this dashboard view with your current filters and settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg border">
+              <p className="text-sm font-medium mb-2">Shareable Link:</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 text-xs bg-white border rounded px-2 py-1.5 font-mono"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copyShareUrl}
+                  className="flex items-center gap-1"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              This link includes your current filter settings and will take recipients directly to the analytics view.
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowShareDialog(false)}>
+              Done
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
