@@ -79,11 +79,11 @@ export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 2MB for base64)
+    if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please select an image smaller than 5MB",
+        description: "Please select an image smaller than 2MB",
         variant: "destructive",
       });
       return;
@@ -91,25 +91,21 @@ export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('files', file);
-      formData.append('type', 'logo');
-
-      const response = await fetch('/api/pdf/upload-images', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        updateSetting('companyLogo', result.fileUrl);
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string;
+        updateSetting('companyLogo', base64String);
         toast({
           title: "Logo uploaded",
           description: "Company logo has been uploaded successfully",
         });
-      } else {
-        throw new Error('Upload failed');
-      }
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading logo:', error);
       toast({
@@ -117,6 +113,7 @@ export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
         description: "Failed to upload company logo. Please try again.",
         variant: "destructive",
       });
+      setIsUploading(false);
     } finally {
       setIsUploading(false);
     }

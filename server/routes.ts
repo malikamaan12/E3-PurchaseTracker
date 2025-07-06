@@ -4567,21 +4567,7 @@ export function registerRoutes(app: Express): Server {
           });
         }
 
-        // Create uploads directory if it doesn't exist
-        const uploadsDir = path.join(process.cwd(), "uploads");
-        const logoDir = path.join(uploadsDir, "logos");
-
-        try {
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir);
-          }
-          if (!fs.existsSync(logoDir)) {
-            fs.mkdirSync(logoDir);
-          }
-        } catch (err) {
-          console.error("Error creating directory:", err);
-          throw new AppError("Failed to create upload directory", 500);
-        }
+        // multer handles directory creation automatically
 
         // Get the uploaded file
         const files = req.files as Express.Multer.File[];
