@@ -45,9 +45,41 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     let currentY = margin + 5;
     
-    // HEADER SECTION with dynamic settings
+    // Add company logo ABOVE header (top left corner)
+    const logoData = settings.logo || settings.companyLogo;
+    if (logoData) {
+      try {
+        console.log("Adding logo to PDF, logo data type:", typeof logoData);
+        const logoWidth = 30;
+        const logoHeight = 20;
+        const logoX = margin;
+        const logoY = currentY;
+        
+        // Try to determine image format from data
+        let imageFormat = 'JPEG';
+        if (logoData.startsWith('data:image/png')) {
+          imageFormat = 'PNG';
+        } else if (logoData.startsWith('data:image/jpeg') || logoData.startsWith('data:image/jpg')) {
+          imageFormat = 'JPEG';
+        }
+        
+        doc.addImage(logoData, imageFormat, logoX, logoY, logoWidth, logoHeight);
+        console.log("Logo added successfully");
+        
+        // Move current position down after logo
+        currentY += logoHeight + 8;
+      } catch (error) {
+        console.warn('Could not add logo to PDF:', error);
+        // Continue without logo
+        currentY += 5;
+      }
+    } else {
+      currentY += 5;
+    }
+    
+    // HEADER SECTION with dynamic settings (reduced size)
     const headerColor = parseColor(settings.headerColor || '#000000');
-    const headerFontSize = settings.headerFontSize || 20;
+    const headerFontSize = (settings.headerFontSize || 20) * 0.8; // Reduce header size by 20%
     const headerFontFamily = settings.headerFontFamily || 'helvetica';
     
     doc.setFont(headerFontFamily, 'bold');
@@ -55,31 +87,17 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
     
     // Custom header title from admin settings
-    const headerTitle = settings.headerTitle || 'PURCHASE REQUEST';
+    const headerTitle = settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
+    const headerSubtitle = settings.headerSubtitle || 'PURCHASE REQUEST';
     
-    // Add company logo in top left corner if available
-    const logoData = settings.logo || settings.companyLogo;
-    if (logoData) {
-      try {
-        // Add logo on the left side of header
-        const logoWidth = 25;
-        const logoHeight = 16;
-        const logoX = margin;
-        const logoY = currentY - 5;
-        
-        doc.addImage(logoData, 'PNG', logoX, logoY, logoWidth, logoHeight);
-        
-        // Adjust header title position to accommodate logo
-        doc.text(headerTitle, margin + logoWidth + 5, currentY + 8);
-      } catch (error) {
-        console.warn('Could not add logo to PDF:', error);
-        // Fallback to normal header title position if logo fails
-        doc.text(headerTitle, margin, currentY + 8);
-      }
-    } else {
-      // No logo, use normal header title position
-      doc.text(headerTitle, margin, currentY + 8);
-    }
+    // Add main header title
+    doc.text(headerTitle, margin, currentY);
+    currentY += headerFontSize * 0.4;
+    
+    // Add header subtitle with smaller font
+    doc.setFontSize(headerFontSize * 0.7);
+    doc.setFont(headerFontFamily, 'normal');
+    doc.text(headerSubtitle, margin, currentY);
     
     // Request info on right side
     doc.setFont('helvetica', 'normal');
@@ -89,10 +107,12 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     const prNumber = `PR #${request.id}`;
     const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
     
-    doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), currentY + 3);
-    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), currentY + 8);
+    // Position request info at same level as header title
+    const requestInfoY = currentY - (headerFontSize * 0.4);
+    doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), requestInfoY);
+    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), requestInfoY + 5);
     
-    currentY += 20;
+    currentY += 15;
     
     // Separator line
     doc.setDrawColor(220, 220, 220);

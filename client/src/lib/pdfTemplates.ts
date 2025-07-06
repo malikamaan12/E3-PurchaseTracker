@@ -57,47 +57,57 @@ export function hexToRgb(hex: string): [number, number, number] {
 export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: number) {
   const { branding, headerHeight = 35 } = config;
   const { primaryColor, name, headerStyle, logo, logoMimeType } = branding;
+  let currentY = 0;
 
-  // Modern style with solid background
+  // Add company logo ABOVE header (top left corner)
+  if (config.showLogo && logo) {
+    try {
+      const logoWidth = 30;
+      const logoHeight = 20;
+      doc.addImage(
+        `data:${logoMimeType};base64,${logo}`,
+        logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
+        12,
+        currentY + 5,
+        logoWidth,
+        logoHeight
+      );
+      // Move header down after logo
+      currentY += logoHeight + 8;
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+      // Continue without logo
+      currentY += 5;
+    }
+  } else {
+    currentY += 5;
+  }
+
+  // Modern style with solid background positioned below logo
   if (headerStyle === 'modern') {
-    // Draw background
+    // Draw background below logo
+    const reducedHeaderHeight = headerHeight * 0.8; // Reduce header size by 20%
     doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, pageWidth, headerHeight, 'F');
+    doc.rect(0, currentY, pageWidth, reducedHeaderHeight, 'F');
 
-    // Add logo if available
-    if (config.showLogo && logo) {
-      try {
-        doc.addImage(
-          `data:${logoMimeType};base64,${logo}`,
-          logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          12,
-          5,
-          20,
-          20
-        );
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(name, 40, 17);
+    // Header text and decorative elements
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16); // Reduced from 18
+    doc.setFont('helvetica', 'bold');
+    
+    // Main title
+    doc.text(name, 12, currentY + 12);
+    
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('PURCHASE REQUEST', 12, currentY + 22);
 
-        // Add decorative line
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.5);
-        doc.line(40, 20, pageWidth - 20, 20);
-      } catch (error) {
-        console.error('Error adding logo to PDF:', error);
-        // Fallback to centered text with decorative elements
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
-        doc.setFont('helvetica', 'bold');
-        doc.text(name, pageWidth / 2, 17, { align: 'center' });
-
-        // Add decorative lines
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.5);
-        doc.line(20, 20, pageWidth - 20, 20);
-      }
-    } else {
+    // Add decorative line
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    doc.line(12, currentY + reducedHeaderHeight - 3, pageWidth - 12, currentY + reducedHeaderHeight - 3);
+  } else {
       // No logo - centered text with decorative elements
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
@@ -110,61 +120,49 @@ export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: nu
       doc.line(20, 20, pageWidth - 20, 20);
     }
   } else if (headerStyle === 'classic') {
-    // Classic style with sophisticated border
+    // Classic style with sophisticated border positioned below logo
+    const reducedHeaderHeight = headerHeight * 0.8; // Reduce header size by 20%
     doc.setDrawColor(...primaryColor);
     doc.setLineWidth(1);
-    doc.line(0, headerHeight, pageWidth, headerHeight);
+    doc.line(0, currentY + reducedHeaderHeight, pageWidth, currentY + reducedHeaderHeight);
 
     // Add subtle top border
     doc.setLineWidth(0.5);
-    doc.line(0, 2, pageWidth, 2);
+    doc.line(0, currentY + 2, pageWidth, currentY + 2);
 
-    if (config.showLogo && logo) {
-      try {
-        doc.addImage(
-          `data:${logoMimeType};base64,${logo}`,
-          logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          12,
-          5,
-          20,
-          20
-        );
-      } catch (error) {
-        console.error('Error adding logo to PDF:', error);
-      }
-    }
+    // Header text
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(16);
+    doc.setFontSize(14); // Reduced from 16
     doc.setFont('helvetica', 'bold');
-    doc.text(name, pageWidth / 2, 17, { align: 'center' });
+    doc.text(name, pageWidth / 2, currentY + 12, { align: 'center' });
+    
+    // Subtitle
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('PURCHASE REQUEST', pageWidth / 2, currentY + 20, { align: 'center' });
   } else {
-    // Minimal style with subtle elements
-    if (config.showLogo && logo) {
-      try {
-        doc.addImage(
-          `data:${logoMimeType};base64,${logo}`,
-          logoMimeType?.split('/')[1].toUpperCase() || 'PNG',
-          12,
-          5,
-          20,
-          20
-        );
-      } catch (error) {
-        console.error('Error adding logo to PDF:', error);
-      }
-    }
+    // Minimal style with subtle elements positioned below logo
+    const reducedHeaderHeight = headerHeight * 0.8; // Reduce header size by 20%
+    
+    // Header text
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(16);
+    doc.setFontSize(14); // Reduced from 16
     doc.setFont('helvetica', 'bold');
-    doc.text(name, pageWidth / 2, 17, { align: 'center' });
+    doc.text(name, pageWidth / 2, currentY + 12, { align: 'center' });
+    
+    // Subtitle
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('PURCHASE REQUEST', pageWidth / 2, currentY + 20, { align: 'center' });
 
-    // Add subtle bottom border
+    // Add subtle bottom border for minimal style
     doc.setDrawColor(...primaryColor);
     doc.setLineWidth(0.2);
-    doc.line(20, headerHeight - 2, pageWidth - 20, headerHeight - 2);
+    doc.line(20, currentY + (headerHeight * 0.8) - 2, pageWidth - 20, currentY + (headerHeight * 0.8) - 2);
   }
 
-  return headerHeight;
+  // Return the Y position where content should continue
+  return currentY + (headerHeight * 0.8) + 5;
 }
 
 export function applyFooterStyle(doc: any, config: TemplateConfig, pageWidth: number, pageHeight: number) {

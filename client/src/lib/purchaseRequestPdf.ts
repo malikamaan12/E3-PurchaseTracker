@@ -186,65 +186,70 @@ async function addHeader(
 ): Promise<number> {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
-  const headerHeight = 25;
+  let currentY = startY;
 
   // Convert header color from hex to RGB
   const headerColor = hexToRgb(cfg.headerColor);
 
-  // If a custom header image is provided:
+  // Add company logo ABOVE header (top left corner)
   if (cfg.headerImage) {
     try {
       const img = new Image();
       img.src = cfg.headerImage;
       await imageOnload(img);
-      // Insert the image on the left
-      const imgWidth = 40;
-      const imgHeight = 15;
-      doc.addImage(img, "PNG", margin, startY, imgWidth, imgHeight);
+      // Logo positioned above header
+      const logoWidth = 30;
+      const logoHeight = 20;
+      doc.addImage(img, "PNG", margin, currentY, logoWidth, logoHeight);
+      
+      // Move current position down after logo
+      currentY += logoHeight + 8;
     } catch (error) {
       console.error("Failed to load header image:", error);
-
-      // Render a decent looking E3 banner if image fails
-      doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-      doc.rect(margin, startY, 40, 15, "F");
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text("E3", margin + 20, startY + 9, { align: "center" });
-      doc.setTextColor(0, 0, 0);
+      // Continue without logo
+      currentY += 5;
     }
   } else {
-    // Render a decent looking E3 banner if no image provided
-    doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
-    doc.rect(margin, startY, 40, 15, "F");
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text("E3", margin + 20, startY + 9, { align: "center" });
-    doc.setTextColor(0, 0, 0);
+    currentY += 5;
   }
 
-  // Add the "PURCHASE REQUEST" text
-  doc.setFontSize(14);
+  // HEADER SECTION with reduced size and subtitle
+  const headerFontSize = 14 * 0.8; // Reduce header size by 20%
+  
+  // Main header title
+  doc.setFontSize(headerFontSize);
   doc.setFont("helvetica", "bold");
-  doc.text("PURCHASE REQUEST", pageWidth / 2, startY + 10, { align: "center" });
+  doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
+  doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", margin, currentY);
+  currentY += headerFontSize * 0.4;
+  
+  // Header subtitle
+  doc.setFontSize(headerFontSize * 0.7);
+  doc.setFont("helvetica", "normal");
+  doc.text("PURCHASE REQUEST", margin, currentY);
 
-  // Add request number and date to the right
+  // Add request number and date to the right (positioned at header level)
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  const requestInfoY = currentY - (headerFontSize * 0.4);
+  
   doc.text(
     `PR #${request.requestNumber || "---"}`,
     pageWidth - margin,
-    startY + 7,
+    requestInfoY,
     { align: "right" },
   );
   doc.text(
     `Date: ${formatDate(request.createdAt)}`,
     pageWidth - margin,
-    startY + 12,
+    requestInfoY + 5,
     { align: "right" },
   );
 
   // Add a clean divider below header
-  const dividerY = startY + headerHeight;
+  currentY += 10; // Add space after header
+  const dividerY = currentY;
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
   doc.line(margin, dividerY, pageWidth - margin, dividerY);
