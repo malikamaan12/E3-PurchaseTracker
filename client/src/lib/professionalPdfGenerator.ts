@@ -56,21 +56,28 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     // Custom header title from admin settings
     const headerTitle = settings.headerTitle || 'PURCHASE REQUEST';
-    doc.text(headerTitle, margin, currentY + 8);
     
-    // Add company logo if available
+    // Add company logo in top left corner if available
     if (settings.companyLogo) {
       try {
-        // Add logo on the right side of header
-        const logoWidth = 30;
-        const logoHeight = 20;
-        const logoX = pageWidth - margin - logoWidth;
+        // Add logo on the left side of header
+        const logoWidth = 25;
+        const logoHeight = 16;
+        const logoX = margin;
         const logoY = currentY - 5;
         
         doc.addImage(settings.companyLogo, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        
+        // Adjust header title position to accommodate logo
+        doc.text(headerTitle, margin + logoWidth + 5, currentY + 8);
       } catch (error) {
         console.warn('Could not add logo to PDF:', error);
+        // Fallback to normal header title position if logo fails
+        doc.text(headerTitle, margin, currentY + 8);
       }
+    } else {
+      // No logo, use normal header title position
+      doc.text(headerTitle, margin, currentY + 8);
     }
     
     // Request info on right side
@@ -363,21 +370,123 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       currentY = doc.lastAutoTable.finalY + 12;
     }
 
-    // SIGNATURES SECTION
+    // APPROVAL STATUS SECTION
     if (settings.showSignatures !== false) {
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
       doc.rect(margin, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('SIGNATURES', margin + 2, currentY + 4);
-    
-      currentY += 10;
-      doc.setTextColor(120, 120, 120);
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.text('ALL RIGHTS RESERVED', margin + 2, currentY);
-    } // End of signatures section
+      doc.text('APPROVAL STATUS', margin + 2, currentY + 4);
+      
+      currentY += 12;
+      
+      // Current approval status display
+      const approvals = request.approvals || [];
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(baseFontSize);
+      
+      if (approvals.length === 0) {
+        doc.text('• No approvals submitted yet', margin + 2, currentY);
+        currentY += 6;
+      } else {
+        // Calculate approval statistics
+        const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
+        const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
+        const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
+        const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes_requested').length;
+        
+        // Overall status determination
+        let overallStatus = 'In Progress';
+        let statusColor = [0, 102, 204]; // Blue
+        
+        if (rejectedCount > 0) {
+          overallStatus = 'Rejected';
+          statusColor = [220, 53, 69]; // Red
+        } else if (pendingCount === 0 && approvedCount === approvals.length) {
+          overallStatus = 'Fully Approved';
+          statusColor = [46, 174, 52]; // Green
+        } else if (changesCount > 0) {
+          overallStatus = 'Changes Requested';
+          statusColor = [255, 193, 7]; // Amber
+        }
+        
+        // Display overall status
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.text(`Overall Status: ${overallStatus}`, margin + 2, currentY);
+        currentY += 8;
+        
+        // Approval progress summary
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.text(`Progress: ${approvedCount}/${approvals.length} approvals completed`, margin + 2, currentY);
+        currentY += 6;
+        
+        // Individual approval details
+        if (approvals.length > 0) {
+          currentY += 2;
+          doc.setFont('helvetica', 'bold');
+          doc.text('Approval Details:', margin + 2, currentY);
+          currentY += 6;
+          
+          approvals.forEach(approval => {
+            doc.setFont('helvetica', 'normal');
+            const status = (approval.status || 'pending').toUpperCase();
+            let statusSymbol = '○';
+            let textColorOverride = textColor;
+            
+            if (status === 'APPROVED') {
+              statusSymbol = '✓';
+              textColorOverride = [46, 174, 52]; // Green
+            } else if (status === 'REJECTED') {
+              statusSymbol = '✗';
+              textColorOverride = [220, 53, 69]; // Red
+            } else if (status === 'CHANGES_REQUESTED') {
+              statusSymbol = '!';
+              textColorOverride = [255, 193, 7]; // Amber
+            } else {
+              textColorOverride = [0, 102, 204]; // Blue for pending
+            }
+            
+            doc.setTextColor(textColorOverride[0], textColorOverride[1], textColorOverride[2]);
+            const approverName = approval.approver?.username || 'Unknown';
+            const department = approval.approver?.department || 'N/A';
+            const statusText = `${statusSymbol} ${department} (${approverName}): ${status}`;
+            doc.text(statusText, margin + 4, currentY);
+            currentY += 5;
+            
+            // Add processed date if available
+            if (approval.processedAt) {
+              doc.setTextColor(120, 120, 120);
+              doc.setFontSize(baseFontSize - 1);
+              const processedDate = new Date(approval.processedAt).toLocaleDateString('en-GB');
+              doc.text(`   Processed: ${processedDate}`, margin + 4, currentY);
+              currentY += 5;
+              doc.setFontSize(baseFontSize);
+            }
+            
+            // Add comments if available
+            if (approval.comments) {
+              doc.setTextColor(100, 100, 100);
+              doc.setFontSize(baseFontSize - 1);
+              const comments = approval.comments.length > 60 ? 
+                approval.comments.substring(0, 60) + '...' : approval.comments;
+              doc.text(`   Comment: ${comments}`, margin + 4, currentY);
+              currentY += 5;
+              doc.setFontSize(baseFontSize);
+            }
+            
+            currentY += 2; // Extra spacing between approvals
+          });
+        }
+      }
+      
+      // Reset text color
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      currentY += 5;
+    } // End of approval status section
     
     // FOOTER with admin settings
     const footerY = pageHeight - 12;
