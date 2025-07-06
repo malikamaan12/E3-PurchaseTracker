@@ -352,27 +352,56 @@ export default function DepartmentDashboard() {
           purpose: selectedPurpose,
           subPurpose: selectedSubPurpose
         },
-        stats,
-        statusData,
-        purposeData
+        timestamp: new Date().toISOString(),
+        totalRequests: filteredRequests.length
       };
 
-      // Create a shareable URL with state
+      // Create a shareable URL with state - point to admin panel with analytics tab
       const stateParam = encodeURIComponent(JSON.stringify(dashboardState));
-      const shareableUrl = `${window.location.origin}/department-dashboard?state=${stateParam}`;
+      const shareableUrl = `${window.location.origin}/admin?tab=department-analytics&filters=${stateParam}`;
 
-      // Copy to clipboard
-      await navigator.clipboard.writeText(shareableUrl);
-
-      toast({
-        title: "Share Link Copied",
-        description: "Dashboard link has been copied to clipboard",
-        className: "bg-green-50 border-green-200",
-      });
+      // Check if clipboard API is available
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareableUrl);
+        
+        toast({
+          title: "Share Link Copied",
+          description: "Dashboard link has been copied to clipboard",
+          className: "bg-green-50 border-green-200",
+        });
+      } else {
+        // Fallback for browsers without clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = shareableUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+          toast({
+            title: "Share Link Copied",
+            description: "Dashboard link has been copied to clipboard",
+            className: "bg-green-50 border-green-200",
+          });
+        } catch (err) {
+          toast({
+            title: "Share Link Ready",
+            description: "Please copy this link manually: " + shareableUrl,
+            variant: "default",
+          });
+        }
+        
+        document.body.removeChild(textArea);
+      }
     } catch (error) {
+      console.error('Share error:', error);
       toast({
         title: "Share Failed",
-        description: "Failed to generate share link",
+        description: "Failed to generate share link. Please try again.",
         variant: "destructive",
       });
     }

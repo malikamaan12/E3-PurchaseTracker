@@ -44,15 +44,18 @@ export function RequestsByStatusChart({
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const dataPoint = payload[0].payload;
+      const totalValue = filteredData.reduce((sum, item) => sum + item.value, 0);
+      const percentage = totalValue > 0 ? ((dataPoint.value / totalValue) * 100).toFixed(1) : '0';
+      
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium">{data.name}</p>
+          <p className="font-medium">{dataPoint.name}</p>
           <p className="text-sm text-gray-600">
-            Count: <span className="font-medium">{data.value}</span>
+            Count: <span className="font-medium">{dataPoint.value}</span>
           </p>
           <p className="text-sm text-gray-600">
-            Percentage: <span className="font-medium">{((data.value / data.reduce((sum: number, item: any) => sum + item.value, 0)) * 100).toFixed(1)}%</span>
+            Percentage: <span className="font-medium">{percentage}%</span>
           </p>
         </div>
       );
