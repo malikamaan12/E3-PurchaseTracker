@@ -4,6 +4,10 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
+- **Modular Chart System**: Created comprehensive modular chart components with reusable ChartCard wrapper
+- **Enhanced Department Analytics**: Updated RequestsByStatusChart and created RequestsByPurposeChart with action buttons and export functionality
+- **Vendor Dropdown Fix**: Fixed Department Analytics vendor filter to display companyName instead of name field
+- **Chart Interactivity**: Added refresh and CSV export buttons to all analytics charts for better user experience
 - **Executive Access Fix**: Fixed permission system to grant CEO Office, Director, and Finance departments full access to all purchase requests and approval rights
 - **Additional Approver Dashboard**: Ensured additional approvers can see all their assigned requests in dashboard, including approved ones
 - **Approval Process Fix**: Fixed approval creation endpoint to automatically use user's department and handle missing fields

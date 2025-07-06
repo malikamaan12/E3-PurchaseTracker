@@ -1,18 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+// Recharts imports no longer needed as they're handled by modular components
+import { RequestsByStatusChart, useRequestStatusData } from "@/components/RequestsByStatusChart";
+import { RequestsByPurposeChart, useRequestPurposeData } from "@/components/charts/RequestsByPurposeChart";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -42,7 +33,8 @@ interface PurchaseRequest {
 
 interface Vendor {
   id: number;
-  name: string;
+  name?: string;
+  companyName: string;
 }
 
 interface SubPurpose {
@@ -63,9 +55,9 @@ export default function DepartmentDashboard() {
   const { requests, isLoading } = usePurchaseRequests();
 
   // Fetch vendors for filter
-  const { data: vendors = [] } = useQuery({
+  const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Vendor[]> => {
       const response = await fetch("/api/vendors", {
         credentials: "include",
       });
@@ -254,21 +246,9 @@ export default function DepartmentDashboard() {
     fetchRates();
   }, [filteredRequests, conversionRatesCache, getConversionRate]);
 
-  // Prepare data for charts
-  const statusData = [
-    { name: "Approved", value: stats.approved },
-    { name: "Rejected", value: stats.rejected },
-    { name: "Pending", value: stats.pending },
-    { name: "Draft", value: stats.draft },
-  ];
-
-  const purposeData = useMemo(() => {
-    const data: Record<string, number> = {};
-    filteredRequests.forEach((request: PurchaseRequest) => {
-      data[request.purposeType] = (data[request.purposeType] || 0) + 1;
-    });
-    return Object.entries(data).map(([name, value]) => ({ name, value }));
-  }, [filteredRequests]);
+  // Prepare data for charts using the modular hooks
+  const statusData = useRequestStatusData(filteredRequests);
+  const purposeData = useRequestPurposeData(filteredRequests);
 
   // Export functions
   const prepareExportData = () => {
@@ -552,52 +532,49 @@ export default function DepartmentDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Requests by Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <RequestsByStatusChart 
+          data={statusData}
+          title="Requests by Status"
+          description="Distribution of purchase requests across different status categories"
+          showLegend={true}
+          chartHeight={320}
+          onRefresh={() => window.location.reload()}
+          onExport={() => {
+            const csvData = statusData
+              .filter(item => item.value > 0)
+              .map(item => `${item.name},${item.value}`)
+              .join('\n');
+            const blob = new Blob([`Status,Count\n${csvData}`], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'requests-by-status.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Requests by Purpose</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={purposeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#6366F1" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <RequestsByPurposeChart 
+          data={purposeData}
+          title="Requests by Purpose"
+          description="Number of purchase requests grouped by purpose type"
+          chartHeight={320}
+          barColor="#6366F1"
+          onRefresh={() => window.location.reload()}
+          onExport={() => {
+            const csvData = purposeData
+              .filter(item => item.value > 0)
+              .map(item => `${item.name},${item.value}`)
+              .join('\n');
+            const blob = new Blob([`Purpose,Count\n${csvData}`], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'requests-by-purpose.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        />
       </div>
     </div>
   );
