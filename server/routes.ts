@@ -4204,41 +4204,54 @@ export function registerRoutes(app: Express): Server {
   // });
   //
   // PDF Settings endpoints
-  // app.get("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     if (!req.isAuthenticated()) {
-  //       throw new AppError('Not authenticated', 401);
-  //     }
-  //
-  //     const settings = await db
-  //       .select()
-  //       .from(pdfSettings)
-  //       .limit(1);
-  //
-  //     // Return default settings if none exist
-  //     if (settings.length === 0) {
-  //       return res.json({
-  //         headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
-  //         headerSubtitle: "PURCHASE REQUEST",
-  //         headerColor: "#1a365d",
-  //         footerText: "ALL RIGHTS RESERVED BY E3",
-  //         footerColor: "#1a365d",
-  //         pageNumbering: true,
-  //         watermarkOpacity: 0.1,
-  //         marginTop: 20,
-  //         marginBottom: 20,
-  //         marginLeft: 25,
-  //         marginRight: 25,
-  //         fontSize: 11
-  //       });
-  //     }
-  //
-  //     res.json(settings[0]);
-  //   } catch (error) {
-  //     debug(req, 'Error fetching PDF settings:', error);
-  //     next(error);
-  //   }
-  // });
+  app.get("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.isAuthenticated()) {
+        throw new AppError('Not authenticated', 401);
+      }
+
+      const settings = await db
+        .select()
+        .from(pdfSettings)
+        .orderBy(desc(pdfSettings.updatedAt))
+        .limit(1);
+
+      // Return default settings if none exist
+      if (settings.length === 0) {
+        return res.json({
+          headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerSubtitle: "PURCHASE REQUEST",
+          headerColor: "#1a365d",
+          footerText: "ALL RIGHTS RESERVED BY E3",
+          footerColor: "#1a365d",
+          pageNumbering: true,
+          watermarkOpacity: 10,
+          watermarkText: "CONFIDENTIAL",
+          marginTop: 20,
+          marginBottom: 20,
+          marginLeft: 25,
+          marginRight: 25,
+          fontSize: 11,
+          fontFamily: "helvetica",
+          companyLogo: null, // Add company logo support
+          companyAddress: "",
+          companyPhone: "",
+          companyEmail: "",
+          companyWebsite: "",
+          showBasicInfo: true,
+          showVendorInfo: true,
+          showItemsTable: true,
+          showAttachments: true,
+          showSignatures: true
+        });
+      }
+
+      res.json(settings[0]);
+    } catch (error) {
+      debug(req, 'Error fetching PDF settings:', error);
+      next(error);
+    }
+  });
   //
   // app.post("/api/enhance-pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
   //   try {
@@ -4301,39 +4314,52 @@ export function registerRoutes(app: Express): Server {
   //   }
   // });
   //
-  // app.post("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-  //       throw new AppError('Admin access required', 403);
-  //     }
-  //
-  //     const settings = req.body;
-  //
-  //     // First, delete existing settings
-  //     await db.delete(pdfSettings);
-  //
-  //     // Insert new settings
-  //     const [newSettings] = await db
-  //       .insert(pdfSettings)
-  //       .values({
-  //         ...settings,
-  //         updatedAt: new Date(),
-  //         updatedBy: req.user.id
-  //       })
-  //       .returning();
-  //
-  //     // Log the settings update
-  //     await logAuditEvent(req.user.id, 'pdf_settings_updated', {
-  //       settingsId: newSettings.id,
-  //       changes: settings
-  //     });
-  //
-  //     res.json(newSettings);
-  //   } catch (error) {
-  //     debug(req, 'Error saving PDF settings:', error);
-  //     next(error);
-  //   }
-  // });
+  // Active PDF Settings endpoint that frontend expects
+  app.post("/api/pdf-settings", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      console.log('API request received:', {
+        method: req.method,
+        path: req.path,
+        body: req.body,
+        query: req.query,
+        headers: req.headers
+      });
+
+      if (!req.isAuthenticated() || req.user?.role !== 'admin') {
+        throw new AppError('Admin access required', 403);
+      }
+
+      const settings = req.body;
+      console.log('Processing PDF settings:', settings);
+
+      // First, delete existing settings
+      await db.delete(pdfSettings);
+
+      // Insert new settings with company logo support
+      const [newSettings] = await db
+        .insert(pdfSettings)
+        .values({
+          ...settings,
+          updatedAt: new Date(),
+          updatedBy: req.user.id
+        })
+        .returning();
+
+      console.log('PDF settings saved successfully:', newSettings);
+
+      // Log the settings update
+      await logAuditEvent(req.user.id, 'pdf_settings_updated', {
+        settingsId: newSettings.id,
+        changes: settings
+      });
+
+      res.json(newSettings);
+    } catch (error) {
+      console.error('Error saving PDF settings:', error);
+      debug(req, 'Error saving PDF settings:', error);
+      next(error);
+    }
+  });
   //
   // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Settings, FileText } from 'lucide-react';
+import { Save, Settings, FileText, Upload, Image } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface SimplePDFSettingsProps {
@@ -40,7 +40,87 @@ export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
     showItemsTable: true,
     showAttachments: true,
     showSignatures: true,
+    companyLogo: null, // Add company logo support
   });
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Load existing settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/pdf-settings');
+        if (response.ok) {
+          const existingSettings = await response.json();
+          setSettings(prevSettings => ({
+            ...prevSettings,
+            ...existingSettings
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading PDF settings:', error);
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file (PNG, JPG, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+      formData.append('type', 'logo');
+
+      const response = await fetch('/api/pdf/upload-images', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        updateSetting('companyLogo', result.fileUrl);
+        toast({
+          title: "Logo uploaded",
+          description: "Company logo has been uploaded successfully",
+        });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload company logo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -145,6 +225,81 @@ export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
                       <SelectItem value="courier">Courier New</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Company Logo Section */}
+              <div className="border-t pt-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Image className="h-4 w-4" />
+                    <Label className="text-sm font-medium">Company Logo</Label>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isUploading}
+                          onClick={() => document.getElementById('logo-upload')?.click()}
+                          className="flex items-center gap-2"
+                        >
+                          {isUploading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-3 w-3" />
+                              Upload Logo
+                            </>
+                          )}
+                        </Button>
+                        <input
+                          id="logo-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          style={{ display: 'none' }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PNG, JPG up to 5MB
+                      </p>
+                    </div>
+                    
+                    <div>
+                      {settings.companyLogo && (
+                        <div className="flex items-center gap-2">
+                          <div className="h-10 w-20 border rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
+                            <img
+                              src={settings.companyLogo}
+                              alt="Company Logo"
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateSetting('companyLogo', null)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                      {!settings.companyLogo && (
+                        <p className="text-xs text-muted-foreground">
+                          No logo uploaded
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
