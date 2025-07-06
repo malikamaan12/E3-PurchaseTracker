@@ -495,24 +495,18 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           
           currentY += rowHeight;
           
-          // Only show approvals that have real approvers assigned (not placeholders)
-          const displayableApprovals = allExpectedApprovers.filter(approval => 
-            approval.approver?.username && approval.approver.username !== 'Pending Assignment'
-          );
-          
-          displayableApprovals.forEach((approval, rowIndex) => {
+          // Show ALL expected approvals (both completed and pending)
+          allExpectedApprovers.forEach((approval, rowIndex) => {
             const status = (approval.status || 'pending').toUpperCase();
             
             // Use consistent black text for all statuses, no icons or colors
             const statusColor = [0, 0, 0]; // Black text
             
-            // Only display actual assigned approvers, not placeholders
-            const approverName = (approval.approver?.username && approval.approver.username !== 'Pending Assignment') 
+            // Display approver username if assigned, otherwise show department name for pending approvals
+            const approverName = approval.approver?.username && approval.approver.username !== 'Pending Assignment'
               ? approval.approver.username 
-              : '';
-            const department = (approval.approver?.department && approval.approver.username !== 'Pending Assignment') 
-              ? approval.approver.department 
-              : '';
+              : approval.department || '';
+            const department = approval.approver?.department || approval.department || '';
             const processedDate = approval.processedAt ? 
               new Date(approval.processedAt).toLocaleDateString('en-GB') : '-';
             const comments = approval.comments ? 

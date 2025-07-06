@@ -29,6 +29,7 @@ interface PurchaseRequest {
   items?: any[];
   attachments?: any[];
   approvals?: any[];
+  additionalApprovers?: any[];
   requester?: {
     username?: string;
     department?: string;
@@ -925,9 +926,52 @@ function addApprovalsTable(
   request: PurchaseRequest,
   startY: number,
 ): number {
-  const approvals = Array.isArray(request.approvals) ? request.approvals : [];
+  // Create comprehensive approver list including all expected approvers (mandatory + additional)
+  const mandatoryDepartments = ['CEO Office', 'Finance', 'Director'];
+  const additionalApprovers = Array.isArray(request.additionalApprovers) 
+    ? (typeof request.additionalApprovers[0] === 'string' 
+        ? request.additionalApprovers 
+        : request.additionalApprovers.map((a: any) => a.department || a.name || a).filter(Boolean))
+    : [];
+  
+  const existingApprovals = Array.isArray(request.approvals) ? request.approvals : [];
+  const allExpectedApprovers: any[] = [];
+  
+  // Add mandatory department approvers
+  mandatoryDepartments.forEach(dept => {
+    const existingApproval = existingApprovals.find(a => a.approver?.department === dept || a.department === dept);
+    if (existingApproval) {
+      allExpectedApprovers.push(existingApproval);
+    } else {
+      // Add placeholder for missing mandatory approver
+      allExpectedApprovers.push({
+        approver: null,
+        department: dept,
+        status: 'pending',
+        processedAt: null,
+        comments: null
+      });
+    }
+  });
+  
+  // Add additional approvers
+  additionalApprovers.forEach(deptName => {
+    const existingApproval = existingApprovals.find(a => a.approver?.department === deptName || a.department === deptName);
+    if (existingApproval) {
+      allExpectedApprovers.push(existingApproval);
+    } else {
+      // Add placeholder for missing additional approver
+      allExpectedApprovers.push({
+        approver: null,
+        department: deptName,
+        status: 'pending',
+        processedAt: null,
+        comments: null
+      });
+    }
+  });
 
-  if (approvals.length === 0) {
+  if (allExpectedApprovers.length === 0) {
     doc.autoTable({
       startY,
       theme: "plain",
@@ -939,7 +983,7 @@ function addApprovalsTable(
   // Enhanced approval rows with style customization for status
   const rows = [];
 
-  for (const app of approvals) {
+  for (const app of allExpectedApprovers) {
     const status = (app.status || "PENDING").toUpperCase();
     let statusStyle = {};
     let statusIcon = "";
@@ -966,17 +1010,10 @@ function addApprovalsTable(
       ? formatDate(app.processedAt)
       : "Awaiting";
 
-    // Get approver name - leave blank if no real approver assigned
-    let approverName = "";
-    
-    if (app.approver?.username && app.approver.username !== "Pending Assignment") {
-      approverName = app.approver.username;
-    } else if (app.approver?.name && app.approver.name !== "Pending Assignment") {
-      approverName = app.approver.name;
-    } else {
-      // Leave blank for pending assignments instead of showing placeholder text
-      approverName = "";
-    }
+    // Display approver username if assigned, otherwise show department name for pending approvals
+    const approverName = app.approver?.username && app.approver.username !== 'Pending Assignment'
+      ? app.approver.username 
+      : app.department || '';
 
     rows.push([
       approverName,
@@ -1014,17 +1051,17 @@ function addApprovalsTable(
   startY = ensureContentFits(doc, startY, tableHeight, 40);
 
   // Calculate approval statistics for summary visualization
-  const approvedCount = approvals.filter(
-    (a) => a.status?.toLowerCase() === "approved",
+  const approvedCount = allExpectedApprovers.filter(
+    (a: any) => a.status?.toLowerCase() === "approved",
   ).length;
-  const rejectedCount = approvals.filter(
-    (a) => a.status?.toLowerCase() === "rejected",
+  const rejectedCount = allExpectedApprovers.filter(
+    (a: any) => a.status?.toLowerCase() === "rejected",
   ).length;
-  const pendingCount = approvals.filter(
-    (a) => a.status?.toLowerCase() === "pending" || !a.status,
+  const pendingCount = allExpectedApprovers.filter(
+    (a: any) => a.status?.toLowerCase() === "pending" || !a.status,
   ).length;
-  const changesCount = approvals.filter(
-    (a) => a.status?.toLowerCase() === "changes",
+  const changesCount = allExpectedApprovers.filter(
+    (a: any) => a.status?.toLowerCase() === "changes",
   ).length;
 
   const apPageWidth = doc.internal.pageSize.getWidth();
@@ -1107,9 +1144,8 @@ function addApprovalsTable(
     "F",
   );
 
-  // Calculate progress percentage based on actual approvals (only count real approvals, not pending assignments)
-  const realApprovals = approvals.filter(app => app.approver && app.approver.username && app.approver.username !== "Pending Assignment");
-  const totalApprovers = realApprovals.length;
+  // Calculate progress percentage based on all expected approvers
+  const totalApprovers = allExpectedApprovers.length;
   let progressPercentage = totalApprovers > 0 ? approvedCount / totalApprovers : 0;
 
   // Draw the colored progress indicator

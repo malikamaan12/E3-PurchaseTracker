@@ -6750,9 +6750,15 @@ async function getRequestWithRelations(requestId: number) {
         ? request.additionalApprovers
         : [];
 
-  // Create list of all expected approvers (mandatory + additional)
+  // Create list of all expected approvers (mandatory + additional) with deduplication
   const mandatoryDepartments = ["CEO Office", "Finance", "Director"];
-  const allExpectedDepartments = [...mandatoryDepartments, ...additionalApprovers];
+  const allExpectedDepartments = Array.from(new Set([...mandatoryDepartments, ...additionalApprovers]));
+  
+  console.log(`[getRequestWithRelations] Creating complete approval list for request ${requestId}`);
+  console.log(`[getRequestWithRelations] Mandatory departments:`, mandatoryDepartments);
+  console.log(`[getRequestWithRelations] Additional approvers:`, additionalApprovers);
+  console.log(`[getRequestWithRelations] All expected departments:`, allExpectedDepartments);
+  console.log(`[getRequestWithRelations] Existing approvals:`, approvalsList.map(a => ({ dept: a.department, status: a.status, approver: a.approver?.username })));
   
   // Create a complete list of expected approvals, including those not yet processed
   const completeApprovalsList = [];
@@ -6764,9 +6770,10 @@ async function getRequestWithRelations(requestId: number) {
     if (existingApproval) {
       // Use existing approval
       completeApprovalsList.push(existingApproval);
+      console.log(`[getRequestWithRelations] Found existing approval for ${department}:`, existingApproval.status);
     } else {
       // Create placeholder for pending approval
-      completeApprovalsList.push({
+      const pendingApproval = {
         id: null,
         requestId: requestId,
         approverId: null,
@@ -6776,9 +6783,14 @@ async function getRequestWithRelations(requestId: number) {
         processedAt: null,
         isMandatory: mandatoryDepartments.includes(department),
         approver: null // No approver assigned yet
-      });
+      };
+      completeApprovalsList.push(pendingApproval);
+      console.log(`[getRequestWithRelations] Created pending approval for ${department}`);
     }
   }
+  
+  console.log(`[getRequestWithRelations] Complete approvals list has ${completeApprovalsList.length} entries`);
+  console.log(`[getRequestWithRelations] Complete approvals:`, completeApprovalsList.map(a => ({ dept: a.department, status: a.status, approver: a.approver?.username || 'null' })));
 
   // Get attachments
   const attachmentsList = await db.query.fileAttachments.findMany({
