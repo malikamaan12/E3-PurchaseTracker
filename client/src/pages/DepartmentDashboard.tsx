@@ -458,7 +458,7 @@ export default function DepartmentDashboard() {
             <SelectItem value="all">All Vendors</SelectItem>
             {vendors.map((vendor: Vendor) => (
               <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                {vendor.name}
+                {vendor.companyName || vendor.name || `Vendor #${vendor.id}`}
               </SelectItem>
             ))}
           </SelectContent>
