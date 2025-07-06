@@ -429,86 +429,114 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         if (approvals.length > 0) {
           currentY += 4;
           
-          // Prepare approval table data
-          const approvalTableData = approvals.map(approval => {
+          // Manual table layout since autoTable is not available
+          const tableStartY = currentY;
+          const colWidths = [35, 35, 30, 25, 55]; // Column widths
+          const rowHeight = 6;
+          let currentX = margin + 2;
+          
+          // Draw table header
+          doc.setFillColor(240, 240, 245);
+          doc.rect(currentX, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+          
+          doc.setTextColor(50, 50, 50);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(baseFontSize);
+          
+          const headers = ['Department', 'Approver', 'Status', 'Date', 'Comments'];
+          let headerX = currentX + 2;
+          headers.forEach((header, i) => {
+            doc.text(header, headerX, currentY + 4);
+            headerX += colWidths[i];
+          });
+          
+          currentY += rowHeight;
+          
+          // Draw approval rows
+          approvals.forEach((approval, rowIndex) => {
             const status = (approval.status || 'pending').toUpperCase();
             let statusIcon = '';
+            let statusColor = [0, 102, 204]; // Blue for pending
             
-            if (status === 'APPROVED') statusIcon = '✓';
-            else if (status === 'REJECTED') statusIcon = '✗';
-            else if (status === 'CHANGES_REQUESTED') statusIcon = '!';
-            else statusIcon = '○';
+            if (status === 'APPROVED') {
+              statusIcon = '✓';
+              statusColor = [46, 174, 52]; // Green
+            } else if (status === 'REJECTED') {
+              statusIcon = '✗';
+              statusColor = [220, 53, 69]; // Red
+            } else if (status === 'CHANGES_REQUESTED') {
+              statusIcon = '!';
+              statusColor = [255, 193, 7]; // Amber
+            } else {
+              statusIcon = '○';
+            }
             
             const approverName = approval.approver?.username || 'Unknown';
             const department = approval.approver?.department || 'N/A';
             const processedDate = approval.processedAt ? 
               new Date(approval.processedAt).toLocaleDateString('en-GB') : 'Pending';
             const comments = approval.comments ? 
-              (approval.comments.length > 50 ? approval.comments.substring(0, 50) + '...' : approval.comments) 
+              (approval.comments.length > 40 ? approval.comments.substring(0, 40) + '...' : approval.comments) 
               : '-';
             
-            return [
-              department,
-              approverName,
-              `${statusIcon} ${status}`,
-              processedDate,
-              comments
-            ];
-          });
-          
-          // Create approval status table
-          // @ts-ignore
-          doc.autoTable({
-            startY: currentY,
-            head: [['Department', 'Approver', 'Status', 'Date', 'Comments']],
-            body: approvalTableData,
-            theme: 'grid',
-            styles: {
-              fontSize: baseFontSize - 1,
-              cellPadding: 2,
-              overflow: 'linebreak',
-              valign: 'middle',
-              halign: 'left',
-            },
-            headStyles: {
-              fillColor: [240, 240, 245],
-              textColor: [50, 50, 50],
-              fontStyle: 'bold',
-              fontSize: baseFontSize,
-            },
-            columnStyles: {
-              0: { cellWidth: 30 }, // Department
-              1: { cellWidth: 35 }, // Approver
-              2: { cellWidth: 30, halign: 'center' }, // Status
-              3: { cellWidth: 25, halign: 'center' }, // Date
-              4: { cellWidth: 60 } // Comments
-            },
-            alternateRowStyles: {
-              fillColor: [248, 250, 252],
-            },
-            margin: { left: margin + 2, right: margin + 2 },
-            didParseCell: function(data: any) {
-              // Color code the status column
-              if (data.column.index === 2) {
-                const cellText = data.cell.text[0];
-                if (cellText.includes('APPROVED')) {
-                  data.cell.styles.textColor = [46, 174, 52]; // Green
-                  data.cell.styles.fontStyle = 'bold';
-                } else if (cellText.includes('REJECTED')) {
-                  data.cell.styles.textColor = [220, 53, 69]; // Red
-                  data.cell.styles.fontStyle = 'bold';
-                } else if (cellText.includes('CHANGES')) {
-                  data.cell.styles.textColor = [255, 193, 7]; // Amber
-                  data.cell.styles.fontStyle = 'bold';
-                } else {
-                  data.cell.styles.textColor = [0, 102, 204]; // Blue for pending
-                }
-              }
+            // Alternate row background
+            if (rowIndex % 2 === 1) {
+              doc.setFillColor(248, 250, 252);
+              doc.rect(currentX, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
             }
+            
+            // Draw table borders
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.1);
+            let borderX = currentX;
+            colWidths.forEach(width => {
+              doc.line(borderX, currentY, borderX, currentY + rowHeight);
+              borderX += width;
+            });
+            doc.line(borderX, currentY, borderX, currentY + rowHeight); // Right border
+            doc.line(currentX, currentY + rowHeight, currentX + colWidths.reduce((a, b) => a + b, 0), currentY + rowHeight); // Bottom border
+            
+            // Draw cell content
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(baseFontSize - 1);
+            
+            const cellData = [department, approverName, `${statusIcon} ${status}`, processedDate, comments];
+            let cellX = currentX + 2;
+            
+            cellData.forEach((text, i) => {
+              if (i === 2) { // Status column
+                doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+                doc.setFont('helvetica', 'bold');
+              } else {
+                doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                doc.setFont('helvetica', 'normal');
+              }
+              
+              // Truncate text if it's too long for the cell
+              const maxWidth = colWidths[i] - 4;
+              const textWidth = doc.getTextWidth(text);
+              let displayText = text;
+              
+              if (textWidth > maxWidth) {
+                while (doc.getTextWidth(displayText + '...') > maxWidth && displayText.length > 0) {
+                  displayText = displayText.slice(0, -1);
+                }
+                displayText += '...';
+              }
+              
+              doc.text(displayText, cellX, currentY + 4);
+              cellX += colWidths[i];
+            });
+            
+            currentY += rowHeight;
           });
           
-          // @ts-ignore
-          currentY = doc.lastAutoTable.finalY + 8;
+          // Draw table outer border
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.2);
+          doc.rect(currentX, tableStartY, colWidths.reduce((a, b) => a + b, 0), (approvals.length + 1) * rowHeight);
+          
+          currentY += 8; // Add spacing after table
         }
       }
       
