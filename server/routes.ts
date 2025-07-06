@@ -6730,7 +6730,15 @@ async function getRequestWithRelations(requestId: number) {
   const approvalsList = await db.query.approvals.findMany({
     where: eq(approvals.requestId, requestId),
     with: {
-      approver: true,
+      approver: {
+        columns: {
+          id: true,
+          username: true,
+          email: true,
+          department: true,
+          role: true,
+        },
+      },
     },
   });
 

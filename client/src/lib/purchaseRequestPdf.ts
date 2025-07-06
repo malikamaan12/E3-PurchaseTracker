@@ -972,8 +972,19 @@ function addApprovalsTable(
       ? formatDate(app.processedAt)
       : "Awaiting";
 
+    // Get approver name with multiple fallback strategies
+    let approverName = "N/A";
+    if (app.approver?.username) {
+      approverName = app.approver.username;
+    } else if (app.approver?.name) {
+      approverName = app.approver.name;
+    } else if (app.approverId) {
+      // If we have an approver ID but no name, show the ID with a note
+      approverName = `User ID: ${app.approverId}`;
+    }
+
     rows.push([
-      app.approver?.username || "N/A",
+      approverName,
       app.department || "N/A",
       { content: statusIcon + status, styles: statusStyle },
       { content: app.comments || "No comments", styles: { fontSize: 8 } },
