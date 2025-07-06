@@ -6742,6 +6742,44 @@ async function getRequestWithRelations(requestId: number) {
     },
   });
 
+  // Parse additionalApprovers JSON
+  const additionalApprovers =
+    typeof request.additionalApprovers === "string"
+      ? JSON.parse(request.additionalApprovers)
+      : Array.isArray(request.additionalApprovers)
+        ? request.additionalApprovers
+        : [];
+
+  // Create list of all expected approvers (mandatory + additional)
+  const mandatoryDepartments = ["CEO Office", "Finance", "Director"];
+  const allExpectedDepartments = [...mandatoryDepartments, ...additionalApprovers];
+  
+  // Create a complete list of expected approvals, including those not yet processed
+  const completeApprovalsList = [];
+  
+  for (const department of allExpectedDepartments) {
+    // Check if this department has already approved
+    const existingApproval = approvalsList.find(approval => approval.department === department);
+    
+    if (existingApproval) {
+      // Use existing approval
+      completeApprovalsList.push(existingApproval);
+    } else {
+      // Create placeholder for pending approval
+      completeApprovalsList.push({
+        id: null,
+        requestId: requestId,
+        approverId: null,
+        department: department,
+        status: 'pending',
+        comments: null,
+        processedAt: null,
+        isMandatory: mandatoryDepartments.includes(department),
+        approver: null // No approver assigned yet
+      });
+    }
+  }
+
   // Get attachments
   const attachmentsList = await db.query.fileAttachments.findMany({
     where: eq(fileAttachments.requestId, requestId),
@@ -6753,14 +6791,6 @@ async function getRequestWithRelations(requestId: number) {
       ? JSON.parse(request.items)
       : request.items;
 
-  // Parse additionalApprovers JSON
-  const additionalApprovers =
-    typeof request.additionalApprovers === "string"
-      ? JSON.parse(request.additionalApprovers)
-      : Array.isArray(request.additionalApprovers)
-        ? request.additionalApprovers
-        : [];
-
   // Return complete request with relations
   return {
     ...request,
@@ -6768,7 +6798,7 @@ async function getRequestWithRelations(requestId: number) {
     vendor,
     subPurpose,
     requester,
-    approvals: approvalsList,
+    approvals: completeApprovalsList, // Use complete list including pending approvals
     attachments: attachmentsList,
     additionalApprovers, // Explicitly include additionalApprovers as an array
   };
