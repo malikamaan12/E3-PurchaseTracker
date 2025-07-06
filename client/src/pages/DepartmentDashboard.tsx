@@ -12,21 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download, Share2, Copy } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Loader2, FileText, CheckCircle, XCircle, Clock, AlertCircle, Download } from "lucide-react";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface PurchaseRequest {
   id: number;
@@ -58,8 +51,6 @@ export default function DepartmentDashboard() {
   const [selectedPurpose, setSelectedPurpose] = useState<string>("all");
   const [selectedSubPurpose, setSelectedSubPurpose] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -354,86 +345,168 @@ export default function DepartmentDashboard() {
     }
   };
 
-  const shareInsights = () => {
+  const shareInsights = async () => {
     try {
-      // Get the current dashboard state including filters
-      const dashboardState = {
-        filters: {
-          vendor: selectedVendor,
-          purpose: selectedPurpose,
-          subPurpose: selectedSubPurpose
-        },
-        timestamp: new Date().toISOString(),
-        totalRequests: filteredRequests.length
-      };
-
-      // Create a shareable URL with state - point to admin panel with analytics tab
-      const stateParam = encodeURIComponent(JSON.stringify(dashboardState));
-      const shareableUrl = `${window.location.origin}/admin?tab=department-analytics&filters=${stateParam}`;
+      setIsExporting(true);
       
-      setShareUrl(shareableUrl);
-      setShowShareDialog(true);
-    } catch (error) {
-      console.error('Share error:', error);
+      // Calculate statistics
+      const approvedCount = filteredRequests.filter((r: PurchaseRequest) => r.status === "approved").length;
+      const rejectedCount = filteredRequests.filter((r: PurchaseRequest) => r.status === "rejected").length;
+      const pendingCount = filteredRequests.filter((r: PurchaseRequest) => r.status === "pending").length;
+      const draftCount = filteredRequests.filter((r: PurchaseRequest) => r.status === "draft").length;
+      
+      const requestTotal = filteredRequests.reduce((sum: number, request: PurchaseRequest) => {
+        return sum + (request.totalEstimatedCost || 0);
+      }, 0);
+      
+      const foreignCurrencyItemsCount = filteredRequests.filter(
+        (r: PurchaseRequest) => (r.currency || 'QAR') !== 'QAR'
+      ).length;
+      
+      // Generate PDF report
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Department Analytics Report', 20, 20);
+      
+      // Date and filters
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
+      doc.text(`Total Requests: ${filteredRequests.length}`, 20, 40);
+      
+      // Filter information
+      let yPosition = 55;
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Applied Filters:', 20, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(11);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Vendor: ${selectedVendor === 'all' ? 'All Vendors' : vendors.find(v => v.id.toString() === selectedVendor)?.companyName || 'Unknown'}`, 30, yPosition);
+      yPosition += 8;
+      doc.text(`Purpose: ${selectedPurpose === 'all' ? 'All Purposes' : selectedPurpose}`, 30, yPosition);
+      yPosition += 8;
+      doc.text(`Sub-Purpose: ${selectedSubPurpose === 'all' ? 'All Sub-Purposes' : subPurposes.find((sp: SubPurpose) => sp.id.toString() === selectedSubPurpose)?.name || 'Unknown'}`, 30, yPosition);
+      yPosition += 20;
+      
+      // Status Summary
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Status Summary:', 20, yPosition);
+      yPosition += 15;
+      
+      const statusData = [
+        ['Status', 'Count', 'Percentage'],
+        ['Approved', approvedCount.toString(), `${((approvedCount / filteredRequests.length) * 100).toFixed(1)}%`],
+        ['Rejected', rejectedCount.toString(), `${((rejectedCount / filteredRequests.length) * 100).toFixed(1)}%`],
+        ['Pending', pendingCount.toString(), `${((pendingCount / filteredRequests.length) * 100).toFixed(1)}%`],
+        ['Draft', draftCount.toString(), `${((draftCount / filteredRequests.length) * 100).toFixed(1)}%`]
+      ];
+      
+      (doc as any).autoTable({
+        head: [statusData[0]],
+        body: statusData.slice(1),
+        startY: yPosition,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        margin: { left: 20, right: 20 }
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 20;
+      
+      // Purpose Breakdown
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Purpose Breakdown:', 20, yPosition);
+      yPosition += 15;
+      
+      const purposeCounts = filteredRequests.reduce((acc: any, request: PurchaseRequest) => {
+        const purpose = request.purposeType || 'Unknown';
+        if (!acc[purpose]) {
+          acc[purpose] = { count: 0, amount: 0 };
+        }
+        acc[purpose].count++;
+        acc[purpose].amount += request.totalEstimatedCost || 0;
+        return acc;
+      }, {});
+      
+      const purposeData = [
+        ['Purpose', 'Count', 'Total Amount (QAR)'],
+        ...Object.entries(purposeCounts).map(([purpose, data]: [string, any]) => [
+          purpose,
+          data.count.toString(),
+          data.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })
+        ])
+      ];
+      
+      (doc as any).autoTable({
+        head: [purposeData[0]],
+        body: purposeData.slice(1),
+        startY: yPosition,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [16, 185, 129], textColor: 255 },
+        margin: { left: 20, right: 20 }
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 20;
+      
+      // Financial Summary
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Financial Summary:', 20, yPosition);
+      yPosition += 15;
+      
+      const financialData = [
+        ['Metric', 'Amount (QAR)'],
+        ['Total Amount', requestTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })],
+        ['Average Request', (requestTotal / filteredRequests.length).toLocaleString('en-US', { minimumFractionDigits: 2 })],
+        ['Foreign Currency Items', foreignCurrencyItemsCount.toString()]
+      ];
+      
+      (doc as any).autoTable({
+        head: [financialData[0]],
+        body: financialData.slice(1),
+        startY: yPosition,
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [239, 68, 68], textColor: 255 },
+        margin: { left: 20, right: 20 }
+      });
+      
+      // Save the PDF
+      const fileName = `department-analytics-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
       toast({
-        title: "Share Failed",
-        description: "Failed to generate share link. Please try again.",
+        title: "✅ PDF Report Generated",
+        description: "Analytics report has been downloaded successfully",
+        className: "bg-green-50 border-green-200 text-green-800 shadow-lg",
+      });
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate PDF report. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const copyShareUrl = async () => {
-    try {
-      // Check if clipboard API is available
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(shareUrl);
-        
-        toast({
-          title: "✅ Share Link Copied",
-          description: "Dashboard link has been copied to clipboard",
-          className: "bg-green-50 border-green-200 text-green-800 shadow-lg",
-        });
-        
-        setShowShareDialog(false);
-      } else {
-        // Fallback for browsers without clipboard API
-        const textArea = document.createElement('textarea');
-        textArea.value = shareUrl;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        try {
-          document.execCommand('copy');
-          toast({
-            title: "✅ Share Link Copied", 
-            description: "Dashboard link has been copied to clipboard",
-            className: "bg-green-50 border-green-200 text-green-800 shadow-lg",
-          });
-          setShowShareDialog(false);
-        } catch (err) {
-          toast({
-            title: "Copy Manually",
-            description: "Please copy the link from the dialog",
-            variant: "default",
-          });
-        }
-        
-        document.body.removeChild(textArea);
-      }
-    } catch (error) {
-      console.error('Copy error:', error);
-      toast({
-        title: "Copy Failed",
-        description: "Failed to copy link. Please copy manually.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   if (isLoading) {
     return (
@@ -478,9 +551,19 @@ export default function DepartmentDashboard() {
             variant="outline"
             onClick={shareInsights}
             className="flex items-center gap-2 flex-1 sm:flex-auto justify-center"
+            disabled={isExporting}
           >
-            <Share2 className="h-4 w-4" />
-            {!isMobile && <span>Share</span>}
+            {isExporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {!isMobile && <span>Generating...</span>}
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                {!isMobile && <span>PDF Report</span>}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -634,53 +717,7 @@ export default function DepartmentDashboard() {
         />
       </div>
 
-      {/* Share Dialog */}
-      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <AlertDialogContent className="sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Share2 className="h-5 w-5" />
-              Share Dashboard Analytics
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Share this dashboard view with your current filters and settings.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-3 rounded-lg border">
-              <p className="text-sm font-medium mb-2">Shareable Link:</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={shareUrl}
-                  readOnly
-                  className="flex-1 text-xs bg-white border rounded px-2 py-1.5 font-mono"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={copyShareUrl}
-                  className="flex items-center gap-1"
-                >
-                  <Copy className="h-3 w-3" />
-                  Copy
-                </Button>
-              </div>
-            </div>
-            
-            <div className="text-xs text-muted-foreground">
-              This link includes your current filter settings and will take recipients directly to the analytics view.
-            </div>
-          </div>
 
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowShareDialog(false)}>
-              Done
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

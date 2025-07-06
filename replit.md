@@ -4,6 +4,7 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
+- **PDF Report Generation**: Transformed share functionality to generate comprehensive PDF analytics reports instead of requiring login
 - **Modular Chart System**: Created comprehensive modular chart components with reusable ChartCard wrapper
 - **Enhanced Department Analytics**: Updated RequestsByStatusChart and created RequestsByPurposeChart with action buttons and export functionality
 - **Vendor Dropdown Fix**: Fixed Department Analytics vendor filter to display companyName instead of name field
