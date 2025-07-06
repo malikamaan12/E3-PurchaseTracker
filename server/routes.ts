@@ -4335,13 +4335,85 @@ export function registerRoutes(app: Express): Server {
       // First, delete existing settings
       await db.delete(pdfSettings);
 
-      // Insert new settings with company logo support
+      // Extract and properly type the fields for database insertion
+      const {
+        headerTitle,
+        headerSubtitle,
+        headerColor,
+        footerText,
+        footerColor,
+        pageNumbering,
+        pageNumberPosition,
+        fontSize,
+        fontFamily,
+        marginTop,
+        marginBottom,
+        marginLeft,
+        marginRight,
+        headerHeight,
+        footerHeight,
+        headerImage,
+        footerImage,
+        logo,
+        logoPosition,
+        companyAddress,
+        companyPhone,
+        companyEmail,
+        companyWebsite,
+        watermarkText,
+        watermarkOpacity,
+        companyLogo,
+        loginLogo,
+        showVendorInfo,
+        showItemsTable,
+        showAttachments,
+        showSignatures,
+        tableHeaderColor,
+        sectionBgColor,
+        textColor
+      } = settings;
+
+      // Insert new settings with proper field mapping
       const [newSettings] = await db
         .insert(pdfSettings)
         .values({
-          ...settings,
-          updatedAt: new Date(),
-          updatedBy: req.user.id
+          headerTitle: headerTitle || "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerSubtitle: headerSubtitle || "PURCHASE REQUEST",
+          headerColor: headerColor || "#1a365d",
+          footerText: footerText || "ALL RIGHTS RESERVED BY E3",
+          footerColor: footerColor || "#1a365d",
+          pageNumbering: Boolean(pageNumbering),
+          pageNumberPosition: pageNumberPosition || "bottom-right",
+          fontSize: Number(fontSize) || 11,
+          fontFamily: fontFamily || "helvetica",
+          marginTop: Number(marginTop) || 20,
+          marginBottom: Number(marginBottom) || 20,
+          marginLeft: Number(marginLeft) || 25,
+          marginRight: Number(marginRight) || 25,
+          headerHeight: Number(headerHeight) || 60,
+          footerHeight: Number(footerHeight) || 40,
+          headerImage: headerImage || null,
+          footerImage: footerImage || null,
+          logo: logo || null,
+          logoPosition: logoPosition || "left",
+          companyAddress: companyAddress || null,
+          companyPhone: companyPhone || null,
+          companyEmail: companyEmail || null,
+          companyWebsite: companyWebsite || null,
+          watermarkText: watermarkText || null,
+          watermarkOpacity: watermarkOpacity !== undefined ? Number(watermarkOpacity) : null,
+          companyLogo: companyLogo || null,
+          loginLogo: loginLogo || null,
+          showVendorInfo: Boolean(showVendorInfo !== false),
+          showItemsTable: Boolean(showItemsTable !== false),
+          showAttachments: Boolean(showAttachments !== false),
+          showSignatures: Boolean(showSignatures !== false),
+          tableHeaderColor: tableHeaderColor || null,
+          sectionBgColor: sectionBgColor || null,
+          textColor: textColor || null,
+          userId: req.user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
         })
         .returning();
 
