@@ -974,6 +974,16 @@ function addApprovalsTable(
 
     // Get approver name with multiple fallback strategies
     let approverName = "N/A";
+    
+    // Debug logging for approval data
+    console.log("Processing approval:", {
+      id: app.id,
+      approverId: app.approverId,
+      department: app.department,
+      status: app.status,
+      approver: app.approver
+    });
+    
     if (app.approver?.username) {
       approverName = app.approver.username;
     } else if (app.approver?.name) {
@@ -982,6 +992,8 @@ function addApprovalsTable(
       // If we have an approver ID but no name, show the ID with a note
       approverName = `User ID: ${app.approverId}`;
     }
+    
+    console.log("Final approver name:", approverName);
 
     rows.push([
       approverName,
