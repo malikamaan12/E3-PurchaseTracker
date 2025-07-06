@@ -4,13 +4,13 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
-- **PDF Approval Status Fix**: Fixed incorrect approval status details in generated PDFs to show accurate and current approval information
-- **Approval Progress Accuracy**: Corrected progress calculation to show actual approved vs total counts (e.g., "1/4" instead of "4/4")
-- **Placeholder Text Removal**: Removed "Pending Assignment" placeholder text, leaving fields blank for unassigned approvers
-- **Status Styling Consistency**: Removed colorful status indicators and icons, using consistent black text and fonts throughout approval tables
-- **Real Approver Display**: Modified both PDF generators to only show actual assigned approvers, filtering out placeholder entries
-- **Server-side Data Enhancement**: Improved approval data fetching to properly include approver details with username and department information
-- **Overall Status Logic**: Fixed overall approval status calculation to properly determine "Pending" vs "Fully Approved" based on actual approval state
+- **PDF Approval Status Complete Fix**: Fully resolved PDF approval display to show ALL expected approvers (mandatory + additional) with accurate status information
+- **Progress Status Removal**: Completely removed progress status indicators from PDFs as requested - no more "1/4" or similar counters in PDF exports
+- **Comprehensive Approver Display**: Both PDF generators now show all mandatory departments (CEO Office, Finance, Director) plus any additional approvers from purchase request
+- **Placeholder Text Enhancement**: Replaced "Pending Assignment" with blank text fields for better professional appearance
+- **Server-side Data Enhancement**: Enhanced approval data fetching with proper additionalApprovers parsing and deduplication logic
+- **TypeScript Error Resolution**: Fixed all approval.department reference issues and type conflicts across both PDF generators
+- **Real Approver Display**: Modified both PDF generators to display all expected approvers with accurate approval information and department names
 - **Modular Chart System**: Created comprehensive modular chart components with reusable ChartCard wrapper
 - **Enhanced Department Analytics**: Updated RequestsByStatusChart and created RequestsByPurposeChart with action buttons and export functionality
 - **Vendor Dropdown Fix**: Fixed Department Analytics vendor filter to display companyName instead of name field

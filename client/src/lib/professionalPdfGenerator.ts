@@ -435,10 +435,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           } else {
             // Add placeholder for missing required approver with proper status
             allExpectedApprovers.push({
-              approver: { department: dept, username: 'Pending Assignment' },
+              approver: { department: dept, username: '' },
               status: 'pending',
               processedAt: null,
-              comments: 'Approval pending'
+              comments: ''
             });
           }
         });
@@ -451,23 +451,15 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           } else {
             // Add placeholder for missing additional approver with proper status
             allExpectedApprovers.push({
-              approver: { department: deptName, username: 'Pending Assignment' },
+              approver: { department: deptName, username: '' },
               status: 'pending',
               processedAt: null,
-              comments: 'Additional approval required'
+              comments: ''
             });
           }
         });
         
-        // Only count real approvals that have been processed (not placeholders)
-        const realApprovals = approvals.filter(a => a.approver && a.approver.username && a.approver.username !== 'Pending Assignment');
-        const completedApprovals = realApprovals.filter(a => a.status === 'approved');
-        const totalExpected = realApprovals.length;
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(`Progress: ${completedApprovals.length}/${totalExpected} approvals completed`, margin + 2, currentY);
-        currentY += 6;
+        // Progress status removed as requested - not required
         
         // Individual approval details in a professional table format
         currentY += 4;
@@ -503,10 +495,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
             const statusColor = [0, 0, 0]; // Black text
             
             // Display approver username if assigned, otherwise show department name for pending approvals
-            const approverName = approval.approver?.username && approval.approver.username !== 'Pending Assignment'
+            const approverName = approval.approver?.username && approval.approver.username !== ''
               ? approval.approver.username 
-              : approval.department || '';
-            const department = approval.approver?.department || approval.department || '';
+              : approval.approver?.department || '';
+            const department = approval.approver?.department || '';
             const processedDate = approval.processedAt ? 
               new Date(approval.processedAt).toLocaleDateString('en-GB') : '-';
             const comments = approval.comments ? 
