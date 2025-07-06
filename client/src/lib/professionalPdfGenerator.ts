@@ -58,7 +58,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     const headerTitle = settings.headerTitle || 'PURCHASE REQUEST';
     
     // Add company logo in top left corner if available
-    const logoData = settings.companyLogo || settings.logo;
+    const logoData = settings.logo || settings.companyLogo;
     if (logoData) {
       try {
         // Add logo on the left side of header
@@ -392,7 +392,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         doc.text('• No approvals submitted yet', margin + 2, currentY);
         currentY += 6;
       } else {
-        // Calculate approval statistics
+        // Calculate approval statistics (use original approvals for status calculations)
         const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
         const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
         const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
@@ -405,7 +405,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         if (rejectedCount > 0) {
           overallStatus = 'Rejected';
           statusColor = [220, 53, 69]; // Red
-        } else if (pendingCount === 0 && approvedCount === approvals.length) {
+        } else if (pendingCount === 0 && approvedCount > 0 && approvedCount === approvals.length) {
           overallStatus = 'Fully Approved';
           statusColor = [46, 174, 52]; // Green
         } else if (changesCount > 0) {
@@ -419,29 +419,71 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         doc.text(`Overall Status: ${overallStatus}`, margin + 2, currentY);
         currentY += 8;
         
-        // Approval progress summary
+        // Build comprehensive approver list including all required departments
+        const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
+        const additionalApprovers = Array.isArray(request.additionalApprovers) ? request.additionalApprovers : 
+          (typeof request.additionalApprovers === 'string' ? JSON.parse(request.additionalApprovers) : []);
+        
+        // Create comprehensive approver list
+        const allExpectedApprovers = [];
+        
+        // Add required departments
+        requiredDepartments.forEach(dept => {
+          const existingApproval = approvals.find(a => a.approver?.department === dept);
+          if (existingApproval) {
+            allExpectedApprovers.push(existingApproval);
+          } else {
+            // Add placeholder for missing required approver
+            allExpectedApprovers.push({
+              approver: { department: dept, username: 'Not Assigned' },
+              status: 'pending',
+              processedAt: null,
+              comments: null
+            });
+          }
+        });
+        
+        // Add additional approvers
+        additionalApprovers.forEach(deptName => {
+          const existingApproval = approvals.find(a => a.approver?.department === deptName);
+          if (existingApproval) {
+            allExpectedApprovers.push(existingApproval);
+          } else {
+            // Add placeholder for missing additional approver
+            allExpectedApprovers.push({
+              approver: { department: deptName, username: 'Not Assigned' },
+              status: 'pending',
+              processedAt: null,
+              comments: null
+            });
+          }
+        });
+        
+        // Approval progress summary based on all expected approvers
+        const totalExpected = allExpectedApprovers.length;
+        const actualApprovals = allExpectedApprovers.filter(a => a.status !== 'pending' || a.approver?.username !== 'Not Assigned');
+        
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(`Progress: ${approvedCount}/${approvals.length} approvals completed`, margin + 2, currentY);
+        doc.text(`Progress: ${actualApprovals.length}/${totalExpected} approvals completed`, margin + 2, currentY);
         currentY += 6;
         
         // Individual approval details in a professional table format
-        if (approvals.length > 0) {
-          currentY += 4;
+        currentY += 4;
+        
+        // Manual table layout since autoTable is not available
+        const tableStartY = currentY;
+        const colWidths = [35, 35, 30, 25, 55]; // Column widths
+        const rowHeight = 6;
+        let currentX = margin + 2;
           
-          // Manual table layout since autoTable is not available
-          const tableStartY = currentY;
-          const colWidths = [35, 35, 30, 25, 55]; // Column widths
-          const rowHeight = 6;
-          let currentX = margin + 2;
-          
-          // Draw table header
-          doc.setFillColor(240, 240, 245);
+          // Draw table header with proper styling to match PDF theme
+          doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
           doc.rect(currentX, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
           
-          doc.setTextColor(50, 50, 50);
+          doc.setTextColor(255, 255, 255);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(baseFontSize);
+          doc.setFontSize(baseFontSize - 1);
           
           const headers = ['Department', 'Approver', 'Status', 'Date', 'Comments'];
           let headerX = currentX + 2;
@@ -452,8 +494,8 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           
           currentY += rowHeight;
           
-          // Draw approval rows
-          approvals.forEach((approval, rowIndex) => {
+          // Draw approval rows using all expected approvers
+          allExpectedApprovers.forEach((approval, rowIndex) => {
             const status = (approval.status || 'pending').toUpperCase();
             let statusIcon = '';
             let statusColor = [0, 102, 204]; // Blue for pending
@@ -474,9 +516,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
             const approverName = approval.approver?.username || 'Unknown';
             const department = approval.approver?.department || 'N/A';
             const processedDate = approval.processedAt ? 
-              new Date(approval.processedAt).toLocaleDateString('en-GB') : 'Pending';
+              new Date(approval.processedAt).toLocaleDateString('en-GB') : '-';
             const comments = approval.comments ? 
-              (approval.comments.length > 40 ? approval.comments.substring(0, 40) + '...' : approval.comments) 
+              (approval.comments.length > 35 ? approval.comments.substring(0, 35) + '...' : approval.comments) 
               : '-';
             
             // Alternate row background
@@ -496,20 +538,20 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
             doc.line(borderX, currentY, borderX, currentY + rowHeight); // Right border
             doc.line(currentX, currentY + rowHeight, currentX + colWidths.reduce((a, b) => a + b, 0), currentY + rowHeight); // Bottom border
             
-            // Draw cell content
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(baseFontSize - 1);
-            
+            // Draw cell content with consistent fonts
             const cellData = [department, approverName, `${statusIcon} ${status}`, processedDate, comments];
             let cellX = currentX + 2;
             
             cellData.forEach((text, i) => {
-              if (i === 2) { // Status column
+              // Set consistent font for all cells
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(baseFontSize - 1);
+              
+              if (i === 2) { // Status column - use color coding
                 doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
                 doc.setFont('helvetica', 'bold');
               } else {
                 doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-                doc.setFont('helvetica', 'normal');
               }
               
               // Truncate text if it's too long for the cell
@@ -534,7 +576,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
           // Draw table outer border
           doc.setDrawColor(200, 200, 200);
           doc.setLineWidth(0.2);
-          doc.rect(currentX, tableStartY, colWidths.reduce((a, b) => a + b, 0), (approvals.length + 1) * rowHeight);
+          doc.rect(currentX, tableStartY, colWidths.reduce((a, b) => a + b, 0), (allExpectedApprovers.length + 1) * rowHeight);
           
           currentY += 8; // Add spacing after table
         }
@@ -543,7 +585,6 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       // Reset text color
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       currentY += 5;
-    } // End of approval status section
     
     // FOOTER with admin settings
     const footerY = pageHeight - 12;
