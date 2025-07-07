@@ -46,7 +46,7 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     let currentY = margin + 5;
     
     // Add company logo ABOVE header (top left corner)
-    const logoData = settings.logo || settings.companyLogo;
+    const logoData = settings.loginLogo || settings.logo || settings.companyLogo;
     if (logoData) {
       try {
         console.log("Adding logo to PDF, logo data type:", typeof logoData);
