@@ -4402,7 +4402,7 @@ export function registerRoutes(app: Express): Server {
           companyWebsite: companyWebsite || null,
           watermarkText: watermarkText || null,
           watermarkOpacity: watermarkOpacity !== undefined ? Number(watermarkOpacity) : null,
-          loginLogo: loginLogo || null,
+          loginLogo: companyLogo || loginLogo || logo || null,
           showVendorInfo: Boolean(showVendorInfo !== false),
           showItemsTable: Boolean(showItemsTable !== false),
           showAttachments: Boolean(showAttachments !== false),
