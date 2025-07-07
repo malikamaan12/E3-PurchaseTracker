@@ -32,26 +32,63 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       format: 'a4'
     }) as any;
     
-    // Page settings
+    // Page settings - optimized for better space utilization
     const pageWidth = 210;
     const pageHeight = 297;
-    const margin = 15;
+    const margin = 12; // Reduced from 15 to save space
     const contentWidth = pageWidth - (margin * 2);
+    const footerHeight = 15; // Reserve space for footer
+    const maxContentY = pageHeight - footerHeight;
     
     // Apply global font settings
     const baseFontSize = settings.fontSize || 9;
     const baseFontFamily = settings.fontFamily || 'helvetica';
     const textColor = parseColor(settings.textColor || '#000000');
     
-    let currentY = margin + 5;
+    let currentY = margin + 2; // Reduced initial spacing
     
-    // Add company logo ABOVE header (top left corner)
+    // Footer function to add consistently to each page
+    const addFooterToPage = (pdf: any, pageNum: number, config: any) => {
+      const footerY = pageHeight - 15; // Fixed footer position
+      
+      // Add footer text
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFont('helvetica', 'italic');
+      
+      const footerText = config.footerText || 'ALL RIGHTS RESERVED BY E3';
+      const footerAddress = config.companyAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
+      
+      pdf.text(footerText, margin, footerY);
+      pdf.text(footerAddress, margin, footerY + 3);
+      
+      // Page number on the right
+      const totalPages = pdf.internal.getNumberOfPages();
+      const pageText = `Page ${pageNum} of ${totalPages}`;
+      const pageTextWidth = pdf.getTextWidth(pageText);
+      pdf.text(pageText, pageWidth - margin - pageTextWidth, footerY + 3);
+    };
+
+    // Add function to check if content fits on page and manage footer overlap
+    const checkPageOverflow = (requiredHeight: number) => {
+      if (currentY + requiredHeight > maxContentY) {
+        // Add footer to current page before creating new page
+        addFooterToPage(doc, doc.internal.getCurrentPageInfo().pageNumber, settings);
+        doc.addPage();
+        currentY = margin + 5; // Reset Y position with small top margin
+        return true; // Page break occurred
+      }
+      return false; // Content fits
+    };
+    
+    // Add company logo ABOVE header (optimized sizing and positioning)
     const logoData = settings.loginLogo || settings.logo || settings.companyLogo;
     if (logoData) {
       try {
         console.log("Adding logo to PDF, logo data type:", typeof logoData);
-        const logoWidth = 30;
-        const logoHeight = 20;
+        // Optimized logo dimensions - better aspect ratio, reduced size
+        const logoWidth = 25; // Reduced from 30
+        const logoHeight = 12; // Reduced from 20 to prevent squeezing
         const logoX = margin;
         const logoY = currentY;
         
@@ -64,22 +101,22 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
         }
         
         doc.addImage(logoData, imageFormat, logoX, logoY, logoWidth, logoHeight);
-        console.log("Logo added successfully");
+        console.log("Logo added successfully - type:", imageFormat, "size:", logoWidth, "x", logoHeight);
         
-        // Move current position down after logo
-        currentY += logoHeight + 8;
+        // Reduced spacing after logo - tighter layout
+        currentY += logoHeight + 4; // Reduced from 8 to 4
       } catch (error) {
         console.warn('Could not add logo to PDF:', error);
         // Continue without logo
-        currentY += 5;
+        currentY += 2; // Reduced spacing even when no logo
       }
     } else {
-      currentY += 5;
+      currentY += 2; // Reduced spacing when no logo
     }
     
-    // HEADER SECTION with dynamic settings (reduced size)
+    // HEADER SECTION with dynamic settings (optimized for space)
     const headerColor = parseColor(settings.headerColor || '#000000');
-    const headerFontSize = (settings.headerFontSize || 20) * 0.8; // Reduce header size by 20%
+    const headerFontSize = (settings.headerFontSize || 16) * 0.7; // Further reduced header size
     const headerFontFamily = settings.headerFontFamily || 'helvetica';
     
     doc.setFont(headerFontFamily, 'bold');
@@ -92,27 +129,27 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     // Add main header title
     doc.text(headerTitle, margin, currentY);
-    currentY += headerFontSize * 0.4;
+    currentY += headerFontSize * 0.3; // Reduced line spacing
     
     // Add header subtitle with smaller font
-    doc.setFontSize(headerFontSize * 0.7);
+    doc.setFontSize(headerFontSize * 0.65);
     doc.setFont(headerFontFamily, 'normal');
     doc.text(headerSubtitle, margin, currentY);
     
-    // Request info on right side
+    // Request info on right side - more compact
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(9); // Reduced font size
     const rightAlign = pageWidth - margin;
     
     const prNumber = `PR #${request.id}`;
     const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
     
     // Position request info at same level as header title
-    const requestInfoY = currentY - (headerFontSize * 0.4);
+    const requestInfoY = currentY - (headerFontSize * 0.3);
     doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), requestInfoY);
-    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), requestInfoY + 5);
+    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), requestInfoY + 4); // Reduced spacing
     
-    currentY += 15;
+    currentY += 8; // Reduced from 15 to save space
     
     // Separator line
     doc.setDrawColor(220, 220, 220);
@@ -159,6 +196,9 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     // Show basic information section if enabled
     if (settings.showBasicInfo !== false) {
+      // Check if section header will fit
+      checkPageOverflow(25); // Estimated height for section header + content
+      
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
       doc.rect(margin, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
@@ -260,6 +300,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     // ITEMS SECTION
     if (settings.showItems !== false && request.items && request.items.length > 0) {
+      // Estimate space needed for items table
+      const tableHeight = (request.items.length + 1) * 5 + 20; // Estimate height
+      checkPageOverflow(tableHeight);
+      
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
       doc.rect(margin, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
@@ -349,6 +393,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     // ATTACHED DOCUMENTS SECTION
     if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
+      // Check space for attachments section
+      const attachmentHeight = request.attachments.length * 4 + 15;
+      checkPageOverflow(attachmentHeight);
+      
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
       doc.rect(margin, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
@@ -393,6 +441,10 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
 
     // APPROVAL STATUS SECTION
     if (settings.showSignatures !== false) {
+      // Check space for approval section
+      const approvalHeight = (request.approvals?.length || 0) * 4 + 30;
+      checkPageOverflow(approvalHeight);
+      
       doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
       doc.rect(margin, currentY, contentWidth, 6, 'F');
       doc.setTextColor(255, 255, 255);
@@ -586,27 +638,11 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       currentY += 5;
     
-    // FOOTER with admin settings
-    const footerY = pageHeight - 12;
-    
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'normal');
-    
-    // Use footer from admin settings or default
-    const footerText = settings.footerText || 'Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com';
-    const footerAddress = settings.companyAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
-    
-    doc.text(footerText, margin, footerY);
-    doc.text(footerAddress, margin, footerY + 3);
-    
-    // Page number
+    // Add footer to all pages using the proper footer system
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      const pageText = `Page ${i} of ${pageCount}`;
-      const pageTextWidth = doc.getTextWidth(pageText);
-      doc.text(pageText, pageWidth - margin - pageTextWidth, footerY + 3);
+      addFooterToPage(doc, i, settings);
     }
     
     // Save the PDF
