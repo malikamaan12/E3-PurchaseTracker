@@ -4246,7 +4246,14 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      res.json(settings[0]);
+      // Map database fields to frontend expected fields
+      const dbSettings = settings[0];
+      const mappedSettings = {
+        ...dbSettings,
+        companyLogo: dbSettings.loginLogo || dbSettings.logo, // Map loginLogo/logo to companyLogo for frontend
+      };
+      
+      res.json(mappedSettings);
     } catch (error) {
       debug(req, 'Error fetching PDF settings:', error);
       next(error);
