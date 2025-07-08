@@ -3400,80 +3400,40 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
         `;
         requestFolder.file('summary.txt', summary);
 
-        // Generate and add the professional PDF using jsPDF on server side
+        // Generate and add the professional PDF by calling the existing PDF endpoint
         try {
-          const { jsPDF } = require('jspdf');
+          const https = require('https');
+          const http = require('http');
+          const url = require('url');
           
-          const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
+          // Use the existing PDF generation endpoint
+          const pdfUrl = `${req.protocol}://${req.get('host')}/api/requests/${requestId}/pdf`;
+          const parsedUrl = url.parse(pdfUrl);
+          const requestModule = parsedUrl.protocol === 'https:' ? https : http;
+          
+          const pdfBuffer = await new Promise((resolve, reject) => {
+            const pdfReq = requestModule.get(pdfUrl, {
+              headers: {
+                'Cookie': req.headers.cookie || '',
+              }
+            }, (pdfRes) => {
+              if (pdfRes.statusCode !== 200) {
+                reject(new Error(`PDF generation failed with status ${pdfRes.statusCode}`));
+                return;
+              }
+              
+              const chunks: Buffer[] = [];
+              pdfRes.on('data', chunk => chunks.push(chunk));
+              pdfRes.on('end', () => resolve(Buffer.concat(chunks)));
+            });
+            
+            pdfReq.on('error', reject);
+            pdfReq.setTimeout(30000, () => {
+              pdfReq.destroy();
+              reject(new Error('PDF generation timeout'));
+            });
           });
-
-          // Add header
-          doc.setFontSize(16);
-          doc.text('EVENTS & ENTERTAINMENT ENTERPRISES', 14, 15);
-          doc.setFontSize(12);
-          doc.text('PURCHASE REQUEST', 14, 22);
-
-          // Add basic information
-          doc.setFontSize(11);
-          const startY = 35;
-          const lineHeight = 7;
           
-          doc.text(`Request Number: ${requestNumber}`, 14, startY);
-          doc.text(`Title: ${requestWithRelations.title || 'N/A'}`, 14, startY + lineHeight);
-          doc.text(`Status: ${requestWithRelations.status ? requestWithRelations.status.charAt(0).toUpperCase() + requestWithRelations.status.slice(1) : 'N/A'}`, 14, startY + lineHeight * 2);
-          doc.text(`Requester: ${requestWithRelations.requester?.username || 'N/A'}`, 14, startY + lineHeight * 3);
-          doc.text(`Department: ${requestWithRelations.requester?.department || 'N/A'}`, 14, startY + lineHeight * 4);
-          doc.text(`Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 5);
-          doc.text(`Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}`, 14, startY + lineHeight * 6);
-
-          // Add items table if available
-          if (requestWithRelations.items && requestWithRelations.items.length > 0) {
-            doc.text('Items:', 14, startY + lineHeight * 8);
-            let itemY = startY + lineHeight * 9;
-            
-            requestWithRelations.items.forEach((item: any, index: number) => {
-              if (itemY > 250) { // Check if we need a new page
-                doc.addPage();
-                itemY = 20;
-              }
-              doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Cost: ${item.estimatedCost} ${requestWithRelations.currency || 'QAR'}`, 14, itemY);
-              if (item.description) {
-                doc.text(`   Description: ${item.description}`, 14, itemY + 5);
-                itemY += 10;
-              } else {
-                itemY += 7;
-              }
-            });
-          }
-
-          // Add approvals section
-          if (requestWithRelations.approvals && requestWithRelations.approvals.length > 0) {
-            doc.text('Approvals:', 14, itemY + 10);
-            let approvalY = itemY + 17;
-            
-            requestWithRelations.approvals.forEach((approval: any) => {
-              if (approvalY > 250) { // Check if we need a new page
-                doc.addPage();
-                approvalY = 20;
-              }
-              doc.text(`${approval.department}: ${approval.status} ${approval.approver ? `(${approval.approver})` : ''}`, 14, approvalY);
-              approvalY += 7;
-            });
-          }
-
-          // Add footer
-          const pageCount = doc.internal.getNumberOfPages();
-          for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(9);
-            doc.text('ALL RIGHTS RESERVED BY E3', 14, 280);
-            doc.text(`Page ${i} of ${pageCount}`, 180, 280);
-          }
-          
-          const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
           requestFolder.file(`${requestNumber}.pdf`, pdfBuffer);
         } catch (pdfError) {
           console.error(`Error generating PDF for request ${requestId}:`, pdfError);
