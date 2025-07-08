@@ -3326,6 +3326,12 @@ export function registerRoutes(app: Express): Server {
         const requestId = parseInt(req.params.id);
         const { includeAttachments = "true" } = req.query;
 
+        if (isNaN(requestId)) {
+          throw new ValidationError("Invalid request ID", {
+            id: "Must be a number",
+          });
+        }
+
         // Fetch the request with all related data
         const request = await db
           .select()
@@ -3354,40 +3360,193 @@ export function registerRoutes(app: Express): Server {
         // Get all related data
         const requestWithRelations = await getRequestWithRelations(requestId);
 
+        // Get PDF settings for generating the PDF
+        const pdfSettingsResults = await db
+          .select()
+          .from(pdfSettings)
+          .where(eq(pdfSettings.userId, req.user?.id || 0))
+          .limit(1);
+
+        const pdfSettingsData = pdfSettingsResults.length > 0 ? pdfSettingsResults[0] : null;
+
+        // Create ZIP file
+        const JSZip = require('jszip');
+        const zip = new JSZip();
+        
+        const requestNumber = request[0].requestNumber || `PR-${requestId}`;
+        const requestFolder = zip.folder(requestNumber);
+
+        if (!requestFolder) {
+          throw new AppError("Failed to create ZIP folder", 500);
+        }
+
+        // Add request details as JSON
+        const requestData = JSON.stringify(requestWithRelations, null, 2);
+        requestFolder.file('request-data.json', requestData);
+
+        // Add a summary text file
+        const summary = `
+Purchase Request Summary
+=======================
+Request ID: ${requestId}
+Request Number: ${requestNumber}
+Title: ${requestWithRelations.title || 'N/A'}
+Status: ${requestWithRelations.status || 'N/A'}
+Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}
+Requester: ${requestWithRelations.requester?.username || 'N/A'}
+Department: ${requestWithRelations.requester?.department || 'N/A'}
+Items Count: ${requestWithRelations.items?.length || 0}
+Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}
+        `;
+        requestFolder.file('summary.txt', summary);
+
+        // Generate and add the professional PDF using jsPDF on server side
+        try {
+          const { jsPDF } = require('jspdf');
+          
+          const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          // Add header
+          doc.setFontSize(16);
+          doc.text('EVENTS & ENTERTAINMENT ENTERPRISES', 14, 15);
+          doc.setFontSize(12);
+          doc.text('PURCHASE REQUEST', 14, 22);
+
+          // Add basic information
+          doc.setFontSize(11);
+          const startY = 35;
+          const lineHeight = 7;
+          
+          doc.text(`Request Number: ${requestNumber}`, 14, startY);
+          doc.text(`Title: ${requestWithRelations.title || 'N/A'}`, 14, startY + lineHeight);
+          doc.text(`Status: ${requestWithRelations.status ? requestWithRelations.status.charAt(0).toUpperCase() + requestWithRelations.status.slice(1) : 'N/A'}`, 14, startY + lineHeight * 2);
+          doc.text(`Requester: ${requestWithRelations.requester?.username || 'N/A'}`, 14, startY + lineHeight * 3);
+          doc.text(`Department: ${requestWithRelations.requester?.department || 'N/A'}`, 14, startY + lineHeight * 4);
+          doc.text(`Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 5);
+          doc.text(`Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}`, 14, startY + lineHeight * 6);
+
+          // Add items table if available
+          if (requestWithRelations.items && requestWithRelations.items.length > 0) {
+            doc.text('Items:', 14, startY + lineHeight * 8);
+            let itemY = startY + lineHeight * 9;
+            
+            requestWithRelations.items.forEach((item: any, index: number) => {
+              if (itemY > 250) { // Check if we need a new page
+                doc.addPage();
+                itemY = 20;
+              }
+              doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Cost: ${item.estimatedCost} ${requestWithRelations.currency || 'QAR'}`, 14, itemY);
+              if (item.description) {
+                doc.text(`   Description: ${item.description}`, 14, itemY + 5);
+                itemY += 10;
+              } else {
+                itemY += 7;
+              }
+            });
+          }
+
+          // Add approvals section
+          if (requestWithRelations.approvals && requestWithRelations.approvals.length > 0) {
+            doc.text('Approvals:', 14, itemY + 10);
+            let approvalY = itemY + 17;
+            
+            requestWithRelations.approvals.forEach((approval: any) => {
+              if (approvalY > 250) { // Check if we need a new page
+                doc.addPage();
+                approvalY = 20;
+              }
+              doc.text(`${approval.department}: ${approval.status} ${approval.approver ? `(${approval.approver})` : ''}`, 14, approvalY);
+              approvalY += 7;
+            });
+          }
+
+          // Add footer
+          const pageCount = doc.internal.getNumberOfPages();
+          for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.text('ALL RIGHTS RESERVED BY E3', 14, 280);
+            doc.text(`Page ${i} of ${pageCount}`, 180, 280);
+          }
+          
+          const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+          requestFolder.file(`${requestNumber}.pdf`, pdfBuffer);
+        } catch (pdfError) {
+          console.error(`Error generating PDF for request ${requestId}:`, pdfError);
+          // Continue without PDF if generation fails
+        }
+
         // Include attachments if requested and user has permission
-        let attachmentsData = [];
         if (includeAttachments === "true") {
           const attachments = await db
             .select()
             .from(fileAttachments)
             .where(eq(fileAttachments.requestId, requestId));
 
-          attachmentsData = attachments.map((attachment) => ({
-            ...attachment,
-            fileUrl: `/api/attachments/${attachment.id}`,
-          }));
+          if (attachments.length > 0) {
+            const attachmentsFolder = requestFolder.folder('attachments');
+            
+            if (attachmentsFolder) {
+              for (const attachment of attachments) {
+                try {
+                  const fs = require('fs').promises;
+                  const path = require('path');
+                  
+                  // Construct the full path to the attachment file
+                  const attachmentPath = path.join(__dirname, '..', 'uploads', path.basename(attachment.fileUrl));
+                  
+                  // Check if file exists and read it
+                  try {
+                    await fs.access(attachmentPath);
+                    const fileContent = await fs.readFile(attachmentPath);
+                    attachmentsFolder.file(attachment.fileName, fileContent);
+                  } catch (fileError) {
+                    console.error(`Error reading attachment file ${attachment.fileName}:`, fileError);
+                    // Add a note about missing file instead
+                    attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                      `This attachment file (${attachment.fileName}) could not be found on the server.`);
+                  }
+                } catch (attachmentError) {
+                  console.error(`Error processing attachment ${attachment.fileName}:`, attachmentError);
+                }
+              }
+            }
+          }
         }
+
+        // Generate the ZIP file
+        const zipContent = await zip.generateAsync({
+          type: "nodebuffer",
+          compression: "DEFLATE",
+          compressionOptions: { level: 6 },
+        });
 
         // Log the audit event
         await logAuditEvent(req, {
           userId: req.user?.id || 0,
-          action: "pdf_downloaded", // Using pdf_downloaded as the action type since zip_downloaded is not defined
+          action: "zip_downloaded",
           resourceId: requestId,
           resourceType: "purchase_request",
           details: {
             reportType: "consolidated",
             includeAttachments: includeAttachments === "true",
+            fileName: `${requestNumber}.zip`,
+            fileSize: zipContent.length,
           },
         });
 
-        res.status(200).json({
-          success: true,
-          message: "Request data for ZIP generation",
-          data: {
-            ...requestWithRelations,
-            attachments: attachmentsData,
-          },
-        });
+        // Set response headers for ZIP download
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${requestNumber}.zip"`,
+        );
+        
+        return res.send(zipContent);
       } catch (error) {
         debug(req, "Error generating ZIP:", error);
         next(error);
