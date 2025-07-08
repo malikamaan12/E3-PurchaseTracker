@@ -3304,13 +3304,113 @@ export function registerRoutes(app: Express): Server {
           }
         }
 
-        // Return both the request data and PDF settings
-        res.status(200).json({
-          success: true,
-          message: "Request data for PDF generation",
-          data: requestWithRelations,
-          pdfSettings: pdfSettingsData,
-        });
+        // Check if client wants binary PDF or JSON data
+        const acceptHeader = req.headers.accept || '';
+        const wantsBinaryPdf = acceptHeader.includes('application/pdf');
+        
+        if (wantsBinaryPdf) {
+          // Generate and return binary PDF using server-side PDF generation
+          try {
+            const { jsPDF } = require('jspdf');
+            
+            const doc = new jsPDF({
+              orientation: 'portrait',
+              unit: 'mm',
+              format: 'a4'
+            });
+
+            // Add header using PDF settings
+            const headerTitle = pdfSettingsData?.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
+            const headerSubtitle = pdfSettingsData?.headerSubtitle || 'PURCHASE REQUEST';
+            
+            doc.setFontSize(16);
+            doc.text(headerTitle, 14, 15);
+            doc.setFontSize(12);
+            doc.text(headerSubtitle, 14, 22);
+
+            // Add basic information
+            doc.setFontSize(11);
+            const startY = 35;
+            const lineHeight = 7;
+            
+            doc.text(`Request Number: ${requestWithRelations.requestNumber || 'N/A'}`, 14, startY);
+            doc.text(`Title: ${requestWithRelations.title || 'N/A'}`, 14, startY + lineHeight);
+            doc.text(`Status: ${requestWithRelations.status ? requestWithRelations.status.charAt(0).toUpperCase() + requestWithRelations.status.slice(1) : 'N/A'}`, 14, startY + lineHeight * 2);
+            doc.text(`Requester: ${requestWithRelations.requester?.username || 'N/A'}`, 14, startY + lineHeight * 3);
+            doc.text(`Department: ${requestWithRelations.requester?.department || 'N/A'}`, 14, startY + lineHeight * 4);
+            doc.text(`Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 5);
+            doc.text(`Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}`, 14, startY + lineHeight * 6);
+
+            // Add items table if available
+            if (requestWithRelations.items && requestWithRelations.items.length > 0) {
+              doc.text('Items:', 14, startY + lineHeight * 8);
+              let itemY = startY + lineHeight * 9;
+              
+              requestWithRelations.items.forEach((item: any, index: number) => {
+                if (itemY > 250) { // Check if we need a new page
+                  doc.addPage();
+                  itemY = 20;
+                }
+                doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Cost: ${item.estimatedCost} ${requestWithRelations.currency || 'QAR'}`, 14, itemY);
+                if (item.description) {
+                  doc.text(`   Description: ${item.description}`, 14, itemY + 5);
+                  itemY += 10;
+                } else {
+                  itemY += 7;
+                }
+              });
+            }
+
+            // Add approvals section
+            if (requestWithRelations.approvals && requestWithRelations.approvals.length > 0) {
+              doc.text('Approvals:', 14, itemY + 10);
+              let approvalY = itemY + 17;
+              
+              requestWithRelations.approvals.forEach((approval: any) => {
+                if (approvalY > 250) { // Check if we need a new page
+                  doc.addPage();
+                  approvalY = 20;
+                }
+                doc.text(`${approval.department}: ${approval.status} ${approval.approver?.username ? `(${approval.approver.username})` : ''}`, 14, approvalY);
+                approvalY += 7;
+              });
+            }
+
+            // Add footer using PDF settings
+            const footerText = pdfSettingsData?.footerText || 'ALL RIGHTS RESERVED BY E3';
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+              doc.setPage(i);
+              doc.setFontSize(9);
+              doc.text(footerText, 14, 280);
+              doc.text(`Page ${i} of ${pageCount}`, 180, 280);
+            }
+            
+            const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+            
+            // Set appropriate headers for PDF download
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="purchase-request-${requestId}.pdf"`);
+            res.send(pdfBuffer);
+          } catch (pdfError) {
+            console.error('Error generating binary PDF:', pdfError);
+            // Fallback to JSON response if PDF generation fails
+            res.status(200).json({
+              success: true,
+              message: "Request data for PDF generation",
+              data: requestWithRelations,
+              pdfSettings: pdfSettingsData,
+            });
+          }
+        } else {
+          // Return JSON data for client-side PDF generation
+          res.status(200).json({
+            success: true,
+            message: "Request data for PDF generation",
+            data: requestWithRelations,
+            pdfSettings: pdfSettingsData,
+          });
+        }
       } catch (error) {
         debug(req, "Error generating PDF:", error);
         next(error);
