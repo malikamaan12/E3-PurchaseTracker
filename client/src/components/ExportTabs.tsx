@@ -284,56 +284,138 @@ export function ExportTabs({ request, compact = false }: ExportTabsProps) {
     }
   };
   
-  // ZIP export implementation
+  // ZIP export implementation - unified with DownloadOptions
   const handleZipExport = async (): Promise<string> => {
     console.log('Creating ZIP export...');
     
-    // Create ZIP instance
-    const zip = new JSZip();
+    // Get the request ID from the current request
+    const requestId = request?.id ? parseInt(String(request.id)) : null;
     
-    // Add JSON data
-    const requestJson = JSON.stringify(request, null, 2);
-    zip.file(`request-${request.id}-data.json`, requestJson);
-    
-    // Add plain text summary
-    const summary = `
-Purchase Request Summary
-=======================
-Request ID: ${request.id}
-Request Number: ${request.requestNumber || 'N/A'}
-Title: ${request.title || 'N/A'}
-Status: ${request.status || 'N/A'}
-Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}
-Requester: ${request.requester?.username || 'N/A'}
-Department: ${request.requester?.department || 'N/A'}
-Items Count: ${request.items?.length || 0}
-    `;
-    zip.file(`request-${request.id}-summary.txt`, summary);
-    
-    // Add items info if present
-    if (request.items && request.items.length > 0) {
-      let itemsInfo = "ITEMS LIST\n===========\n\n";
-      
-      request.items.forEach((item: any, index: number) => {
-        itemsInfo += `Item #${index + 1}\n`;
-        itemsInfo += `Name: ${item.name || 'N/A'}\n`;
-        itemsInfo += `Description: ${item.description || 'N/A'}\n`;
-        itemsInfo += `Quantity: ${Number(item.quantity) || 0}\n`;
-        itemsInfo += `Estimated Cost: ${(Number(item.estimatedCost) || 0).toFixed(2)}\n\n`;
-      });
-      
-      zip.file(`request-${request.id}-items.txt`, itemsInfo);
+    // Validate the request ID is a valid number
+    if (!requestId || isNaN(requestId)) {
+      throw new Error('Invalid request ID');
     }
     
-    // Generate file
-    const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-    const fileName = `purchase-request-${request.id}-${timestamp}.zip`;
-    const content = await zip.generateAsync({ type: 'blob' });
+    // Try to fetch ZIP file directly from server first
+    console.log(`Fetching ZIP package for request ${requestId}`);
+    const zipUrl = `/api/requests/${requestId}/zip`;
+    const response = await fetch(zipUrl, {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/zip, application/octet-stream'
+      }
+    });
     
-    // Download the file
-    await downloadFile(content, fileName);
-    
-    return fileName;
+    if (response.ok) {
+      // Server returned a ZIP file
+      const blob = await response.blob();
+      
+      // Create filename for the zip file
+      const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
+      
+      // Download the file
+      await downloadFile(blob, fileName);
+      return fileName;
+    } else {
+      // Server didn't return a ZIP file, fall back to client-side generation
+      console.log("Server ZIP generation failed, falling back to client-side generation");
+      
+      // Get request data for client-side ZIP generation
+      const dataResponse = await fetch(`/api/requests/${requestId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!dataResponse.ok) {
+        throw new Error('Failed to fetch request data');
+      }
+      
+      const requestData = await dataResponse.json();
+      
+      // Create ZIP file client-side
+      const zip = new JSZip();
+      
+      const requestNumber = requestData.requestNumber || `PR-${requestId}`;
+      const requestFolder = zip.folder(requestNumber);
+      
+      if (!requestFolder) {
+        throw new Error('Failed to create ZIP folder');
+      }
+      
+      // Add request details as JSON
+      requestFolder.file('request-data.json', JSON.stringify(requestData, null, 2));
+      
+      // Add summary text file
+      const summary = `
+Purchase Request Summary
+=======================
+Request ID: ${requestId}
+Request Number: ${requestNumber}
+Title: ${requestData.title || 'N/A'}
+Status: ${requestData.status || 'N/A'}
+Created: ${requestData.createdAt ? new Date(requestData.createdAt).toLocaleDateString() : 'N/A'}
+Requester: ${requestData.requester?.username || 'N/A'}
+Department: ${requestData.requester?.department || 'N/A'}
+Items Count: ${requestData.items?.length || 0}
+Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QAR'}
+      `;
+      requestFolder.file('summary.txt', summary);
+      
+      // Generate and add PDF
+      try {
+        const pdfResponse = await fetch(`/api/requests/${requestId}/pdf`, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/pdf'
+          }
+        });
+        
+        if (pdfResponse.ok) {
+          const pdfBlob = await pdfResponse.blob();
+          requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+        }
+      } catch (pdfError) {
+        console.error('Error fetching PDF:', pdfError);
+      }
+      
+      // Add attachments
+      if (requestData.attachments && requestData.attachments.length > 0) {
+        const attachmentsFolder = requestFolder.folder('attachments');
+        
+        if (attachmentsFolder) {
+          for (const attachment of requestData.attachments) {
+            try {
+              const attachmentResponse = await fetch(`/api/attachments/${attachment.id}`, {
+                credentials: 'include'
+              });
+              
+              if (attachmentResponse.ok) {
+                const attachmentBlob = await attachmentResponse.blob();
+                attachmentsFolder.file(attachment.fileName, attachmentBlob);
+              }
+            } catch (attachmentError) {
+              console.error(`Error fetching attachment ${attachment.fileName}:`, attachmentError);
+              // Add a note about missing file
+              attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                `This attachment file (${attachment.fileName}) could not be downloaded.`);
+            }
+          }
+        }
+      }
+      
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Create filename for the zip file
+      const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
+      
+      // Download the file
+      await downloadFile(zipBlob, fileName);
+      
+      return fileName;
+    }
   };
 
   const handleExport = async (format: string) => {
