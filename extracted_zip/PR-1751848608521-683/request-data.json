@@ -1,0 +1,141 @@
+{
+  "id": 188,
+  "requestNumber": "PR-1751848608521-683",
+  "requesterId": 32,
+  "vendorId": 54,
+  "title": "FDFASF",
+  "description": "FASDFAfASFAS FAFASFAF",
+  "items": [
+    {
+      "name": "SDAFADSF",
+      "quantity": 1,
+      "description": "ASFfsF",
+      "estimatedCost": 43
+    }
+  ],
+  "purposeType": "E3 EVENT",
+  "subPurposeId": 21,
+  "priority": "medium",
+  "priorityScore": null,
+  "priorityReason": null,
+  "priorityRecommendations": null,
+  "additionalApprovers": [
+    "Operation"
+  ],
+  "currency": "QAR",
+  "totalEstimatedCost": 43,
+  "freightAmount": 0,
+  "status": "pending",
+  "isLocked": false,
+  "mandatoryApproversCount": 0,
+  "createdAt": "2025-07-07T00:36:48.521Z",
+  "updatedAt": "2025-07-07T00:36:48.521Z",
+  "vendor": {
+    "id": 54,
+    "companyName": "Test Update Co",
+    "contactPerson": "Amro",
+    "contactNumber": "954545644",
+    "email": "amro@eeeqa.com",
+    "address": "Land Royal Building, Flat No. 210,\nBuilding No- 25, Area 26, Street No. 951, Doha, Qatar",
+    "taxNumber": "0000fgsgfsgsgsdg",
+    "registrationNumber": "51115615151",
+    "bankName": "CBQ",
+    "accountNumber": "119556837537327",
+    "ibanNumber": "144454654345634",
+    "branchName": "DOHA",
+    "category": "general",
+    "payment_currency": "QAR",
+    "rating": 0,
+    "status": "active",
+    "remarks": "afafasfasgagaga",
+    "createdAt": "2025-02-27T17:33:37.847Z",
+    "updatedAt": "2025-03-02T20:34:24.599Z"
+  },
+  "subPurpose": {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z"
+  },
+  "requester": {
+    "id": 32,
+    "username": "E3Admin",
+    "password": "$2b$10$quZsQ96Nyf0lLyrVizw9Vuj3CzFSWuRL/BDN8Urj4fGMIXC5Znz6K",
+    "email": "amaanmalik12@gmail.com",
+    "contact_number": "55875904",
+    "department": "Management",
+    "role": "admin",
+    "isActive": true,
+    "createdAt": "2024-12-28T15:41:47.032Z",
+    "updatedAt": "2024-12-28T15:41:47.032Z"
+  },
+  "approvals": [
+    {
+      "id": null,
+      "requestId": 188,
+      "approverId": null,
+      "department": "CEO Office",
+      "status": "pending",
+      "comments": null,
+      "processedAt": null,
+      "isMandatory": true,
+      "approver": null
+    },
+    {
+      "id": 893,
+      "requestId": 188,
+      "approverId": 228,
+      "department": "Finance",
+      "status": "approved",
+      "comments": null,
+      "isMandatory": false,
+      "processedAt": null,
+      "createdAt": "2025-07-08T22:46:03.136Z",
+      "updatedAt": "2025-07-08T22:46:03.136Z",
+      "approver": {
+        "id": 228,
+        "username": "Indika",
+        "email": "finance@eeeqa.com",
+        "department": "Finance",
+        "role": "approver"
+      }
+    },
+    {
+      "id": null,
+      "requestId": 188,
+      "approverId": null,
+      "department": "Director",
+      "status": "pending",
+      "comments": null,
+      "processedAt": null,
+      "isMandatory": true,
+      "approver": null
+    },
+    {
+      "id": null,
+      "requestId": 188,
+      "approverId": null,
+      "department": "Operation",
+      "status": "pending",
+      "comments": null,
+      "processedAt": null,
+      "isMandatory": false,
+      "approver": null
+    }
+  ],
+  "attachments": [
+    {
+      "id": 83,
+      "requestId": 188,
+      "fileName": "e3  Logo.png",
+      "fileType": "image/png",
+      "fileSize": 3058,
+      "fileUrl": "/uploads/files-1751848608012-839408929.png",
+      "uploadedAt": "2025-07-07T00:36:48.762Z"
+    }
+  ]
+}

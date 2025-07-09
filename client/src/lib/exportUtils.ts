@@ -1127,31 +1127,25 @@ Items Count: ${request.items?.length || 0}
         `;
         requestFolder.file('summary.txt', summary);
         
-        // Generate a simple PDF view
+        // Generate PDF using server-side endpoint for consistency
         try {
-          const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
+          console.log(`Fetching professional PDF for request ${requestId}`);
+          const pdfResponse = await fetch(`/api/requests/${requestId}/pdf`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/pdf'
+            }
           });
           
-          // Add header
-          doc.setFontSize(16);
-          doc.text(`Purchase Request: ${requestNumber}`, 14, 15);
-          
-          // Add basic information
-          doc.setFontSize(11);
-          const startY = 25;
-          const lineHeight = 7;
-          
-          doc.text(`Title: ${request.title || 'N/A'}`, 14, startY);
-          doc.text(`Status: ${request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'N/A'}`, 14, startY + lineHeight);
-          doc.text(`Requester: ${request.requester?.username || 'N/A'}`, 14, startY + lineHeight * 2);
-          doc.text(`Department: ${request.requester?.department || 'N/A'}`, 14, startY + lineHeight * 3);
-          doc.text(`Created: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 4);
-          
-          const pdfOutput = doc.output('arraybuffer');
-          requestFolder.file(`${requestNumber}.pdf`, pdfOutput);
+          if (pdfResponse.ok) {
+            const pdfBlob = await pdfResponse.blob();
+            const pdfArrayBuffer = await pdfBlob.arrayBuffer();
+            requestFolder.file(`${requestNumber}.pdf`, pdfArrayBuffer);
+            console.log(`Successfully added PDF for request ${requestId} (${pdfArrayBuffer.byteLength} bytes)`);
+          } else {
+            console.error(`Failed to fetch PDF for request ${requestId}: ${pdfResponse.status} ${pdfResponse.statusText}`);
+          }
         } catch (pdfError) {
           console.error(`Error generating PDF for request ${requestId}:`, pdfError);
           // Continue without PDF if generation fails
@@ -1180,14 +1174,33 @@ Items Count: ${request.items?.length || 0}
             continue;
           }
           
-          // For now, we'll just add references to the attachments since downloading them 
-          // would require additional fetch operations across the network
-          const attachmentsList = request.attachments.map((attachment: any) => 
-            `${attachment.fileName} (${attachment.fileSize} bytes, ${attachment.fileType})`
-          ).join('\n');
-          
-          attachmentsFolder.file('_attachment_references.txt', 
-            `This file contains references to the attachments for request ${requestNumber}.\n\n${attachmentsList}`);
+          // Download and include actual attachment files
+          for (const attachment of request.attachments) {
+            try {
+              console.log(`Downloading attachment: ${attachment.fileName}`);
+              const attachmentResponse = await fetch(attachment.fileUrl, {
+                method: 'GET',
+                credentials: 'include'
+              });
+              
+              if (attachmentResponse.ok) {
+                const attachmentBlob = await attachmentResponse.blob();
+                const attachmentArrayBuffer = await attachmentBlob.arrayBuffer();
+                attachmentsFolder.file(attachment.fileName, attachmentArrayBuffer);
+                console.log(`Successfully added attachment: ${attachment.fileName} (${attachmentArrayBuffer.byteLength} bytes)`);
+              } else {
+                console.error(`Failed to download attachment ${attachment.fileName}: ${attachmentResponse.status}`);
+                // Add a note about the missing file
+                attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                  `This attachment file (${attachment.fileName}) could not be downloaded.`);
+              }
+            } catch (attachmentError) {
+              console.error(`Error downloading attachment ${attachment.fileName}:`, attachmentError);
+              // Add a note about the error
+              attachmentsFolder.file(`${attachment.fileName}.error.txt`, 
+                `Error downloading attachment: ${attachmentError instanceof Error ? attachmentError.message : String(attachmentError)}`);
+            }
+          }
         }
       } catch (requestError) {
         console.error(`Error processing request ${request.id}:`, requestError);

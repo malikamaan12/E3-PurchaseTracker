@@ -3311,87 +3311,146 @@ export function registerRoutes(app: Express): Server {
         if (wantsBinaryPdf) {
           // Generate and return binary PDF using server-side PDF generation
           try {
-            const { jsPDF } = require('jspdf');
+            const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
             
-            const doc = new jsPDF({
-              orientation: 'portrait',
-              unit: 'mm',
-              format: 'a4'
-            });
-
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            
             // Add header using PDF settings
             const headerTitle = pdfSettingsData?.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
             const headerSubtitle = pdfSettingsData?.headerSubtitle || 'PURCHASE REQUEST';
             
-            doc.setFontSize(16);
-            doc.text(headerTitle, 14, 15);
-            doc.setFontSize(12);
-            doc.text(headerSubtitle, 14, 22);
+            page.drawText(headerTitle, {
+              x: 50,
+              y: 750,
+              size: 16,
+              font: font,
+              color: rgb(0.1, 0.2, 0.4)
+            });
+            
+            page.drawText(headerSubtitle, {
+              x: 50,
+              y: 730,
+              size: 12,
+              font: font,
+              color: rgb(0.1, 0.2, 0.4)
+            });
 
             // Add basic information
-            doc.setFontSize(11);
-            const startY = 35;
-            const lineHeight = 7;
+            let yPosition = 680;
+            const lineHeight = 20;
             
-            doc.text(`Request Number: ${requestWithRelations.requestNumber || 'N/A'}`, 14, startY);
-            doc.text(`Title: ${requestWithRelations.title || 'N/A'}`, 14, startY + lineHeight);
-            doc.text(`Status: ${requestWithRelations.status ? requestWithRelations.status.charAt(0).toUpperCase() + requestWithRelations.status.slice(1) : 'N/A'}`, 14, startY + lineHeight * 2);
-            doc.text(`Requester: ${requestWithRelations.requester?.username || 'N/A'}`, 14, startY + lineHeight * 3);
-            doc.text(`Department: ${requestWithRelations.requester?.department || 'N/A'}`, 14, startY + lineHeight * 4);
-            doc.text(`Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}`, 14, startY + lineHeight * 5);
-            doc.text(`Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}`, 14, startY + lineHeight * 6);
+            const fields = [
+              `Request Number: ${requestWithRelations.requestNumber || 'N/A'}`,
+              `Title: ${requestWithRelations.title || 'N/A'}`,
+              `Status: ${requestWithRelations.status ? requestWithRelations.status.charAt(0).toUpperCase() + requestWithRelations.status.slice(1) : 'N/A'}`,
+              `Requester: ${requestWithRelations.requester?.username || 'N/A'}`,
+              `Department: ${requestWithRelations.requester?.department || 'N/A'}`,
+              `Created: ${requestWithRelations.createdAt ? new Date(requestWithRelations.createdAt).toLocaleDateString() : 'N/A'}`,
+              `Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelations.currency || 'QAR'}`
+            ];
+            
+            fields.forEach((field) => {
+              page.drawText(field, {
+                x: 50,
+                y: yPosition,
+                size: 11,
+                font: font,
+                color: rgb(0, 0, 0)
+              });
+              yPosition -= lineHeight;
+            });
 
-            // Add items table if available
+            // Add items section
             if (requestWithRelations.items && requestWithRelations.items.length > 0) {
-              doc.text('Items:', 14, startY + lineHeight * 8);
-              let itemY = startY + lineHeight * 9;
+              yPosition -= 10;
+              page.drawText('Items:', {
+                x: 50,
+                y: yPosition,
+                size: 12,
+                font: font,
+                color: rgb(0, 0, 0)
+              });
+              yPosition -= lineHeight;
               
               requestWithRelations.items.forEach((item: any, index: number) => {
-                if (itemY > 250) { // Check if we need a new page
-                  doc.addPage();
-                  itemY = 20;
+                if (yPosition < 100) {
+                  // Add new page if needed
+                  const newPage = pdfDoc.addPage([595.28, 841.89]);
+                  yPosition = 750;
                 }
-                doc.text(`${index + 1}. ${item.name} - Qty: ${item.quantity} - Cost: ${item.estimatedCost} ${requestWithRelations.currency || 'QAR'}`, 14, itemY);
+                
+                const itemText = `${index + 1}. ${item.name} - Qty: ${item.quantity} - Cost: ${item.estimatedCost} ${requestWithRelations.currency || 'QAR'}`;
+                page.drawText(itemText, {
+                  x: 50,
+                  y: yPosition,
+                  size: 10,
+                  font: font,
+                  color: rgb(0, 0, 0)
+                });
+                yPosition -= 15;
+                
                 if (item.description) {
-                  doc.text(`   Description: ${item.description}`, 14, itemY + 5);
-                  itemY += 10;
-                } else {
-                  itemY += 7;
+                  page.drawText(`   Description: ${item.description}`, {
+                    x: 50,
+                    y: yPosition,
+                    size: 10,
+                    font: font,
+                    color: rgb(0.3, 0.3, 0.3)
+                  });
+                  yPosition -= 15;
                 }
               });
             }
 
             // Add approvals section
             if (requestWithRelations.approvals && requestWithRelations.approvals.length > 0) {
-              doc.text('Approvals:', 14, itemY + 10);
-              let approvalY = itemY + 17;
+              yPosition -= 10;
+              page.drawText('Approvals:', {
+                x: 50,
+                y: yPosition,
+                size: 12,
+                font: font,
+                color: rgb(0, 0, 0)
+              });
+              yPosition -= lineHeight;
               
               requestWithRelations.approvals.forEach((approval: any) => {
-                if (approvalY > 250) { // Check if we need a new page
-                  doc.addPage();
-                  approvalY = 20;
+                if (yPosition < 100) {
+                  // Add new page if needed
+                  const newPage = pdfDoc.addPage([595.28, 841.89]);
+                  yPosition = 750;
                 }
-                doc.text(`${approval.department}: ${approval.status} ${approval.approver?.username ? `(${approval.approver.username})` : ''}`, 14, approvalY);
-                approvalY += 7;
+                
+                const approvalText = `${approval.department}: ${approval.status} ${approval.approver?.username ? `(${approval.approver.username})` : ''}`;
+                page.drawText(approvalText, {
+                  x: 50,
+                  y: yPosition,
+                  size: 10,
+                  font: font,
+                  color: rgb(0, 0, 0)
+                });
+                yPosition -= 15;
               });
             }
 
-            // Add footer using PDF settings
+            // Add footer
             const footerText = pdfSettingsData?.footerText || 'ALL RIGHTS RESERVED BY E3';
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-              doc.setPage(i);
-              doc.setFontSize(9);
-              doc.text(footerText, 14, 280);
-              doc.text(`Page ${i} of ${pageCount}`, 180, 280);
-            }
+            page.drawText(footerText, {
+              x: 50,
+              y: 50,
+              size: 9,
+              font: font,
+              color: rgb(0.1, 0.2, 0.4)
+            });
             
-            const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+            const pdfBytes = await pdfDoc.save();
             
             // Set appropriate headers for PDF download
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="purchase-request-${requestId}.pdf"`);
-            res.send(pdfBuffer);
+            res.send(Buffer.from(pdfBytes));
           } catch (pdfError) {
             console.error('Error generating binary PDF:', pdfError);
             // Fallback to JSON response if PDF generation fails
@@ -3470,7 +3529,7 @@ export function registerRoutes(app: Express): Server {
         const pdfSettingsData = pdfSettingsResults.length > 0 ? pdfSettingsResults[0] : null;
 
         // Create ZIP file
-        const JSZip = require('jszip');
+        const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
         
         const requestNumber = request[0].requestNumber || `PR-${requestId}`;
@@ -3502,9 +3561,9 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
 
         // Generate and add the professional PDF by calling the existing PDF endpoint
         try {
-          const https = require('https');
-          const http = require('http');
-          const url = require('url');
+          const https = (await import('https')).default;
+          const http = (await import('http')).default;
+          const url = (await import('url')).default;
           
           // Use the existing PDF generation endpoint
           const pdfUrl = `${req.protocol}://${req.get('host')}/api/requests/${requestId}/pdf`;
@@ -3515,6 +3574,7 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
             const pdfReq = requestModule.get(pdfUrl, {
               headers: {
                 'Cookie': req.headers.cookie || '',
+                'Accept': 'application/pdf'
               }
             }, (pdfRes) => {
               if (pdfRes.statusCode !== 200) {
@@ -3553,11 +3613,11 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
             if (attachmentsFolder) {
               for (const attachment of attachments) {
                 try {
-                  const fs = require('fs').promises;
-                  const path = require('path');
+                  const fs = await import('fs/promises');
+                  const path = (await import('path')).default;
                   
                   // Construct the full path to the attachment file
-                  const attachmentPath = path.join(__dirname, '..', 'uploads', path.basename(attachment.fileUrl));
+                  const attachmentPath = path.join(process.cwd(), 'uploads', path.basename(attachment.fileUrl));
                   
                   // Check if file exists and read it
                   try {
