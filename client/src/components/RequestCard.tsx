@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests";
 import { useUser } from "@/hooks/use-user";
 import { DownloadOptions } from "@/components/DownloadOptions";
+import { deleteRequest } from "@/services/requests";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,

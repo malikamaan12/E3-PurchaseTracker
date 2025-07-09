@@ -5978,12 +5978,33 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
           throw new AppError("Request not found", 404);
         }
 
-        // Allow deletion if user is admin or the request owner
-        if (
-          req.user!.role !== "admin" &&
-          request.requesterId !== req.user!.id
-        ) {
-          throw new AppError("Unauthorized to delete this request", 403);
+        // Check if request has any approvals
+        const existingApprovals = await db
+          .select()
+          .from(approvals)
+          .where(
+            and(
+              eq(approvals.requestId, requestId),
+              eq(approvals.status, "approved")
+            )
+          );
+
+        // Permission logic:
+        // 1. If request has approved approvals, only admin can delete
+        // 2. If request has no approved approvals, requester can delete their own request
+        // 3. Admin can always delete
+        const hasApprovedApprovals = existingApprovals.length > 0;
+        
+        if (hasApprovedApprovals) {
+          // Request has approved approvals - only admin can delete
+          if (req.user!.role !== "admin") {
+            throw new AppError("Cannot delete request with approved approvals. Only admin can delete approved requests.", 403);
+          }
+        } else {
+          // Request has no approved approvals - allow requester or admin to delete
+          if (req.user!.role !== "admin" && request.requesterId !== req.user!.id) {
+            throw new AppError("Unauthorized to delete this request", 403);
+          }
         }
 
         // Start deletion process

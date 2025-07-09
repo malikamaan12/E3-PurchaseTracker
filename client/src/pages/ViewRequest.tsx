@@ -87,6 +87,10 @@ export default function ViewRequest() {
       user?.department === "Finance" ||
       additionalApprovers.includes(user?.department || ""));
 
+  // Check if user can delete this request
+  const hasApprovedApprovals = request.approvals && request.approvals.some(approval => approval.status === "approved");
+  const canDelete = user?.role === "admin" || (!hasApprovedApprovals && request.requesterId === user?.id);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -111,7 +115,7 @@ export default function ViewRequest() {
             <CardContent className="p-6">
               <RequestCard
                 request={request}
-                showActions={request.requesterId === user?.id}
+                showActions={canDelete}
                 showApproval={false} 
                 showItemDescriptions={true}
               />
