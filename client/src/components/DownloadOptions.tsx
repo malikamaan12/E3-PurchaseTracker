@@ -216,71 +216,39 @@ export function DownloadOptions({ request, compact = false }: DownloadOptionsPro
         throw new Error('Invalid request ID');
       }
       
-      // Try to fetch ZIP file directly from server first
-      console.log(`Fetching ZIP package for request ${requestId}`);
-      const zipUrl = `/api/requests/${requestId}/zip`;
-      const response = await fetch(zipUrl, {
+      // Use client-side ZIP generation for professional PDF consistency
+      console.log(`Generating client-side ZIP for request ${requestId} with professional PDF`);
+      
+      // Get request data for client-side ZIP generation
+      const dataResponse = await fetch(`/api/requests/${requestId}`, {
         credentials: 'include',
         headers: {
-          'Accept': 'application/zip, application/octet-stream'
+          'Accept': 'application/json'
         }
       });
       
-      if (response.ok) {
-        // Server returned a ZIP file
-        const blob = await response.blob();
-        
-        // Create filename for the zip file
-        const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
-        
-        // Directly initiate download
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }, 100);
-      } else {
-        // Server didn't return a ZIP file, fall back to client-side generation
-        console.log("Server ZIP generation failed, falling back to client-side generation");
-        
-        // Get request data for client-side ZIP generation
-        const dataResponse = await fetch(`/api/requests/${requestId}`, {
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        
-        if (!dataResponse.ok) {
-          throw new Error('Failed to fetch request data');
-        }
-        
-        const requestData = await dataResponse.json();
-        
-        // Create ZIP file client-side
-        const JSZip = (await import('jszip')).default;
-        const zip = new JSZip();
-        
-        const requestNumber = requestData.requestNumber || `PR-${requestId}`;
-        const requestFolder = zip.folder(requestNumber);
-        
-        if (!requestFolder) {
-          throw new Error('Failed to create ZIP folder');
-        }
-        
-        // Add request details as JSON
-        requestFolder.file('request-data.json', JSON.stringify(requestData, null, 2));
-        
-        // Add summary text file
-        const summary = `
+      if (!dataResponse.ok) {
+        throw new Error('Failed to fetch request data');
+      }
+      
+      const requestData = await dataResponse.json();
+      
+      // Create ZIP file client-side
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      const requestNumber = requestData.requestNumber || `PR-${requestId}`;
+      const requestFolder = zip.folder(requestNumber);
+      
+      if (!requestFolder) {
+        throw new Error('Failed to create ZIP folder');
+      }
+      
+      // Add request details as JSON
+      requestFolder.file('request-data.json', JSON.stringify(requestData, null, 2));
+      
+      // Add summary text file
+      const summary = `
 Purchase Request Summary
 =======================
 Request ID: ${requestId}
@@ -292,82 +260,88 @@ Requester: ${requestData.requester?.username || 'N/A'}
 Department: ${requestData.requester?.department || 'N/A'}
 Items Count: ${requestData.items?.length || 0}
 Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QAR'}
-        `;
-        requestFolder.file('summary.txt', summary);
+      `;
+      requestFolder.file('summary.txt', summary);
+      
+      // Generate professional PDF using client-side generator for consistency
+      try {
+        console.log(`Generating professional PDF for request ${requestId}`);
         
-        // Generate professional PDF using client-side generator for consistency
-        try {
-          console.log(`Generating professional PDF for request ${requestId}`);
-          
-          // Fetch PDF settings for the current user
-          const pdfSettingsResponse = await fetch('/api/pdf-settings', {
-            credentials: 'include'
-          });
-          
-          let pdfSettings = {};
-          if (pdfSettingsResponse.ok) {
-            pdfSettings = await pdfSettingsResponse.json();
-          }
-          
-          // Import the professional PDF generator
-          const { generateProfessionalPdfBlob } = await import('@/lib/professionalPdfGenerator');
-          
-          // Generate PDF using professional generator without auto-download
-          const pdfBlob = await generateProfessionalPdfBlob(requestData, pdfSettings, false);
-          
-          requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
-          console.log(`Successfully added professional PDF for request ${requestId}`);
-        } catch (pdfError) {
-          console.error('Error generating professional PDF:', pdfError);
-          // Continue without PDF if generation fails
+        // Fetch PDF settings for the current user
+        const pdfSettingsResponse = await fetch('/api/pdf-settings', {
+          credentials: 'include'
+        });
+        
+        let pdfSettings = {};
+        if (pdfSettingsResponse.ok) {
+          pdfSettings = await pdfSettingsResponse.json();
         }
         
-        // Add attachments
-        if (requestData.attachments && requestData.attachments.length > 0) {
-          const attachmentsFolder = requestFolder.folder('attachments');
-          
-          if (attachmentsFolder) {
-            for (const attachment of requestData.attachments) {
-              try {
-                const attachmentResponse = await fetch(`/api/attachments/${attachment.id}`, {
-                  credentials: 'include'
-                });
-                
-                if (attachmentResponse.ok) {
-                  const attachmentBlob = await attachmentResponse.blob();
-                  attachmentsFolder.file(attachment.fileName, attachmentBlob);
-                }
-              } catch (attachmentError) {
-                console.error(`Error fetching attachment ${attachment.fileName}:`, attachmentError);
-                // Add a note about missing file
+        // Import the professional PDF generator
+        const { generateProfessionalPdfBlob } = await import('@/lib/professionalPdfGenerator');
+        
+        // Generate PDF using professional generator without auto-download
+        const pdfBlob = await generateProfessionalPdfBlob(requestData, pdfSettings, false);
+        
+        requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+        console.log(`Successfully added professional PDF for request ${requestId}`);
+      } catch (pdfError) {
+        console.error('Error generating professional PDF:', pdfError);
+        // Continue without PDF if generation fails
+      }
+      
+      // Add attachments
+      if (requestData.attachments && requestData.attachments.length > 0) {
+        const attachmentsFolder = requestFolder.folder('attachments');
+        
+        if (attachmentsFolder) {
+          for (const attachment of requestData.attachments) {
+            try {
+              console.log(`Downloading attachment: ${attachment.fileName}`);
+              const attachmentResponse = await fetch(attachment.fileUrl, {
+                credentials: 'include'
+              });
+              
+              if (attachmentResponse.ok) {
+                const attachmentBlob = await attachmentResponse.blob();
+                attachmentsFolder.file(attachment.fileName, attachmentBlob);
+                console.log(`Successfully added attachment: ${attachment.fileName}`);
+              } else {
+                console.error(`Failed to download attachment ${attachment.fileName}: ${attachmentResponse.status}`);
+                // Add a note about the missing file
                 attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
                   `This attachment file (${attachment.fileName}) could not be downloaded.`);
               }
+            } catch (attachmentError) {
+              console.error(`Error fetching attachment ${attachment.fileName}:`, attachmentError);
+              // Add a note about missing file
+              attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                `This attachment file (${attachment.fileName}) could not be downloaded.`);
             }
           }
         }
-        
-        // Generate ZIP file
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        
-        // Create filename for the zip file
-        const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
-        
-        // Directly initiate download
-        const url = window.URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }, 100);
       }
+      
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Create filename for the zip file
+      const fileName = `Purchase_Request_${request?.requestNumber || request?.id}_with_attachments.zip`;
+      
+      // Directly initiate download
+      const url = window.URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
       
       // Track successful download
       await trackDownload('zip', true);
