@@ -275,28 +275,136 @@ export async function performExport({
         }
         break;
 
-      // ZIP case would be implemented with similar pattern
-      // This would need to either call a server endpoint or use JSZip library
+      // ZIP case - use client-side generation with professional PDF
       case 'zip':
         try {
-          // ZIP requires a specific server endpoint
-          // Direct users to the ZIP endpoint
-          const zipUrl = `/api/requests/${validatedId}/zip`;
-          console.log(`ZIP export: redirecting to ${zipUrl}`);
+          console.log(`ZIP export: generating client-side with professional PDF for request ${validatedId}`);
           
-          // Open in new tab or window
-          window.open(zipUrl, '_blank');
+          // Get request data for client-side ZIP generation
+          const dataResponse = await fetch(`/api/requests/${validatedId}`, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (!dataResponse.ok) {
+            throw new Error('Failed to fetch request data');
+          }
+          
+          const requestData = await dataResponse.json();
+          
+          // Create ZIP file client-side
+          const JSZip = (await import('jszip')).default;
+          const zip = new JSZip();
+          
+          const requestNumber = requestData.requestNumber || `PR-${validatedId}`;
+          const requestFolder = zip.folder(requestNumber);
+          
+          if (!requestFolder) {
+            throw new Error('Failed to create ZIP folder');
+          }
+          
+          // Add request details as JSON
+          requestFolder.file('request-data.json', JSON.stringify(requestData, null, 2));
+          
+          // Add summary text file
+          const summary = `
+Purchase Request Summary
+=======================
+Request ID: ${validatedId}
+Request Number: ${requestNumber}
+Title: ${requestData.title || 'N/A'}
+Status: ${requestData.status || 'N/A'}
+Created: ${requestData.createdAt ? new Date(requestData.createdAt).toLocaleDateString() : 'N/A'}
+Requester: ${requestData.requester?.username || 'N/A'}
+Department: ${requestData.requester?.department || 'N/A'}
+Items Count: ${requestData.items?.length || 0}
+Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QAR'}
+          `;
+          requestFolder.file('summary.txt', summary);
+          
+          // Generate professional PDF using client-side generator for consistency
+          try {
+            console.log(`Generating professional PDF for request ${validatedId}`);
+            
+            // Fetch PDF settings for the current user
+            const pdfSettingsResponse = await fetch('/api/pdf-settings', {
+              credentials: 'include'
+            });
+            
+            let pdfSettings = {};
+            if (pdfSettingsResponse.ok) {
+              pdfSettings = await pdfSettingsResponse.json();
+            }
+            
+            // Import the professional PDF generator
+            const { generateProfessionalPdfBlob } = await import('@/lib/professionalPdfGenerator');
+            
+            // Generate PDF using professional generator without auto-download
+            const pdfBlob = await generateProfessionalPdfBlob(requestData, pdfSettings, false);
+            
+            requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+            console.log(`Successfully added professional PDF for request ${validatedId}`);
+          } catch (pdfError) {
+            console.error('Error generating professional PDF:', pdfError);
+            // Continue without PDF if generation fails
+          }
+          
+          // Add attachments
+          if (requestData.attachments && requestData.attachments.length > 0) {
+            const attachmentsFolder = requestFolder.folder('attachments');
+            
+            if (attachmentsFolder) {
+              for (const attachment of requestData.attachments) {
+                try {
+                  console.log(`Downloading attachment: ${attachment.fileName}`);
+                  const attachmentResponse = await fetch(attachment.fileUrl, {
+                    credentials: 'include'
+                  });
+                  
+                  if (attachmentResponse.ok) {
+                    const attachmentBlob = await attachmentResponse.blob();
+                    attachmentsFolder.file(attachment.fileName, attachmentBlob);
+                    console.log(`Successfully added attachment: ${attachment.fileName}`);
+                  } else {
+                    console.error(`Failed to download attachment ${attachment.fileName}: ${attachmentResponse.status}`);
+                    // Add a note about the missing file
+                    attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                      `This attachment file (${attachment.fileName}) could not be downloaded.`);
+                  }
+                } catch (attachmentError) {
+                  console.error(`Error fetching attachment ${attachment.fileName}:`, attachmentError);
+                  // Add a note about missing file
+                  attachmentsFolder.file(`${attachment.fileName}.missing.txt`, 
+                    `This attachment file (${attachment.fileName}) could not be downloaded.`);
+                }
+              }
+            }
+          }
+          
+          // Generate ZIP file
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          
+          // Create filename for the zip file
+          const zipFileName = `Purchase_Request_${requestNumber}_with_attachments.zip`;
+          
+          // Import saveAs for file download
+          const { saveAs } = await import('file-saver');
+          
+          // Directly initiate download
+          saveAs(zipBlob, zipFileName);
           
           exportedFile = {
-            content: null, // ZIP handled by server
+            content: zipBlob,
             type: 'application/zip',
-            size: 0 // Unknown size since handled by server
+            size: zipBlob.size
           };
         } catch (zipError) {
           console.error('Error with ZIP export:', zipError);
           return {
             success: false,
-            error: zipError instanceof Error ? zipError.message : 'Failed to initiate ZIP download'
+            error: zipError instanceof Error ? zipError.message : 'Failed to generate ZIP package'
           };
         }
         break;
