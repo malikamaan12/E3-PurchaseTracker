@@ -513,26 +513,13 @@ Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QA
           )}
           PDF
         </button>
-        
-        <button
-          onClick={() => handleExport('zip')}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:text-white dark:hover:text-white dark:hover:bg-accent"
-        >
-          {isLoading && exportType === 'zip' ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <FileArchive className="h-4 w-4 mr-2" />
-          )}
-          ZIP
-        </button>
       </div>
     );
   }
   
   return (
     <div className="w-full">
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <div 
           className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
           onClick={() => !isLoading && handleExport('excel')}
@@ -576,21 +563,6 @@ Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QA
           </div>
           <h3 className="font-medium text-foreground dark:text-white">PDF</h3>
           <p className="text-xs text-muted-foreground text-center mt-1">Professional document format</p>
-        </div>
-        
-        <div 
-          className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer transition-colors bg-background dark:bg-gray-900"
-          onClick={() => !isLoading && handleExport('zip')}
-        >
-          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-2">
-            {isLoading && exportType === 'zip' ? (
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            ) : (
-              <FileArchive className="h-6 w-6 text-primary" />
-            )}
-          </div>
-          <h3 className="font-medium text-foreground dark:text-white">ZIP</h3>
-          <p className="text-xs text-muted-foreground text-center mt-1">With attachments and files</p>
         </div>
       </div>
 

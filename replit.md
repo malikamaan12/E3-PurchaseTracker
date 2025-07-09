@@ -4,6 +4,10 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
+- **ZIP Button Removal**: Removed standalone ZIP button from ExportTabs component as requested - now only available in DownloadOptions dropdown
+- **Export Interface Simplification**: Streamlined export interface to reduce confusion with only Excel, CSV, and PDF options in main export tabs
+- **Grid Layout Optimization**: Updated export grid from 4 columns to 3 columns for better visual balance without ZIP option
+- **Professional ZIP Downloads**: Maintained ZIP functionality in DownloadOptions component with professional PDF generation
 - **PDF Approval Status Complete Fix**: Fully resolved PDF approval display to show ALL expected approvers (mandatory + additional) with accurate status information
 - **Progress Status Removal**: Completely removed progress status indicators from PDFs as requested - no more "1/4" or similar counters in PDF exports
 - **Comprehensive Approver Display**: Both PDF generators now show all mandatory departments (CEO Office, Finance, Director) plus any additional approvers from purchase request
