@@ -3559,46 +3559,14 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
         `;
         requestFolder.file('summary.txt', summary);
 
-        // Generate and add the professional PDF by calling the existing PDF endpoint
-        try {
-          const https = (await import('https')).default;
-          const http = (await import('http')).default;
-          const url = (await import('url')).default;
-          
-          // Use the existing PDF generation endpoint
-          const pdfUrl = `${req.protocol}://${req.get('host')}/api/requests/${requestId}/pdf`;
-          const parsedUrl = url.parse(pdfUrl);
-          const requestModule = parsedUrl.protocol === 'https:' ? https : http;
-          
-          const pdfBuffer = await new Promise((resolve, reject) => {
-            const pdfReq = requestModule.get(pdfUrl, {
-              headers: {
-                'Cookie': req.headers.cookie || '',
-                'Accept': 'application/pdf'
-              }
-            }, (pdfRes) => {
-              if (pdfRes.statusCode !== 200) {
-                reject(new Error(`PDF generation failed with status ${pdfRes.statusCode}`));
-                return;
-              }
-              
-              const chunks: Buffer[] = [];
-              pdfRes.on('data', chunk => chunks.push(chunk));
-              pdfRes.on('end', () => resolve(Buffer.concat(chunks)));
-            });
-            
-            pdfReq.on('error', reject);
-            pdfReq.setTimeout(30000, () => {
-              pdfReq.destroy();
-              reject(new Error('PDF generation timeout'));
-            });
-          });
-          
-          requestFolder.file(`${requestNumber}.pdf`, pdfBuffer);
-        } catch (pdfError) {
-          console.error(`Error generating PDF for request ${requestId}:`, pdfError);
-          // Continue without PDF if generation fails
-        }
+        // Skip PDF generation in server-side ZIP for now
+        // The client-side will handle professional PDF generation
+        console.log(`Server-side ZIP: skipping PDF generation for request ${requestId} - will be handled client-side`);
+        
+        // Add a placeholder file indicating PDF should be generated client-side
+        requestFolder.file('_pdf_generation_note.txt', 
+          `Professional PDF for ${requestNumber} should be generated using client-side professional PDF generator for consistent formatting.`);
+        
 
         // Include attachments if requested and user has permission
         if (includeAttachments === "true") {

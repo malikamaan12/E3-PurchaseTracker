@@ -1127,27 +1127,30 @@ Items Count: ${request.items?.length || 0}
         `;
         requestFolder.file('summary.txt', summary);
         
-        // Generate PDF using server-side endpoint for consistency
+        // Generate professional PDF using client-side generator for consistency
         try {
-          console.log(`Fetching professional PDF for request ${requestId}`);
-          const pdfResponse = await fetch(`/api/requests/${requestId}/pdf`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/pdf'
-            }
+          console.log(`Generating professional PDF for request ${requestId}`);
+          
+          // Fetch PDF settings for the current user
+          const pdfSettingsResponse = await fetch('/api/pdf-settings', {
+            credentials: 'include'
           });
           
-          if (pdfResponse.ok) {
-            const pdfBlob = await pdfResponse.blob();
-            const pdfArrayBuffer = await pdfBlob.arrayBuffer();
-            requestFolder.file(`${requestNumber}.pdf`, pdfArrayBuffer);
-            console.log(`Successfully added PDF for request ${requestId} (${pdfArrayBuffer.byteLength} bytes)`);
-          } else {
-            console.error(`Failed to fetch PDF for request ${requestId}: ${pdfResponse.status} ${pdfResponse.statusText}`);
+          let pdfSettings = {};
+          if (pdfSettingsResponse.ok) {
+            pdfSettings = await pdfSettingsResponse.json();
           }
+          
+          // Import the professional PDF generator
+          const { generateProfessionalPdfBlob } = await import('@/lib/professionalPdfGenerator');
+          
+          // Generate PDF using professional generator without auto-download
+          const pdfBlob = await generateProfessionalPdfBlob(request, pdfSettings, false);
+          
+          requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+          console.log(`Successfully added professional PDF for request ${requestId} (${pdfBlob.size} bytes)`);
         } catch (pdfError) {
-          console.error(`Error generating PDF for request ${requestId}:`, pdfError);
+          console.error(`Error generating professional PDF for request ${requestId}:`, pdfError);
           // Continue without PDF if generation fails
         }
         

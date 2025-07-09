@@ -295,21 +295,31 @@ Total Cost: ${requestData.totalEstimatedCost || 0} ${requestData.currency || 'QA
         `;
         requestFolder.file('summary.txt', summary);
         
-        // Generate and add PDF
+        // Generate professional PDF using client-side generator for consistency
         try {
-          const pdfResponse = await fetch(`/api/requests/${requestId}/pdf`, {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/pdf'
-            }
+          console.log(`Generating professional PDF for request ${requestId}`);
+          
+          // Fetch PDF settings for the current user
+          const pdfSettingsResponse = await fetch('/api/pdf-settings', {
+            credentials: 'include'
           });
           
-          if (pdfResponse.ok) {
-            const pdfBlob = await pdfResponse.blob();
-            requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+          let pdfSettings = {};
+          if (pdfSettingsResponse.ok) {
+            pdfSettings = await pdfSettingsResponse.json();
           }
+          
+          // Import the professional PDF generator
+          const { generateProfessionalPdfBlob } = await import('@/lib/professionalPdfGenerator');
+          
+          // Generate PDF using professional generator without auto-download
+          const pdfBlob = await generateProfessionalPdfBlob(requestData, pdfSettings, false);
+          
+          requestFolder.file(`${requestNumber}.pdf`, pdfBlob);
+          console.log(`Successfully added professional PDF for request ${requestId}`);
         } catch (pdfError) {
-          console.error('Error fetching PDF:', pdfError);
+          console.error('Error generating professional PDF:', pdfError);
+          // Continue without PDF if generation fails
         }
         
         // Add attachments

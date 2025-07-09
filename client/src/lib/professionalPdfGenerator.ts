@@ -21,6 +21,10 @@ function parseColor(colorHex: string): [number, number, number] {
 }
 
 export async function generateProfessionalPdf(request: any, settings: any = {}): Promise<void> {
+  return await generateProfessionalPdfBlob(request, settings, true);
+}
+
+export async function generateProfessionalPdfBlob(request: any, settings: any = {}, autoDownload: boolean = false): Promise<Blob> {
   console.log("Generating professional PDF for request:", request.id);
   console.log("PDF settings received:", settings);
   
@@ -672,9 +676,15 @@ export async function generateProfessionalPdf(request: any, settings: any = {}):
     
     await logPdfAuditEvent(Number(request.id), 'pdf_downloaded', auditDetails, 'admin');
     
-    // Download the file
-    saveAs(pdfBlob, fileName);
-    console.log("Professional PDF generated successfully");
+    // Download the file only if autoDownload is true
+    if (autoDownload) {
+      saveAs(pdfBlob, fileName);
+      console.log("Professional PDF generated successfully");
+    } else {
+      console.log("Professional PDF blob generated successfully");
+    }
+    
+    return pdfBlob;
     
   } catch (error) {
     console.error("Professional PDF generation error:", error);
