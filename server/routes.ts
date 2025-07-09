@@ -6011,6 +6011,11 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
         try {
           // Delete associated records first
           await db.transaction(async (tx) => {
+            // Delete notifications first (foreign key constraint)
+            await tx
+              .delete(notifications)
+              .where(eq(notifications.requestId, requestId));
+
             // Delete approvals
             await tx
               .delete(approvals)
