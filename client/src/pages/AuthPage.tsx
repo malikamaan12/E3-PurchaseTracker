@@ -278,7 +278,7 @@ export default function AuthPage() {
           </CardContent>
         </Card>
         <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400 px-4">
-          Welcome to the E3 Purchase Request System—built with passion by E3 and driven by your success!
+          Smarter systems for every department — and we're just getting started.
         </div>
       </div>
     </div>
