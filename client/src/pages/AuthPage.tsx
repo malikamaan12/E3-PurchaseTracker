@@ -39,8 +39,11 @@ function useLoginLogo() {
         }
         const data = await response.json();
         console.log("Login logo data:", data);
-        if (data.loginLogo) {
+        if (data.loginLogo && typeof data.loginLogo === 'string') {
+          console.log("Setting logo URL:", data.loginLogo.substring(0, 50) + "...");
           setLogoUrl(data.loginLogo);
+        } else {
+          console.log("No valid logo data found");
         }
       } catch (err) {
         console.error("Error fetching login logo:", err);
@@ -117,18 +120,25 @@ export default function AuthPage() {
             {logoLoading ? (
               <div className="h-16 w-40 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
             ) : logoUrl ? (
-              <img
-                src={logoUrl}
-                alt="E3 Logo"
-                className="max-h-16 w-auto object-contain object-center"
-                style={{ 
-                  maxHeight: '64px',
-                  height: 'auto',
-                  width: 'auto',
-                  display: 'block',
-                  imageRendering: 'auto'
-                }}
-              />
+              <div>
+                <img
+                  src={logoUrl}
+                  alt="E3 Logo"
+                  className="max-h-16 w-auto object-contain object-center"
+                  style={{ 
+                    maxHeight: '64px',
+                    height: 'auto',
+                    width: 'auto',
+                    display: 'block',
+                    imageRendering: 'auto'
+                  }}
+                  onLoad={() => console.log("Logo image loaded successfully")}
+                  onError={(e) => {
+                    console.error("Error loading logo image:", e);
+                    console.log("Logo URL that failed:", logoUrl?.substring(0, 50) + "...");
+                  }}
+                />
+              </div>
             ) : (
               <img
                 src={e3WhiteLogo}
