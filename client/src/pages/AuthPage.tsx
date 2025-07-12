@@ -23,6 +23,7 @@ import e3Logo from "../assets/e3-logo.svg";
 import { navigate } from "wouter/use-browser-location";
 // Import e3WhiteLogo
 const e3WhiteLogo = "/images/e3-white-logo.png";
+// Updated welcome message - cache busting comment
 
 // Custom hook to fetch the login logo
 function useLoginLogo() {
@@ -277,8 +278,7 @@ export default function AuthPage() {
           </CardContent>
         </Card>
         <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400 px-4">
-          Welcome to the E3 Purchase Request System—built with passion by E3 and
-          driven by your success!
+          Welcome to the E3 Purchase Request System—built with passion by E3 and driven by your success!
         </div>
       </div>
     </div>
