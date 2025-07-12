@@ -128,13 +128,6 @@ export default function AuthPage() {
                   display: 'block',
                   imageRendering: 'auto'
                 }}
-                onLoad={() => console.log('Logo loaded successfully')}
-                onError={(e) => {
-                  console.error(
-                    "Error loading logo, falling back to white logo",
-                  );
-                  e.currentTarget.src = e3WhiteLogo;
-                }}
               />
             ) : (
               <img
@@ -147,12 +140,6 @@ export default function AuthPage() {
                   width: 'auto',
                   display: 'block',
                   imageRendering: 'auto'
-                }}
-                onError={(e) => {
-                  console.error(
-                    "Error loading fallback logo",
-                  );
-                  e.currentTarget.src = e3Logo;
                 }}
               />
             )}
