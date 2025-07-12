@@ -29,6 +29,7 @@ function useLoginLogo() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchLogoUrl() {
@@ -56,7 +57,11 @@ function useLoginLogo() {
     fetchLogoUrl();
   }, []);
 
-  return { logoUrl, isLoading, error };
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
+
+  return { logoUrl, isLoading, error, imageLoaded, handleImageLoad };
 }
 
 export default function AuthPage() {
@@ -65,7 +70,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useUser();
   const { toast } = useToast();
-  const { logoUrl, isLoading: logoLoading } = useLoginLogo();
+  const { logoUrl, isLoading: logoLoading, imageLoaded, handleImageLoad } = useLoginLogo();
 
   const loginForm = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
@@ -115,37 +120,44 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
-        <div className="flex justify-center mb-6">
-          <div className="h-20 w-full max-w-sm flex items-center justify-center">
-            {logoLoading ? (
-              <div className="h-16 w-40 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
-            ) : logoUrl ? (
-              <div>
-                <img
-                  src={logoUrl}
-                  alt="E3 Logo"
-                  className="max-h-16 w-auto object-contain object-center"
-                  style={{ 
-                    maxHeight: '64px',
-                    height: 'auto',
-                    width: 'auto',
-                    display: 'block',
-                    imageRendering: 'auto'
-                  }}
-                  onLoad={() => console.log("Logo image loaded successfully")}
-                  onError={(e) => {
-                    console.error("Error loading logo image:", e);
-                    console.log("Logo URL that failed:", logoUrl?.substring(0, 50) + "...");
-                  }}
-                />
+        <div className="flex justify-center mb-8">
+          <div className="h-24 w-full max-w-sm flex items-center justify-center">
+            {logoLoading || !imageLoaded ? (
+              <div className="h-20 w-48 bg-transparent flex items-center justify-center">
+                <div className="flex space-x-1">
+                  <div className="h-2 w-2 bg-[#7156a2] rounded-full animate-bounce"></div>
+                  <div className="h-2 w-2 bg-[#35bbba] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="h-2 w-2 bg-[#7156a2] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
               </div>
+            ) : logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="E3 Logo"
+                className={`max-h-20 w-auto object-contain object-center transition-all duration-500 ${imageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                style={{ 
+                  maxHeight: '80px',
+                  height: 'auto',
+                  width: 'auto',
+                  display: 'block',
+                  imageRendering: 'auto'
+                }}
+                onLoad={() => {
+                  console.log("Logo image loaded successfully");
+                  handleImageLoad();
+                }}
+                onError={(e) => {
+                  console.error("Error loading logo image:", e);
+                  console.log("Logo URL that failed:", logoUrl?.substring(0, 50) + "...");
+                }}
+              />
             ) : (
               <img
                 src={e3WhiteLogo}
                 alt="E3 Logo"
-                className="max-h-16 w-auto object-contain object-center"
+                className="max-h-20 w-auto object-contain object-center transition-all duration-500 opacity-100 scale-100"
                 style={{ 
-                  maxHeight: '64px',
+                  maxHeight: '80px',
                   height: 'auto',
                   width: 'auto',
                   display: 'block',
