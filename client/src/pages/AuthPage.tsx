@@ -114,12 +114,12 @@ export default function AuthPage() {
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-6">
           <img
-            src={e3WhiteLogo}
-            alt="E3 White Logo"
+            src={logoUrl || e3WhiteLogo}
+            alt="E3 Logo"
             className="h-20 w-auto object-contain"
             onError={(e) => {
               console.error(
-                "Error loading white logo, falling back to default",
+                "Error loading logo, falling back to default",
               );
               e.currentTarget.src = e3Logo;
             }}
