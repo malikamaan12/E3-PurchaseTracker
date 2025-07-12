@@ -122,7 +122,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-8">
           <div className="h-24 w-full max-w-sm flex items-center justify-center">
-            {logoLoading || !imageLoaded ? (
+            {logoLoading ? (
               <div className="h-20 w-48 bg-transparent flex items-center justify-center">
                 <div className="flex space-x-1">
                   <div className="h-2 w-2 bg-[#7156a2] rounded-full animate-bounce"></div>
