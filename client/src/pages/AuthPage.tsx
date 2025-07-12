@@ -62,7 +62,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useUser();
   const { toast } = useToast();
-  const { logoUrl } = useLoginLogo();
+  const { logoUrl, isLoading: logoLoading } = useLoginLogo();
 
   const loginForm = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
@@ -113,17 +113,29 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/20 dark:to-[#35bbba]/20 dark:bg-gray-900">
       <div className="w-full max-w-md mx-4">
         <div className="flex justify-center mb-6">
-          <img
-            src={logoUrl || e3WhiteLogo}
-            alt="E3 Logo"
-            className="h-20 w-auto object-contain"
-            onError={(e) => {
-              console.error(
-                "Error loading logo, falling back to default",
-              );
-              e.currentTarget.src = e3Logo;
-            }}
-          />
+          <div className="h-20 flex items-center justify-center min-w-0">
+            {logoLoading ? (
+              <div className="h-20 w-48 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></div>
+            ) : (
+              <img
+                src={logoUrl || e3WhiteLogo}
+                alt="E3 Logo"
+                className="h-20 w-auto object-contain"
+                style={{ 
+                  height: '80px', 
+                  width: 'auto',
+                  maxHeight: '80px',
+                  display: 'block'
+                }}
+                onError={(e) => {
+                  console.error(
+                    "Error loading logo, falling back to default",
+                  );
+                  e.currentTarget.src = e3Logo;
+                }}
+              />
+            )}
+          </div>
         </div>
         <Card className="border-[#35bbba]/20 dark:border-[#35bbba]/40 shadow-lg">
           <CardHeader className="border-b border-[#35bbba]/20 dark:border-[#35bbba]/40 bg-gradient-to-r from-[#7156a2]/5 to-[#35bbba]/5 dark:from-[#7156a2]/10 dark:to-[#35bbba]/10">

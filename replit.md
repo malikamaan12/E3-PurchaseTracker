@@ -4,6 +4,7 @@
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
 ## Recent Changes (July 2025)
+- **Login Logo Update**: Successfully replaced white login logo with new colorful E3 logo including proper loading states and consistent positioning
 - **ZIP Button Removal**: Removed standalone ZIP button from ExportTabs component as requested - now only available in DownloadOptions dropdown
 - **Export Interface Simplification**: Streamlined export interface to reduce confusion with only Excel, CSV, and PDF options in main export tabs
 - **Grid Layout Optimization**: Updated export grid from 4 columns to 3 columns for better visual balance without ZIP option
