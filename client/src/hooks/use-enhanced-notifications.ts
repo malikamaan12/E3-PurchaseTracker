@@ -283,8 +283,20 @@ export function useEnhancedNotifications(options?: {
           method = 'PUT';
           body = {};
           break;
+        case 'review':
+        case 'view':
+        case 'update':
+        case 'complete':
         default:
-          throw new Error(`Unsupported action type: ${actionType}`);
+          // For navigation-based actions, mark notification as read and navigate
+          await markAsRead(notificationId);
+          if (requestId) {
+            setLocation(`/requests/${requestId}`);
+          }
+          if (onActionSuccess) {
+            onActionSuccess(actionType, notificationId, {});
+          }
+          return {};
       }
 
       const response = await fetch(endpoint, {
@@ -335,10 +347,10 @@ export function useEnhancedNotifications(options?: {
   const handleNavigate = useCallback((notification: Notification) => {
     if (notification.requestId) {
       setLocation(`/requests/${notification.requestId}`);
-    } else if (notification.link) {
+    } else if (notification.link && notification.link !== '/' && notification.link !== '') {
       setLocation(notification.link);
     } else {
-      setLocation('/dashboard');
+      setLocation('/');
     }
   }, [setLocation]);
 

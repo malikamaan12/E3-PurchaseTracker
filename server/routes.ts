@@ -6335,23 +6335,14 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
           department: string;
         };
 
-        // User can view if they are the requester, an admin, or from a mandatory department
+        // User can view if they are the requester, an admin, a mandatory dept, or approver role
         const isAdmin = user.role === "admin";
         const isRequester = baseRequest.requesterId === user.id;
 
-        // Check if user is an approver
-        const approvalsForUser = await db
-          .select()
-          .from(approvals)
-          .where(
-            and(
-              eq(approvals.requestId, requestId),
-              eq(approvals.department, user.department || ""),
-              eq(approvals.approverId, user.id),
-            ),
-          );
-
-        const isApprover = approvalsForUser.length > 0;
+        // High-level departments and admins have full access to all requests
+        const mandatoryDepts = ["CEO Office", "Finance", "Director"];
+        const hasFullAccess =
+          isAdmin || (user.department && mandatoryDepts.includes(user.department));
 
         // Check if user's department is in additional approvers
         const additionalApprovers = Array.isArray(
@@ -6363,8 +6354,20 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
         const isAdditionalApprover =
           user.department && additionalApprovers.includes(user.department);
 
+        // Check if user has an existing approval record for this request
+        const approvalsForUser = await db
+          .select()
+          .from(approvals)
+          .where(
+            and(
+              eq(approvals.requestId, requestId),
+              eq(approvals.approverId, user.id),
+            ),
+          );
+        const hasApprovalRecord = approvalsForUser.length > 0;
+
         // If user doesn't have permission to view, return 403
-        if (!isAdmin && !isRequester && !isApprover && !isAdditionalApprover) {
+        if (!hasFullAccess && !isRequester && !hasApprovalRecord && !isAdditionalApprover) {
           return res.status(403).json({
             message: "You do not have permission to view this request",
             error: "permission_denied",

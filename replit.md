@@ -3,6 +3,14 @@
 ## Overview
 A modern, lightweight purchase management system optimized for performance and user experience. The application has been streamlined to remove unnecessary animations, heavy effects, and complex dependencies while maintaining a professional, modern interface.
 
+## Recent Changes (March 2026)
+- **Notification Navigation Fix**: Fixed `check-access` endpoint to correctly grant access to CEO Office, Finance, and Director department users (who have full access to all requests), preventing false 403 errors when clicking notifications
+- **SPA Navigation**: Replaced all `window.location.href` in notification components with wouter `setLocation` for smooth single-page navigation without full page reloads
+- **Action Type Handling**: Fixed notification action types (`review`, `view`, `update`, `complete`) that were throwing "Unsupported action type" errors — now correctly navigate to the request page
+- **Broken Link Fixes**: Fixed "View all notifications" link and other notification-related navigation to use proper SPA routing
+- **PDF Brand Colors**: Applied E3 purple (#6F2AE6) and teal (#15CDD8) throughout PDF — section headers, table headers, alternating rows, dividers, and label text
+- **PDF Header/Footer Sizing**: Corrected footer image height from 22mm to 32mm matching actual 1001×151px image ratio at A4 width
+
 ## Recent Changes (July 2025)
 - **Login Logo Update**: Successfully replaced white login logo with new colorful E3 logo including proper loading states and consistent positioning
 - **ZIP Button Removal**: Removed standalone ZIP button from ExportTabs component as requested - now only available in DownloadOptions dropdown

@@ -145,45 +145,31 @@ export function EnhancedNotificationsDropdown({
 
     try {
       if (notification.requestId) {
-        console.log("Notification has requestId:", notification.requestId);
-        
-        // If notification has requestId, check if the request is accessible before navigating
-        // This prevents 403/500 errors when clicking on notifications for requests we can't access
+        // Check access before navigating to avoid landing on a permission error page
         const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
           credentials: 'include'
         });
         
         if (response.ok) {
-          // Request is accessible, navigate to it
-          console.log("Request is accessible, navigating to:", `/requests/${notification.requestId}`);
-          // Use window.location.href for a full page navigation instead of router
-          window.location.href = `/requests/${notification.requestId}`;
+          setLocation(`/requests/${notification.requestId}`);
         } else if (response.status === 403) {
-          // Access denied, show a helpful message and stay on current page
-          console.log("Access denied for request:", notification.requestId);
           toast({
             title: "Access Denied",
             description: "You don't have permission to view this request.",
             variant: "destructive"
           });
         } else {
-          // Handle other errors (like request not found)
-          console.log("Request not found:", notification.requestId);
           toast({
-            title: "Error",
+            title: "Not Found",
             description: "The requested resource could not be found.",
             variant: "destructive"
           });
-          window.location.href = '/dashboard';
+          setLocation('/');
         }
-      } else if (notification.link && notification.link !== '/') {
-        // Only use link if it's not the root path
-        console.log("Using notification link:", notification.link);
-        window.location.href = notification.link;
+      } else if (notification.link && notification.link !== '/' && notification.link !== '') {
+        setLocation(notification.link);
       } else {
-        // Fallback to dashboard if no valid target is available
-        console.log("No valid navigation target, fallback to dashboard");
-        window.location.href = '/dashboard';
+        setLocation('/');
       }
     } catch (error) {
       console.error("Error navigating from notification:", error);
@@ -192,7 +178,7 @@ export function EnhancedNotificationsDropdown({
         description: "There was a problem following this notification. Please try again.",
         variant: "destructive"
       });
-      window.location.href = '/dashboard';
+      setLocation('/');
     }
   };
 
@@ -503,8 +489,7 @@ export function EnhancedNotificationsDropdown({
           onSelect={(e) => {
             e.preventDefault();
             setOpen(false);
-            // Use window.location for a full page navigation
-            window.location.href = '/notifications';
+            setLocation('/notifications');
           }}
           className="justify-center text-center text-sm font-medium"
         >
