@@ -1,6 +1,6 @@
 /**
  * Professional PDF Generator
- * Creates clean, professional PDF documents matching business standards
+ * Uses pre-made header/footer images with content in between
  */
 
 import { jsPDF } from 'jspdf';
@@ -9,7 +9,24 @@ import { format } from 'date-fns';
 import { saveAs } from 'file-saver';
 import { logPdfAuditEvent, generatePdfTrackingId } from './pdfAuditUtils';
 
-// Helper function to parse color from hex to RGB
+// Helper: fetch an image URL and return base64 data URL
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Helper: parse hex color to RGB
 function parseColor(colorHex: string): [number, number, number] {
   if (!colorHex || !colorHex.startsWith('#')) return [0, 0, 0];
   const hex = colorHex.substring(1);
@@ -20,678 +37,447 @@ function parseColor(colorHex: string): [number, number, number] {
   ];
 }
 
+// Layout constants (A4 in mm)
+const PAGE_W = 210;
+const PAGE_H = 297;
+const HEADER_H = 25;   // header image height
+const FOOTER_H = 22;   // footer image height
+const MARGIN = 14;
+const CONTENT_TOP = HEADER_H + 5;        // content starts below header
+const CONTENT_BOTTOM = PAGE_H - FOOTER_H - 5; // content ends above footer
+const CONTENT_W = PAGE_W - MARGIN * 2;
+
 export async function generateProfessionalPdf(request: any, settings: any = {}): Promise<void> {
-  return await generateProfessionalPdfBlob(request, settings, true);
+  await generateProfessionalPdfBlob(request, settings, true);
 }
 
-export async function generateProfessionalPdfBlob(request: any, settings: any = {}, autoDownload: boolean = false): Promise<Blob> {
-  console.log("Generating professional PDF for request:", request.id);
-  console.log("PDF settings received:", settings);
-  
-  try {
-    // Create PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    }) as any;
-    
-    // Page settings - optimized for better space utilization
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margin = 12; // Reduced from 15 to save space
-    const contentWidth = pageWidth - (margin * 2);
-    const footerHeight = 15; // Reserve space for footer
-    const maxContentY = pageHeight - footerHeight;
-    
-    // Apply global font settings
-    const baseFontSize = settings.fontSize || 9;
-    const baseFontFamily = settings.fontFamily || 'helvetica';
-    const textColor = parseColor(settings.textColor || '#000000');
-    
-    let currentY = margin + 2; // Reduced initial spacing
-    
-    // Footer function to add consistently to each page
-    const addFooterToPage = (pdf: any, pageNum: number, config: any) => {
-      const footerY = pageHeight - 15; // Fixed footer position
-      
-      // Add footer text
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 100, 100);
-      pdf.setFont('helvetica', 'italic');
-      
-      const footerText = config.footerText || 'ALL RIGHTS RESERVED';
-      const footerAddress = config.companyAddress || '';
-      
-      pdf.text(footerText, margin, footerY);
-      if (footerAddress) {
-        pdf.text(footerAddress, margin, footerY + 3);
-      }
-      
-      // Page number on the right
-      const totalPages = pdf.internal.getNumberOfPages();
-      const pageText = `Page ${pageNum} of ${totalPages}`;
-      const pageTextWidth = pdf.getTextWidth(pageText);
-      pdf.text(pageText, pageWidth - margin - pageTextWidth, footerY + 3);
-    };
+export async function generateProfessionalPdfBlob(
+  request: any,
+  settings: any = {},
+  autoDownload = false
+): Promise<Blob> {
+  console.log('Generating PDF for request:', request.id);
 
-    // Add function to check if content fits on page and manage footer overlap
-    const checkPageOverflow = (requiredHeight: number) => {
-      if (currentY + requiredHeight > maxContentY) {
-        // Add footer to current page before creating new page
-        addFooterToPage(doc, doc.internal.getCurrentPageInfo().pageNumber, settings);
-        doc.addPage();
-        currentY = margin + 5; // Reset Y position with small top margin
-        return true; // Page break occurred
-      }
-      return false; // Content fits
-    };
-    
-    // Add company logo ABOVE header (optimized sizing and positioning)
-    const logoData = settings.loginLogo || settings.logo || settings.companyLogo;
-    if (logoData) {
-      try {
-        console.log("Adding logo to PDF, logo data type:", typeof logoData);
-        // Optimized logo dimensions - better aspect ratio, reduced size
-        const logoWidth = 25; // Reduced from 30
-        const logoHeight = 12; // Reduced from 20 to prevent squeezing
-        const logoX = margin;
-        const logoY = currentY;
-        
-        // Try to determine image format from data
-        let imageFormat = 'JPEG';
-        if (logoData.startsWith('data:image/png')) {
-          imageFormat = 'PNG';
-        } else if (logoData.startsWith('data:image/jpeg') || logoData.startsWith('data:image/jpg')) {
-          imageFormat = 'JPEG';
-        }
-        
-        doc.addImage(logoData, imageFormat, logoX, logoY, logoWidth, logoHeight);
-        console.log("Logo added successfully - type:", imageFormat, "size:", logoWidth, "x", logoHeight);
-        
-        // Reduced spacing after logo - tighter layout
-        currentY += logoHeight + 4; // Reduced from 8 to 4
-      } catch (error) {
-        console.warn('Could not add logo to PDF:', error);
-        // Continue without logo
-        currentY += 2; // Reduced spacing even when no logo
-      }
+  // Fetch header and footer images
+  const [headerBase64, footerBase64] = await Promise.all([
+    fetchImageAsBase64('/assets/pdf-header.png'),
+    fetchImageAsBase64('/assets/pdf-footer.png'),
+  ]);
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as any;
+
+  const sectionColor = parseColor(settings.sectionHeaderColor || '#1a365d');
+  const textColor: [number, number, number] = [40, 40, 40];
+  const baseFontSize = 9;
+
+  let currentY = CONTENT_TOP;
+
+  // ── Add header + footer images to a page ────────────────────────────────────
+  const addPageImages = (pageNum: number) => {
+    doc.setPage(pageNum);
+
+    // Header image — full page width, top of page
+    if (headerBase64) {
+      doc.addImage(headerBase64, 'PNG', 0, 0, PAGE_W, HEADER_H);
     } else {
-      currentY += 2; // Reduced spacing when no logo
-    }
-    
-    // HEADER SECTION with dynamic settings (optimized for space)
-    const headerColor = parseColor(settings.headerColor || '#000000');
-    const headerFontSize = (settings.headerFontSize || 16) * 0.7; // Further reduced header size
-    const headerFontFamily = settings.headerFontFamily || 'helvetica';
-    
-    doc.setFont(headerFontFamily, 'bold');
-    doc.setFontSize(headerFontSize);
-    doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
-    
-    // Custom header title from admin settings
-    const headerTitle = settings.headerTitle || '';
-    const headerSubtitle = settings.headerSubtitle || 'PURCHASE REQUEST';
-    
-    // Add main header title
-    if (headerTitle) {
-      doc.text(headerTitle, margin, currentY);
-      currentY += headerFontSize * 0.3; // Reduced line spacing
-    }
-    
-    // Add header subtitle with smaller font
-    doc.setFontSize(headerFontSize * 0.65);
-    doc.setFont(headerFontFamily, 'normal');
-    doc.text(headerSubtitle, margin, currentY);
-    
-    // Request info on right side - more compact
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9); // Reduced font size
-    const rightAlign = pageWidth - margin;
-    
-    const prNumber = `PR #${request.id}`;
-    const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
-    
-    // Position request info at same level as header title
-    const requestInfoY = currentY - (headerFontSize * 0.3);
-    doc.text(prNumber, rightAlign - doc.getTextWidth(prNumber), requestInfoY);
-    doc.text(dateText, rightAlign - doc.getTextWidth(dateText), requestInfoY + 4); // Reduced spacing
-    
-    currentY += 8; // Reduced from 15 to save space
-    
-    // Separator line
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margin, currentY, pageWidth - margin, currentY);
-    currentY += 8;
-    
-    // TOP INFO SECTION (Gray background box)
-    doc.setFillColor(245, 245, 245);
-    doc.rect(margin, currentY, contentWidth, 16, 'F');
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    
-    // Two columns layout
-    const leftColX = margin + 3;
-    const rightColX = margin + (contentWidth / 2) + 3;
-    
-    // Left column
-    doc.text('Requester:', leftColX, currentY + 4);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.requester?.username || 'N/A', leftColX + 22, currentY + 4);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Status:', leftColX, currentY + 9);
-    doc.setFont('helvetica', 'bold');
-    doc.text((request.status || 'PENDING').toUpperCase(), leftColX + 22, currentY + 9);
-    
-    // Right column
-    doc.setFont('helvetica', 'normal');
-    doc.text('Department:', rightColX, currentY + 4);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.requester?.department || 'N/A', rightColX + 25, currentY + 4);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Priority:', rightColX, currentY + 9);
-    doc.setFont('helvetica', 'bold');
-    doc.text((request.priority || 'MEDIUM').toUpperCase(), rightColX + 25, currentY + 9);
-    
-    currentY += 22;
-    
-    // BASIC INFORMATION SECTION with admin settings
-    const sectionHeaderColor = parseColor(settings.sectionHeaderColor || '#000000');
-    
-    // Show basic information section if enabled
-    if (settings.showBasicInfo !== false) {
-      // Check if section header will fit
-      checkPageOverflow(25); // Estimated height for section header + content
-      
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('BASIC INFORMATION', margin + 2, currentY + 4);
-    
-    currentY += 10;
-    doc.setTextColor(40, 40, 40);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    
-    // Basic info fields
-    doc.text('Title:', leftColX, currentY);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.title || 'N/A', leftColX + 15, currentY);
-    currentY += 5;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Description:', leftColX, currentY);
-    doc.setFont('helvetica', 'normal');
-    const description = request.description || 'No description provided';
-    // Handle long descriptions
-    const lines = doc.splitTextToSize(description, contentWidth - 25);
-    doc.text(lines, leftColX + 25, currentY);
-    currentY += Math.max(5, lines.length * 3.5);
-    
-    doc.text('Purpose Type:', leftColX, currentY);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.purposeType || 'N/A', leftColX + 25, currentY);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Sub-purpose:', rightColX, currentY);
-    doc.setFont('helvetica', 'bold');
-    doc.text(request.subPurpose?.name || 'N/A', rightColX + 25, currentY);
-    currentY += 5;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Contact Info:', leftColX, currentY);
-    doc.text(`Email: ${request.requester?.email || 'N/A'}`, leftColX + 25, currentY);
-    
-    currentY += 12;
-    } // End of basic information section
-    
-    // VENDOR INFORMATION SECTION
-    if (settings.showVendorInfo !== false && request.vendor && (request.vendor.companyName || request.vendor.name)) {
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('VENDOR INFORMATION', margin + 2, currentY + 4);
-      
-      currentY += 10;
-      doc.setTextColor(40, 40, 40);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      
-      const vendorName = request.vendor.companyName || request.vendor.name;
-      doc.text('Vendor Name:', leftColX, currentY);
-      doc.setFont('helvetica', 'bold');
-      doc.text(vendorName, leftColX + 25, currentY);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text('Contact Person:', rightColX, currentY);
-      doc.setFont('helvetica', 'bold');
-      doc.text(request.vendor.contactPerson || 'N/A', rightColX + 30, currentY);
-      currentY += 5;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text('Email:', leftColX, currentY);
-      doc.text(request.vendor.email || 'N/A', leftColX + 15, currentY);
-      
-      doc.text('Phone:', rightColX, currentY);
-      doc.text(request.vendor.contactNumber || 'N/A', rightColX + 15, currentY);
-      
-      currentY += 12;
-    }
-    
-    // Add watermark if specified and not empty (simplified for browser compatibility)
-    if (settings.watermarkText && settings.watermarkText.trim() !== '') {
-      doc.setTextColor(220, 220, 220); // Light gray instead of opacity
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(60);
-      
-      // Center the watermark
-      const watermarkWidth = doc.getTextWidth(settings.watermarkText);
-      const watermarkX = (pageWidth - watermarkWidth * 0.7) / 2;
-      const watermarkY = pageHeight / 2;
-      
-      doc.saveGraphicsState();
-      // Rotate and place watermark text
-      doc.text(settings.watermarkText, watermarkX, watermarkY);
-      doc.restoreGraphicsState();
-      
-      // Reset text color
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    }
-    
-    // ITEMS SECTION
-    if (settings.showItems !== false && request.items && request.items.length > 0) {
-      // Estimate space needed for items table
-      const tableHeight = (request.items.length + 1) * 5 + 20; // Estimate height
-      checkPageOverflow(tableHeight);
-      
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ITEMS', margin + 2, currentY + 4);
-      
-      currentY += 10;
-      
-      const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
-      const tableBody = request.items.map((item: any) => {
-        const quantity = Number(item.quantity) || 0;
-        const unitCost = Number(item.estimatedCost) || 0;
-        const totalCost = quantity * unitCost;
-        
-        return [
-          item.name || 'N/A',
-          item.description || 'N/A',
-          quantity.toString(),
-          `${request.currency || 'QAR'} ${unitCost.toFixed(2)}`,
-          `${request.currency || 'QAR'} ${totalCost.toFixed(2)}`
-        ];
-      });
-
-      // @ts-ignore
-      autoTable(doc, {
-        head: tableHead,
-        body: tableBody,
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        styles: { 
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: [40, 40, 40],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
-        },
-        headStyles: { 
-          fillColor: parseColor(settings.tableHeaderColor || '#f0f0f0'),
-          textColor: [40, 40, 40],
-          fontStyle: 'bold',
-          fontSize: 8
-        },
-        columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 15, halign: 'center' },
-          3: { cellWidth: 30, halign: 'right' },
-          4: { cellWidth: 30, halign: 'right' }
-        }
-      });
-      
-      // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 5;
-      
-      // Financial summary
-      const itemsTotal = request.items.reduce((sum: number, item: any) => {
-        return sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0);
-      }, 0);
-      
-      const summaryX = pageWidth - margin - 65;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text('Items Total:', summaryX, currentY);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${request.currency || 'QAR'} ${itemsTotal.toFixed(2)}`, summaryX + 30, currentY);
-      currentY += 4;
-      
-      if (request.freightAmount) {
-        doc.setFont('helvetica', 'normal');
-        doc.text('Freight:', summaryX, currentY);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${request.currency || 'QAR'} ${Number(request.freightAmount).toFixed(2)}`, summaryX + 30, currentY);
-        currentY += 4;
-      }
-      
-      const totalCost = request.totalEstimatedCost || (itemsTotal + (Number(request.freightAmount) || 0));
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('Total Cost:', summaryX, currentY);
-      doc.text(`${request.currency || 'QAR'} ${Number(totalCost).toFixed(2)}`, summaryX + 30, currentY);
-      
-      currentY += 12;
-    }
-    
-    // ATTACHED DOCUMENTS SECTION
-    if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
-      // Check space for attachments section
-      const attachmentHeight = request.attachments.length * 4 + 15;
-      checkPageOverflow(attachmentHeight);
-      
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ATTACHED DOCUMENTS', margin + 2, currentY + 4);
-      
-      currentY += 10;
-      
-      const attachmentHead = [['Document Name', 'Type', 'Size']];
-      const attachmentBody = request.attachments.map((attachment: any) => [
-        attachment.fileName || 'N/A',
-        attachment.fileType?.split('/')[1] || 'Unknown',
-        attachment.fileSize ? `${(attachment.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
-      ]);
-
-      // @ts-ignore
-      autoTable(doc, {
-        head: attachmentHead,
-        body: attachmentBody,
-        startY: currentY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        styles: { 
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: [40, 40, 40],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
-        },
-        headStyles: { 
-          fillColor: parseColor(settings.tableHeaderColor || '#f0f0f0'),
-          textColor: [40, 40, 40],
-          fontStyle: 'bold',
-          fontSize: 8
-        }
-      });
-      
-      // @ts-ignore
-      currentY = doc.lastAutoTable.finalY + 12;
+      // Fallback colour bar
+      doc.setFillColor(111, 42, 230);
+      doc.rect(0, 0, PAGE_W, HEADER_H, 'F');
     }
 
-    // APPROVAL STATUS SECTION
-    if (settings.showSignatures !== false) {
-      // Check space for approval section
-      const approvalHeight = (request.approvals?.length || 0) * 4 + 30;
-      checkPageOverflow(approvalHeight);
-      
-      doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-      doc.rect(margin, currentY, contentWidth, 6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('APPROVAL STATUS', margin + 2, currentY + 4);
-      
-      currentY += 12;
-      
-      // Current approval status display
-      const approvals = request.approvals || [];
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(baseFontSize);
-      
-      if (approvals.length === 0) {
-        doc.text('• No approvals submitted yet', margin + 2, currentY);
-        currentY += 6;
-      } else {
-        // Calculate approval statistics (use original approvals for status calculations)
-        const approvedCount = approvals.filter(a => a.status?.toLowerCase() === 'approved').length;
-        const rejectedCount = approvals.filter(a => a.status?.toLowerCase() === 'rejected').length;
-        const pendingCount = approvals.filter(a => a.status?.toLowerCase() === 'pending' || !a.status).length;
-        const changesCount = approvals.filter(a => a.status?.toLowerCase() === 'changes_requested').length;
-        
-        // Overall status determination
-        let overallStatus = 'In Progress';
-        let statusColor = [0, 102, 204]; // Blue
-        
-        if (rejectedCount > 0) {
-          overallStatus = 'Rejected';
-          statusColor = [220, 53, 69]; // Red
-        } else if (pendingCount === 0 && approvedCount > 0 && approvedCount === approvals.length) {
-          overallStatus = 'Fully Approved';
-          statusColor = [46, 174, 52]; // Green
-        } else if (changesCount > 0) {
-          overallStatus = 'Changes Requested';
-          statusColor = [255, 193, 7]; // Amber
-        }
-        
-        // Display overall status
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-        doc.text(`Overall Status: ${overallStatus}`, margin + 2, currentY);
-        currentY += 8;
-        
-        // Build comprehensive approver list including all required departments
-        const requiredDepartments = ['CEO Office', 'Finance', 'Director'];
-        const additionalApprovers = Array.isArray(request.additionalApprovers) ? request.additionalApprovers : 
-          (typeof request.additionalApprovers === 'string' ? JSON.parse(request.additionalApprovers) : []);
-        
-        // Create comprehensive approver list
-        const allExpectedApprovers = [];
-        
-        // Add required departments
-        requiredDepartments.forEach(dept => {
-          const existingApproval = approvals.find(a => a.approver?.department === dept);
-          if (existingApproval) {
-            allExpectedApprovers.push(existingApproval);
-          } else {
-            // Add placeholder for missing required approver with proper status
-            allExpectedApprovers.push({
-              approver: { department: dept, username: '' },
-              status: 'pending',
-              processedAt: null,
-              comments: ''
-            });
-          }
-        });
-        
-        // Add additional approvers
-        additionalApprovers.forEach(deptName => {
-          const existingApproval = approvals.find(a => a.approver?.department === deptName);
-          if (existingApproval) {
-            allExpectedApprovers.push(existingApproval);
-          } else {
-            // Add placeholder for missing additional approver with proper status
-            allExpectedApprovers.push({
-              approver: { department: deptName, username: '' },
-              status: 'pending',
-              processedAt: null,
-              comments: ''
-            });
-          }
-        });
-        
-        // Progress status removed as requested - not required
-        
-        // Individual approval details in a professional table format
-        currentY += 4;
-        
-        // Manual table layout since autoTable is not available
-        const tableStartY = currentY;
-        const colWidths = [35, 35, 30, 25, 55]; // Column widths
-        const rowHeight = 6;
-        let currentX = margin + 2;
-          
-          // Draw table header with proper styling to match PDF theme
-          doc.setFillColor(sectionHeaderColor[0], sectionHeaderColor[1], sectionHeaderColor[2]);
-          doc.rect(currentX, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
-          
-          doc.setTextColor(255, 255, 255);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(baseFontSize - 1);
-          
-          const headers = ['Department', 'Approver', 'Status', 'Date', 'Comments'];
-          let headerX = currentX + 2;
-          headers.forEach((header, i) => {
-            doc.text(header, headerX, currentY + 4);
-            headerX += colWidths[i];
-          });
-          
-          currentY += rowHeight;
-          
-          // Show ALL expected approvals (both completed and pending)
-          allExpectedApprovers.forEach((approval, rowIndex) => {
-            const status = (approval.status || 'pending').toUpperCase();
-            
-            // Use consistent black text for all statuses, no icons or colors
-            const statusColor = [0, 0, 0]; // Black text
-            
-            // Display approver username if assigned, otherwise show department name for pending approvals
-            const approverName = approval.approver?.username && approval.approver.username !== ''
-              ? approval.approver.username 
-              : approval.approver?.department || '';
-            const department = approval.approver?.department || '';
-            const processedDate = approval.processedAt ? 
-              new Date(approval.processedAt).toLocaleDateString('en-GB') : '-';
-            const comments = approval.comments ? 
-              (approval.comments.length > 35 ? approval.comments.substring(0, 35) + '...' : approval.comments) 
-              : '-';
-            
-            // Alternate row background
-            if (rowIndex % 2 === 1) {
-              doc.setFillColor(248, 250, 252);
-              doc.rect(currentX, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
-            }
-            
-            // Draw table borders
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.1);
-            let borderX = currentX;
-            colWidths.forEach(width => {
-              doc.line(borderX, currentY, borderX, currentY + rowHeight);
-              borderX += width;
-            });
-            doc.line(borderX, currentY, borderX, currentY + rowHeight); // Right border
-            doc.line(currentX, currentY + rowHeight, currentX + colWidths.reduce((a, b) => a + b, 0), currentY + rowHeight); // Bottom border
-            
-            // Draw cell content with consistent fonts
-            const cellData = [department, approverName, status, processedDate, comments];
-            let cellX = currentX + 2;
-            
-            cellData.forEach((text, i) => {
-              // Set consistent font for all cells
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(baseFontSize - 1);
-              
-              // Use consistent black text for all columns
-              doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-              
-              // Truncate text if it's too long for the cell
-              const maxWidth = colWidths[i] - 4;
-              const textWidth = doc.getTextWidth(text);
-              let displayText = text;
-              
-              if (textWidth > maxWidth) {
-                while (doc.getTextWidth(displayText + '...') > maxWidth && displayText.length > 0) {
-                  displayText = displayText.slice(0, -1);
-                }
-                displayText += '...';
-              }
-              
-              doc.text(displayText, cellX, currentY + 4);
-              cellX += colWidths[i];
-            });
-            
-            currentY += rowHeight;
-          });
-          
-          // Draw table outer border
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.2);
-          doc.rect(currentX, tableStartY, colWidths.reduce((a, b) => a + b, 0), (allExpectedApprovers.length + 1) * rowHeight);
-          
-          currentY += 8; // Add spacing after table
-        }
-      }
-      
-      // Reset text color
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      currentY += 5;
-    
-    // Add footer to all pages using the proper footer system
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      addFooterToPage(doc, i, settings);
-    }
-    
-    // Save the PDF
-    const pdfBlob = doc.output('blob');
-    const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
-    
-    // Generate tracking ID and log audit event
-    const trackingId = generatePdfTrackingId(request.id);
-    const auditDetails = {
-      trackingId,
-      exportType: 'single_pdf',
-      fileName,
-      fileSize: pdfBlob.size,
-      timestamp: new Date().toISOString(),
-      pageCount: doc.internal.getNumberOfPages(),
-      roleType: 'admin',
-      type: 'admin'
-    };
-    
-    // Log the audit event
-    console.log("Sending audit log payload:", JSON.stringify({
-      requestId: request.id,
-      action: 'pdf_downloaded',
-      type: 'admin',
-      details: auditDetails
-    }));
-    
-    await logPdfAuditEvent(Number(request.id), 'pdf_downloaded', auditDetails, 'admin');
-    
-    // Download the file only if autoDownload is true
-    if (autoDownload) {
-      saveAs(pdfBlob, fileName);
-      console.log("Professional PDF generated successfully");
+    // Footer image — full page width, bottom of page
+    if (footerBase64) {
+      doc.addImage(footerBase64, 'PNG', 0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H);
     } else {
-      console.log("Professional PDF blob generated successfully");
+      doc.setFillColor(111, 42, 230);
+      doc.rect(0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H, 'F');
     }
-    
-    return pdfBlob;
-    
-  } catch (error) {
-    console.error("Professional PDF generation error:", error);
-    throw error;
+
+    // Page number (inside footer area)
+    const totalPages = doc.internal.getNumberOfPages();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    const pageLabel = `Page ${pageNum} of ${totalPages}`;
+    doc.text(pageLabel, PAGE_W - MARGIN - doc.getTextWidth(pageLabel), PAGE_H - 6);
+    doc.setTextColor(...textColor);
+  };
+
+  // ── Add a new page and immediately stamp header/footer ─────────────────────
+  const addNewPage = () => {
+    doc.addPage();
+    currentY = CONTENT_TOP;
+    // Images applied at end for all pages together
+  };
+
+  // ── Check if content fits; if not, start a new page ────────────────────────
+  const ensureSpace = (height: number) => {
+    if (currentY + height > CONTENT_BOTTOM) {
+      addNewPage();
+      return true;
+    }
+    return false;
+  };
+
+  // ── Section header bar ─────────────────────────────────────────────────────
+  const drawSectionHeader = (title: string) => {
+    ensureSpace(14);
+    doc.setFillColor(sectionColor[0], sectionColor[1], sectionColor[2]);
+    doc.rect(MARGIN, currentY, CONTENT_W, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(title, MARGIN + 2, currentY + 4);
+    doc.setTextColor(...textColor);
+    doc.setFont('helvetica', 'normal');
+    currentY += 9;
+  };
+
+  // ── Label + value row helper ──────────────────────────────────────────────
+  const drawRow = (label: string, value: string, x = MARGIN + 2, labelW = 28) => {
+    ensureSpace(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(baseFontSize);
+    doc.setTextColor(...textColor);
+    doc.text(label, x, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(value || 'N/A', x + labelW, currentY);
+    doc.setFont('helvetica', 'normal');
+    currentY += 5;
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 1. TITLE ROW  (PR number + date — inside content area, below header)
+  // ══════════════════════════════════════════════════════════════════════════
+  const prNumber = `PR #${request.id}`;
+  const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...textColor);
+  doc.text('PURCHASE REQUEST', MARGIN, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(prNumber, PAGE_W - MARGIN - doc.getTextWidth(prNumber), currentY);
+  currentY += 5;
+  doc.text(dateText, PAGE_W - MARGIN - doc.getTextWidth(dateText), currentY);
+  currentY += 3;
+
+  // Thin divider
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN, currentY, PAGE_W - MARGIN, currentY);
+  currentY += 5;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 2. REQUESTER INFO BOX
+  // ══════════════════════════════════════════════════════════════════════════
+  doc.setFillColor(245, 247, 250);
+  doc.rect(MARGIN, currentY, CONTENT_W, 16, 'F');
+
+  const leftX = MARGIN + 3;
+  const rightX = MARGIN + CONTENT_W / 2 + 3;
+
+  doc.setFontSize(baseFontSize);
+  doc.setTextColor(80, 80, 80);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Requester:', leftX, currentY + 5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(request.requester?.username || 'N/A', leftX + 22, currentY + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Status:', leftX, currentY + 11);
+  doc.setFont('helvetica', 'bold');
+  doc.text((request.status || 'PENDING').toUpperCase(), leftX + 22, currentY + 11);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Department:', rightX, currentY + 5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(request.requester?.department || 'N/A', rightX + 26, currentY + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Priority:', rightX, currentY + 11);
+  doc.setFont('helvetica', 'bold');
+  doc.text((request.priority || 'MEDIUM').toUpperCase(), rightX + 26, currentY + 11);
+
+  doc.setTextColor(...textColor);
+  currentY += 20;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 3. BASIC INFORMATION
+  // ══════════════════════════════════════════════════════════════════════════
+  if (settings.showBasicInfo !== false) {
+    drawSectionHeader('BASIC INFORMATION');
+
+    doc.setFontSize(baseFontSize);
+    doc.setTextColor(...textColor);
+
+    // Title
+    doc.setFont('helvetica', 'normal');
+    doc.text('Title:', leftX, currentY);
+    doc.setFont('helvetica', 'bold');
+    const titleLines = doc.splitTextToSize(request.title || 'N/A', CONTENT_W - 20);
+    doc.text(titleLines, leftX + 15, currentY);
+    currentY += Math.max(5, titleLines.length * 4.5);
+
+    // Description
+    doc.setFont('helvetica', 'normal');
+    doc.text('Description:', leftX, currentY);
+    const descLines = doc.splitTextToSize(request.description || 'No description', CONTENT_W - 28);
+    doc.text(descLines, leftX + 28, currentY);
+    currentY += Math.max(5, descLines.length * 4.5);
+
+    // Purpose / Sub-purpose
+    doc.setFont('helvetica', 'normal');
+    doc.text('Purpose Type:', leftX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.purposeType || 'N/A', leftX + 28, currentY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sub-purpose:', rightX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.subPurpose?.name || 'N/A', rightX + 26, currentY);
+    currentY += 5;
+
+    // Contact info
+    if (request.requester?.email) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Contact:', leftX, currentY);
+      doc.text(`Email: ${request.requester.email}`, leftX + 18, currentY);
+      currentY += 5;
+    }
+
+    currentY += 4;
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4. VENDOR INFORMATION
+  // ══════════════════════════════════════════════════════════════════════════
+  if (settings.showVendorInfo !== false && request.vendor &&
+      (request.vendor.companyName || request.vendor.name)) {
+    drawSectionHeader('VENDOR INFORMATION');
+
+    const vendorName = request.vendor.companyName || request.vendor.name;
+    doc.setFontSize(baseFontSize);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Vendor Name:', leftX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(vendorName, leftX + 26, currentY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Contact Person:', rightX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.vendor.contactPerson || 'N/A', rightX + 30, currentY);
+    currentY += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Email:', leftX, currentY);
+    doc.text(request.vendor.email || 'N/A', leftX + 14, currentY);
+
+    doc.text('Phone:', rightX, currentY);
+    doc.text(request.vendor.contactNumber || 'N/A', rightX + 14, currentY);
+    currentY += 10;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 5. ITEMS TABLE
+  // ══════════════════════════════════════════════════════════════════════════
+  if (settings.showItems !== false && request.items && request.items.length > 0) {
+    ensureSpace(20 + request.items.length * 8);
+    drawSectionHeader('ITEMS');
+
+    const tableHead = [['Item', 'Description', 'Qty', 'Unit Cost', 'Total']];
+    const tableBody = request.items.map((item: any) => {
+      const qty = Number(item.quantity) || 0;
+      const unit = Number(item.estimatedCost) || 0;
+      return [
+        item.name || 'N/A',
+        item.description || '',
+        qty.toString(),
+        `${request.currency || 'QAR'} ${unit.toFixed(2)}`,
+        `${request.currency || 'QAR'} ${(qty * unit).toFixed(2)}`
+      ];
+    });
+
+    // @ts-ignore
+    autoTable(doc, {
+      head: tableHead,
+      body: tableBody,
+      startY: currentY,
+      margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: sectionColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 36 },
+        1: { cellWidth: 62 },
+        2: { cellWidth: 14, halign: 'center' },
+        3: { cellWidth: 28, halign: 'right' },
+        4: { cellWidth: 28, halign: 'right' }
+      }
+    });
+
+    // @ts-ignore
+    currentY = doc.lastAutoTable.finalY + 4;
+
+    // Totals
+    const itemsTotal = request.items.reduce((sum: number, item: any) =>
+      sum + (Number(item.quantity) || 0) * (Number(item.estimatedCost) || 0), 0);
+    const freight = Number(request.freightAmount) || 0;
+    const grandTotal = request.totalEstimatedCost || (itemsTotal + freight);
+    const summaryX = PAGE_W - MARGIN - 65;
+
+    ensureSpace(18);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...textColor);
+    doc.text('Items Total:', summaryX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${request.currency || 'QAR'} ${itemsTotal.toFixed(2)}`, summaryX + 30, currentY);
+    currentY += 4;
+
+    if (freight > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Freight:', summaryX, currentY);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${request.currency || 'QAR'} ${freight.toFixed(2)}`, summaryX + 30, currentY);
+      currentY += 4;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Total Cost:', summaryX, currentY);
+    doc.text(`${request.currency || 'QAR'} ${Number(grandTotal).toFixed(2)}`, summaryX + 30, currentY);
+    currentY += 10;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 6. ATTACHMENTS
+  // ══════════════════════════════════════════════════════════════════════════
+  if (settings.showAttachments !== false && request.attachments && request.attachments.length > 0) {
+    ensureSpace(15 + request.attachments.length * 6);
+    drawSectionHeader('ATTACHED DOCUMENTS');
+
+    // @ts-ignore
+    autoTable(doc, {
+      head: [['Document Name', 'Type', 'Size']],
+      body: request.attachments.map((a: any) => [
+        a.fileName || 'N/A',
+        a.fileType?.split('/')[1] || 'Unknown',
+        a.fileSize ? `${(a.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A'
+      ]),
+      startY: currentY,
+      margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40] },
+      headStyles: { fillColor: sectionColor, textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+
+    // @ts-ignore
+    currentY = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 7. APPROVAL STATUS
+  // ══════════════════════════════════════════════════════════════════════════
+  if (settings.showSignatures !== false) {
+    const approvals = request.approvals || [];
+    const requiredDepts = ['CEO Office', 'Finance', 'Director'];
+    const additionalApprovers = Array.isArray(request.additionalApprovers)
+      ? request.additionalApprovers
+      : (typeof request.additionalApprovers === 'string'
+          ? (() => { try { return JSON.parse(request.additionalApprovers); } catch { return []; } })()
+          : []);
+
+    const allApprovers: any[] = [];
+    requiredDepts.forEach(dept => {
+      const existing = approvals.find((a: any) => a.approver?.department === dept);
+      allApprovers.push(existing || { approver: { department: dept, username: '' }, status: 'pending', processedAt: null, comments: '' });
+    });
+    additionalApprovers.forEach((dept: string) => {
+      const existing = approvals.find((a: any) => a.approver?.department === dept);
+      allApprovers.push(existing || { approver: { department: dept, username: '' }, status: 'pending', processedAt: null, comments: '' });
+    });
+
+    ensureSpace(20 + allApprovers.length * 7);
+    drawSectionHeader('APPROVAL STATUS');
+
+    // Overall status line
+    const approvedCount = approvals.filter((a: any) => a.status?.toLowerCase() === 'approved').length;
+    const rejectedCount = approvals.filter((a: any) => a.status?.toLowerCase() === 'rejected').length;
+    const pendingCount = approvals.filter((a: any) => !a.status || a.status?.toLowerCase() === 'pending').length;
+    const changesCount = approvals.filter((a: any) => a.status?.toLowerCase() === 'changes_requested').length;
+
+    let overallStatus = 'In Progress';
+    let statusRGB: [number, number, number] = [0, 102, 204];
+    if (rejectedCount > 0) { overallStatus = 'Rejected'; statusRGB = [220, 53, 69]; }
+    else if (pendingCount === 0 && approvedCount > 0) { overallStatus = 'Fully Approved'; statusRGB = [46, 174, 52]; }
+    else if (changesCount > 0) { overallStatus = 'Changes Requested'; statusRGB = [255, 150, 0]; }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...statusRGB);
+    doc.text(`Overall Status: ${overallStatus}`, MARGIN + 2, currentY);
+    doc.setTextColor(...textColor);
+    currentY += 6;
+
+    // Approvals table
+    // @ts-ignore
+    autoTable(doc, {
+      head: [['Department', 'Approver', 'Status', 'Date', 'Comments']],
+      body: allApprovers.map((a: any) => [
+        a.approver?.department || '',
+        a.approver?.username && a.approver.username !== '' ? a.approver.username : (a.approver?.department || ''),
+        (a.status || 'PENDING').toUpperCase(),
+        a.processedAt ? new Date(a.processedAt).toLocaleDateString('en-GB') : '-',
+        a.comments ? (a.comments.length > 40 ? a.comments.substring(0, 40) + '…' : a.comments) : '-'
+      ]),
+      startY: currentY,
+      margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: sectionColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 51 }
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+
+    // @ts-ignore
+    currentY = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Stamp header + footer images on EVERY page
+  // ══════════════════════════════════════════════════════════════════════════
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    addPageImages(i);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Output
+  // ══════════════════════════════════════════════════════════════════════════
+  const pdfBlob = doc.output('blob');
+  const fileName = `purchase-request-${request.id}-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.pdf`;
+
+  const trackingId = generatePdfTrackingId(request.id);
+  await logPdfAuditEvent(Number(request.id), 'pdf_downloaded', {
+    trackingId, exportType: 'single_pdf', fileName,
+    fileSize: pdfBlob.size, timestamp: new Date().toISOString(),
+    pageCount: totalPages, roleType: 'admin', type: 'admin'
+  }, 'admin');
+
+  if (autoDownload) {
+    saveAs(pdfBlob, fileName);
+    console.log('PDF generated successfully');
+  }
+
+  return pdfBlob;
 }
