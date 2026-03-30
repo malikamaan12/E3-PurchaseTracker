@@ -693,11 +693,11 @@ export async function exportRequestToPDFOld(request: any, roleForAudit: 'user' |
     
     doc.setFontSize(fontSize - 2);
     doc.setTextColor(100, 100, 100);
-    const footerInfo = settings.footerText || 'Phone: +974 30488565 | Email: info@eeegq.com | Web: www.eeegq.com';
-    const footerAddress = settings.footerAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
+    const footerInfo = settings.footerText || '';
+    const footerAddress = settings.footerAddress || '';
     
-    doc.text(footerInfo, marginLeft, currentY);
-    doc.text(footerAddress, marginLeft, currentY + 5);
+    if (footerInfo) doc.text(footerInfo, marginLeft, currentY);
+    if (footerAddress) doc.text(footerAddress, marginLeft, currentY + 5);
     
     // Page number
     const pageCount = doc.internal.getNumberOfPages();

@@ -3318,16 +3318,18 @@ export function registerRoutes(app: Express): Server {
             const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
             
             // Add header using PDF settings
-            const headerTitle = pdfSettingsData?.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
+            const headerTitle = pdfSettingsData?.headerTitle || '';
             const headerSubtitle = pdfSettingsData?.headerSubtitle || 'PURCHASE REQUEST';
             
-            page.drawText(headerTitle, {
-              x: 50,
-              y: 750,
-              size: 16,
-              font: font,
-              color: rgb(0.1, 0.2, 0.4)
-            });
+            if (headerTitle) {
+              page.drawText(headerTitle, {
+                x: 50,
+                y: 750,
+                size: 16,
+                font: font,
+                color: rgb(0.1, 0.2, 0.4)
+              });
+            }
             
             page.drawText(headerSubtitle, {
               x: 50,
@@ -3436,7 +3438,7 @@ export function registerRoutes(app: Express): Server {
             }
 
             // Add footer
-            const footerText = pdfSettingsData?.footerText || 'ALL RIGHTS RESERVED BY E3';
+            const footerText = pdfSettingsData?.footerText || 'ALL RIGHTS RESERVED';
             page.drawText(footerText, {
               x: 50,
               y: 50,
@@ -4466,10 +4468,10 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
       // Return default settings if none exist
       if (settings.length === 0) {
         return res.json({
-          headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerTitle: "",
           headerSubtitle: "PURCHASE REQUEST",
           headerColor: "#1a365d",
-          footerText: "ALL RIGHTS RESERVED BY E3",
+          footerText: "ALL RIGHTS RESERVED",
           footerColor: "#1a365d",
           pageNumbering: true,
           watermarkOpacity: 10,
@@ -4631,10 +4633,10 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
       const [newSettings] = await db
         .insert(pdfSettings)
         .values({
-          headerTitle: headerTitle || "EVENTS & ENTERTAINMENT ENTERPRISES",
+          headerTitle: headerTitle || "",
           headerSubtitle: headerSubtitle || "PURCHASE REQUEST",
           headerColor: headerColor || "#1a365d",
-          footerText: footerText || "ALL RIGHTS RESERVED BY E3",
+          footerText: footerText || "ALL RIGHTS RESERVED",
           footerColor: footerColor || "#1a365d",
           pageNumbering: Boolean(pageNumbering),
           pageNumberPosition: pageNumberPosition || "bottom-right",
@@ -4780,7 +4782,7 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
               headerTitle,
               headerSubtitle: headerSubtitle || "PURCHASE REQUEST",
               headerColor,
-              footerText: footerText || "ALL RIGHTS RESERVED BY E3",
+              footerText: footerText || "ALL RIGHTS RESERVED",
               footerColor,
               pageNumbering: Boolean(pageNumbering),
               fontSize: Number(fontSize || 11),
@@ -4814,7 +4816,7 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
               headerTitle,
               headerSubtitle: headerSubtitle || "PURCHASE REQUEST",
               headerColor,
-              footerText: footerText || "ALL RIGHTS RESERVED BY E3",
+              footerText: footerText || "ALL RIGHTS RESERVED",
               footerColor,
               pageNumbering: Boolean(pageNumbering),
               fontSize: Number(fontSize || 11),
@@ -4988,10 +4990,10 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
         } else {
           // Return default settings if none exist
           res.json({
-            headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+            headerTitle: "",
             headerSubtitle: "PURCHASE REQUEST",
             headerColor: "#1a365d",
-            footerText: "ALL RIGHTS RESERVED BY E3",
+            footerText: "ALL RIGHTS RESERVED",
             footerColor: "#1a365d",
             pageNumbering: true,
             fontSize: 11,
@@ -5125,10 +5127,10 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
               } else {
                 // Create new settings with default values
                 await db.insert(pdfSettings).values({
-                  headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+                  headerTitle: "",
                   headerSubtitle: "PURCHASE REQUEST",
                   headerColor: "#1a365d",
-                  footerText: "ALL RIGHTS RESERVED BY E3",
+                  footerText: "ALL RIGHTS RESERVED",
                   footerColor: "#1a365d",
                   pageNumbering: true,
                   fontSize: 11,
@@ -5284,10 +5286,10 @@ Total Cost: ${requestWithRelations.totalEstimatedCost || 0} ${requestWithRelatio
               } else {
                 // Create new settings with default values and new image URLs
                 await db.insert(pdfSettings).values({
-                  headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+                  headerTitle: "",
                   headerSubtitle: "PURCHASE REQUEST",
                   headerColor: "#1a365d",
-                  footerText: "ALL RIGHTS RESERVED BY E3",
+                  footerText: "ALL RIGHTS RESERVED",
                   footerColor: "#1a365d",
                   pageNumbering: true,
                   fontSize: 11,

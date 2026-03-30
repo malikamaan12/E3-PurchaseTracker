@@ -17,10 +17,10 @@ interface SimplePDFSettingsProps {
 export function SimplePDFSettings({ onSave, loading }: SimplePDFSettingsProps) {
   const { toast } = useToast();
   const [settings, setSettings] = useState({
-    headerTitle: "EVENTS & ENTERTAINMENT ENTERPRISES",
+    headerTitle: "",
     headerSubtitle: "PURCHASE REQUEST",
     headerColor: "#1a365d",
-    footerText: "ALL RIGHTS RESERVED BY E3",
+    footerText: "ALL RIGHTS RESERVED",
     footerColor: "#1a365d",
     pageNumbering: true,
     fontSize: 11,

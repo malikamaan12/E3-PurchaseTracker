@@ -78,7 +78,8 @@ export async function generatePurchaseRequestPDF(
       website?: string;
       address?: string;
     };
-    footerText?: string; // e.g. "Designed by Team E3"
+    footerText?: string;
+    headerTitle?: string;
     pageNumbering?: boolean; // default true
     headerColor?: string; // header color
     footerColor?: string; // footer color
@@ -108,14 +109,15 @@ export async function generatePurchaseRequestPDF(
       (options?.type === "admin" || options?.type === "approver"),
     headerImage: options?.headerImage || "",
     footerImage: options?.footerImage || "",
-    footerText: options?.footerText || "Designed by Team E3",
+    footerText: options?.footerText || "ALL RIGHTS RESERVED",
+    headerTitle: options?.headerTitle || "",
     pageNumbering: options?.pageNumbering !== false, // default true
     companyInfo: options?.companyInfo || {},
-    headerColor: options?.headerColor || "#6F2AE6", // E3 purple
-    footerColor: options?.footerColor || "#6F2AE6", // E3 purple
+    headerColor: options?.headerColor || "#6F2AE6",
+    footerColor: options?.footerColor || "#6F2AE6",
     type: options?.type || "user",
     showWatermark: options?.showWatermark ?? true,
-    watermarkText: options?.watermarkText || "E3 CONFIDENTIAL",
+    watermarkText: options?.watermarkText || "CONFIDENTIAL",
     watermarkOpacity: options?.watermarkOpacity || 0.1,
     securityLevel: options?.securityLevel || "internal",
   };
@@ -220,8 +222,10 @@ async function addHeader(
   doc.setFontSize(headerFontSize);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
-  doc.text("EVENTS & ENTERTAINMENT ENTERPRISES", margin, currentY);
-  currentY += headerFontSize * 0.4;
+  if (cfg.headerTitle) {
+    doc.text(cfg.headerTitle, margin, currentY);
+    currentY += headerFontSize * 0.4;
+  }
   
   // Header subtitle
   doc.setFontSize(headerFontSize * 0.7);
@@ -416,44 +420,7 @@ function addFooter(
       doc.addImage(img, "PNG", pageWidth - margin - 25, footerY - 4, 25, 10);
     } catch (error) {
       console.error("Footer image error:", error);
-      // Add small E3 brand mark at bottom right as fallback
-      const brandSize = 8;
-      const brandX = pageWidth - margin - brandSize;
-      const brandY = footerY + 2;
-
-      // Purple box for brand
-      doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-      doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, "F");
-
-      // Add "E3" text in white
-      doc.setFontSize(6);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.text("E3", brandX + brandSize / 2, brandY + brandSize / 2 + 2, {
-        align: "center",
-      });
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(0, 0, 0);
     }
-  } else {
-    // Add small E3 brand mark at bottom right
-    const brandSize = 8;
-    const brandX = pageWidth - margin - brandSize;
-    const brandY = footerY + 2;
-
-    // Purple box for brand
-    doc.setFillColor(footerColor[0], footerColor[1], footerColor[2]);
-    doc.roundedRect(brandX, brandY, brandSize, brandSize, 1, 1, "F");
-
-    // Add "E3" text in white
-    doc.setFontSize(6);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text("E3", brandX + brandSize / 2, brandY + brandSize / 2 + 2, {
-      align: "center",
-    });
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
   }
 
   // Company contact info (if any) on the left

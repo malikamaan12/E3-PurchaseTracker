@@ -368,12 +368,12 @@ export function validatePdfBrandingSettings(settings: any = {}): {
     headerColor: '#6F2AE6', // Purple
     accentColor: '#1FD3DB', // Teal
     footerColor: '#6F2AE6', // Purple
-    footerText: 'EVENTS & ENTERTAINMENT ENTERPRISES - ALL RIGHTS RESERVED',
+    footerText: 'ALL RIGHTS RESERVED',
     pageNumbering: true,
     headerHeight: 100,
     footerHeight: 50,
     showWatermark: true,
-    watermarkText: 'E3 CONFIDENTIAL',
+    watermarkText: 'CONFIDENTIAL',
     watermarkOpacity: 0.1,
     logoAlignment: 'left' as 'left' | 'center' | 'right',
     securityLevel: 'internal' as 'confidential' | 'internal' | 'restricted' | 'public'
@@ -514,7 +514,7 @@ export function checkSecurityRequirements(
 export function applySecurityClassificationBanner(
   doc: any,
   securityLevel: 'confidential' | 'internal' | 'restricted' | 'public' = 'internal',
-  companyName: string = 'E3 CORPORATION',
+  companyName: string = 'COMPANY',
   trackingId?: string
 ): void {
   try {

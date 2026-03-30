@@ -184,7 +184,6 @@ export function FilePreview({
         <div className="w-[595px] h-[842px] relative rounded-lg overflow-hidden shadow-lg bg-white"> {/* A4 dimensions in pixels */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-white border-b z-10">
             <div className="text-center space-y-2">
-              <h1 className="text-xl font-bold text-gray-900">EVENTS & ENTERTAINMENT ENTERPRISES</h1>
               <h2 className="text-lg font-semibold text-gray-700">PURCHASE REQUEST</h2>
             </div>
           </div>
@@ -205,7 +204,7 @@ export function FilePreview({
             />
           </div>
           <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t z-10 flex justify-between items-center">
-            <p className="text-sm text-gray-600">ALL RIGHTS RESERVED BY E3</p>
+            <p className="text-sm text-gray-600">ALL RIGHTS RESERVED</p>
             <Button onClick={handleDownload} variant="secondary" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Download PDF

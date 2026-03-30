@@ -60,11 +60,13 @@ export async function generateProfessionalPdfBlob(request: any, settings: any = 
       pdf.setTextColor(100, 100, 100);
       pdf.setFont('helvetica', 'italic');
       
-      const footerText = config.footerText || 'ALL RIGHTS RESERVED BY E3';
-      const footerAddress = config.companyAddress || 'Palm Tower B 36th Floor, 3602 West Bay, Doha, Qatar';
+      const footerText = config.footerText || 'ALL RIGHTS RESERVED';
+      const footerAddress = config.companyAddress || '';
       
       pdf.text(footerText, margin, footerY);
-      pdf.text(footerAddress, margin, footerY + 3);
+      if (footerAddress) {
+        pdf.text(footerAddress, margin, footerY + 3);
+      }
       
       // Page number on the right
       const totalPages = pdf.internal.getNumberOfPages();
@@ -128,12 +130,14 @@ export async function generateProfessionalPdfBlob(request: any, settings: any = 
     doc.setTextColor(headerColor[0], headerColor[1], headerColor[2]);
     
     // Custom header title from admin settings
-    const headerTitle = settings.headerTitle || 'EVENTS & ENTERTAINMENT ENTERPRISES';
+    const headerTitle = settings.headerTitle || '';
     const headerSubtitle = settings.headerSubtitle || 'PURCHASE REQUEST';
     
     // Add main header title
-    doc.text(headerTitle, margin, currentY);
-    currentY += headerFontSize * 0.3; // Reduced line spacing
+    if (headerTitle) {
+      doc.text(headerTitle, margin, currentY);
+      currentY += headerFontSize * 0.3; // Reduced line spacing
+    }
     
     // Add header subtitle with smaller font
     doc.setFontSize(headerFontSize * 0.65);
