@@ -67,12 +67,6 @@ export default function NotificationsPage() {
     includeRead: true,
     userRole: user?.role,
     userDepartment: user?.department,
-    onActionSuccess: (actionType, notificationId) => {
-      toast({
-        title: "Success",
-        description: `${actionType} action completed successfully`,
-      });
-    },
     onActionError: (actionType, notificationId, error) => {
       console.error(`Failed to perform ${actionType} action on notification ${notificationId}:`, error);
       toast({

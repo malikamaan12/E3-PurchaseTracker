@@ -1,16 +1,17 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 
-// Constants - reduced polling to prevent excessive refreshing
-const POLLING_INTERVAL = 120000; // 2 minutes (reduced from 30 seconds)
+// Constants
+const POLLING_INTERVAL = 120000; // 2 minutes
 const API_BASE_URL = '/api/notifications';
+const CACHE_KEY = 'notifications_cache';
+const CACHE_TTL = 60000; // 1 minute cache (reduced from 5 min so reads show faster)
 
 export interface Notification {
   id: number;
   userId: number;
-  requestId?: number;
+  requestId?: number | null;
   title: string;
   message: string;
   type: string;
@@ -18,9 +19,9 @@ export interface Notification {
   isRead: boolean;
   isAcknowledged: boolean;
   link: string | null;
-  actionType?: string;
-  actionData?: Record<string, any>;
-  expiresAt?: string;
+  actionType?: string | null;
+  actionData?: Record<string, any> | null;
+  expiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,10 +31,8 @@ interface NotificationError extends Error {
   details?: any;
 }
 
-const MAX_RETRIES = 3;
-
 /**
- * Enhanced hook for interacting with notifications with improved stability
+ * Enhanced hook for notifications with optimistic updates and stable UI
  */
 export function useEnhancedNotifications(options?: {
   autoPolling?: boolean;
@@ -47,7 +46,7 @@ export function useEnhancedNotifications(options?: {
   onActionError?: (actionType: string, notificationId: number, error: NotificationError) => void;
 }) {
   const {
-    autoPolling = true, // Re-enabled with aggressive caching
+    autoPolling = true,
     pollInterval = POLLING_INTERVAL,
     includeRead = true,
     filterType,
@@ -58,182 +57,173 @@ export function useEnhancedNotifications(options?: {
     onActionError
   } = options || {};
 
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<any>(null);
-  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
 
-  // Build query parameters
-  const buildQueryParams = useCallback(() => {
-    const params = new URLSearchParams();
-    
-    if (lastFetchTime && lastFetchTime instanceof Date && !isNaN(lastFetchTime.getTime())) {
-      params.append('lastFetchTime', lastFetchTime.toISOString());
-    }
-    
-    if (!includeRead) {
-      params.append('includeRead', 'false');
-    }
-    
-    if (filterType) {
-      params.append('type', filterType);
-    }
-    
-    if (filterPriority) {
-      params.append('priority', filterPriority);
+  // Track in-flight fetch to avoid double-fetching
+  const fetchingRef = useRef(false);
+
+  // Clear localStorage cache
+  const clearNotificationsCache = useCallback(() => {
+    localStorage.removeItem(CACHE_KEY);
+  }, []);
+
+  // Fetch from server — always bypasses browser ETag cache with timestamp param
+  const fetchFromServer = useCallback(async (): Promise<Notification[]> => {
+    const bust = Date.now();
+    const response = await fetch(`/api/notifications/fast?_=${bust}`, {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    if (userRole) {
-      params.append('userRole', userRole);
-    }
-    
-    if (userDepartment) {
-      params.append('userDepartment', userDepartment);
-    }
-    
-    return params.toString();
-  }, [lastFetchTime, includeRead, filterType, filterPriority, userRole, userDepartment]);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }, []);
 
-  // Optimized fetch function with aggressive client-side caching
-  const fetchNotifications = useCallback(async (): Promise<void> => {
-    // Check localStorage cache first (5-minute cache)
-    const cacheKey = 'notifications_cache';
-    const cached = localStorage.getItem(cacheKey);
-    const now = Date.now();
-    
-    if (cached) {
-      try {
-        const { data, timestamp } = JSON.parse(cached);
-        if (now - timestamp < 300000) { // 5 minutes cache
-          console.log('Using cached notifications');
-          setNotifications(Array.isArray(data) ? data : []);
-          setIsLoading(false);
-          setError(null);
-          return;
+  // Main fetch — checks localStorage cache first, then server
+  const fetchNotifications = useCallback(async (force = false): Promise<void> => {
+    if (fetchingRef.current) return;
+
+    // Check localStorage cache (unless force=true)
+    if (!force) {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_TTL) {
+            console.log('Using cached notifications');
+            setNotifications(Array.isArray(data) ? data : []);
+            setIsLoading(false);
+            setError(null);
+            return;
+          }
+        } catch (_) {
+          // Invalid cache, fall through to fetch
         }
-      } catch (e) {
-        // Invalid cache, continue to fetch
       }
     }
+
+    fetchingRef.current = true;
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Use fast endpoint
-      const response = await fetch(`/api/notifications/fast`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const data = await fetchFromServer();
+      setNotifications(data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const notifications = Array.isArray(data) ? data : [];
-      
-      setNotifications(notifications);
-      setLastFetchTime(new Date());
-      
-      // Cache the result
-      localStorage.setItem(cacheKey, JSON.stringify({
-        data: notifications,
-        timestamp: now
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        data,
+        timestamp: Date.now()
       }));
-      
     } catch (err) {
       console.error('Error fetching notifications:', err);
       setError(err);
-      // Use cached data if available on error
-      if (cached) {
-        try {
-          const { data } = JSON.parse(cached);
-          setNotifications(Array.isArray(data) ? data : []);
-        } catch (e) {
-          setNotifications([]);
-        }
-      }
     } finally {
       setIsLoading(false);
+      fetchingRef.current = false;
     }
-  }, []);
+  }, [fetchFromServer]);
 
-  // Clear cache function
-  const clearNotificationsCache = useCallback(() => {
-    localStorage.removeItem('notifications_cache');
-  }, []);
-
-  // Setup polling with cleanup
+  // Setup polling
   useEffect(() => {
-    // Only fetch on mount if autoPolling is enabled, otherwise manual only
     if (autoPolling) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, pollInterval);
+      const interval = setInterval(() => fetchNotifications(), pollInterval);
       return () => clearInterval(interval);
     }
   }, [fetchNotifications, autoPolling, pollInterval]);
 
-  // Safe mutation function wrapper
-  const createSafeMutation = (endpoint: string, method: string = 'PUT') => {
-    return async (id: number, body?: any) => {
+  // Optimistic markAsRead — updates local state immediately, then syncs with server
+  const markAsRead = useCallback(async (id: number): Promise<void> => {
+    // Optimistic update in local state
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+
+    // Update localStorage cache to reflect read status immediately
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
       try {
-        const response = await fetch(endpoint.replace(':id', id.toString()), {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: body ? JSON.stringify(body) : undefined
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        // Clear cache and refetch notifications after successful mutation
+        const parsed = JSON.parse(cached);
+        const updatedData = parsed.data.map((n: Notification) =>
+          n.id === id ? { ...n, isRead: true } : n
+        );
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: updatedData, timestamp: parsed.timestamp }));
+      } catch (_) {
         clearNotificationsCache();
-        await fetchNotifications();
-        
-        return result;
-      } catch (err) {
-        console.error(`Error in ${method} ${endpoint}:`, err);
-        throw err;
       }
-    };
-  };
+    }
 
-  // Action handlers
-  const markAsRead = useCallback(createSafeMutation('/api/notifications/:id/read'), [clearNotificationsCache]);
-  const acknowledgeNotification = useCallback(createSafeMutation('/api/notifications/:id/acknowledge'), [clearNotificationsCache]);
-  
-  const markAllAsRead = useCallback(async () => {
+    // Sync with server in background
+    try {
+      const response = await fetch(`/api/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+      // On failure, force refresh from server to revert
+      clearNotificationsCache();
+      fetchNotifications(true);
+    }
+  }, [clearNotificationsCache, fetchNotifications]);
+
+  // Acknowledge notification
+  const acknowledgeNotification = useCallback(async (id: number): Promise<void> => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isAcknowledged: true, isRead: true } : n));
+
+    try {
+      const response = await fetch(`/api/notifications/${id}/acknowledge`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      console.error('Error acknowledging notification:', err);
+      clearNotificationsCache();
+      fetchNotifications(true);
+    }
+  }, [clearNotificationsCache, fetchNotifications]);
+
+  // Mark all as read
+  const markAllAsRead = useCallback(async (): Promise<void> => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+
+    // Update localStorage cache
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        const updatedData = parsed.data.map((n: Notification) => ({ ...n, isRead: true }));
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: updatedData, timestamp: parsed.timestamp }));
+      } catch (_) {
+        clearNotificationsCache();
+      }
+    }
+
     try {
       const response = await fetch('/api/notifications/mark-all-read', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      clearNotificationsCache();
-      await fetchNotifications();
-      
       toast({
         title: "Success",
         description: "All notifications marked as read",
       });
-      
-      return await response.json();
     } catch (err) {
       console.error('Error marking all as read:', err);
       toast({
@@ -241,29 +231,30 @@ export function useEnhancedNotifications(options?: {
         description: "Failed to mark all notifications as read",
         variant: "destructive",
       });
-      throw err;
+      // Revert on failure
+      clearNotificationsCache();
+      fetchNotifications(true);
     }
-  }, [toast, fetchNotifications]);
+  }, [toast, clearNotificationsCache, fetchNotifications]);
 
-  // Enhanced quick action handler
+  // Quick action handler — only one toast per action (no duplicate)
   const performQuickAction = useCallback(async (params: {
     actionType?: string;
     notificationId: number;
-    requestId?: number;
+    requestId?: number | null;
     actionData?: Record<string, any>;
   }) => {
     const { actionType, notificationId, requestId, actionData = {} } = params;
-    
+
     if (!actionType) {
       throw new Error('Action type is required');
     }
-    
+
     try {
       let endpoint = '';
       let method = 'POST';
-      let body = actionData;
-      
-      // Determine endpoint based on action type
+      let body: Record<string, any> = actionData;
+
       switch (actionType) {
         case 'approve':
           endpoint = `/api/requests/${requestId}/approvals`;
@@ -274,28 +265,24 @@ export function useEnhancedNotifications(options?: {
           body = { status: 'rejected', ...actionData };
           break;
         case 'acknowledge':
-          endpoint = `/api/notifications/${notificationId}/acknowledge`;
-          method = 'PUT';
-          body = {};
-          break;
+          await acknowledgeNotification(notificationId);
+          if (onActionSuccess) onActionSuccess(actionType, notificationId, {});
+          return {};
         case 'dismiss':
-          endpoint = `/api/notifications/${notificationId}/read`;
-          method = 'PUT';
-          body = {};
-          break;
+          await markAsRead(notificationId);
+          if (onActionSuccess) onActionSuccess(actionType, notificationId, {});
+          return {};
         case 'review':
         case 'view':
         case 'update':
         case 'complete':
         default:
-          // For navigation-based actions, mark notification as read and navigate
+          // Navigate to request page and mark as read
           await markAsRead(notificationId);
           if (requestId) {
             setLocation(`/requests/${requestId}`);
           }
-          if (onActionSuccess) {
-            onActionSuccess(actionType, notificationId, {});
-          }
+          if (onActionSuccess) onActionSuccess(actionType, notificationId, {});
           return {};
       }
 
@@ -303,7 +290,7 @@ export function useEnhancedNotifications(options?: {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
@@ -311,37 +298,35 @@ export function useEnhancedNotifications(options?: {
       }
 
       const result = await response.json();
-      
+
       // Mark notification as read after successful action
       await markAsRead(notificationId);
-      
-      // Show success toast
+
+      // Single toast for the action
       toast({
         title: "Success",
-        description: `Action "${actionType}" completed successfully`,
+        description: `Request ${actionType}d successfully`,
       });
 
-      if (onActionSuccess) {
-        onActionSuccess(actionType, notificationId, result);
-      }
+      if (onActionSuccess) onActionSuccess(actionType, notificationId, result);
 
       return result;
     } catch (err) {
       console.error(`Error performing quick action ${actionType}:`, err);
-      
+
       toast({
         title: "Error",
-        description: `Failed to ${actionType} notification`,
+        description: `Failed to ${actionType}. Please try again.`,
         variant: "destructive",
       });
 
       if (onActionError && actionType) {
         onActionError(actionType, notificationId, err as NotificationError);
       }
-      
+
       throw err;
     }
-  }, [markAsRead, toast, onActionSuccess, onActionError]);
+  }, [markAsRead, acknowledgeNotification, toast, onActionSuccess, onActionError, setLocation]);
 
   // Navigation handler
   const handleNavigate = useCallback((notification: Notification) => {
@@ -349,20 +334,22 @@ export function useEnhancedNotifications(options?: {
       setLocation(`/requests/${notification.requestId}`);
     } else if (notification.link && notification.link !== '/' && notification.link !== '') {
       setLocation(notification.link);
+    } else if (notification.type === 'account_request') {
+      setLocation('/admin');
     } else {
-      setLocation('/');
+      setLocation('/notifications');
     }
   }, [setLocation]);
 
-  // Calculate counts safely
+  // Computed counts
   const notificationArray = Array.isArray(notifications) ? notifications : [];
   const unreadCount = notificationArray.filter(n => !n.isRead).length;
   const highPriorityCount = notificationArray.filter(n => !n.isRead && n.priority === 'high').length;
   const unacknowledgedCount = notificationArray.filter(n => !n.isAcknowledged).length;
-  const expiredCount = notificationArray.filter(n => 
+  const expiredCount = notificationArray.filter(n =>
     n.expiresAt && new Date(n.expiresAt) < new Date() && !n.isRead
   ).length;
-  const actionableCount = notificationArray.filter(n => 
+  const actionableCount = notificationArray.filter(n =>
     !n.isRead && n.actionType && ['approve', 'review', 'acknowledge', 'update'].includes(n.actionType)
   ).length;
 
@@ -380,7 +367,7 @@ export function useEnhancedNotifications(options?: {
     markAllAsRead,
     performAction: performQuickAction,
     handleNavigate,
-    refetch: fetchNotifications
+    refetch: () => fetchNotifications(true)
   };
 }
 

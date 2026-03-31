@@ -17,7 +17,7 @@ import {
   FileText,
   Settings
 } from 'lucide-react';
-import { useEnhancedNotifications } from '@/hooks/use-enhanced-notifications';
+import { useEnhancedNotifications, Notification } from '@/hooks/use-enhanced-notifications';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,7 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EnhancedNotificationsDropdownProps {
-  onNotificationClick?: (notification: { id: number; link: string | null; requestId?: number }) => void;
+  onNotificationClick?: (notification: Notification) => void;
 }
 
 export function EnhancedNotificationsDropdown({ 
@@ -72,15 +72,9 @@ export function EnhancedNotificationsDropdown({
     includeRead: true,
     userRole: user?.role,
     userDepartment: user?.department,
-    onActionSuccess: (actionType, notificationId, result) => {
-      toast({
-        title: "Success",
-        description: `${actionType} action completed successfully`,
-      });
-    },
     onActionError: (actionType, notificationId, error) => {
       toast({
-        title: "Error", 
+        title: "Error",
         description: `Failed to ${actionType}. Please try again.`,
         variant: "destructive",
       });
@@ -126,59 +120,28 @@ export function EnhancedNotificationsDropdown({
     return <Info {...iconProps} className="text-gray-500" />;
   };
 
-  // Handle notification click
-  const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number }) => {
-    console.log("Handling notification click:", notification);
-    
-    // Mark as read first
+  // Handle notification click — mark as read + navigate
+  const handleNotificationClick = async (notification: Notification) => {
+    // Optimistic mark as read (immediate UI update)
     await markAsRead(notification.id);
-    
+
     // Close dropdown
     setOpen(false);
-    
-    // Use custom handler if provided
+
     if (onNotificationClick) {
-      console.log("Using custom notification click handler");
       onNotificationClick(notification);
       return;
     }
 
-    try {
-      if (notification.requestId) {
-        // Check access before navigating to avoid landing on a permission error page
-        const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          setLocation(`/requests/${notification.requestId}`);
-        } else if (response.status === 403) {
-          toast({
-            title: "Access Denied",
-            description: "You don't have permission to view this request.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Not Found",
-            description: "The requested resource could not be found.",
-            variant: "destructive"
-          });
-          setLocation('/');
-        }
-      } else if (notification.link && notification.link !== '/' && notification.link !== '') {
-        setLocation(notification.link);
-      } else {
-        setLocation('/');
-      }
-    } catch (error) {
-      console.error("Error navigating from notification:", error);
-      toast({
-        title: "Navigation Error",
-        description: "There was a problem following this notification. Please try again.",
-        variant: "destructive"
-      });
-      setLocation('/');
+    // Determine navigation target
+    if (notification.requestId) {
+      setLocation(`/requests/${notification.requestId}`);
+    } else if (notification.link && notification.link !== '/' && notification.link !== '') {
+      setLocation(notification.link);
+    } else if (notification.type === 'account_request') {
+      setLocation('/admin');
+    } else {
+      setLocation('/notifications');
     }
   };
 
