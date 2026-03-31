@@ -157,61 +157,15 @@ export default function NotificationsPage() {
     return <Info {...iconProps} className="text-gray-500 dark:text-gray-400" />;
   };
 
-  // Handle notification click - for viewing details or navigating to request
-  const handleNotificationClick = async (notification: { id: number; link: string | null; requestId?: number; actionType?: string }) => {
-    // If the notification has an action type, use performAction to handle it
-    if (notification.actionType && notification.requestId) {
-      performAction({
-        actionType: notification.actionType,
-        notificationId: notification.id,
-        requestId: notification.requestId,
-      });
-      return;
-    }
-    
-    // Otherwise, just mark as read and navigate
+  // Handle notification click - mark as read and navigate
+  const handleNotificationClick = (notification: AppNotification) => {
     markAsRead(notification.id);
-    
-    try {
-      if (notification.requestId) {
-        // If notification has requestId, check if the request is accessible before navigating
-        // This prevents 403/500 errors when clicking on notifications for requests we can't access
-        const response = await fetch(`/api/requests/${notification.requestId}/check-access`, {
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          // Request is accessible, navigate to it
-          setLocation(`/requests/${notification.requestId}`);
-        } else if (response.status === 403) {
-          // Access denied, show a helpful message and stay on current page
-          toast({
-            title: "Access Denied",
-            description: "You don't have permission to view this request.",
-            variant: "destructive"
-          });
-        } else {
-          // Handle other errors (like request not found)
-          toast({
-            title: "Error",
-            description: "The requested resource could not be found.",
-            variant: "destructive"
-          });
-        }
-      } else if (notification.link && notification.link !== '/') {
-        // Navigate directly using setLocation for links
-        setLocation(notification.link);
-      } else {
-        // Fallback to dashboard if no valid target is available
-        setLocation('/dashboard');
-      }
-    } catch (error) {
-      console.error("Error navigating from notification:", error);
-      toast({
-        title: "Navigation Error",
-        description: "There was a problem following this notification. Please try again.",
-        variant: "destructive"
-      });
+    if (notification.requestId) {
+      setLocation(`/requests/${notification.requestId}`);
+    } else if (notification.link && notification.link !== '/' && notification.link !== '') {
+      setLocation(notification.link);
+    } else if (notification.type === 'account_request') {
+      setLocation('/admin');
     }
   };
   
@@ -232,13 +186,9 @@ export default function NotificationsPage() {
     });
   };
 
-  // Handle mark all as read
+  // Handle mark all as read — toast is already shown by the hook
   const handleMarkAllAsRead = () => {
     markAllAsRead();
-    toast({
-      title: "Success",
-      description: "All notifications marked as read",
-    });
   };
 
   return (
