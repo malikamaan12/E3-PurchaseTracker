@@ -49,10 +49,10 @@ const CONTENT_TOP = HEADER_H + 6;         // content starts below header
 const CONTENT_BOTTOM = PAGE_H - FOOTER_H - 6; // content ends above footer
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
-// E3 brand colours
-const PURPLE: [number, number, number] = [111, 42, 230];   // #6F2AE6
-const TEAL:   [number, number, number] = [21,  211, 216];  // #15CDD8
-const LIGHT_PURPLE_BG: [number, number, number] = [245, 240, 255]; // soft lavender
+// E3 brand colours — navy blue palette
+const NAVY:       [number, number, number] = [0,  47, 108];   // #002F6C  navy blue
+const NAVY_LIGHT: [number, number, number] = [0,  99, 178];   // #0063B2  lighter navy accent
+const LIGHT_BLUE: [number, number, number] = [230, 238, 255]; // very light blue row tint
 
 export async function generateProfessionalPdf(request: any, settings: any = {}): Promise<void> {
   await generateProfessionalPdfBlob(request, settings, true);
@@ -73,7 +73,7 @@ export async function generateProfessionalPdfBlob(
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as any;
 
-  const textColor: [number, number, number] = [40, 40, 40];
+  const textColor: [number, number, number] = [0, 0, 0]; // black on white
   const baseFontSize = 9;
 
   let currentY = CONTENT_TOP;
@@ -87,7 +87,7 @@ export async function generateProfessionalPdfBlob(
       doc.addImage(headerBase64, 'PNG', 0, 0, PAGE_W, HEADER_H);
     } else {
       // Fallback colour bar
-      doc.setFillColor(111, 42, 230);
+      doc.setFillColor(...NAVY);
       doc.rect(0, 0, PAGE_W, HEADER_H, 'F');
     }
 
@@ -95,7 +95,7 @@ export async function generateProfessionalPdfBlob(
     if (footerBase64) {
       doc.addImage(footerBase64, 'PNG', 0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H);
     } else {
-      doc.setFillColor(111, 42, 230);
+      doc.setFillColor(...NAVY);
       doc.rect(0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H, 'F');
     }
 
@@ -125,16 +125,16 @@ export async function generateProfessionalPdfBlob(
     return false;
   };
 
-  // ── Section header bar (purple left block + teal right accent) ─────────────
+  // ── Section header bar (navy blue left block + lighter navy right accent) ──
   const drawSectionHeader = (title: string) => {
     ensureSpace(14);
-    // Main purple bar
-    doc.setFillColor(...PURPLE);
+    // Main navy bar
+    doc.setFillColor(...NAVY);
     doc.rect(MARGIN, currentY, CONTENT_W - 6, 6.5, 'F');
-    // Teal accent cap on the right
-    doc.setFillColor(...TEAL);
+    // Lighter navy accent cap on the right
+    doc.setFillColor(...NAVY_LIGHT);
     doc.rect(MARGIN + CONTENT_W - 6, currentY, 6, 6.5, 'F');
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(255, 255, 255); // white text on navy
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.text(title, MARGIN + 3, currentY + 4.5);
@@ -162,22 +162,22 @@ export async function generateProfessionalPdfBlob(
   const prNumber = `PR #${request.id}`;
   const dateText = `Date: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}`;
 
-  // Purple title + PR number / date on the right
+  // Navy title + PR number / date on the right
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.setTextColor(...PURPLE);
+  doc.setTextColor(...NAVY);
   doc.text('PURCHASE REQUEST', MARGIN, currentY);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...textColor);
   doc.text(prNumber, PAGE_W - MARGIN - doc.getTextWidth(prNumber), currentY);
   currentY += 5;
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(80, 80, 80);
   doc.text(dateText, PAGE_W - MARGIN - doc.getTextWidth(dateText), currentY);
   currentY += 3;
 
-  // Teal divider line
-  doc.setDrawColor(...TEAL);
+  // Navy divider line
+  doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.6);
   doc.line(MARGIN, currentY, PAGE_W - MARGIN, currentY);
   currentY += 5;
@@ -185,18 +185,19 @@ export async function generateProfessionalPdfBlob(
   // ══════════════════════════════════════════════════════════════════════════
   // 2. REQUESTER INFO BOX
   // ══════════════════════════════════════════════════════════════════════════
-  doc.setFillColor(...LIGHT_PURPLE_BG);
-  doc.setDrawColor(...PURPLE);
+  // Navy blue info box — white text throughout
+  doc.setFillColor(...NAVY);
+  doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.3);
-  doc.rect(MARGIN, currentY, CONTENT_W, 17, 'FD'); // filled + border
+  doc.rect(MARGIN, currentY, CONTENT_W, 17, 'FD'); // navy filled + border
 
   const leftX = MARGIN + 3;
   const rightX = MARGIN + CONTENT_W / 2 + 3;
 
   doc.setFontSize(baseFontSize);
 
-  const labelClr: [number, number, number] = [111, 42, 230]; // purple labels
-  const valueClr: [number, number, number] = [40, 40, 40];
+  const labelClr: [number, number, number] = [180, 210, 255]; // light blue labels on navy
+  const valueClr: [number, number, number] = [255, 255, 255]; // white values on navy
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...labelClr);
@@ -333,8 +334,8 @@ export async function generateProfessionalPdfBlob(
       startY: currentY,
       margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.1 },
-      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
       columnStyles: {
         0: { cellWidth: 36 },
         1: { cellWidth: 62 },
@@ -342,7 +343,7 @@ export async function generateProfessionalPdfBlob(
         3: { cellWidth: 28, halign: 'right' },
         4: { cellWidth: 28, halign: 'right' }
       },
-      alternateRowStyles: { fillColor: [245, 240, 255] }
+      alternateRowStyles: { fillColor: LIGHT_BLUE }
     });
 
     // @ts-ignore
@@ -397,8 +398,8 @@ export async function generateProfessionalPdfBlob(
       startY: currentY,
       margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40] },
-      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: 'bold' }
+      styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0] },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold' }
     });
 
     // @ts-ignore
@@ -463,8 +464,8 @@ export async function generateProfessionalPdfBlob(
       startY: currentY,
       margin: { left: MARGIN, right: MARGIN, top: CONTENT_TOP, bottom: FOOTER_H + 5 },
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.1 },
-      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
       columnStyles: {
         0: { cellWidth: 35 },
         1: { cellWidth: 35 },
@@ -472,7 +473,7 @@ export async function generateProfessionalPdfBlob(
         3: { cellWidth: 22 },
         4: { cellWidth: 51 }
       },
-      alternateRowStyles: { fillColor: [245, 240, 255] }
+      alternateRowStyles: { fillColor: LIGHT_BLUE }
     });
 
     // @ts-ignore
