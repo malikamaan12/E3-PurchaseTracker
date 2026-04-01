@@ -12,7 +12,7 @@ import {
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { AppError, ValidationError } from "../utils/errors";
 import { debug } from "../utils/debug";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 const router = Router();
 

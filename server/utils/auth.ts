@@ -1,7 +1,7 @@
 import { db } from "@db";
 import { users, approvals } from "@db/schema";
 import { eq, and } from "drizzle-orm";
-import { compare, hash } from "bcrypt";
+import { compare, hash } from "bcryptjs";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 
