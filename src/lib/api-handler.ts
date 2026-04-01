@@ -157,19 +157,30 @@ export async function handleApiRequest(req: NextRequest) {
           app,
         };
 
+        // Global Error Handler for Express
+        app.use((err: any, _req: any, res: any, _next: any) => {
+          console.error("Express Error in Bridge:", err);
+          res.status(err.status || 500).json({ 
+            message: "Express Internal Error", 
+            detail: err.message 
+          });
+        });
+
         // Trigger Express routing
         try {
+          console.log(`[API Bridge] Executing: ${mockReq.method} ${mockReq.url}`);
           app(mockReq, mockRes);
         } catch (err) {
+          console.error("[API Bridge] Execution Crash:", err);
           reject(err);
         }
       }),
       new Promise<NextResponse>((_, reject) => 
-        setTimeout(() => reject(new Error("API Gateway Timeout: Express app took too long to respond.")), 25000)
+        setTimeout(() => reject(new Error(`API Gateway Timeout: ${req.method} ${url.pathname} took too long.`)), 25000)
       )
     ]);
   } catch (error: any) {
-    console.error("API Bridge Critical Error:", error);
+    console.error(`[API Bridge] Critical Error for ${req.method} ${req.url}:`, error);
     return NextResponse.json({ 
       error: "Internal Server Error", 
       message: error.message 

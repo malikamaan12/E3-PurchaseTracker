@@ -34,17 +34,9 @@ function getDatabaseConnection() {
 const connectionString = getDatabaseConnection();
 const isProduction = !!process.env.PROD_DATABASE_URL;
 
-let dbInstance: any;
-
-if (isProduction) {
-  const pool = new pg.Pool({ connectionString });
-  dbInstance = drizzlePg(pool, { schema });
-} else {
-  const client = neon(connectionString);
-  dbInstance = drizzleNeon(client, { schema });
-}
-
-export const db = dbInstance;
+// Standard Neon HTTP connection for Serverless stability
+const client = neon(connectionString);
+export const db = drizzleNeon(client, { schema });
 
 // Test database connection
 export async function testConnection(): Promise<boolean> {
