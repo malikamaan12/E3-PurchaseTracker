@@ -427,19 +427,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   }).optional(),
   vendorId: z.number().int().positive("Vendor selection is required").optional(),
   // Make subPurposeId conditionally required only for PROJECT type
-  subPurposeId: z.number().optional().superRefine((val, ctx) => {
-    // When validating a full purchase request (not a draft)
-    if (ctx.data && ctx.data.status !== 'draft') {
-      // Only require for PROJECT type
-      if (ctx.data.purposeType === 'PROJECT' && !val) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Sub-purpose is required for PROJECT type",
-          path: ["subPurposeId"]
-        });
-      }
-    }
-  }),
+  subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   currency: z.enum(["QAR", "USD", "CNY"]).optional(),
   totalEstimatedCost: z.number()
@@ -462,6 +450,18 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   priorityReason: z.string().optional(),
   priorityRecommendations: z.array(z.string()).optional(),
   additionalApprovers: z.array(z.string()).optional().default([]),
+}).superRefine((data, ctx) => {
+  // When validating a full purchase request (not a draft)
+  if (data.status !== 'draft' && data.status !== undefined) {
+    // Only require for PROJECT type
+    if (data.purposeType === 'PROJECT' && !data.subPurposeId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sub-purpose is required for PROJECT type",
+        path: ["subPurposeId"]
+      });
+    }
+  }
 });
 
 export const insertPurchaseApproverSchema = createInsertSchema(purchaseApprovers, {
