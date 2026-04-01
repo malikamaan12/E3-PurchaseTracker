@@ -27,7 +27,7 @@ class ApiClient {
 
     if (response.status === 401 || response.status === 403) {
       if (typeof window !== "undefined") {
-        window.location.href = "/login?expired=true";
+        window.location.href = "/auth?expired=true";
       }
       throw new ApiError(response.status, "Session expired. Please login again.");
     }
@@ -44,6 +44,14 @@ class ApiClient {
     if (response.status === 204) return {} as T;
     return response.json();
   }
+
+  // Auth Domain
+  public auth = {
+    login: (data: any) => this.request<any>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+    register: (data: any) => this.request<any>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+    logout: () => this.request<any>("/auth/logout", { method: "POST" }),
+    getUser: () => this.request<any>("/auth/user"),
+  };
 
   // Requests Domain
   public requests = {
