@@ -1,7 +1,7 @@
 import { db } from "@db";
 import { users, approvals } from "@db/schema";
 import { eq, and } from "drizzle-orm";
-import { compare, hash } from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 
@@ -53,7 +53,7 @@ export async function configurePassport(passport: passport.Authenticator) {
         // Verify password with detailed logging
         let isValidPassword = false;
         try {
-          isValidPassword = await compare(password, user.password);
+          isValidPassword = await bcrypt.compare(password, user.password);
           console.log('LocalStrategy: Password verification result:', { 
             username,
             isValid: isValidPassword 
@@ -144,7 +144,7 @@ export async function configurePassport(passport: passport.Authenticator) {
 export async function createTestUser() {
   try {
     console.log('Creating/updating test user');
-    const hashedPassword = await hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash('admin123', 10);
 
     const [user] = await db
       .insert(users)
@@ -178,7 +178,7 @@ export async function createTestUser() {
 
 export async function hashPassword(password: string): Promise<string> {
   try {
-    return await hash(password, 10);
+    return await bcrypt.hash(password, 10);
   } catch (error) {
     console.error('Password hashing error:', error);
     throw error;

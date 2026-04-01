@@ -1,7 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express, type Request, type Response, NextFunction } from "express";
-import { compare, hash } from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { users } from "@db/schema";
@@ -82,7 +82,7 @@ export async function setupAuth(app: Express) {
           return done(null, false, { message: "Account is inactive. Please contact an administrator." });
         }
 
-        const isMatch = await compare(password, user.password);
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
           console.log('Invalid password for user:', username);
           return done(null, false, { message: "Invalid username or password" });
@@ -149,7 +149,7 @@ export async function setupAuth(app: Express) {
 
   // Create test admin user if it doesn't exist
   try {
-    const password = await hash('admin123', 10);
+    const password = await bcrypt.hash('admin123', 10);
     await db
       .insert(users)
       .values({

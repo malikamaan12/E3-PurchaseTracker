@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { db } from '@db';
 import { auditLogs, type AuditAction } from '@db/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
 
 export interface AuditLogEntry {
   userId: number;
@@ -36,20 +36,20 @@ export async function getAuditLogs(filters: {
   startDate?: Date;
   endDate?: Date;
 }) {
-  let query = db.select().from(auditLogs);
+  const whereConditions = [];
 
-  // Apply filters
+  // Collect filters
   if (filters.userId) {
-    query = query.where(eq(auditLogs.userId, filters.userId));
+    whereConditions.push(eq(auditLogs.userId, filters.userId));
   }
   if (filters.action) {
-    query = query.where(eq(auditLogs.action, filters.action));
+    whereConditions.push(eq(auditLogs.action, filters.action));
   }
   if (filters.resourceId) {
-    query = query.where(eq(auditLogs.resourceId, filters.resourceId));
+    whereConditions.push(eq(auditLogs.resourceId, filters.resourceId));
   }
   if (filters.startDate && filters.endDate) {
-    query = query.where(
+    whereConditions.push(
       and(
         gte(auditLogs.timestamp, filters.startDate),
         lte(auditLogs.timestamp, filters.endDate)
@@ -57,5 +57,10 @@ export async function getAuditLogs(filters: {
     );
   }
 
-  return query.orderBy(auditLogs.timestamp);
+  // Build and execute query in one chain to preserve Drizzle types
+  return db
+    .select()
+    .from(auditLogs)
+    .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+    .orderBy(desc(auditLogs.timestamp));
 }

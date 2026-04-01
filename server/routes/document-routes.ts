@@ -20,7 +20,7 @@ import { getContentType, getContentDisposition } from "../utils/file-utils";
 import { isR2Configured, r2Storage } from "../services/R2StorageService";
 import path from "path";
 import fs from "fs";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import { format } from "date-fns";
 
 const router = Router();
