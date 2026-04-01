@@ -102,7 +102,7 @@ export class ConversionService {
       await fs.writeFile(outputPath, await pdfDoc.save());
     } else {
       const format = outputFormat.split('/')[1];
-      await image[format]().toFile(outputPath);
+      await (image as any)[format]().toFile(outputPath);
     }
 
     return {
