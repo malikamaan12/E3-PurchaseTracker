@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
     "office-to-pdf", 
     "html-pdf-node", 
     "sharp", 
-    "pg", 
     "passport"
   ],
 };

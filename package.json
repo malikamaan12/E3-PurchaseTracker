@@ -91,8 +91,6 @@
     "passport-local": "^1.0.0",
     "pdf-lib": "^1.17.1",
     "pdfmake": "^0.2.18",
-    "pg": "^8.14.1",
-    "postgres": "^3.4.5",
     "react": "19.0.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-color": "^2.19.3",
