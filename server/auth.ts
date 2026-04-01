@@ -32,8 +32,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   const token = req.cookies[TOKEN_COOKIE_NAME];
 
   // Add isAuthenticated helper to maintain compatibility with existing routes
-  req.isAuthenticated = () => !!req.user;
-  req.logout = (cb?: (err: any) => void) => {
+  (req as any).isAuthenticated = () => !!req.user;
+  (req as any).logout = (cb?: (err: any) => void) => {
     res.clearCookie(TOKEN_COOKIE_NAME);
     if (cb) cb(null);
   };
