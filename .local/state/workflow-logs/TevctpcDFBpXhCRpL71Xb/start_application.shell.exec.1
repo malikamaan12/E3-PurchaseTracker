@@ -1,0 +1,976 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+[1G[0KUsing database: Replit/Neon (Development)
+11:56:28 PM [express] Testing database connection...
+11:56:29 PM [express] Database connection established successfully
+Setting up authentication...
+Test admin user created/verified
+11:56:29 PM [express] Authentication setup completed
+Setting up authentication...
+11:56:29 PM [express] Routes registered successfully
+11:56:29 PM [express] Vite development server initialized
+11:56:29 PM [express] Server started and listening on port 5000
+Test admin user created/verified
+Browserslist: browsers data (caniuse-lite) is 17 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m
+  }
+}
+11:56:33 PM [express] GET /api/auth/user 401 in 4ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m
+  }
+}
+11:56:33 PM [express] GET /api/login-logo 304 in 405ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m
+  }
+}
+11:56:33 PM [express] GET /api/login-logo 304 in 205ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0db3000000000292fad32cc9dbc7-50dc919fc1977a31-01'[39m,
+    tracestate: [32m'dd=s:1;p:50dc919fc1977a31;t.dm:-1;t.tid:69cb0db300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5826692133244336689'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0db300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'185486319572081607'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:56:35 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0db30000000024eae4ce30fcd889-74eb52ca52b7396e-01'[39m,
+    tracestate: [32m'dd=s:1;p:74eb52ca52b7396e;t.dm:-1;t.tid:69cb0db300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8424918556851255662'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0db300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2660190104151971977'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:56:35 PM [express] GET /api/login-logo 304 in 403ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0db3000000004af753a43ab23325-0ef1d98bdf3d0324-00'[39m,
+    tracestate: [32m'dd=s:0;p:0ef1d98bdf3d0324;t.tid:69cb0db300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1076880980687258404'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0db300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5401878242878698277'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:56:36 PM [express] GET /api/login-logo 304 in 204ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'E3Admin'[39m, password: [32m'admin@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'44'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec4000000001fee0b29c88e2d72-55982433b6555290-01'[39m,
+    tracestate: [32m'dd=s:1;p:55982433b6555290;t.dm:-1;t.tid:69cb0ec400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6167719494204871312'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0ec400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2300788733719227762'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: E3Admin
+Authentication successful for user: E3Admin
+Serializing user: [33m32[39m
+12:01:09 AM [express] POST /api/auth/login 200 in 885ms :: {"user":{"id":32,"username":"E3Admin","ema…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5c4c-pvbGJlkSLdWYWI3YEvolkb5pF5g"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec5000000004d8cd6fe5b04e83a-111aedc3441e9569-00'[39m,
+    tracestate: [32m'dd=s:0;p:111aedc3441e9569;t.tid:69cb0ec500000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1232558870956512617'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ec500000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5588077625597028410'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/vendors'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"12f8-nyCBqZZHVYNt2zzyQXtdiCuegWA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec5000000001f2061242d891b76-55b746351a5d4f51-00'[39m,
+    tracestate: [32m'dd=s:0;p:55b746351a5d4f51;t.tid:69cb0ec500000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6176482607851458385'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ec500000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2242899422441184118'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.6.13, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/sub-purposes'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"a68-zclcTq874upLYHMxcQQh44i3Td8"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec5000000007ecb343c1da234e0-43a287c753bcfba7-00'[39m,
+    tracestate: [32m'dd=s:0;p:43a287c753bcfba7;t.tid:69cb0ec500000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4873607036941433767'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ec500000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'9136453701851034848'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Found 13 purchase requests visible to user
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/vendors] Fetching vendors 
+[GET /api/sub-purposes] Fetching sub-purposes with filters: {}
+[GET /api/vendors] Found 9 vendors 
+12:01:11 AM [express] GET /api/vendors 304 in 2030ms :: [{"id":57,"companyName":"Store 974","contactP…
+[GET /api/sub-purposes] Found 10 sub-purposes 
+[GET /api/sub-purposes] Raw sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z"
+  }
+]
+[GET /api/sub-purposes] Formatted sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z",
+    "label": "Inflata Park",
+    "value": "35"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z",
+    "label": "Office Supplies",
+    "value": "34"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z",
+    "label": "MotoGp",
+    "value": "33"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z",
+    "label": "Doha Mall  Summer Activations",
+    "value": "32"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z",
+    "label": "InflataCity 2025",
+    "value": "31"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z",
+    "label": "Trade Show",
+    "value": "21"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z",
+    "label": "Formula 1",
+    "value": "18"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z",
+    "label": "Lego2025",
+    "value": "17"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z",
+    "label": "InflataRun",
+    "value": "16"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z",
+    "label": "InflataRun",
+    "value": "15"
+  }
+]
+12:01:11 AM [express] GET /api/sub-purposes 304 in 1900ms :: [{"id":35,"name":"Inflata Park","purpose…
+[GET /api/requests] Processed 13 purchase requests 
+12:01:12 AM [express] GET /api/requests 200 in 2278ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"89e-tlF3HSXYqa1byzuiXaHzLchT3go"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec80000000032e560082046183c-3edc681fd0f6be54-00'[39m,
+    tracestate: [32m'dd=s:0;p:3edc681fd0f6be54;t.tid:69cb0ec800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4529609811086982740'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ec800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3667443059580606524'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 209ms
+12:01:12 AM [express] GET /api/notifications/fast 200 in 629ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ec8000000000dbd5f508ba32c1d-34006d37b1cddf29-00'[39m,
+    tracestate: [32m'dd=s:0;p:34006d37b1cddf29;t.tid:69cb0ec800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3747114975945940777'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ec800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'990052292636126237'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 0ms
+12:01:13 AM [express] GET /api/notifications/fast 304 in 420ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'PUT'[39m,
+  path: [32m'/api/notifications/272/read'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ece000000000bf2324ca1a42a04-418e62a8d3c59375-00'[39m,
+    tracestate: [32m'dd=s:0;p:418e62a8d3c59375;t.tid:69cb0ece00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4723821536405197685'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ece00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'860805783491979780'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PUT /api/notifications/272/read] Marking notification as read: 272
+[PUT /api/notifications/272/read] Notification updated successfully 
+12:01:19 AM [express] PUT /api/notifications/272/read 200 in 840ms :: {"id":272,"userId":32,"requestI…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ecf000000007ddb85181272d471-4c051319ecb660eb-00'[39m,
+    tracestate: [32m'dd=s:0;p:4c051319ecb660eb;t.tid:69cb0ecf00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5477805523832561899'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ecf00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'9068988613075850353'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 0ms
+12:01:19 AM [express] GET /api/notifications/fast 304 in 417ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'PUT'[39m,
+  path: [32m'/api/notifications/269/read'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ed500000000556a4dd1dfeb2c42-34b75870f7872a84-00'[39m,
+    tracestate: [32m'dd=s:0;p:34b75870f7872a84;t.tid:69cb0ed500000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3798602052922714756'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ed500000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6154817404555439170'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PUT /api/notifications/269/read] Marking notification as read: 269
+[PUT /api/notifications/269/read] Notification updated successfully 
+12:01:26 AM [express] PUT /api/notifications/269/read 200 in 855ms :: {"id":269,"userId":32,"requestI…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0ed600000000120d932566fc61e6-7eb70351813f5af8-00'[39m,
+    tracestate: [32m'dd=s:0;p:7eb70351813f5af8;t.tid:69cb0ed600000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'9130770418112617208'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0ed600000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'1300857656230830566'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 0ms
+12:01:27 AM [express] GET /api/notifications/fast 304 in 418ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AIdOEzRFAEpAmm9rDgsOqjYd9YO8z_dO3.BwdsnUzwTdn4XWNAGZpBaMDDvR69CFp0bHOa8Sre3vM'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5d04-PsIQqPbdxkJiD4iY4itaRG2OEbU"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0f77000000002fb470b0f6ee6e83-60e4d6d065afe53e-00'[39m,
+    tracestate: [32m'dd=s:0;p:60e4d6d065afe53e;t.tid:69cb0f7700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6981941512878679358'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0f7700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3437496320949907075'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Found 13 purchase requests visible to user
+[GET /api/requests] Processed 13 purchase requests 
+12:04:10 AM [express] GET /api/requests 304 in 2923ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m12:05:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/styles/bento-liquid.css, /src/pages/NotificationsPage.tsx, /src/components/EnhancedNotificationsDropdown.tsx[22m
+[1G[0K⠙[1G[0K

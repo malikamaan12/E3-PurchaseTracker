@@ -1,0 +1,15 @@
+2025-07-09 00:51:30,718 - semgrep.run_scan - DEBUG - semgrep version 1.4.0
+2025-07-09 00:51:30,725 - semgrep.config_resolver - DEBUG - Loading local config from /home/runner/workspace/.config/.semgrep/semgrep_rules.json
+2025-07-09 00:51:30,814 - semgrep.config_resolver - DEBUG - Done loading local config from /home/runner/workspace/.config/.semgrep/semgrep_rules.json
+2025-07-09 00:51:30,816 - semgrep.config_resolver - DEBUG - Saving rules to /tmp/semgrep-bcmkx51h.rules
+2025-07-09 00:51:31,369 - semgrep.rule_lang - DEBUG - semgrep-core validation response: valid=True
+2025-07-09 00:51:31,369 - semgrep.rule_lang - DEBUG - semgrep-core validation succeeded
+2025-07-09 00:51:31,369 - semgrep.rule_lang - DEBUG - RPC validation succeeded
+2025-07-09 00:51:31,370 - semgrep.config_resolver - DEBUG - loaded 1 configs in 0.6449275016784668
+2025-07-09 00:51:31,437 - semgrep.run_scan - VERBOSE - running 715 rules from 1 config /home/runner/workspace/.config/.semgrep/semgrep_rules.json_0
+2025-07-09 00:51:31,438 - semgrep.run_scan - VERBOSE - No .semgrepignore found. Using default .semgrepignore rules. See the docs for the list of default ignores: https://semgrep.dev/docs/cli-usage/#ignore-files
+2025-07-09 00:51:31,440 - semgrep.run_scan - VERBOSE - Rules:
+2025-07-09 00:51:31,440 - semgrep.run_scan - VERBOSE - <SKIPPED DATA (too many entries; use --max-log-list-entries)>
+2025-07-09 00:51:32,710 - semgrep.core_runner - DEBUG - Passing whole rules directly to semgrep_core
+2025-07-09 00:51:33,092 - semgrep.core_runner - DEBUG - Running Semgrep engine with command:
+2025-07-09 00:51:33,092 - semgrep.core_runner - DEBUG - /tmp/_MEITVkxWu/semgrep/bin/opengrep-core -json -rules /tmp/tmpmn4pwm06.json -j 8 -targets /tmp/tmp0vkvuk_3 -timeout 5 -timeout_threshold 3 -max_memory 0 -fast

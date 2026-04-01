@@ -1,13 +1,16 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { type Express } from "express";
-import session from "express-session";
-import createMemoryStore from "memorystore";
+import { type Express, type Request, type Response, NextFunction } from "express";
 import { compare, hash } from 'bcrypt';
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { AppError } from "./utils/errors";
+
+const JWT_SECRET = process.env.JWT_SECRET || "purchase-management-system-v1-secret-key";
+const TOKEN_COOKIE_NAME = "auth_token";
 
 // Extend Express.User interface
 declare global {
@@ -24,28 +27,38 @@ declare global {
   }
 }
 
-export async function setupAuth(app: Express) {
-  console.log('Setting up authentication...');
+// Middleware to authenticate token from cookie
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.cookies[TOKEN_COOKIE_NAME];
 
-  // Configure session
-  const MemoryStore = createMemoryStore(session);
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "purchase-management-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    },
-    store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    }),
+  // Add isAuthenticated helper to maintain compatibility with existing routes
+  req.isAuthenticated = () => !!req.user;
+  req.logout = (cb?: (err: any) => void) => {
+    res.clearCookie(TOKEN_COOKIE_NAME);
+    if (cb) cb(null);
   };
 
-  app.use(session(sessionSettings));
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as Express.User;
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.error("JWT verification failed:", err);
+    res.clearCookie(TOKEN_COOKIE_NAME);
+    next();
+  }
+};
+
+export async function setupAuth(app: Express) {
+  console.log('Setting up JWT-based authentication...');
+
+  app.use(cookieParser());
   app.use(passport.initialize());
-  app.use(passport.session());
+  app.use(authenticateToken);
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -95,44 +108,9 @@ export async function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser((user, done) => {
-    console.log('Serializing user:', user.id);
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      console.log('Deserializing user:', id);
-
-      const [user] = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          department: users.department,
-          role: users.role,
-          contactNumber: users.contact_number,
-          isActive: users.isActive
-        })
-        .from(users)
-        .where(eq(users.id, id))
-        .limit(1);
-
-      if (!user) {
-        console.log('User not found during deserialization:', id);
-        return done(null, false);
-      }
-
-      done(null, user);
-    } catch (err) {
-      console.error('Deserialization error:', err);
-      done(err);
-    }
-  });
-
   // Auth routes
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate('local', (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
+    passport.authenticate('local', { session: false }, (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
         console.error('Login error:', err);
         return next(err);
@@ -142,29 +120,28 @@ export async function setupAuth(app: Express) {
         return res.status(401).json({ message: info?.message || 'Invalid credentials' });
       }
 
-      req.logIn(user, (err) => {
-        if (err) {
-          console.error('Login error:', err);
-          return next(err);
-        }
+      // Generate JWT
+      const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
 
-        return res.json({ user });
+      // Set cookie
+      res.cookie(TOKEN_COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
+
+      return res.json({ user });
     })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        console.error('Logout error:', err);
-        return res.status(500).json({ message: 'Logout failed' });
-      }
-      res.json({ message: 'Logged out successfully' });
-    });
+    res.clearCookie(TOKEN_COOKIE_NAME);
+    res.json({ message: 'Logged out successfully' });
   });
 
   app.get("/api/auth/user", (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!req.user) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     res.json(req.user);

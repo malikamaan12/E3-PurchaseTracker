@@ -3,9 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import { AppError } from './errors';
 import type { Request } from 'express';
+import { isR2Configured } from '../services/R2StorageService';
 
 // Configure multer for file uploads
 export const createStorage = (uploadDir: string) => {
+  if (isR2Configured) {
+    return multer.memoryStorage();
+  }
   return multer.diskStorage({
     destination: (_req, _file, cb) => {
       if (!fs.existsSync(uploadDir)) {

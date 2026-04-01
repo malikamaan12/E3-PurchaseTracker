@@ -1,0 +1,138 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+[1G[0KUsing database: Replit/Neon (Development)
+10:47:07 PM [express] Testing database connection...
+10:47:08 PM [express] Database connection established successfully
+Setting up authentication...
+Test admin user created/verified
+10:47:08 PM [express] Authentication setup completed
+Setting up authentication...
+10:47:08 PM [express] Routes registered successfully
+10:47:08 PM [express] Vite development server initialized
+10:47:08 PM [express] Server started and listening on port 5000
+Test admin user created/verified
+Browserslist: browsers data (caniuse-lite) is 17 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AXA_VsCjkmBHXW20lgYhsk3kyyGD7gOW0.dgqboH0esjxfaoyO4IIt6iRWtse0zRDVR4d4QSmOzTs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"93-6vdV4bMc5pv/CnXNcUrjmkxse8A"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cc4ef1000000000009e3edb4d167b6-4a74ac46ee665fcd-00'[39m,
+    tracestate: [32m'dd=s:0;p:4a74ac46ee665fcd;t.tid:69cc4ef100000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5365102476752478157'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cc4ef100000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2783884870772662'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.1.17, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+10:47:13 PM [express] GET /api/auth/user 401 in 3ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AXA_VsCjkmBHXW20lgYhsk3kyyGD7gOW0.dgqboH0esjxfaoyO4IIt6iRWtse0zRDVR4d4QSmOzTs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cc4ef10000000022d3d76c54d47292-5d8d7b987fb609fb-00'[39m,
+    tracestate: [32m'dd=s:0;p:5d8d7b987fb609fb;t.tid:69cc4ef100000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6741180112151382523'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cc4ef100000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2509586277655147154'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.1.17, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+10:47:13 PM [express] GET /api/login-logo 304 in 430ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AXA_VsCjkmBHXW20lgYhsk3kyyGD7gOW0.dgqboH0esjxfaoyO4IIt6iRWtse0zRDVR4d4QSmOzTs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cc4ef1000000007fb677e31bb78091-209b30542f5a91ef-00'[39m,
+    tracestate: [32m'dd=s:0;p:209b30542f5a91ef;t.tid:69cc4ef100000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'2349524768733696495'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cc4ef100000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'9202674705884479633'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.1.17, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+10:47:13 PM [express] GET /api/login-logo 304 in 209ms :: {"loginLogo":"data:image/png;base64,iVBORw0…

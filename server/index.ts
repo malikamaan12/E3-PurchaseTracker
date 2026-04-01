@@ -1,13 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-// Removed redundant PDF route imports - now using consolidated approach
 import { setupVite, serveStatic, log } from "./vite";
 import { db } from "@db";
 import fs from 'fs';
 import path from 'path';
 import { AppError, handleError } from './utils/errors';
-import session from "express-session";
-import createMemoryStore from "memorystore";
 import { sql } from 'drizzle-orm';
 import { setupAuth } from './auth';
 
@@ -82,26 +79,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Session setup
-const MemoryStore = createMemoryStore(session);
-const sessionSettings: session.SessionOptions = {
-  secret: process.env.REPL_ID || "secure-session-secret",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: app.get("env") === "production",
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  },
-  store: new MemoryStore({
-    checkPeriod: 86400000 // prune expired entries every 24h
-  })
-};
-
 if (app.get("env") === "production") {
   app.set("trust proxy", 1);
 }
-
-app.use(session(sessionSettings));
 
 async function initializeServer() {
   try {
@@ -133,7 +113,6 @@ async function initializeServer() {
 
     // Set up routes
     const server = registerRoutes(app);
-    // PDF routes are now consolidated within registerRoutes()
     log("Routes registered successfully");
 
     // Global error handler with proper async handling
@@ -150,8 +129,8 @@ async function initializeServer() {
           error: true,
           message: appError.message,
           severity: appError.severity,
-          predictions: appError.predictions || [],  // Include predictions
-          suggestions: appError.suggestions || [],  // Include suggestions
+          predictions: appError.predictions || [],
+          suggestions: appError.suggestions || [],
           details: app.get('env') === 'development' ? {
             stack: appError.stack,
             ...appError.details
@@ -206,7 +185,7 @@ async function initializeServer() {
       } catch (error: any) {
         log(`Error starting server on port ${port}: ${error.message}`);
         if (port === ports[ports.length - 1]) {
-          throw error; // Throw if we've tried all ports
+          throw error;
         }
       }
     }

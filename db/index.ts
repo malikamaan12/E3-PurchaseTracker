@@ -1,6 +1,8 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 import { sql } from "drizzle-orm";
-import ws from "ws";
 import * as schema from "@db/schema";
 
 // Database connection logic supporting both Replit/Neon and DigitalOcean
@@ -18,16 +20,31 @@ function getDatabaseConnection() {
   const dbType = prodConnectionString ? 'DigitalOcean (Production)' : 'Replit/Neon (Development)';
   console.log(`Using database: ${dbType}`);
   
+  if (prodConnectionString && process.env.VERCEL === "1") {
+    if (!prodConnectionString.includes("25061") && !prodConnectionString.includes("pooler")) {
+      console.warn("\n[WARNING] Serverless Deployment Detected!");
+      console.warn("You are connecting to DigitalOcean Standard DB (Port 25060) from Vercel.");
+      console.warn("This may cause Connection Pool Exhaustion. Please update PROD_DATABASE_URL to use PgBouncer (usually Port 25061) to manage transient connections.\n");
+    }
+  }
+  
   return connectionString;
 }
 
 const connectionString = getDatabaseConnection();
+const isProduction = !!process.env.PROD_DATABASE_URL;
 
-export const db = drizzle({
-  connection: connectionString,
-  schema,
-  ws: ws,
-});
+let dbInstance: any;
+
+if (isProduction) {
+  const pool = new pg.Pool({ connectionString });
+  dbInstance = drizzlePg(pool, { schema });
+} else {
+  const client = neon(connectionString);
+  dbInstance = drizzleNeon(client, { schema });
+}
+
+export const db = dbInstance;
 
 // Test database connection
 export async function testConnection(): Promise<boolean> {

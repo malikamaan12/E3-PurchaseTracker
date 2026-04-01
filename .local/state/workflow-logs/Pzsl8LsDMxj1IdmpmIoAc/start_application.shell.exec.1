@@ -1,0 +1,3309 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+[1G[0KUsing database: Replit/Neon (Development)
+11:37:38 PM [express] Testing database connection...
+11:37:38 PM [express] Database connection established successfully
+Setting up authentication...
+Test admin user created/verified
+11:37:39 PM [express] Authentication setup completed
+Setting up authentication...
+11:37:39 PM [express] Routes registered successfully
+11:37:39 PM [express] Vite development server initialized
+11:37:39 PM [express] Server started and listening on port 5000
+Test admin user created/verified
+Browserslist: browsers data (caniuse-lite) is 17 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m
+  }
+}
+11:37:43 PM [express] GET /api/auth/user 401 in 3ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m
+  }
+}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AHixQ4SZ2lOCPeCvRVnhZTHDh3TIkmNf5.xkITqM73lhhTSesKtChdLjWxt18%2B5oUB%2F7nmAI9UyUw'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb094700000000543d6c1624f32630-4d89f2348b3293c3-00'[39m,
+    tracestate: [32m'dd=s:0;p:4d89f2348b3293c3;t.tid:69cb094700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5587263120217379779'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb094700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6070126715130291760'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:37:43 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AHixQ4SZ2lOCPeCvRVnhZTHDh3TIkmNf5.xkITqM73lhhTSesKtChdLjWxt18%2B5oUB%2F7nmAI9UyUw'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb094700000000663c5f62f66668f5-420140edb02f5560-00'[39m,
+    tracestate: [32m'dd=s:0;p:420140edb02f5560;t.tid:69cb094700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4756154071087273312'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb094700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7366867969116629237'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:37:43 PM [express] GET /api/login-logo 304 in 415ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    connection: [32m'keep-alive'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Linux"'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Not=A?Brand";v="24", "Chromium";v="140"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    referer: [32m'http://localhost:5000/'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m
+  }
+}
+11:37:43 PM [express] GET /api/login-logo 304 in 208ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+11:37:44 PM [express] GET /api/login-logo 304 in 1021ms :: {"loginLogo":"data:image/png;base64,iVBORw…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AHixQ4SZ2lOCPeCvRVnhZTHDh3TIkmNf5.xkITqM73lhhTSesKtChdLjWxt18%2B5oUB%2F7nmAI9UyUw'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0948000000005640b9466bc8fa4c-6c135f8aee9789bd-00'[39m,
+    tracestate: [32m'dd=s:0;p:6c135f8aee9789bd;t.tid:69cb094800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7787673230966753725'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb094800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6215171197878467148'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:37:44 PM [express] GET /api/login-logo 304 in 203ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'E3Admin'[39m, password: [32m'admin@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'44'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AHixQ4SZ2lOCPeCvRVnhZTHDh3TIkmNf5.xkITqM73lhhTSesKtChdLjWxt18%2B5oUB%2F7nmAI9UyUw'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a18000000007903d600eec0d11a-16f19ea6c1e760bb-00'[39m,
+    tracestate: [32m'dd=s:0;p:16f19ea6c1e760bb;t.tid:69cb0a1800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1653276977276608699'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a1800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8720048603013370138'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: E3Admin
+Authentication successful for user: E3Admin
+Serializing user: [33m32[39m
+11:41:13 PM [express] POST /api/auth/login 200 in 902ms :: {"user":{"id":32,"username":"E3Admin","ema…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5713-AHxTujq4bEw3fve8XszrId3GULA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a1900000000727cd93e54a3235a-70a290e2cba2e5a7-01'[39m,
+    tracestate: [32m'dd=s:1;p:70a290e2cba2e5a7;t.dm:-1;t.tid:69cb0a1900000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8116208782228514215'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a1900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8249707479167083354'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/vendors'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"12f8-nyCBqZZHVYNt2zzyQXtdiCuegWA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a1900000000360f18d6910864f8-3c980bf5db2c6929-00'[39m,
+    tracestate: [32m'dd=s:0;p:3c980bf5db2c6929;t.tid:69cb0a1900000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4366252989307709737'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a1900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3895359512534082808'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/sub-purposes'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"a68-zclcTq874upLYHMxcQQh44i3Td8"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a1900000000110686d7a02ef55d-732cb91a4459c188-01'[39m,
+    tracestate: [32m'dd=s:1;p:732cb91a4459c188;t.tid:69cb0a1900000000;t.dm:-1'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8299211735804002696'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a1900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'1226816209168561501'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Found 12 purchase requests visible to user
+[GET /api/sub-purposes] Fetching sub-purposes with filters: {}
+[GET /api/vendors] Fetching vendors 
+[GET /api/sub-purposes] Found 10 sub-purposes 
+[GET /api/sub-purposes] Raw sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z"
+  }
+]
+[GET /api/sub-purposes] Formatted sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z",
+    "label": "Inflata Park",
+    "value": "35"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z",
+    "label": "Office Supplies",
+    "value": "34"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z",
+    "label": "MotoGp",
+    "value": "33"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z",
+    "label": "Doha Mall  Summer Activations",
+    "value": "32"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z",
+    "label": "InflataCity 2025",
+    "value": "31"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z",
+    "label": "Trade Show",
+    "value": "21"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z",
+    "label": "Formula 1",
+    "value": "18"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z",
+    "label": "Lego2025",
+    "value": "17"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z",
+    "label": "InflataRun",
+    "value": "16"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z",
+    "label": "InflataRun",
+    "value": "15"
+  }
+]
+11:41:14 PM [express] GET /api/sub-purposes 304 in 1425ms :: [{"id":35,"name":"Inflata Park","purpose…
+[GET /api/vendors] Found 9 vendors 
+11:41:14 PM [express] GET /api/vendors 304 in 1451ms :: [{"id":57,"companyName":"Store 974","contactP…
+[GET /api/requests] Processed 12 purchase requests 
+11:41:15 PM [express] GET /api/requests 304 in 2237ms :: [{"id":187,"requestNumber":"PR-1751709611766…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a1b0000000064ff63ce2d6bf5cd-5a518d9822a55957-00'[39m,
+    tracestate: [32m'dd=s:0;p:5a518d9822a55957;t.tid:69cb0a1b00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6508138621082884439'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a1b00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7277645260030473677'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 203ms
+11:41:16 PM [express] GET /api/notifications/fast 304 in 610ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a1c000000000a432ea9277f1760-191dfd5a3541f62f-00'[39m,
+    tracestate: [32m'dd=s:0;p:191dfd5a3541f62f;t.tid:69cb0a1c00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1809881189155206703'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a1c00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'739486067865884512'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[FAST-NOTIF] Fast endpoint completed in 0ms
+11:41:16 PM [express] GET /api/notifications/fast 304 in 406ms :: [{"id":272,"userId":32,"requestId":…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/184'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"bce-v8+x03Ah3XgAPL5ksqrPBwXIK6E"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/184'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a54000000004794cf70c4acc02b-792f53a59e8af229-00'[39m,
+    tracestate: [32m'dd=s:0;p:792f53a59e8af229;t.tid:69cb0a5400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8732290173289296425'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a5400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5157975556489003051'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+[GET /api/requests/184] Fetching purchase request with ID: 184 
+[GET /api/requests/184] Found base request with ID: 184 
+[GET /api/requests/184] Found 1 attachments 
+[GET /api/requests/184] Found 2 approvals 
+[GET /api/requests/184] Found requester: E3Admin 
+[GET /api/requests/184] Found vendor: Events & 
+[GET /api/requests/184] Found sub-purpose: Trade Show 
+[GET /api/requests/184] Successfully assembled complete request data 
+11:42:14 PM [express] GET /api/requests/184 304 in 2244ms :: {"id":184,"requestNumber":"PR-1751311402…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5713-AHxTujq4bEw3fve8XszrId3GULA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/184'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a56000000005dac72de0b9c1de5-3acc1fa3c730c9a2-01'[39m,
+    tracestate: [32m'dd=s:1;p:3acc1fa3c730c9a2;t.tid:69cb0a5600000000;t.dm:-1'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4236796137730787746'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a5600000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6749896239524617701'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Found 12 purchase requests visible to user
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/184/pdf'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"518f-JOVNGrMcJBhr+YJ5R3pizBaylig"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/184'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a58000000004da5c72182ec1d91-6775132c6c4bb9a6-00'[39m,
+    tracestate: [32m'dd=s:0;p:6775132c6c4bb9a6;t.tid:69cb0a5800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7454885839698114982'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a5800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5595097058822069649'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Processed 12 purchase requests 
+11:42:17 PM [express] GET /api/requests 304 in 2244ms :: [{"id":187,"requestNumber":"PR-1751709611766…
+[getRequestWithRelations] Fetching purchase request with ID: [33m184[39m
+[getRequestWithRelations] Found requester: E3Admin department: Management
+[getRequestWithRelations] Creating complete approval list for request 184
+[getRequestWithRelations] Mandatory departments: [ [32m'CEO Office'[39m, [32m'Finance'[39m, [32m'Director'[39m ]
+[getRequestWithRelations] Additional approvers: [ [32m'Operation'[39m ]
+[getRequestWithRelations] All expected departments: [ [32m'CEO Office'[39m, [32m'Finance'[39m, [32m'Director'[39m, [32m'Operation'[39m ]
+[getRequestWithRelations] Existing approvals: [
+  { dept: [32m'CEO Office'[39m, status: [32m'approved'[39m, approver: [32m'AdilAhmed'[39m },
+  { dept: [32m'Director'[39m, status: [32m'approved'[39m, approver: [32m'RajaAbbas'[39m }
+]
+[getRequestWithRelations] Found existing approval for CEO Office: approved
+[getRequestWithRelations] Created pending approval for Finance
+[getRequestWithRelations] Found existing approval for Director: approved
+[getRequestWithRelations] Created pending approval for Operation
+[getRequestWithRelations] Complete approvals list has 4 entries
+[getRequestWithRelations] Complete approvals: [
+  { dept: [32m'CEO Office'[39m, status: [32m'approved'[39m, approver: [32m'AdilAhmed'[39m },
+  { dept: [32m'Finance'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m },
+  { dept: [32m'Director'[39m, status: [32m'approved'[39m, approver: [32m'RajaAbbas'[39m },
+  { dept: [32m'Operation'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m }
+]
+11:42:18 PM [express] GET /api/requests/184/pdf 304 in 2584ms :: {"success":true,"message":"Request d…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/pdf/audit'[39m,
+  body: {
+    requestId: [33m184[39m,
+    action: [32m'pdf_downloaded'[39m,
+    type: [32m'admin'[39m,
+    details: {
+      trackingId: [32m'PDF-184-1774914140038-gf2enmn5'[39m,
+      exportType: [32m'single_pdf'[39m,
+      fileName: [32m'purchase-request-184-2026-03-31-02-42.pdf'[39m,
+      fileSize: [33m1230536[39m,
+      timestamp: [32m'2026-03-30T23:42:20.038Z'[39m,
+      pageCount: [33m2[39m,
+      roleType: [32m'admin'[39m,
+      type: [32m'admin'[39m
+    }
+  },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'303'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/184'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a5b0000000039d28b651ffbb0e3-0fbeea028385dc85-00'[39m,
+    tracestate: [32m'dd=s:0;p:0fbeea028385dc85;t.tid:69cb0a5b00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1134601452661365893'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a5b00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'4166545871715676387'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PDF Audit] Validating request ID: 184 (type: number)
+[POST /api/pdf/audit] Export audit logged: PDF downloaded for request 184 
+11:42:19 PM [express] POST /api/pdf/audit 200 in 820ms :: {"success":true}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/pdf/audit'[39m,
+  body: {
+    requestId: [33m184[39m,
+    action: [32m'pdf_downloaded'[39m,
+    type: [32m'admin'[39m,
+    details: {
+      fileName: [32m'purchase-request-184-2026-03-31-02-42.pdf'[39m,
+      success: [33mtrue[39m,
+      userRole: [32m'admin'[39m,
+      trackingId: [32m'PDF-184-1774914140910-2f3fem9y'[39m,
+      timestamp: [32m'2026-03-30T23:42:20.910Z'[39m,
+      fileSize: [33m0[39m,
+      type: [32m'admin'[39m
+    }
+  },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'272'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/184'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a5b000000007648b4643f36acd7-5466703dc0f5247c-01'[39m,
+    tracestate: [32m'dd=s:1;p:5466703dc0f5247c;t.dm:-1;t.tid:69cb0a5b00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6081671757343040636'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a5b00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8523260637448940759'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PDF Audit] Validating request ID: 184 (type: number)
+[POST /api/pdf/audit] Export audit logged: PDF downloaded for request 184 
+11:42:20 PM [express] POST /api/pdf/audit 200 in 820ms :: {"success":true}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/admin/account-requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/admin'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a7400000000512b3209d2f793ca-7ff5eb99fb63592f-00'[39m,
+    tracestate: [32m'dd=s:0;p:7ff5eb99fb63592f;t.tid:69cb0a7400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'9220534858691074351'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a7400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5848823558846256074'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/pdf/print-settings'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/admin'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a740000000003d687d15da51eb2-2d7932ea3966ce22-01'[39m,
+    tracestate: [32m'dd=s:1;p:2d7932ea3966ce22;t.dm:-1;t.tid:69cb0a7400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3276706185455521314'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a7400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'276557760418881202'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/admin/users'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/admin'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a740000000029b1a9db832a0238-1b6b53e9da15a595-00'[39m,
+    tracestate: [32m'dd=s:0;p:1b6b53e9da15a595;t.tid:69cb0a7400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1975765125383431573'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a7400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3004369186696331832'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/admin/sub-purposes'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/admin'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a740000000031b404b27bafdb88-678b210fe9e526ad-00'[39m,
+    tracestate: [32m'dd=s:0;p:678b210fe9e526ad;t.tid:69cb0a7400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7461093559901693613'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a7400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3581492768292199304'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/admin/account-requests] Fetching account requests with filters: {}
+[GET /api/admin/account-requests] Constructed where conditions: []
+[GET /api/admin/users] Fetching users 
+[GET /api/admin/account-requests] Found 14 account requests 
+[GET /api/admin/account-requests] Account requests after filtering: [
+  {
+    "id": 14,
+    "username": "newtest",
+    "status": "approved",
+    "department": "Business",
+    "role": "user"
+  },
+  {
+    "id": 13,
+    "username": "uniquesonu",
+    "status": "pending",
+    "department": "CEO Office",
+    "role": "user"
+  },
+  {
+    "id": 12,
+    "username": "Arslan",
+    "status": "approved",
+    "department": "Logistics",
+    "role": "admin"
+  },
+  {
+    "id": 11,
+    "username": "Qusain",
+    "status": "approved",
+    "department": "Procurement",
+    "role": "user"
+  },
+  {
+    "id": 10,
+    "username": "Amaanmalik",
+    "status": "approved",
+    "department": "Branding",
+    "role": "user"
+  },
+  {
+    "id": 9,
+    "username": "testuser@123",
+    "status": "approved",
+    "department": "Management",
+    "role": "admin"
+  },
+  {
+    "id": 8,
+    "username": "ilazim",
+    "status": "approved",
+    "department": "Support",
+    "role": "user"
+  },
+  {
+    "id": 7,
+    "username": "Mohasin",
+    "status": "pending",
+    "department": "Mall Activations",
+    "role": "user"
+  },
+  {
+    "id": 6,
+    "username": "Indika",
+    "status": "approved",
+    "department": "Finance",
+    "role": "user"
+  },
+  {
+    "id": 5,
+    "username": "RajaAbbas",
+    "status": "approved",
+    "department": "Director",
+    "role": "user"
+  },
+  {
+    "id": 4,
+    "username": "AdilAhmed",
+    "status": "approved",
+    "department": "CEO Office",
+    "role": "approver"
+  },
+  {
+    "id": 3,
+    "username": "ahmad",
+    "status": "approved",
+    "department": "Branding",
+    "role": "user"
+  },
+  {
+    "id": 2,
+    "username": "Ahmad",
+    "status": "approved",
+    "department": "Branding",
+    "role": "user"
+  },
+  {
+    "id": 1,
+    "username": "E3Admin",
+    "status": "approved",
+    "department": "Management",
+    "role": "user"
+  }
+]
+11:42:45 PM [express] GET /api/admin/account-requests 200 in 1227ms :: [{"id":14,"username":"newtest"…
+[GET /api/admin/users] Found 13 users 
+11:42:45 PM [express] GET /api/admin/users 200 in 1426ms :: [{"id":18845,"username":"newtest","email"…
+11:42:45 PM [express] GET /api/pdf/print-settings 200 in 1450ms :: {"id":145,"headerTitle":"E3 Purcha…
+[GET /api/admin/sub-purposes] Found 10 sub-purposes 
+11:42:45 PM [express] GET /api/admin/sub-purposes 200 in 1434ms :: [{"id":35,"name":"Inflata Park","p…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/subpurposes'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/new-request'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a77000000000dc58042749c4eaa-0747d4c70bc35f1f-00'[39m,
+    tracestate: [32m'dd=s:0;p:0747d4c70bc35f1f;t.tid:69cb0a7700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'524621832972885791'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a7700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'992340315817660074'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/branding'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/new-request'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a770000000008782c25a80a9c5a-1fea36b59a9bbb8b-00'[39m,
+    tracestate: [32m'dd=s:0;p:1fea36b59a9bbb8b;t.tid:69cb0a7700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'2299710713336937355'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a7700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'610286289753381978'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.10.119, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/vendors'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"12f8-nyCBqZZHVYNt2zzyQXtdiCuegWA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/new-request'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a770000000061e228eb40899cb8-4c5296dfa1b8c6b3-01'[39m,
+    tracestate: [32m'dd=s:1;p:4c5296dfa1b8c6b3;t.dm:-1;t.tid:69cb0a7700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5499623982207911603'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0a7700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7053244957280804024'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/subpurposes] Fetching sub-purposes with filters: {}
+[GET /api/vendors] Fetching vendors 
+11:42:48 PM [express] GET /api/branding 200 in 418ms :: {"companyName":"Enterprise Vendor Management"…
+[GET /api/vendors] Found 9 vendors 
+11:42:48 PM [express] GET /api/vendors 304 in 602ms :: [{"id":57,"companyName":"Store 974","contactPe…
+[GET /api/subpurposes] Found 2 sub-purposes 
+11:42:48 PM [express] GET /api/subpurposes 200 in 605ms :: [{"id":34,"name":"Office Supplies","purpos…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5713-AHxTujq4bEw3fve8XszrId3GULA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0a850000000046a0ebb3ef493419-629671c11d88be42-01'[39m,
+    tracestate: [32m'dd=s:1;p:629671c11d88be42;t.dm:-1;t.tid:69cb0a8500000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7103990536461663810'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0a8500000000,_dd.p.dm=-1'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5089326736974885913'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Found 12 purchase requests visible to user
+[GET /api/requests] Processed 12 purchase requests 
+11:43:04 PM [express] GET /api/requests 304 in 2870ms :: [{"id":187,"requestNumber":"PR-1751709611766…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/attachments'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'314059'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'multipart/form-data; boundary=----WebKitFormBoundaryBFy30aRGO4OdkPJb'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/new-request'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0af100000000622f402c2ac5dc42-7d06186d780295e1-00'[39m,
+    tracestate: [32m'dd=s:0;p:7d06186d780295e1;t.tid:69cb0af100000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'9008914963045193185'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0af100000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7074944098062687298'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[POST /api/attachments] Files uploaded successfully: [
+  {
+    "fileName": "Acknowledgment Letter.pdf",
+    "fileType": "application/pdf",
+    "fileSize": 313854,
+    "fileUrl": "/uploads/files-1774914290549-778094240.pdf"
+  }
+]
+11:44:50 PM [express] POST /api/attachments 201 in 1064ms :: [{"fileName":"Acknowledgment Letter.pdf"…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {
+    data: {
+      vendorId: [33m57[39m,
+      title: [32m'test the tech'[39m,
+      description: [32m'hello world'[39m,
+      items: [36m[Array][39m,
+      purposeType: [32m'E3 EVENT'[39m,
+      subPurposeId: [33m21[39m,
+      priority: [32m'urgent'[39m,
+      additionalApprovers: [36m[Array][39m,
+      currency: [32m'QAR'[39m,
+      totalEstimatedCost: [33m65[39m,
+      freightAmount: [33m25[39m,
+      attachments: [36m[Array][39m
+    },
+    action: [32m'submit'[39m
+  },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'507'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/new-request'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0af20000000028fdc1c7fafe4616-600cb2623f779814-00'[39m,
+    tracestate: [32m'dd=s:0;p:600cb2623f779814;t.tid:69cb0af200000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6921102862402951188'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0af200000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'2953729995278534166'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+Creating purchase request: {
+  action: [32m'submit'[39m,
+  requestData: {
+    vendorId: [33m57[39m,
+    title: [32m'test the tech'[39m,
+    description: [32m'hello world'[39m,
+    items: [ [36m[Object][39m ],
+    purposeType: [32m'E3 EVENT'[39m,
+    subPurposeId: [33m21[39m,
+    priority: [32m'urgent'[39m,
+    additionalApprovers: [ [32m'Business'[39m ],
+    currency: [32m'QAR'[39m,
+    totalEstimatedCost: [33m65[39m,
+    freightAmount: [33m25[39m,
+    attachments: [ [36m[Object][39m ]
+  }
+}
+Final request data: {
+  "vendorId": 57,
+  "title": "test the tech",
+  "description": "hello world",
+  "items": "[{\"name\":\"test item\",\"quantity\":2,\"estimatedCost\":20,\"description\":\"item description\"}]",
+  "purposeType": "E3 EVENT",
+  "subPurposeId": 21,
+  "priority": "urgent",
+  "additionalApprovers": "[\"Business\"]",
+  "currency": "QAR",
+  "totalEstimatedCost": 65,
+  "freightAmount": 25,
+  "attachments": [
+    {
+      "fileName": "Acknowledgment Letter.pdf",
+      "fileType": "application/pdf",
+      "fileSize": 313854,
+      "fileUrl": "/uploads/files-1774914290549-778094240.pdf"
+    }
+  ],
+  "requestNumber": "PR-1774914291015-263",
+  "requesterId": 32,
+  "status": "pending",
+  "createdAt": "2026-03-30T23:44:51.015Z",
+  "updatedAt": "2026-03-30T23:44:51.015Z"
+}
+Purchase request submitted successfully: [33m190[39m
+Found 3 mandatory approvers for notification
+Found additional approver departments: [ [32m'Business'[39m ]
+Found 1 additional approvers from departments: [ [32m'Business'[39m ]
+Sending notifications to 4 approvers for request 190
+11:44:52 PM [express] POST /api/requests 201 in 2279ms :: {"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0af4000000006d04dc4a69b0e5cf-0b4c29328aa5aa22-00'[39m,
+    tracestate: [32m'dd=s:0;p:0b4c29328aa5aa22;t.tid:69cb0af400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'814070929698433570'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0af400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7855645862199879119'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m32[39m role: admin department: Management
+[GET /api/requests] User has full access - fetching all requests 
+Found 13 purchase requests visible to user
+[GET /api/requests] Processed 13 purchase requests 
+11:44:55 PM [express] GET /api/requests 200 in 2219ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/190'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0afa000000003cb874f23485cccb-3d60a5146fbf2312-00'[39m,
+    tracestate: [32m'dd=s:0;p:3d60a5146fbf2312;t.tid:69cb0afa00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4422716341270553362'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0afa00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'4375375621602528459'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+[GET /api/requests/190] Fetching purchase request with ID: 190 
+[GET /api/requests/190] Found base request with ID: 190 
+[GET /api/requests/190] Found 1 attachments 
+[GET /api/requests/190] Found 0 approvals 
+[GET /api/requests/190] Found requester: E3Admin 
+[GET /api/requests/190] Found vendor: Store 974 
+[GET /api/requests/190] Found sub-purpose: Trade Show 
+[GET /api/requests/190] Successfully assembled complete request data 
+11:44:59 PM [express] GET /api/requests/190 200 in 1599ms :: {"id":190,"requestNumber":"PR-1774914291…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/190/pdf'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0afd00000000177396f6145b8db9-2d0d99c92ff6be33-00'[39m,
+    tracestate: [32m'dd=s:0;p:2d0d99c92ff6be33;t.tid:69cb0afd00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3246419995776171571'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0afd00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'1689860268841733561'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[getRequestWithRelations] Fetching purchase request with ID: [33m190[39m
+[getRequestWithRelations] Found requester: E3Admin department: Management
+[getRequestWithRelations] Creating complete approval list for request 190
+[getRequestWithRelations] Mandatory departments: [ [32m'CEO Office'[39m, [32m'Finance'[39m, [32m'Director'[39m ]
+[getRequestWithRelations] Additional approvers: [ [32m'Business'[39m ]
+[getRequestWithRelations] All expected departments: [ [32m'CEO Office'[39m, [32m'Finance'[39m, [32m'Director'[39m, [32m'Business'[39m ]
+[getRequestWithRelations] Existing approvals: []
+[getRequestWithRelations] Created pending approval for CEO Office
+[getRequestWithRelations] Created pending approval for Finance
+[getRequestWithRelations] Created pending approval for Director
+[getRequestWithRelations] Created pending approval for Business
+[getRequestWithRelations] Complete approvals list has 4 entries
+[getRequestWithRelations] Complete approvals: [
+  { dept: [32m'CEO Office'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m },
+  { dept: [32m'Finance'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m },
+  { dept: [32m'Director'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m },
+  { dept: [32m'Business'[39m, status: [32m'pending'[39m, approver: [32m'null'[39m }
+]
+11:45:03 PM [express] GET /api/requests/190/pdf 200 in 2400ms :: {"success":true,"message":"Request d…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/pdf/audit'[39m,
+  body: {
+    requestId: [33m190[39m,
+    action: [32m'pdf_downloaded'[39m,
+    type: [32m'admin'[39m,
+    details: {
+      trackingId: [32m'PDF-190-1774914304835-qgva0l38'[39m,
+      exportType: [32m'single_pdf'[39m,
+      fileName: [32m'purchase-request-190-2026-03-31-02-45.pdf'[39m,
+      fileSize: [33m1230509[39m,
+      timestamp: [32m'2026-03-30T23:45:04.835Z'[39m,
+      pageCount: [33m2[39m,
+      roleType: [32m'admin'[39m,
+      type: [32m'admin'[39m
+    }
+  },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'303'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0aff000000005a69ac4d5a32147a-5e4c8045e9cea041-00'[39m,
+    tracestate: [32m'dd=s:0;p:5e4c8045e9cea041;t.tid:69cb0aff00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6794946975558967361'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0aff00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6514927784193823866'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PDF Audit] Validating request ID: 190 (type: number)
+[POST /api/pdf/audit] Export audit logged: PDF downloaded for request 190 
+11:45:04 PM [express] POST /api/pdf/audit 200 in 809ms :: {"success":true}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/pdf/audit'[39m,
+  body: {
+    requestId: [33m190[39m,
+    action: [32m'pdf_downloaded'[39m,
+    type: [32m'admin'[39m,
+    details: {
+      fileName: [32m'purchase-request-190-2026-03-31-02-45.pdf'[39m,
+      success: [33mtrue[39m,
+      userRole: [32m'admin'[39m,
+      trackingId: [32m'PDF-190-1774914305696-w4v2fwvp'[39m,
+      timestamp: [32m'2026-03-30T23:45:05.696Z'[39m,
+      fileSize: [33m0[39m,
+      type: [32m'admin'[39m
+    }
+  },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'272'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b000000000070b14ab6697c1c6a-3c41bc5b22fd9c78-00'[39m,
+    tracestate: [32m'dd=s:0;p:3c41bc5b22fd9c78;t.tid:69cb0b0000000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4341958615376960632'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b0000000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8120353750439959658'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+Deserializing user: [33m32[39m
+[PDF Audit] Validating request ID: 190 (type: number)
+[POST /api/pdf/audit] Export audit logged: PDF downloaded for request 190 
+11:45:05 PM [express] POST /api/pdf/audit 200 in 802ms :: {"success":true}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/logout'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3ApLK6r__uvVlKI4NQ5qFbLPM_oB9BFYl0.6YppVbTwcLt3qkQDt453yONuvWKSwPhO7oN8cYBxkg4'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b46000000006a2d04b88d6d82ed-6299e6561302f27d-01'[39m,
+    tracestate: [32m'dd=s:1;p:6299e6561302f27d;t.dm:-1;t.tid:69cb0b4600000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7104963144514204285'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0b4600000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7650776532665598701'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m32[39m
+11:46:15 PM [express] POST /api/auth/logout 200 in 852ms :: {"message":"Logged out successfully"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b47000000001159861069ebaef3-78a0e4173ef90cbe-00'[39m,
+    tracestate: [32m'dd=s:0;p:78a0e4173ef90cbe;t.tid:69cb0b4700000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8692198069316947134'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b4700000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'1250177776626675443'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.9.118, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/auth/user'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/login'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b480000000034463daf62fbdb8f-178741089415f5ed-00'[39m,
+    tracestate: [32m'dd=s:0;p:178741089415f5ed;t.tid:69cb0b4800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1695395289828292077'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b4800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3766765961831242639'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:46:16 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Not authenticated"}
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/login'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b480000000004ae8d7a1e65ec75-3e15d818233dfe71-01'[39m,
+    tracestate: [32m'dd=s:1;p:3e15d818233dfe71;t.dm:-1;t.tid:69cb0b4800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4473719403044535921'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0b4800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'337362577734888565'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:46:17 PM [express] GET /api/login-logo 200 in 406ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/login-logo'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"41fe-qzGyscZvzPOTJPeIJdf0KqdghHk"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/login'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b49000000003b89600ebaf4bb18-72b585913be75762-00'[39m,
+    tracestate: [32m'dd=s:0;p:72b585913be75762;t.tid:69cb0b4900000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8265659549930182498'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b4900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'4290065736429517592'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+11:46:17 PM [express] GET /api/login-logo 304 in 206ms :: {"loginLogo":"data:image/png;base64,iVBORw0…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'AdilAhmed'[39m, password: [32m'adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/login'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b4d0000000049070b3ae9514667-4ff9ccb068a1f2a2-00'[39m,
+    tracestate: [32m'dd=s:0;p:4ff9ccb068a1f2a2;t.tid:69cb0b4d00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'5762862256239014562'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b4d00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5262187037256140391'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: AdilAhmed
+Invalid password for user: AdilAhmed
+11:46:21 PM [express] POST /api/auth/login 401 in 263ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'Adil'[39m, password: [32m'adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'40'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b530000000046c5e6ca31b7a88c-13d05b8ebd4db12b-00'[39m,
+    tracestate: [32m'dd=s:0;p:13d05b8ebd4db12b;t.tid:69cb0b5300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1427741750495916331'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b5300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'5099735909158856844'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: Adil
+User not found: Adil
+11:46:27 PM [express] POST /api/auth/login 401 in 217ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'AdilAhmed'[39m, password: [32m'adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b5e0000000071801163cbefc2fc-57e03706d4104c4f-00'[39m,
+    tracestate: [32m'dd=s:0;p:57e03706d4104c4f;t.tid:69cb0b5e00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6332121578550086735'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b5e00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8178556043625743100'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: AdilAhmed
+Invalid password for user: AdilAhmed
+11:46:39 PM [express] POST /api/auth/login 401 in 880ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'adilAhmed'[39m, password: [32m'adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b6800000000772b7b54d791e6d6-7689fc2e0767f74f-00'[39m,
+    tracestate: [32m'dd=s:0;p:7689fc2e0767f74f;t.tid:69cb0b6800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8541635442907805519'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b6800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8587092718836115158'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: adilAhmed
+User not found: adilAhmed
+11:46:49 PM [express] POST /api/auth/login 401 in 206ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'Adilahmed'[39m, password: [32m'adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b6f000000000c19292e66f04b23-2da86cf80082ff6d-00'[39m,
+    tracestate: [32m'dd=s:0;p:2da86cf80082ff6d;t.tid:69cb0b6f00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3289999340210421613'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b6f00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'871773282145159971'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: Adilahmed
+User not found: Adilahmed
+11:46:55 PM [express] POST /api/auth/login 401 in 213ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'Adilahmed'[39m, password: [32m'Adil@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b79000000005aebb887ee98fa44-6e7e49ab9f6d61f7-00'[39m,
+    tracestate: [32m'dd=s:0;p:6e7e49ab9f6d61f7;t.tid:69cb0b7900000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7961882192700596727'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b7900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6551532976903617092'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: Adilahmed
+User not found: Adilahmed
+11:47:05 PM [express] POST /api/auth/login 401 in 205ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'Raja'[39m, password: [32m'Raja@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'40'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b880000000077036a7c54bf051d-18b2370fd0cdafaa-00'[39m,
+    tracestate: [32m'dd=s:0;p:18b2370fd0cdafaa;t.tid:69cb0b8800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1779545343831945130'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b8800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8575815197673850141'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: Raja
+User not found: Raja
+11:47:21 PM [express] POST /api/auth/login 401 in 848ms :: {"message":"Invalid username or password"}
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/auth/login'[39m,
+  body: { username: [32m'RajaAbbas'[39m, password: [32m'raja@e3'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'45'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AmOMQ2630Yg5ZObrLzqCv7YQrkqugfQ46.lZahufFCf%2Bh7%2FyzubJNQgG5oN71VliG47sRydjJnElo'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b900000000000fac1a064b13e3f-2ad26a4727fafbf9-00'[39m,
+    tracestate: [32m'dd=s:0;p:2ad26a4727fafbf9;t.tid:69cb0b9000000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3085645548548193273'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9000000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'70581638805929535'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Attempting authentication for user: RajaAbbas
+Authentication successful for user: RajaAbbas
+Serializing user: [33m229[39m
+11:47:28 PM [express] POST /api/auth/login 200 in 264ms :: {"user":{"id":229,"username":"RajaAbbas","…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5b95-4zJnIFwjYOaOVjYfI6KJYdwBZVY"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b900000000058253e7a12625205-14c1b453a2664881-01'[39m,
+    tracestate: [32m'dd=s:1;p:14c1b453a2664881;t.dm:-1;t.tid:69cb0b9000000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1495674822563612801'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0b9000000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6351551543491318277'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/sub-purposes'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"a68-zclcTq874upLYHMxcQQh44i3Td8"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b90000000002f60fc8e42f3483e-0743c0011fb30c7b-00'[39m,
+    tracestate: [32m'dd=s:0;p:0743c0011fb30c7b;t.tid:69cb0b9000000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'523473092764437627'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9000000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3414006205485631550'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.6.13, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/vendors'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'application/json'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"12f8-nyCBqZZHVYNt2zzyQXtdiCuegWA"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b9000000000157e86e56f77dc8f-1067bbe5a07f6490-01'[39m,
+    tracestate: [32m'dd=s:1;p:1067bbe5a07f6490;t.dm:-1;t.tid:69cb0b9000000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'1182120022122652816'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9000000000,_dd.p.dm=-1'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'1548823641837788303'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m229[39m role: approver department: Director
+[GET /api/requests] User has full access - fetching all requests 
+Found 13 purchase requests visible to user
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[GET /api/vendors] Fetching vendors 
+[GET /api/sub-purposes] Fetching sub-purposes with filters: {}
+[GET /api/vendors] Found 9 vendors 
+11:47:30 PM [express] GET /api/vendors 304 in 1830ms :: [{"id":57,"companyName":"Store 974","contactP…
+[GET /api/sub-purposes] Found 10 sub-purposes 
+[GET /api/sub-purposes] Raw sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z"
+  }
+]
+[GET /api/sub-purposes] Formatted sub-purposes data: [
+  {
+    "id": 35,
+    "name": "Inflata Park",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-04-01T18:29:00.000Z",
+    "valid_to": "2026-03-01T18:29:00.000Z",
+    "created_at": "2025-07-12T18:29:52.119Z",
+    "updated_at": "2025-07-12T18:29:52.119Z",
+    "label": "Inflata Park",
+    "value": "35"
+  },
+  {
+    "id": 34,
+    "name": "Office Supplies",
+    "purpose_type": "BUSINESS GROWTH",
+    "is_frozen": false,
+    "valid_from": "2025-07-08T22:52:00.000Z",
+    "valid_to": "2027-01-08T22:52:00.000Z",
+    "created_at": "2025-07-08T22:52:36.751Z",
+    "updated_at": "2025-07-08T22:52:36.751Z",
+    "label": "Office Supplies",
+    "value": "34"
+  },
+  {
+    "id": 33,
+    "name": "MotoGp",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2025-06-30T22:50:00.000Z",
+    "valid_to": "2025-12-08T22:51:00.000Z",
+    "created_at": "2025-07-08T22:51:15.525Z",
+    "updated_at": "2025-07-08T22:51:15.525Z",
+    "label": "MotoGp",
+    "value": "33"
+  },
+  {
+    "id": 32,
+    "name": "Doha Mall  Summer Activations",
+    "purpose_type": "MALL",
+    "is_frozen": false,
+    "valid_from": "2025-05-31T21:09:00.000Z",
+    "valid_to": "2025-08-30T21:10:00.000Z",
+    "created_at": "2025-07-06T21:10:14.229Z",
+    "updated_at": "2025-07-06T21:10:14.229Z",
+    "label": "Doha Mall  Summer Activations",
+    "value": "32"
+  },
+  {
+    "id": 31,
+    "name": "InflataCity 2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2025-01-01T17:19:00.000Z",
+    "valid_to": "2025-08-31T17:19:00.000Z",
+    "created_at": "2025-01-07T20:19:27.086Z",
+    "updated_at": "2025-03-01T18:49:15.806Z",
+    "label": "InflataCity 2025",
+    "value": "31"
+  },
+  {
+    "id": 21,
+    "name": "Trade Show",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": null,
+    "valid_to": null,
+    "created_at": "2025-01-01T13:16:01.167Z",
+    "updated_at": "2025-01-01T13:16:01.167Z",
+    "label": "Trade Show",
+    "value": "21"
+  },
+  {
+    "id": 18,
+    "name": "Formula 1",
+    "purpose_type": "PROJECT",
+    "is_frozen": false,
+    "valid_from": "2024-11-01T16:16:00.000Z",
+    "valid_to": "2025-02-28T16:16:00.000Z",
+    "created_at": "2024-12-30T16:16:14.933Z",
+    "updated_at": "2024-12-30T16:16:14.933Z",
+    "label": "Formula 1",
+    "value": "18"
+  },
+  {
+    "id": 17,
+    "name": "Lego2025",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-29T21:20:00.000Z",
+    "valid_to": "2025-02-28T21:20:00.000Z",
+    "created_at": "2024-12-29T21:22:00.468Z",
+    "updated_at": "2024-12-29T21:22:00.468Z",
+    "label": "Lego2025",
+    "value": "17"
+  },
+  {
+    "id": 16,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-11-21T21:40:00.000Z",
+    "valid_to": "2025-02-27T21:40:00.000Z",
+    "created_at": "2024-12-28T21:40:27.708Z",
+    "updated_at": "2024-12-28T21:40:27.708Z",
+    "label": "InflataRun",
+    "value": "16"
+  },
+  {
+    "id": 15,
+    "name": "InflataRun",
+    "purpose_type": "E3 EVENT",
+    "is_frozen": false,
+    "valid_from": "2024-10-31T21:12:00.000Z",
+    "valid_to": "2025-03-30T21:12:00.000Z",
+    "created_at": "2024-12-28T21:12:26.992Z",
+    "updated_at": "2024-12-28T21:12:26.992Z",
+    "label": "InflataRun",
+    "value": "15"
+  }
+]
+11:47:30 PM [express] GET /api/sub-purposes 304 in 2033ms :: [{"id":35,"name":"Inflata Park","purpose…
+[GET /api/requests] Processed 13 purchase requests 
+11:47:30 PM [express] GET /api/requests 304 in 2247ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"eed-wG6cX0ACcjmkDftR2dtn0JaHp7U"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b92000000006508da9b77056629-0601311f631971ad-01'[39m,
+    tracestate: [32m'dd=s:1;p:0601311f631971ad;t.dm:-1;t.tid:69cb0b9200000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'432681050080637357'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9200000000,_dd.p.dm=-1'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7280309158896035369'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[FAST-NOTIF] Fast endpoint completed in 205ms
+11:47:31 PM [express] GET /api/notifications/fast 200 in 615ms :: [{"id":275,"userId":229,"requestId"…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"89f-taoq5qV/drVSa9X9YmUzIE5bty4"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/dashboard'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b93000000002a4a0fc60c10bad8-3495658df94244ea-00'[39m,
+    tracestate: [32m'dd=s:0;p:3495658df94244ea;t.tid:69cb0b9300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3789046321948804330'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3047265441149926104'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[FAST-NOTIF] Fast endpoint completed in 0ms
+11:47:31 PM [express] GET /api/notifications/fast 304 in 412ms :: [{"id":275,"userId":229,"requestId"…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/190'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"7b6-pe45Pkv6YxjnblMNpkel/bMR5ek"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0b9b000000003011c1a9cb9050ae-60991d603e0cc488-00'[39m,
+    tracestate: [32m'dd=s:0;p:60991d603e0cc488;t.tid:69cb0b9b00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'6960626998272902280'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0b9b00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3463762523433488558'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Fetching purchase request with ID: 190 
+[GET /api/requests/190] Found base request with ID: 190 
+[GET /api/requests/190] Found 1 attachments 
+[GET /api/requests/190] Found 0 approvals 
+[GET /api/requests/190] Found requester: E3Admin 
+[GET /api/requests/190] Found vendor: Store 974 
+[GET /api/requests/190] Found sub-purpose: Trade Show 
+[GET /api/requests/190] Successfully assembled complete request data 
+11:47:40 PM [express] GET /api/requests/190 304 in 1639ms :: {"id":190,"requestNumber":"PR-1774914291…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/requests/190/approvals'[39m,
+  body: { status: [32m'approved'[39m, department: [32m'Director'[39m, comments: [32m'ok'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'61'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bb6000000006e25d88999617fb9-6a5056303a7914ce-00'[39m,
+    tracestate: [32m'dd=s:0;p:6a5056303a7914ce;t.tid:69cb0bb600000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'7660717731296646350'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bb600000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7936988003805790137'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[POST /api/requests/190/approvals] Creating approval with data: {
+  "requestId": 190,
+  "status": "approved",
+  "comments": "ok",
+  "department": "Director",
+  "userId": 229
+}
+[POST /api/requests/190/approvals] Approval created successfully: {
+  "approvalId": 895,
+  "requestStatus": "pending",
+  "isLocked": false
+}
+11:48:08 PM [express] POST /api/requests/190/approvals 201 in 1466ms :: {"id":895,"requestId":190,"ap…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/190'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"7b6-pe45Pkv6YxjnblMNpkel/bMR5ek"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bb80000000029bcf06f66935195-01f2207ecd3e6e84-00'[39m,
+    tracestate: [32m'dd=s:0;p:01f2207ecd3e6e84;t.tid:69cb0bb800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'140210267383295620'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bb800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3007543012429615509'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.6.13, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5b95-4zJnIFwjYOaOVjYfI6KJYdwBZVY"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bb8000000003476c5c93b9589ff-387895831bc5ed3e-00'[39m,
+    tracestate: [32m'dd=s:0;p:387895831bc5ed3e;t.tid:69cb0bb800000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4069166653668453694'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bb800000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3780426405302864383'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.8.23, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Fetching purchase request with ID: 190 
+[GET /api/requests/190] Found base request with ID: 190 
+[GET /api/requests/190] Found 1 attachments 
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Found 1 approvals 
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m229[39m role: approver department: Director
+[GET /api/requests] User has full access - fetching all requests 
+[GET /api/requests/190] Found requester: E3Admin 
+[GET /api/requests/190] Found vendor: Store 974 
+Found 13 purchase requests visible to user
+[GET /api/requests/190] Found sub-purpose: Trade Show 
+[GET /api/requests/190] Successfully assembled complete request data 
+11:48:09 PM [express] GET /api/requests/190 200 in 1635ms :: {"id":190,"requestNumber":"PR-1774914291…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests/190'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"9c6-ilPgenXZMYrUQbl2N+3pWrkWTFI"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bb90000000074d5578fdb0d3e78-36aa26aeac297f24-00'[39m,
+    tracestate: [32m'dd=s:0;p:36aa26aeac297f24;t.tid:69cb0bb900000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'3939003355743485732'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bb900000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'8418731353806028408'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.6.13, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Fetching purchase request with ID: 190 
+[GET /api/requests/190] Found base request with ID: 190 
+[GET /api/requests] Processed 13 purchase requests 
+11:48:11 PM [express] GET /api/requests 200 in 2919ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/requests'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"5c4c-pvbGJlkSLdWYWI3YEvolkb5pF5g"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/requests/190'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bbb000000006242f439183ad030-3b20303f32caac8f-00'[39m,
+    tracestate: [32m'dd=s:0;p:3b20303f32caac8f;t.tid:69cb0bbb00000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4260458295485705359'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bbb00000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'7080490090236661808'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Found 1 attachments 
+Deserializing user: [33m229[39m
+[GET /api/requests/190] Found 1 approvals 
+[GET /api/requests] Fetching purchase requests with visibility restrictions 
+Fetching visible purchase requests for user: [33m229[39m role: approver department: Director
+[GET /api/requests] User has full access - fetching all requests 
+[GET /api/requests/190] Found requester: E3Admin 
+Found 13 purchase requests visible to user
+[GET /api/requests/190] Found vendor: Store 974 
+[GET /api/requests/190] Found sub-purpose: Trade Show 
+[GET /api/requests/190] Successfully assembled complete request data 
+11:48:12 PM [express] GET /api/requests/190 304 in 2324ms :: {"id":190,"requestNumber":"PR-1774914291…
+[GET /api/requests] Processed 13 purchase requests 
+11:48:12 PM [express] GET /api/requests 304 in 1551ms :: [{"id":190,"requestNumber":"PR-1774914291015…
+API request received: {
+  method: [32m'POST'[39m,
+  path: [32m'/api/requests/187/approvals'[39m,
+  body: { status: [32m'approved'[39m },
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'21'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bd2000000003e0e985b4e500dc8-42460d0cfeebc4c5-01'[39m,
+    tracestate: [32m'dd=s:1;p:42460d0cfeebc4c5;t.dm:-1;t.tid:69cb0bd200000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'4775518804340622533'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'1'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.dm=-1,_dd.p.tid=69cb0bd200000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'4471678997948796360'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[POST /api/requests/187/approvals] Creating approval with data: {
+  "requestId": 187,
+  "status": "approved",
+  "department": "Director",
+  "userId": 229
+}
+[POST /api/requests/187/approvals] Approval created successfully: {
+  "approvalId": 896,
+  "requestStatus": "pending",
+  "isLocked": false
+}
+11:48:35 PM [express] POST /api/requests/187/approvals 201 in 1429ms :: {"id":896,"requestId":187,"ap…
+API request received: {
+  method: [32m'PUT'[39m,
+  path: [32m'/api/notifications/248/read'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    [32m'content-length'[39m: [32m'0'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    origin: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bd3000000005361a83b58c6a0f7-7afa938b479b7952-00'[39m,
+    tracestate: [32m'dd=s:0;p:7afa938b479b7952;t.tid:69cb0bd300000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'8861557443215980882'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bd300000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'6008268350734901495'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[PUT /api/notifications/248/read] Marking notification as read: 248
+[PUT /api/notifications/248/read] Notification updated successfully 
+11:48:36 PM [express] PUT /api/notifications/248/read 200 in 812ms :: {"id":248,"userId":229,"request…
+API request received: {
+  method: [32m'GET'[39m,
+  path: [32m'/api/notifications/fast'[39m,
+  body: {},
+  query: {},
+  headers: {
+    host: [32m'localhost:5000'[39m,
+    [32m'user-agent'[39m: [32m'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'[39m,
+    accept: [32m'*/*'[39m,
+    [32m'accept-encoding'[39m: [32m'gzip, deflate, br, zstd'[39m,
+    [32m'accept-language'[39m: [32m'en-US,en;q=0.9,hi;q=0.8'[39m,
+    [32m'content-type'[39m: [32m'application/json'[39m,
+    cookie: [32m'connect.sid=s%3AYwrs6rTAxhXM4LxOqLiN2FfkUZvWBbrJ.fA4eBN54k2qmC3K%2FfZdbsNgb%2FWUUKAuc8U5tCMZylRs'[39m,
+    dnt: [32m'1'[39m,
+    [32m'if-none-match'[39m: [32m'W/"89f-taoq5qV/drVSa9X9YmUzIE5bty4"'[39m,
+    referer: [32m'https://73ea3223-ae57-49a4-ba36-4eaa52800f47-00-3v0t56muqrlrd.sisko.replit.dev/'[39m,
+    [32m'sec-ch-ua'[39m: [32m'"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'[39m,
+    [32m'sec-ch-ua-mobile'[39m: [32m'?0'[39m,
+    [32m'sec-ch-ua-platform'[39m: [32m'"Windows"'[39m,
+    [32m'sec-fetch-dest'[39m: [32m'empty'[39m,
+    [32m'sec-fetch-mode'[39m: [32m'cors'[39m,
+    [32m'sec-fetch-site'[39m: [32m'same-origin'[39m,
+    [32m'sec-fetch-storage-access'[39m: [32m'active'[39m,
+    traceparent: [32m'00-69cb0bd400000000351dfd5468c8df2c-08017e148cae9424-00'[39m,
+    tracestate: [32m'dd=s:0;p:08017e148cae9424;t.tid:69cb0bd400000000'[39m,
+    [32m'x-datadog-parent-id'[39m: [32m'576880854004831268'[39m,
+    [32m'x-datadog-sampling-priority'[39m: [32m'0'[39m,
+    [32m'x-datadog-tags'[39m: [32m'_dd.p.tid=69cb0bd400000000'[39m,
+    [32m'x-datadog-trace-id'[39m: [32m'3827493797311864620'[39m,
+    [32m'x-forwarded-for'[39m: [32m'212.70.109.158, 10.84.3.14, 127.0.0.1'[39m,
+    [32m'x-forwarded-proto'[39m: [32m'https'[39m,
+    [32m'x-replit-user-bio'[39m: [32m''[39m,
+    [32m'x-replit-user-id'[39m: [32m''[39m,
+    [32m'x-replit-user-name'[39m: [32m''[39m,
+    [32m'x-replit-user-profile-image'[39m: [32m''[39m,
+    [32m'x-replit-user-roles'[39m: [32m''[39m,
+    [32m'x-replit-user-teams'[39m: [32m''[39m,
+    [32m'x-replit-user-url'[39m: [32m''[39m
+  }
+}
+Deserializing user: [33m229[39m
+Deserializing user: [33m229[39m
+[FAST-NOTIF] Fast endpoint completed in 203ms
+11:48:37 PM [express] GET /api/notifications/fast 200 in 607ms :: [{"id":275,"userId":229,"requestId"…
+[1G[0K⠙[1G[0K

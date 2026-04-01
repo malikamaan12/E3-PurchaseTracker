@@ -107,18 +107,6 @@ export function applyHeaderStyle(doc: any, config: TemplateConfig, pageWidth: nu
     doc.setDrawColor(255, 255, 255);
     doc.setLineWidth(0.5);
     doc.line(12, currentY + reducedHeaderHeight - 3, pageWidth - 12, currentY + reducedHeaderHeight - 3);
-  } else {
-      // No logo - centered text with decorative elements
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text(name, pageWidth / 2, 17, { align: 'center' });
-
-      // Add decorative lines
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.5);
-      doc.line(20, 20, pageWidth - 20, 20);
-    }
   } else if (headerStyle === 'classic') {
     // Classic style with sophisticated border positioned below logo
     const reducedHeaderHeight = headerHeight * 0.8; // Reduce header size by 20%

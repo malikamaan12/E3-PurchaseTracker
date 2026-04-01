@@ -6,8 +6,8 @@
  * This script helps migrate data between Replit/Neon and DigitalOcean databases
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
+import { execSync } from 'child_process';
+import fs from 'fs';
 
 // Configuration
 const BACKUP_FILE = 'database-backup.sql';
