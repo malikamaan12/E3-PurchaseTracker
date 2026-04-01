@@ -4,34 +4,54 @@ import { registerRoutes } from "../../server/routes";
 
 // Singleton Express instance and its initialization promise
 let expressApp: Express | null = null;
-let initializationPromise: Promise<Express> | null = null;
+let initializationPromise: Promise<Express | null> | null = null;
 
 /**
  * Ensures the Express app is initialized exactly once, 
  * correctly awaiting all async setup logic.
+ * Added: Hardened 15s timeout to prevent silent "cold start" hangs.
  */
 async function getExpressApp(): Promise<Express | null> {
   if (expressApp) return expressApp;
   if (initializationPromise) return initializationPromise;
 
   initializationPromise = (async () => {
+    console.time("[Init] Total Backend Startup");
+    
     // Build Guard: Do not initialize Express logic during Next.js build phase
     if (process.env.NEXT_PHASE === 'phase-production-build') {
-      return null as any;
+      console.log("[Init] Build phase detected. Skipping initialization.");
+      return null;
     }
 
-    const app = express();
-    
-    // Basic middleware
-    app.use(express.json({ limit: '10mb' }));
-    app.use(express.urlencoded({ extended: true }));
+    try {
+      // Use a Race to prevent a dead-lock during DB or Auth setup
+      return await Promise.race([
+        (async () => {
+          const app = express();
+          
+          // Basic middleware
+          app.use(express.json({ limit: '10mb' }));
+          app.use(express.urlencoded({ extended: true }));
 
-    // Register all legacy routes (Auth, Vendors, Requests, etc.)
-    // We MUST await this now that registerRoutes is async
-    await registerRoutes(app);
+          console.time("[Init] Route Registration");
+          // Register all legacy routes (Auth, Vendors, Requests, etc.)
+          await registerRoutes(app);
+          console.timeEnd("[Init] Route Registration");
 
-    expressApp = app;
-    return app;
+          expressApp = app;
+          console.timeEnd("[Init] Total Backend Startup");
+          return app;
+        })(),
+        new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error("CRITICAL: Backend Initialization Timed Out (15s). Database or Auth setup is hanging.")), 15000)
+        )
+      ]);
+    } catch (err) {
+      console.error("[Init] Fatal Initialization Error:", err);
+      initializationPromise = null; // Allow retry on next request
+      throw err;
+    }
   })();
 
   return initializationPromise;
@@ -39,9 +59,11 @@ async function getExpressApp(): Promise<Express | null> {
 
 /**
  * Robust Bridge to handle Next.js App Router requests via our Express backend logic.
- * This allows us to keep all legacy controllers and middleware intact.
  */
 export async function handleApiRequest(req: NextRequest) {
+  const traceId = Math.random().toString(36).substring(7);
+  console.log(`[API Bridge][${traceId}] Request Start: ${req.method} ${req.url}`);
+
   try {
     const app = await getExpressApp();
     
@@ -49,7 +71,10 @@ export async function handleApiRequest(req: NextRequest) {
       if (process.env.NEXT_PHASE === 'phase-production-build') {
         return NextResponse.json({ message: "Build mode active" }, { status: 200 });
       }
-      return NextResponse.json({ message: "Internal Server Error: App not initialized" }, { status: 500 });
+      return NextResponse.json({ 
+        error: "Initialization Failure", 
+        message: "The backend failed to start correctly. Check server logs." 
+      }, { status: 503 });
     }
 
     // Extract info from NextRequest
@@ -58,7 +83,7 @@ export async function handleApiRequest(req: NextRequest) {
     const method = req.method;
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Read body if exists
+    // Read body safely
     let body: any = null;
     if (["POST", "PUT", "PATCH"].includes(method)) {
       try {
@@ -68,10 +93,9 @@ export async function handleApiRequest(req: NextRequest) {
       }
     }
 
-    // We use a Promise with a timeout to prevent infinite hangs
+    // Process request with a timeout guard
     return await Promise.race([
       new Promise<NextResponse>((resolve, reject) => {
-        // Mock Response object for Express
         const mockRes: any = {
           _status: 200,
           _headers: {} as Record<string, any>,
@@ -139,6 +163,7 @@ export async function handleApiRequest(req: NextRequest) {
               }
             });
 
+            console.log(`[API Bridge][${traceId}] Request Finished: ${this._status}`);
             resolve(new NextResponse(this._body, {
               status: this._status,
               headers: responseHeaders,
@@ -146,7 +171,6 @@ export async function handleApiRequest(req: NextRequest) {
           }
         };
 
-        // Mock Request object for Express
         const mockReq: any = {
           url: path + url.search,
           method,
@@ -157,30 +181,25 @@ export async function handleApiRequest(req: NextRequest) {
           app,
         };
 
-        // Global Error Handler for Express
+        // Express Global Error Handler for the bridge
         app.use((err: any, _req: any, res: any, _next: any) => {
-          console.error("Express Error in Bridge:", err);
+          console.error(`[API Bridge][${traceId}] Express Error:`, err);
           res.status(err.status || 500).json({ 
-            message: "Express Internal Error", 
-            detail: err.message 
+            error: "Express Error", 
+            message: err.message 
           });
         });
 
         // Trigger Express routing
-        try {
-          console.log(`[API Bridge] Executing: ${mockReq.method} ${mockReq.url}`);
-          app(mockReq, mockRes);
-        } catch (err) {
-          console.error("[API Bridge] Execution Crash:", err);
-          reject(err);
-        }
+        console.log(`[API Bridge][${traceId}] Executing Express handler...`);
+        app(mockReq, mockRes);
       }),
       new Promise<NextResponse>((_, reject) => 
-        setTimeout(() => reject(new Error(`API Gateway Timeout: ${req.method} ${url.pathname} took too long.`)), 25000)
+        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${url.pathname} took too long to respond.`)), 25000)
       )
     ]);
   } catch (error: any) {
-    console.error(`[API Bridge] Critical Error for ${req.method} ${req.url}:`, error);
+    console.error(`[API Bridge][${traceId}] Critical Bridge Error:`, error);
     return NextResponse.json({ 
       error: "Internal Server Error", 
       message: error.message 
