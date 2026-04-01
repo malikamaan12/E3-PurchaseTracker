@@ -1,4 +1,4 @@
-import { Express, Request, Response, NextFunction } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { notificationService } from "../services/NotificationService";
 import { debug } from "../utils/debug";
 import { AppError, ValidationError } from "../utils/errors";
@@ -6,7 +6,7 @@ import { db } from "@db";
 import { notifications, notificationPreferences, NOTIFICATION_CATEGORIES, NOTIFICATION_TYPES } from "@db/schema";
 import { and, eq } from "drizzle-orm";
 
-export function registerNotificationRoutes(app: Express) {
+export function registerNotificationRoutes(app: Router) {
   // Test endpoint to measure pure response time
   app.get("/api/notifications/test", async (req: Request, res: Response) => {
     const start = Date.now();
@@ -19,8 +19,7 @@ export function registerNotificationRoutes(app: Express) {
     const start = Date.now();
     
     try {
-      // Extract user ID from session directly - minimal processing
-      const userId = req.session?.passport?.user;
+      const userId = (req as any).user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
@@ -44,11 +43,11 @@ export function registerNotificationRoutes(app: Express) {
     
     try {
       // Fast authentication check without full middleware overhead
-      if (!req.session?.passport?.user) {
+      if (!(req as any).user) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
-      const userId = req.session.passport.user;
+      const userId = (req as any).user.id;
       const lastFetchTime = req.query.lastFetchTime
         ? new Date(req.query.lastFetchTime as string)
         : undefined;
