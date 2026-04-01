@@ -132,7 +132,7 @@ export default function RequestsDashboard() {
                   key={req.id} 
                   request={req} 
                   isSelected={selectedIds.includes(req.id)}
-                  onSelect={(checked) => handleSelectRow(req.id, checked)}
+                  onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
                   onApprove={() => approveMutation.mutate(req.id)}
                 />
               ))}

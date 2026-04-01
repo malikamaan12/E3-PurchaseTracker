@@ -17,6 +17,7 @@ declare global {
       role: string;
       email: string;
       contactNumber: string;
+      isActive: boolean;
     }
   }
 }
@@ -81,7 +82,8 @@ export async function configurePassport(passport: passport.Authenticator) {
           department: user.department,
           role: user.role,
           email: user.email,
-          contactNumber: user.contactNumber
+          contactNumber: user.contact_number,
+          isActive: user.isActive
         };
 
         return done(null, sanitizedUser);
@@ -113,7 +115,8 @@ export async function configurePassport(passport: passport.Authenticator) {
           department: users.department,
           role: users.role,
           email: users.email,
-          contactNumber: users.contactNumber
+          contactNumber: users.contact_number,
+          isActive: users.isActive
         })
         .from(users)
         .where(eq(users.id, id))
@@ -151,13 +154,13 @@ export async function createTestUser() {
         department: 'CEO Office',
         role: 'admin',
         email: 'testadmin@example.com',
-        contactNumber: '123456789'
+        contact_number: '123456789'
       })
       .onConflictDoUpdate({
         target: users.username,
         set: {
           password: hashedPassword,
-          contactNumber: '123456789'
+          contact_number: '123456789'
         }
       })
       .returning();

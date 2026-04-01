@@ -147,7 +147,7 @@ export async function analyzeRequestForPredictions(
       predictions.push('Request will be rejected without items');
     }
 
-    if (!request.purpose) {
+    if (!request.purposeType) {
       warnings.push('Purpose not specified');
       suggestions.push('Add a clear purpose description');
       predictions.push('Approval will be delayed without clear purpose');

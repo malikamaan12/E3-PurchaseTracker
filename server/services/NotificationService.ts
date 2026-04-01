@@ -307,13 +307,13 @@ export class NotificationService {
 
       // Minimal filtering - just expired notifications
       const currentTime = new Date();
-      const validNotifications = result.filter(notification => 
+      const validNotifications = result.filter((notification: any) => 
         !notification.expiresAt || new Date(notification.expiresAt) >= currentTime
       );
 
       // Apply lastFetchTime filter if provided
       const filteredResults = options?.lastFetchTime 
-        ? validNotifications.filter(n => new Date(n.createdAt) >= options.lastFetchTime!)
+        ? validNotifications.filter((n: any) => new Date(n.createdAt) >= options.lastFetchTime!)
         : validNotifications;
 
       // Cache the results

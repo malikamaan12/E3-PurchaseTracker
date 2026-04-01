@@ -138,7 +138,7 @@ export async function analyzePurchaseRequest(request: PurchaseRequestWithRelatio
       suggestions.push('Add at least one item to the request');
     }
 
-    if (!request.purpose) {
+    if (!request.purposeType) {
       warnings.push('Purpose not specified');
       suggestions.push('Add a clear purpose description');
     }
