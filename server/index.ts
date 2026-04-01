@@ -112,7 +112,7 @@ async function initializeServer() {
     log("Authentication setup completed");
 
     // Set up routes
-    const server = registerRoutes(app);
+    const server = await registerRoutes(app);
     log("Routes registered successfully");
 
     // Global error handler with proper async handling

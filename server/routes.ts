@@ -14,9 +14,9 @@ import documentRouter from "./routes/document-routes";
 import conversionRouter from "./routes/conversion-routes";
 import { registerNotificationRoutes } from "./routes/notification-routes";
 
-export function registerRoutes(app: Express): Server {
+export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Authentication
-  setupAuth(app);
+  await setupAuth(app);
 
   // API Router for general logic
   const apiRouter = express.Router();
