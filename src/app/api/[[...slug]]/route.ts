@@ -1,31 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-// Use the Next.js edge-compatible path logic
-// Since Vercel uses Node.js for API routes by default, 
-// we can mount our existing Express logic directly.
+import { handleApiRequest } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest, { params }: { params: any }) {
-  // Bridge to Express routes from GET
-  return NextResponse.json({ 
-    message: "PurchaseTracker API Bridge Ready",
-    status: "active",
-    environment: "vercel",
-    path: req.nextUrl.pathname
+/**
+ * Universal API Bridge
+ * Catch-all route to serve all Express backend logic within Next.js Serverless.
+ */
+
+export async function GET(req: NextRequest) {
+  return handleApiRequest(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleApiRequest(req);
+}
+
+export async function PUT(req: NextRequest) {
+  return handleApiRequest(req);
+}
+
+export async function PATCH(req: NextRequest) {
+  return handleApiRequest(req);
+}
+
+export async function DELETE(req: NextRequest) {
+  return handleApiRequest(req);
+}
+
+/**
+ * Ensures OPTIONS is handled for CORS if needed, 
+ * though Next.js handled it by default in many cases.
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
   });
-}
-
-export async function POST(req: NextRequest, { params }: { params: any }) {
-  // Bridge to Express routes for POST
-  return NextResponse.json({ 
-    message: "PurchaseTracker API Bridge Received POST",
-    path: req.nextUrl.pathname
-  });
-}
-
-// Ensure all HTTP methods are covered if your Express app uses them
-export async function PUT(req: NextRequest, { params }: { params: any }) {
-  return NextResponse.json({ message: "PUT received" });
-}
-
-export async function DELETE(req: NextRequest, { params }: { params: any }) {
-  return NextResponse.json({ message: "DELETE received" });
 }
