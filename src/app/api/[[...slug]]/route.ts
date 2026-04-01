@@ -6,6 +6,8 @@ import { handleApiRequest } from "@/lib/api-handler";
  * Catch-all route to serve all Express backend logic within Next.js Serverless.
  */
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   return handleApiRequest(req);
 }

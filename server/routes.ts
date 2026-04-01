@@ -39,14 +39,15 @@ export function registerRoutes(app: Express): Server {
   app.use("/api", documentRouter);
   app.use("/api", apiRouter);
 
-  // Initialize uploads directory
-  const uploadsDir = path.join(process.cwd(), "uploads");
-  if (!fsSync.existsSync(uploadsDir)) {
-    fsSync.mkdirSync(uploadsDir, { recursive: true });
+  // Initialize uploads directory (only for local development)
+  if (process.env.NODE_ENV !== 'production') {
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    if (!fsSync.existsSync(uploadsDir)) {
+      fsSync.mkdirSync(uploadsDir, { recursive: true });
+    }
+    // Serve static files
+    app.use("/uploads", express.static(uploadsDir));
   }
-
-  // Serve static files
-  app.use("/uploads", express.static(uploadsDir));
 
   // Catch-all for API 404s
   app.use("/api/*", (req, res) => {
