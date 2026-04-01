@@ -103,10 +103,11 @@ router.put("/sub-purposes/:id", async (req, res, next) => {
 
     if (!existing) throw new AppError("Sub-purpose not found", 404);
 
+    const { id, ...updateData } = validationResult.data;
     const [updated] = await db
       .update(subPurposes)
       .set({
-        ...validationResult.data,
+        ...updateData,
         updated_at: new Date(),
       })
       .where(eq(subPurposes.id, subPurposeId))
