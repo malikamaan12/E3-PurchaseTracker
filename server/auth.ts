@@ -1,7 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express, type Request, type Response, NextFunction } from "express";
-import { compare, hash } from 'bcrypt';
+import { compare, hash } from 'bcryptjs';
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { users } from "@db/schema";

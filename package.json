@@ -59,7 +59,7 @@
     "@types/react-color": "^3.0.13",
     "@types/react-image-gallery": "^1.2.4",
     "axios": "^1.7.9",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",
@@ -118,7 +118,7 @@
   "devDependencies": {
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
-    "@types/bcrypt": "^6.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.1",

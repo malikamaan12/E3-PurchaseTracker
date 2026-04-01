@@ -8,6 +8,12 @@ let expressApp: Express | null = null;
 function getExpressApp() {
   if (expressApp) return expressApp;
 
+  // Build Guard: Do not initialize Express logic during Next.js build phase
+  // This prevents build-time execution of server-only / native logic
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return null as any;
+  }
+
   expressApp = express();
   
   // Basic middleware already handled by Next.js or needed for Express logic
