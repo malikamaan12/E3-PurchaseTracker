@@ -24,8 +24,10 @@ class ApiClient {
     
     const response = await fetch(url, {
       ...options,
+      credentials: "include", // Force inclusion of auth_token cookie
       headers: {
         "Content-Type": "application/json",
+        "X-Client-Version": "1.0.3-transport-fix",
         ...options.headers,
       },
     });
