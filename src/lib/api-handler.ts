@@ -20,22 +20,17 @@ async function getExpressApp(): Promise<Express | null> {
     
     // Build Guard: Do not initialize Express logic during Next.js build phase
     if (process.env.NEXT_PHASE === 'phase-production-build') {
-      console.log("[Init] Build phase detected. Skipping initialization.");
       return null;
     }
 
     try {
-      // Use a Race to prevent a dead-lock during DB or Auth setup
       return await Promise.race([
         (async () => {
           const app = express();
-          
-          // Basic middleware
           app.use(express.json({ limit: '10mb' }));
           app.use(express.urlencoded({ extended: true }));
 
           console.time("[Init] Route Registration");
-          // Register all legacy routes (Auth, Vendors, Requests, etc.)
           await registerRoutes(app);
           console.timeEnd("[Init] Route Registration");
 
@@ -44,12 +39,12 @@ async function getExpressApp(): Promise<Express | null> {
           return app;
         })(),
         new Promise<null>((_, reject) => 
-          setTimeout(() => reject(new Error("CRITICAL: Backend Initialization Timed Out (15s). Database or Auth setup is hanging.")), 15000)
+          setTimeout(() => reject(new Error("Backend Initialization Timed Out (15s)")), 15000)
         )
       ]);
     } catch (err) {
       console.error("[Init] Fatal Initialization Error:", err);
-      initializationPromise = null; // Allow retry on next request
+      initializationPromise = null;
       throw err;
     }
   })();
@@ -62,62 +57,34 @@ async function getExpressApp(): Promise<Express | null> {
  */
 export async function handleApiRequest(req: NextRequest) {
   const traceId = Math.random().toString(36).substring(7);
-  console.log(`[API Bridge][${traceId}] Request Start: ${req.method} ${req.url}`);
+  console.log(`[API Bridge][${traceId}] Start: ${req.method} ${req.url}`);
 
   try {
     const app = await getExpressApp();
-    
-    if (!app) {
-      if (process.env.NEXT_PHASE === 'phase-production-build') {
-        return NextResponse.json({ message: "Build mode active" }, { status: 200 });
-      }
-      return NextResponse.json({ 
-        error: "Initialization Failure", 
-        message: "The backend failed to start correctly. Check server logs." 
-      }, { status: 503 });
-    }
+    if (!app) return NextResponse.json({ message: "Build mode active" }, { status: 200 });
 
-    // Extract info from NextRequest
     const url = new URL(req.url);
     const path = url.pathname;
     const method = req.method;
     const headers = Object.fromEntries(req.headers.entries());
-    
-    // Read body safely
-    let body: any = null;
+    let body = null;
     if (["POST", "PUT", "PATCH"].includes(method)) {
-      try {
-        body = await req.json();
-      } catch (e) {
-        // No body or invalid JSON
-      }
+      try { body = await req.json(); } catch (e) {}
     }
 
-    // Process request with a timeout guard
     return await Promise.race([
       new Promise<NextResponse>((resolve, reject) => {
+        let isResolved = false;
+
         const mockRes: any = {
           _status: 200,
           _headers: {} as Record<string, any>,
           _body: null as any,
           
-          status(code: number) {
-            this._status = code;
-            return this;
-          },
-          
-          set(name: string, value: string) {
-            this._headers[name.toLowerCase()] = value;
-            return this;
-          },
-
-          setHeader(name: string, value: string) {
-            return this.set(name, value);
-          },
-
-          header(name: string, value: string) {
-            return this.set(name, value);
-          },
+          status(code: number) { this._status = code; return this; },
+          set(name: string, value: string) { this._headers[name.toLowerCase()] = value; return this; },
+          setHeader(name: string, value: string) { return this.set(name, value); },
+          header(name: string, value: string) { return this.set(name, value); },
           
           cookie(name: string, value: string, options: any = {}) {
             let cookie = `${name}=${value}`;
@@ -127,7 +94,6 @@ export async function handleApiRequest(req: NextRequest) {
             if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
             if (options.path) cookie += `; Path=${options.path}`;
             else cookie += "; Path=/";
-
             const existing = this._headers["set-cookie"] || [];
             const cookies = Array.isArray(existing) ? existing : [existing];
             cookies.push(cookie);
@@ -135,9 +101,7 @@ export async function handleApiRequest(req: NextRequest) {
             return this;
           },
 
-          clearCookie(name: string) {
-            return this.cookie(name, "", { maxAge: 0 });
-          },
+          clearCookie(name: string) { return this.cookie(name, "", { maxAge: 0 }); },
           
           json(data: any) {
             this._body = JSON.stringify(data);
@@ -152,22 +116,16 @@ export async function handleApiRequest(req: NextRequest) {
           },
 
           end(data?: any) {
+            if (isResolved) return;
+            isResolved = true;
             if (data) this._body = data;
-            
             const responseHeaders = new Headers();
             Object.entries(this._headers).forEach(([k, v]: [string, any]) => {
-              if (Array.isArray(v)) {
-                v.forEach(val => responseHeaders.append(k, val));
-              } else {
-                responseHeaders.set(k, v);
-              }
+              if (Array.isArray(v)) v.forEach(val => responseHeaders.append(k, val));
+              else responseHeaders.set(k, v);
             });
-
-            console.log(`[API Bridge][${traceId}] Request Finished: ${this._status}`);
-            resolve(new NextResponse(this._body, {
-              status: this._status,
-              headers: responseHeaders,
-            }));
+            console.log(`[API Bridge][${traceId}] Finished: ${this._status}`);
+            resolve(new NextResponse(this._body, { status: this._status, headers: responseHeaders }));
           }
         };
 
@@ -184,26 +142,19 @@ export async function handleApiRequest(req: NextRequest) {
         // Express Global Error Handler for the bridge
         app.use((err: any, _req: any, res: any, _next: any) => {
           console.error(`[API Bridge][${traceId}] Express Error:`, err);
-          res.status(err.status || 500).json({ 
-            error: "Express Error", 
-            message: err.message 
-          });
+          res.status(err.status || 500).json({ error: "Express Error", message: err.message });
         });
 
-        // Trigger Express routing
-        console.log(`[API Bridge][${traceId}] Executing Express handler...`);
+        console.log(`[API Bridge][${traceId}] Executing Express logic...`);
         app(mockReq, mockRes);
       }),
       new Promise<NextResponse>((_, reject) => 
-        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${url.pathname} took too long to respond.`)), 25000)
+        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${url.pathname} hung for 22s.`)), 22000)
       )
     ]);
   } catch (error: any) {
-    console.error(`[API Bridge][${traceId}] Critical Bridge Error:`, error);
-    return NextResponse.json({ 
-      error: "Internal Server Error", 
-      message: error.message 
-    }, { status: 500 });
+    console.error(`[API Bridge][${traceId}] Critical Error:`, error);
+    return NextResponse.json({ error: "Internal Server Error", message: error.message }, { status: 500 });
   }
 }
 
