@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "purchase-management-system-v1-secret-key";
-const TOKEN_COOKIE_NAME = "auth_token";
+import { JWT_SECRET, TOKEN_COOKIE_NAME } from "@/../server/utils/config";
 
 /**
  * NATIVE SESSION VERIFICATION

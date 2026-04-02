@@ -4,9 +4,7 @@ import jwt from "jsonwebtoken";
 import { db } from "@db";
 import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
-
-const JWT_SECRET = process.env.JWT_SECRET || "purchase-management-system-v1-secret-key";
-const TOKEN_COOKIE_NAME = "auth_token";
+import { JWT_SECRET, TOKEN_COOKIE_NAME, IS_PRODUCTION } from "@/../server/utils/config";
 
 /**
  * NATIVE NEXT.JS LOGIN ROUTE
@@ -22,26 +20,15 @@ export async function POST(req: NextRequest) {
 
     // 1. Database Lookup
     console.log(`[Auth][Native][${traceId}] Querying user: ${username}`);
-    const startTimeDb = Date.now();
     const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    console.log(`[Auth][Native][${traceId}] DB result in ${Date.now() - startTimeDb}ms`);
 
-    if (!user) {
-      console.warn(`[Auth][Native][${traceId}] User not found: ${username}`);
+    if (!user || !user.isActive) {
+      console.warn(`[Auth][Native][${traceId}] Auth failed: ${username}`);
       return NextResponse.json({ message: "Invalid username or password" }, { status: 401 });
     }
 
-    if (!user.isActive) {
-      console.warn(`[Auth][Native][${traceId}] Inactive account: ${username}`);
-      return NextResponse.json({ message: "Account is inactive" }, { status: 401 });
-    }
-
     // 2. Password Comparison
-    console.log(`[Auth][Native][${traceId}] Comparing password...`);
-    const startTimeBcrypt = Date.now();
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`[Auth][Native][${traceId}] Bcrypt finished in ${Date.now() - startTimeBcrypt}ms`);
-
     if (!isMatch) {
       console.warn(`[Auth][Native][${traceId}] Password mismatch: ${username}`);
       return NextResponse.json({ message: "Invalid username or password" }, { status: 401 });
@@ -64,7 +51,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({ user: sanitizedUser });
     response.cookies.set(TOKEN_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: IS_PRODUCTION,
       sameSite: 'lax',
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/'
@@ -82,6 +69,5 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Add these to force dynamic behavior and avoid build-time static generation
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';

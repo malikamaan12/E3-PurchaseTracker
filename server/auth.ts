@@ -2,9 +2,7 @@ import passport from "passport";
 import { type Express, type Request, type Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-
-const JWT_SECRET = process.env.JWT_SECRET || "purchase-management-system-v1-secret-key";
-const TOKEN_COOKIE_NAME = "auth_token";
+import { JWT_SECRET, TOKEN_COOKIE_NAME } from "./utils/config";
 
 /**
  * PurchaseTracker Authentication Middleware (Express-compatible)
@@ -13,6 +11,8 @@ const TOKEN_COOKIE_NAME = "auth_token";
  */
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies[TOKEN_COOKIE_NAME];
+  console.log(`[AuthBridge] Verifying token for: ${req.method} ${req.url} - Token present: ${!!token}`);
+  
   (req as any).isAuthenticated = () => !!req.user;
   (req as any).logout = (cb?: (err: any) => void) => {
     res.clearCookie(TOKEN_COOKIE_NAME);
@@ -24,8 +24,10 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.user = decoded;
+    console.log(`[AuthBridge] SUCCESS: User identified as ${decoded.username}`);
     next();
-  } catch (err) {
+  } catch (err: any) {
+    console.error("[AuthBridge] JWT Verification failed:", err.message);
     res.clearCookie(TOKEN_COOKIE_NAME);
     next();
   }
