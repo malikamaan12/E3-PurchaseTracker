@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import express, { Express } from "express";
+import jwt from "jsonwebtoken";
 import { registerRoutes } from "../../server/routes";
+import { JWT_SECRET, TOKEN_COOKIE_NAME } from "../../server/utils/config";
 
 // Singleton Express instance and its initialization promise
 let expressApp: Express | null = null;
@@ -41,20 +43,34 @@ async function getExpressApp(): Promise<Express | null> {
 
 export async function handleApiRequest(req: NextRequest) {
   const traceId = Math.random().toString(36).substring(7);
-  console.log(`[API Bridge][${traceId}] Start: ${req.method} ${req.url}`);
+  const url = new URL(req.url);
+  
+  // 1. Path Stripping: Convert '/api/backend/vendors' -> '/api/vendors' (Backend alignment)
+  const expressPath = url.pathname.replace("/api/backend", "/api");
+  console.log(`[API Bridge][${traceId}] Start: ${req.method} ${expressPath}`);
 
   try {
     const app = await getExpressApp();
     if (!app) return NextResponse.json({ message: "Build mode active" }, { status: 200 });
 
-    const url = new URL(req.url);
-    const path = url.pathname;
     const method = req.method;
     const headers = Object.fromEntries(req.headers.entries());
-    
-    // Cookie Hardening: Ensure cookie header is explicitly present for cookie-parser
     const cookieHeader = req.headers.get("cookie") || "";
     if (cookieHeader) headers["cookie"] = cookieHeader;
+
+    // 2. Bridge-First Authentication: Explicitly pass the user to the Express backend
+    let user = null;
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies[TOKEN_COOKIE_NAME];
+    
+    if (token) {
+      try {
+        user = jwt.verify(token, JWT_SECRET) as any;
+        console.log(`[API Bridge][${traceId}] Auth Verified: ${user.username}`);
+      } catch (err: any) {
+        console.warn(`[API Bridge][${traceId}] Invalid Token:`, err.message);
+      }
+    }
 
     let body = null;
     if (["POST", "PUT", "PATCH"].includes(method)) {
@@ -82,9 +98,9 @@ export async function handleApiRequest(req: NextRequest) {
             if (options.path) cookie += `; Path=${options.path}`;
             else cookie += "; Path=/";
             const existing = this._headers["set-cookie"] || [];
-            const cookies = Array.isArray(existing) ? existing : [existing];
-            cookies.push(cookie);
-            this._headers["set-cookie"] = cookies;
+            const cookiesArr = Array.isArray(existing) ? existing : [existing];
+            cookiesArr.push(cookie);
+            this._headers["set-cookie"] = cookiesArr;
             return this;
           },
           clearCookie(name: string) { return this.cookie(name, "", { maxAge: 0 }); },
@@ -113,19 +129,21 @@ export async function handleApiRequest(req: NextRequest) {
         };
 
         const mockReq: any = {
-          url: path + url.search,
+          url: expressPath + url.search,
           method,
           headers,
           body,
           query: Object.fromEntries(url.searchParams.entries()),
-          cookies: parseCookies(cookieHeader),
+          cookies,
+          user, // Pass the verified user directly (Bridge-First Auth)
+          isAuthenticated: () => !!user, // Explicit mock for passport compatibility
           app,
         };
 
         app(mockReq, mockRes);
       }),
       new Promise<NextResponse>((_, reject) => 
-        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${url.pathname} hung for 22s.`)), 22000)
+        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${expressPath} hung for 22s.`)), 22000)
       )
     ]);
   } catch (error: any) {
