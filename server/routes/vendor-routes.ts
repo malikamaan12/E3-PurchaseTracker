@@ -77,7 +77,12 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 
     debug(req, "Successfully created vendor:", newVendor);
     res.status(201).json(newVendor);
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[VendorOnboarding] FATAL ERROR:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
     debug(req, "Error creating vendor:", error);
     next(error);
   }

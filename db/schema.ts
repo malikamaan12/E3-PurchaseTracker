@@ -486,10 +486,10 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   bankName: z.string().min(2, "Bank name must be at least 2 characters"),
   accountNumber: z.string()
     .min(5, "Account number must be at least 5 characters")
-    .regex(/^[\w-]+$/, "Account number can only contain letters, numbers, and hyphens"),
+    .regex(/^[\w\s-]+$/, "Account number can only contain letters, numbers, spaces, and hyphens"),
   ibanNumber: z.string()
     .min(15, "IBAN must be at least 15 characters")
-    .regex(/^[A-Z0-9]+$/, "IBAN must contain only uppercase letters and numbers"),
+    .regex(/^[A-Z0-9\s]+$/, "IBAN must contain only uppercase letters, numbers, and spaces"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
