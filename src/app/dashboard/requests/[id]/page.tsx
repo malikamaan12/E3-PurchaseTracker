@@ -19,13 +19,14 @@ import {
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const requestId = parseInt(params.id as string);
+  const [activeAttachment, setActiveAttachment] = useState<any>(null);
 
   const { data: request, isLoading } = useQuery({
     queryKey: ["request", requestId],
@@ -158,28 +159,80 @@ export default function RequestDetailPage() {
               </div>
             </motion.div>
 
-            {/* Document Preview mock */}
+            {/* Document Vault */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 }}
+              className="glass-card overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-zinc-400" />
+                  <h2 className="text-sm font-bold text-white tracking-tight">Support Documentation</h2>
+                </div>
+                <span className="text-[10px] text-zinc-500 font-mono italic">{request.attachments?.length || 0} Files</span>
+              </div>
+              <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                {request.attachments?.map((file: any) => (
+                  <button 
+                    key={file.id} 
+                    onClick={() => setActiveAttachment(file)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                      activeAttachment?.id === file.id 
+                        ? 'bg-brand-primary/10 border-brand-primary/30' 
+                        : 'bg-white/5 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    <div className="p-2 rounded-lg bg-zinc-900 border border-white/5">
+                      <FileText className={`w-4 h-4 ${activeAttachment?.id === file.id ? 'text-brand-primary' : 'text-zinc-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-white truncate">{file.fileName}</p>
+                      <p className="text-[8px] text-zinc-500 uppercase tracking-tighter mt-0.5">{(file.fileSize / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </button>
+                ))}
+                {(!request.attachments || request.attachments.length === 0) && (
+                  <div className="col-span-full py-4 text-center">
+                    <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em]">No Documents Uploaded</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Document Preview */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="glass-card overflow-hidden flex flex-col"
+              className="glass-card overflow-hidden flex flex-col flex-1"
             >
               <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-zinc-400" />
-                    <h2 className="text-sm font-bold text-white tracking-tight">Document Preview</h2>
+                    <FileBadge className="w-4 h-4 text-zinc-400" />
+                    <h2 className="text-sm font-bold text-white tracking-tight">Active Preview</h2>
                  </div>
-                 <div className="flex gap-2">
-                   <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded border border-brand-primary/20">Quote.pdf</span>
-                 </div>
+                 {activeAttachment && (
+                    <div className="flex gap-2">
+                      <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded border border-brand-primary/20">{activeAttachment.fileName}</span>
+                    </div>
+                 )}
               </div>
-              <div className="h-[400px] w-full bg-zinc-900/50 flex items-center justify-center border-t border-black/50">
-                 <div className="text-center">
-                   <FileText className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-                   <p className="text-sm text-zinc-500 font-medium">Interactive PDF Viewer</p>
-                   <p className="text-xs text-zinc-600 mt-1">Select a document to preview inline</p>
-                 </div>
+              <div className="min-h-[500px] w-full bg-zinc-900/50 flex items-center justify-center border-t border-black/50 overflow-hidden relative">
+                 {activeAttachment ? (
+                   <iframe 
+                    src={`/api/attachments/${activeAttachment.id}`} 
+                    className="absolute inset-0 w-full h-full border-none"
+                    title="PDF Preview"
+                   />
+                 ) : (
+                   <div className="text-center">
+                     <FileText className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
+                     <p className="text-sm text-zinc-500 font-medium">Interactive PDF Viewer</p>
+                     <p className="text-xs text-zinc-600 mt-1">Select a document from the vault to preview inline</p>
+                   </div>
+                 )}
               </div>
             </motion.div>
           </div>
@@ -200,10 +253,22 @@ export default function RequestDetailPage() {
               <h2 className="text-lg font-bold text-white">Approval Workflow</h2>
             </div>
             <div className="space-y-6">
-              <WorkflowStep label="Department Review" status="completed" date={request.createdAt} />
-              <WorkflowStep label="Internal Approver" status={request.status === 'pending' ? 'current' : 'completed'} />
-              <WorkflowStep label="Finance Oversight" status={request.status === 'approved' ? 'completed' : 'pending'} />
-              <WorkflowStep label="Final Execution" status={request.status === 'approved' ? 'completed' : 'pending'} />
+              <WorkflowStep label="Draft Initiated" status="completed" date={request.createdAt} />
+              
+              {/* Dynamic Departmental Approvals */}
+              {request.approvals?.map((approval: any) => (
+                <WorkflowStep 
+                  key={approval.id}
+                  label={`${approval.department} Review`}
+                  status={approval.status === 'approved' ? 'completed' : approval.status === 'rejected' ? 'rejected' : 'pending'}
+                  date={approval.createdAt}
+                  approver={approval.approver?.username}
+                />
+              ))}
+
+              {request.status === 'approved' && (
+                <WorkflowStep label="Final Execution" status="completed" />
+              )}
             </div>
           </motion.div>
 
@@ -271,9 +336,10 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function WorkflowStep({ label, status, date }: any) {
+function WorkflowStep({ label, status, date, approver }: any) {
   const icons = {
     completed: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+    rejected: <XCircle className="w-5 h-5 text-rose-500" />,
     current: <Clock className="w-5 h-5 text-brand-primary animate-pulse" />,
     pending: <div className="w-5 h-5 rounded-full border-2 border-zinc-700" />,
   };
@@ -285,7 +351,15 @@ function WorkflowStep({ label, status, date }: any) {
       </div>
       <div className="flex flex-col">
         <span className={`text-sm font-bold ${status === 'completed' ? 'text-white' : 'text-zinc-500'}`}>{label}</span>
-        {date && <span className="text-[10px] text-zinc-600 font-mono mt-1">{format(new Date(date), "MMM dd")}</span>}
+        <div className="flex items-center gap-2 mt-1">
+          {date && <span className="text-[10px] text-zinc-600 font-mono">{format(new Date(date), "MMM dd")}</span>}
+          {approver && (
+            <>
+              <span className="text-[10px] text-zinc-700">•</span>
+              <span className="text-[10px] text-brand-primary font-bold uppercase tracking-widest">{approver}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

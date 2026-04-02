@@ -11,15 +11,10 @@ import * as schema from "@db/schema";
 neonConfig.fetchConnectionCache = true;
 
 function getDatabaseConnectionString(): string {
-  const connectionString = process.env.DATABASE_URL || process.env.PROD_DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL;
   
   if (!connectionString) {
     throw new Error("CRITICAL: DATABASE_URL is not set. Database operations will fail.");
-  }
-
-  // Diagnostic: Warn if using a standard Postgres port with the Neon HTTP driver
-  if (connectionString.includes(":25060") || connectionString.includes(":25061")) {
-    console.warn("DANGER: You are likely using a standard Postgres port with the Neon HTTP driver. This WILL cause timeouts.");
   }
 
   return connectionString;

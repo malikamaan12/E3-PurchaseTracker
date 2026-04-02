@@ -107,7 +107,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
 export const approvals = pgTable("approvals", {
   id: serial("id").primaryKey(),
   requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
-  approverId: integer("approver_id").notNull().references(() => users.id),
+  approverId: integer("approver_id").references(() => users.id),
   department: text("department").notNull(),
   status: text("status").notNull().default("pending"),
   comments: text("comments"),

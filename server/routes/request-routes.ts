@@ -203,7 +203,7 @@ router.get("/requests/:id", async (req, res, next) => {
         }
       })
       .from(approvals)
-      .innerJoin(users, eq(users.id, approvals.approverId))
+      .leftJoin(users, eq(users.id, approvals.approverId))
       .where(eq(approvals.requestId, requestId));
 
     const attachments = await db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId));
@@ -227,7 +227,17 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
   try {
     if (!req.isAuthenticated()) throw new AppError("Not authenticated", 401);
 
-    const { title, description, totalEstimatedCost, vendorId, purposeType, priority } = req.body;
+    const { 
+      title, 
+      description, 
+      totalEstimatedCost, 
+      vendorId, 
+      purposeType, 
+      priority,
+      items,
+      additionalApprovers,
+      attachmentIds
+    } = req.body;
     
     // Generate unique request number (PR-2026-XXXX)
     const year = new Date().getFullYear();
@@ -235,6 +245,7 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
     const nextNum = (Number(countResult[0]?.count) || 0) + 1;
     const requestNumber = `PR-${year}-${nextNum.toString().padStart(4, '0')}`;
 
+    // 1. Insert the request
     const [newRequest] = await db
       .insert(purchaseRequests)
       .values({
@@ -246,17 +257,25 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
         purposeType: purposeType || "General",
         priority: priority || "medium",
         requesterId: req.user!.id,
-        items: [], // Schema requires items to be not null
+        items: items || [], 
+        additionalApprovers: additionalApprovers || [], 
         status: "draft",
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning();
 
-    debug(req, "Request created successfully:", newRequest.id);
+    // 2. Link attachments if provided
+    if (attachmentIds && Array.isArray(attachmentIds) && attachmentIds.length > 0) {
+      await db.update(fileAttachments)
+        .set({ requestId: newRequest.id })
+        .where(inArray(fileAttachments.id, attachmentIds));
+    }
+
+    debug(req, "Ultimate Request created successfully:", newRequest.id);
     res.status(201).json(newRequest);
   } catch (error) {
-    debug(req, "Error creating request:", error);
+    debug(req, "Error creating ultimate request:", error);
     next(error);
   }
 });
@@ -302,31 +321,71 @@ router.put("/requests/:id", async (req, res, next) => {
     // Notification logic if transitioning to 'pending'
     // ARCHITECTURAL CONSTRAINT: Bypass if still in 'draft' status
     if (updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested")) {
+      // 1. Define Mandatory Departments
+      const mandatoryDepts = ["Finance", "CEO Office", "Director"];
+      
+      // 2. Combine with Additional Approvers from the request
+      let additionalDepts: string[] = [];
+      try {
+        if (typeof updated.additionalApprovers === 'string') {
+          additionalDepts = JSON.parse(updated.additionalApprovers);
+        } else if (Array.isArray(updated.additionalApprovers)) {
+          additionalDepts = updated.additionalApprovers;
+        }
+      } catch (e) {
+        debug(req, "Error parsing additional approvers:", e);
+      }
+
+      const allRequiredDepts = Array.from(new Set([...mandatoryDepts, ...additionalDepts]));
+
+      // 3. Create Approval Records for each department if they don't exist
+      for (const dept of allRequiredDepts) {
+        const [existingApproval] = await db
+          .select()
+          .from(approvals)
+          .where(and(
+            eq(approvals.requestId, requestId),
+            eq(approvals.department, dept)
+          ))
+          .limit(1);
+
+        if (!existingApproval) {
+          await db.insert(approvals).values({
+            requestId,
+            department: dept,
+            status: "pending",
+            isMandatory: mandatoryDepts.includes(dept),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
+
+      // 4. Send Notifications to all potential approvers
       const approvers = await db
         .select()
         .from(users)
         .where(and(eq(users.role, "approver"), eq(users.isActive, true)));
 
-      // Parse additional approvers from departments
-      let additionalApproversUsers: any[] = [];
-      if (updated.additionalApprovers && Array.isArray(updated.additionalApprovers)) {
-        additionalApproversUsers = await db
-          .select()
-          .from(users)
-          .where(and(
-            inArray(users.department, updated.additionalApprovers),
-            eq(users.isActive, true)
-          ));
-      }
+      // Parse targets for notifications
+      const targetUserIds = new Set<number>();
+      
+      // All general approvers
+      approvers.forEach(a => targetUserIds.add(a.id));
 
-      const allApproverTargets = [...approvers];
-      additionalApproversUsers.forEach(ua => {
-        if (!allApproverTargets.some(a => a.id === ua.id)) allApproverTargets.push(ua);
-      });
+      // Specific departmental approvers if any
+      const deptApprovers = await db
+        .select()
+        .from(users)
+        .where(and(
+          inArray(users.department, allRequiredDepts),
+          eq(users.isActive, true)
+        ));
+      deptApprovers.forEach(a => targetUserIds.add(a.id));
 
-      await Promise.all(allApproverTargets.map(approver => 
+      await Promise.all(Array.from(targetUserIds).map(userId => 
         notificationService.createNotification({
-          userId: approver.id,
+          userId,
           title: "New Purchase Request",
           message: `A new purchase request "${updated.title}" requires your approval`,
           type: "approval_required",

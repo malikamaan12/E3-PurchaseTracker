@@ -109,19 +109,18 @@ A modern, lightweight purchase management system optimized for performance and u
 11. **Service Dependencies**: Removed external AI API dependencies for lighter runtime
 12. **Configuration Optimization**: Fixed import paths and reduced configuration complexity
 
-## DigitalOcean Hybrid Setup (June 2025)
-- **Database Support**: Added automatic detection for production DigitalOcean database
-- **Migration Tools**: Created database migration scripts for seamless data transfer
-- **Hybrid Architecture**: App runs on Replit with option to use DigitalOcean database and custom domain
-- **Connection Logic**: Smart database switching between development (Replit/Neon) and production (DigitalOcean)
-- **Cost Optimization**: Hybrid approach provides professional features at lower cost than full deployment
+## Vercel + Neon Serverless Architecture (March 2026)
+- **Database Standard**: Standardized on Neon Serverless PostgreSQL with HTTP driver
+- **Serverless Performance**: Optimized for Vercel functions with `fetchConnectionCache` enabled
+- **Connection Efficiency**: Stateless HTTP communication avoids TCP pooling bottlenecks (PgBouncer not required)
+- **Production Guardrails**: Automated health checks and R2 storage integration for attachments
+- **Cost Efficiency**: Fully serverless stack minimizes idle costs while maintaining infinite scalability
 
 ## Current Status
-The application is optimized and ready for deployment with:
-- **Lightweight Architecture**: Significantly reduced bundle size and runtime overhead
-- **Stable Performance**: Fixed notification errors and unhandled promise rejections  
-- **Clean Codebase**: Removed unused files, optimized dependencies, and streamlined services
-- **Production Ready**: All core features intact with improved user experience
-- **Deployment Ready**: DigitalOcean hybrid setup available with automatic database switching
-- **Asset Optimization**: 10MB+ reduction in project size through asset cleanup
-- **Error-Free Runtime**: Fixed configuration imports and stability issues
+The application is stabilized on a state-of-the-Art serverless stack:
+- **Serverless Core**: Lightweight Next.js architecture deployed to Vercel/Replit
+- **Neon Database**: Optimized Neon HTTP connection layer for maximum reliability
+- **Secure Document Vault**: Cloudflare R2 integration for high-performance file management
+- **Production Workflow**: Finalized itemized budgeting and automated departmental approvals
+- **Stateless Reliability**: JWT-based authentication and stateless backend logic
+- **Asset Optimization**: Significant reduction in bundle size and response latency
