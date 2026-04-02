@@ -149,7 +149,7 @@ export async function handleApiRequest(req: NextRequest) {
         app(mockReq, mockRes);
       }),
       new Promise<NextResponse>((_, reject) => 
-        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${expressPath} hung for 22s.`)), 22000)
+        setTimeout(() => reject(new Error(`API Gateway Timeout: ${method} ${expressPath} hung for 12s.`)), 12000)
       )
     ]);
   } catch (error: any) {
