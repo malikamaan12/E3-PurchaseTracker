@@ -10,6 +10,7 @@ import {
   LogOut, 
   Layers,
   ChevronRight,
+  Settings,
   Menu
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -20,7 +21,7 @@ const navItems = [
   { name: "Purchases", path: "/dashboard/requests", icon: <FileText className="w-5 h-5" /> },
   { name: "Vendors", path: "/dashboard/vendors", icon: <Users className="w-5 h-5" /> },
   { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-5 h-5" /> },
-  { name: "Audit Trail", path: "/dashboard/audit", icon: <ShieldCheck className="w-5 h-5" /> },
+  { name: "Settings", path: "/dashboard/admin", icon: <Settings className="w-5 h-5" /> },
 ];
 
 export default function Sidebar() {

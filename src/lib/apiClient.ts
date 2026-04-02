@@ -67,6 +67,7 @@ class ApiClient {
       return this.request<any[]>(`/requests?${search}`);
     },
     get: (id: number) => this.request<any>(`/requests/${id}`),
+    create: (data: any) => this.request<any>("/requests", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     approve: (id: number, data: { status: string; comments?: string }) => 
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),

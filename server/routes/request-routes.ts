@@ -222,6 +222,45 @@ router.get("/requests/:id", async (req, res, next) => {
   }
 });
 
+// Create new purchase request
+router.post("/requests", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated()) throw new AppError("Not authenticated", 401);
+
+    const { title, description, totalEstimatedCost, vendorId, purposeType, priority } = req.body;
+    
+    // Generate unique request number (PR-2026-XXXX)
+    const year = new Date().getFullYear();
+    const countResult = await db.select({ count: count() }).from(purchaseRequests);
+    const nextNum = (Number(countResult[0]?.count) || 0) + 1;
+    const requestNumber = `PR-${year}-${nextNum.toString().padStart(4, '0')}`;
+
+    const [newRequest] = await db
+      .insert(purchaseRequests)
+      .values({
+        requestNumber,
+        title: title || "Untitled Request",
+        description: description || "",
+        totalEstimatedCost: parseInt(totalEstimatedCost) || 0,
+        vendorId: parseInt(vendorId),
+        purposeType: purposeType || "General",
+        priority: priority || "medium",
+        requesterId: req.user!.id,
+        items: [], // Schema requires items to be not null
+        status: "draft",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    debug(req, "Request created successfully:", newRequest.id);
+    res.status(201).json(newRequest);
+  } catch (error) {
+    debug(req, "Error creating request:", error);
+    next(error);
+  }
+});
+
 // Update/Submit request with notification logic
 router.put("/requests/:id", async (req, res, next) => {
   try {
