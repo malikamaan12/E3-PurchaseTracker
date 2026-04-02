@@ -13,9 +13,14 @@ export class ApiError extends Error {
  */
 class ApiClient {
   private baseUrl = "/api";
+  private backendUrl = "/api/backend";
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    // Auth routes use the standard /api/auth path (Native Next.js)
+    // All other routes use the /api/backend path (Express Bridge)
+    const isAuth = path.startsWith("/auth");
+    const base = isAuth ? this.baseUrl : this.backendUrl;
+    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
     
     const response = await fetch(url, {
       ...options,
