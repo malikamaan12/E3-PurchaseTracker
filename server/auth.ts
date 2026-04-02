@@ -47,8 +47,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     const decoded = jwt.verify(token, JWT_SECRET) as Express.User;
     req.user = decoded;
     next();
-  } catch (err) {
-    console.error("[Auth] JWT Verification failed:", err.message);
+  } catch (err: any) {
+    console.error("[Auth] JWT Verification failed:", err?.message || err);
     res.clearCookie(TOKEN_COOKIE_NAME);
     next();
   }
@@ -122,9 +122,9 @@ export async function setupAuth(app: Express) {
       console.log(`[Auth][Login] SUCCESS: ${username}`);
       return res.json({ user: sanitizedUser });
       
-    } catch (err) {
+    } catch (err: any) {
       console.error(`[Auth][Login] FATAL ERROR: ${username}`, err);
-      return res.status(500).json({ error: "Internal Server Error", message: err.message });
+      return res.status(500).json({ error: "Internal Server Error", message: err?.message || err });
     }
   });
 
@@ -158,8 +158,8 @@ export async function setupAuth(app: Express) {
       }).onConflictDoNothing().execute();
       
       console.log(`[AuthSeed] System admin verification finished in ${Date.now() - startTime}ms`);
-    } catch (e) {
-      console.error('[AuthSeed] Seeding error:', e.message);
+    } catch (e: any) {
+      console.error('[AuthSeed] ERROR during seeding:', e?.message || e);
     }
   })();
 }
