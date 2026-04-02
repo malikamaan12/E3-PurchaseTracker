@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as bcrypt from 'bcryptjs';
 import jwt from "jsonwebtoken";
-import { db } from "@/db"; // Use established db connection
-import { users } from "@/db/schema";
+import { db } from "@db";
+import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "purchase-management-system-v1-secret-key";
