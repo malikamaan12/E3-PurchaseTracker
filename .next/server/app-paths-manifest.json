@@ -1,10 +1,8 @@
 {
   "/api/[[...slug]]/route": "app/api/[[...slug]]/route.js",
-  "/api/departments/route": "app/api/departments/route.js",
-  "/api/auth/user/route": "app/api/auth/user/route.js",
   "/dashboard/analytics/page": "app/dashboard/analytics/page.js",
-  "/dashboard/vendors/page": "app/dashboard/vendors/page.js",
   "/dashboard/requests/page": "app/dashboard/requests/page.js",
-  "/dashboard/admin/page": "app/dashboard/admin/page.js",
-  "/dashboard/admin/diagnostics/page": "app/dashboard/admin/diagnostics/page.js"
+  "/dashboard/vendors/page": "app/dashboard/vendors/page.js",
+  "/dashboard/admin/diagnostics/page": "app/dashboard/admin/diagnostics/page.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js"
 }

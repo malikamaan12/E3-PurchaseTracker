@@ -17,10 +17,10 @@
       "static/chunks/node_modules_next_dist_pages__error_js.js"
     ]
   },
-  "app\\dashboard\\analytics\\page.tsx -> recharts": {
-    "id": "app\\dashboard\\analytics\\page.tsx -> recharts",
+  "app\\dashboard\\analytics\\page.tsx -> @/components/analytics/DashboardCharts": {
+    "id": "app\\dashboard\\analytics\\page.tsx -> @/components/analytics/DashboardCharts",
     "files": [
-      "static/chunks/_app-pages-browser_node_modules_recharts_es6_index_js.js"
+      "static/chunks/_app-pages-browser_src_components_analytics_DashboardCharts_tsx.js"
     ]
   }
 }
