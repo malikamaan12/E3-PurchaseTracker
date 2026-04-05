@@ -86,10 +86,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/admin/diagnostics/page.js"
     ],
-    "/_not-found/page": [
+    "/api/departments/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/api/departments/route.js"
     ]
   }
 }

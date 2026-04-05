@@ -1,12 +1,25 @@
 "use client";
 
-import React, { useState } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area, PieChart, Pie, Cell
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/apiClient';
 import { TrendingUp, Users, Activity, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// Lazy load Recharts components to reduce initial bundle size
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
+const AreaChart = dynamic(() => import('recharts').then(mod => mod.AreaChart), { ssr: false });
+const Area = dynamic(() => import('recharts').then(mod => mod.Area), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false });
+const PieChart = dynamic(() => import('recharts').then(mod => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import('recharts').then(mod => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import('recharts').then(mod => mod.Cell), { ssr: false });
+const Legend = dynamic(() => import('recharts').then(mod => mod.Legend), { ssr: false });
+const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false });
 
 // Mock data to unblock UI while preserving schema match
 const monthlyData = [
@@ -23,13 +36,6 @@ const vendorPerformanceData = [
   { name: 'B-Grade (80-89)', value: 30 },
   { name: 'C-Grade (70-79)', value: 15 },
   { name: 'Poor (<70)', value: 10 },
-];
-
-const statusBreakdown = [
-  { name: 'Approved', value: 400 },
-  { name: 'Pending', value: 300 },
-  { name: 'Rejected', value: 300 },
-  { name: 'Draft', value: 200 },
 ];
 
 const departmentalData = [
@@ -49,6 +55,25 @@ const CHART_COLORS = [
 ];
 
 export default function AnalyticsDashboard() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['requests-analytics-native'],
+    queryFn: () => apiClient.requests.analytics(),
+  });
+
+  const approved = stats?.approved || { count: 0, total: 0 };
+  const pending = stats?.pending || { count: 0, total: 0 };
+  const rejected = stats?.rejected || { count: 0, total: 0 };
+  const draft = stats?.draft || { count: 0, total: 0 };
+
+  const statusData = [
+    { name: 'Approved', value: approved.count },
+    { name: 'Pending', value: pending.count },
+    { name: 'Rejected', value: rejected.count },
+    { name: 'Draft', value: draft.count },
+  ];
+
+  const totalVolume = approved.total + pending.total + rejected.total + draft.total;
+
   return (
     <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
       <header className="flex justify-between items-center">
@@ -61,10 +86,10 @@ export default function AnalyticsDashboard() {
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Total Spending", value: "$45,232", change: "+20.1%", icon: DollarSign },
-          { title: "Active Vendors", value: "2,350", change: "+180 new", icon: Users },
-          { title: "Purchase Requests", value: "12,234", change: "+19%", icon: Activity },
-          { title: "Fulfillment Time", value: "4.2 Days", change: "-0.5 days", icon: TrendingUp },
+          { title: "Total Volume", value: `${totalVolume.toLocaleString()} QAR`, change: "Cumulative", icon: DollarSign },
+          { title: "Pending count", value: pending.count, change: "Awaiting Action", icon: Activity },
+          { title: "Approved count", value: approved.count, change: "Finalized", icon: TrendingUp },
+          { title: "Rejection Rate", value: `${((rejected.count / (approved.count + rejected.count || 1)) * 100).toFixed(1)}%`, change: "Total Lifecycle", icon: Users },
         ].map((kpi, idx) => (
           <motion.div 
             key={idx}
@@ -78,8 +103,7 @@ export default function AnalyticsDashboard() {
               <kpi.icon className="w-5 h-5 text-brand-primary" />
             </div>
             <div className="text-3xl font-serif text-foreground mt-2">{kpi.value}</div>
-            <div className="text-xs text-brand-secondary font-semibold">{kpi.change} from last month</div>
-            {/* Subtle background glow */}
+            <div className="text-xs text-brand-secondary font-semibold transition-colors">{kpi.change}</div>
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-brand-primary/5 rounded-full blur-3xl group-hover:bg-brand-primary/10 transition-all" />
           </motion.div>
         ))}
@@ -135,7 +159,7 @@ export default function AnalyticsDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={statusBreakdown}
+                  data={statusData}
                   cx="50%"
                   cy="50%"
                   innerRadius={70}
@@ -144,7 +168,7 @@ export default function AnalyticsDashboard() {
                   dataKey="value"
                   stroke="none"
                 >
-                  {statusBreakdown.map((entry, index) => (
+                  {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>

@@ -19,7 +19,8 @@ class ApiClient {
     // Auth routes use the standard /api/auth path (Native Next.js)
     // All other routes use the /api/backend path (Express Bridge)
     const isAuth = path.startsWith("/auth");
-    const base = isAuth ? this.baseUrl : this.backendUrl;
+    const isNative = path === "/requests/analytics" || path.startsWith("/requests?") || path === "/requests" || path === "/departments";
+    const base = (isAuth || isNative) ? this.baseUrl : this.backendUrl;
     const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
     
     const response = await fetch(url, {
