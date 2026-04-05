@@ -2,8 +2,54 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { AppError } from './errors';
-import type { Request } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { isR2Configured } from '../services/R2StorageService';
+
+/**
+ * Require a valid authenticated session.
+ */
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return next(new AppError("Not authenticated", 401));
+  }
+  if (!req.user.isActive) {
+    return next(new AppError("Account is deactivated. Contact admin.", 403));
+  }
+  next();
+};
+
+/**
+ * Require the user to have one of the specified roles.
+ * Usage: requireRole('admin') or requireRole('admin', 'manager')
+ */
+export const requireRole = (...roles: string[]) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated() || !req.user) {
+      return next(new AppError("Not authenticated", 401));
+    }
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError(`Access denied. Required role: ${roles.join(' or ')}`, 403));
+    }
+    next();
+  };
+
+/**
+ * Require admin role OR membership in an approver department.
+ * Approver status is determined dynamically during login and stored in the session.
+ */
+export const requireApproverOrAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return next(new AppError("Not authenticated", 401));
+  }
+  
+  const isAdmin = req.user.role === 'admin';
+  const isApprover = (req.user as any).isApprover === true;
+
+  if (!isAdmin && !isApprover) {
+    return next(new AppError("Approval authority required", 403));
+  }
+  next();
+};
 
 // Configure multer for file uploads
 export const createStorage = (uploadDir: string) => {

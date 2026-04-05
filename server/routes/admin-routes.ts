@@ -7,9 +7,11 @@ import {
   subPurposes, 
   purchaseRequests,
   auditLogs,
+  systemSettings,
+  vendors,
   insertSubPurposeSchema
 } from "@db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { AppError, ValidationError } from "../utils/errors";
 import { debug } from "../utils/debug";
 import * as bcrypt from 'bcryptjs';
@@ -378,6 +380,66 @@ router.get("/audit-logs", async (req, res, next) => {
       .orderBy(desc(auditLogs.timestamp));
 
     res.json(logs);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- System Settings ---
+router.get("/system-settings", async (req, res, next) => {
+  try {
+    const settings = await db.select().from(systemSettings);
+    // Convert array of key/value to object { key: value }
+    const settingsObj = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+    res.json(settingsObj);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/system-settings", async (req, res, next) => {
+  try {
+    const entries = Object.entries(req.body);
+    for (const [key, value] of entries) {
+      await db.insert(systemSettings)
+        .values({ key, value: String(value), updatedBy: req.user!.id })
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: { value: String(value), updatedAt: new Date(), updatedBy: req.user!.id }
+        });
+    }
+    res.json({ message: "Settings updated" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- Vendors Admin (RBAC Status Override) ---
+router.put("/vendors/:id/status", async (req, res, next) => {
+  try {
+    const vendorId = parseInt(req.params.id);
+    const { status } = req.body;
+    const [updated] = await db.update(vendors).set({ status, updatedAt: new Date() }).where(eq(vendors.id, vendorId)).returning();
+    if (!updated) throw new AppError("Vendor not found", 404);
+    res.json({ message: "Vendor status updated", vendor: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- Department Analytics ---
+router.get("/analytics", async (req, res, next) => {
+  try {
+    const stats = await db.select({
+      department: users.department,
+      count: sql`count(${purchaseRequests.id})`.mapWith(Number),
+      totalCost: sql`sum(${purchaseRequests.totalEstimatedCost})`.mapWith(Number)
+    })
+    .from(purchaseRequests)
+    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .groupBy(users.department);
+
+    res.json(stats);
   } catch (error) {
     next(error);
   }

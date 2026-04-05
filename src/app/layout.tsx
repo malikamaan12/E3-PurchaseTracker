@@ -17,10 +17,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              try {
+                var theme = localStorage.getItem('theme');
+                var supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+                if (!theme && supportDarkMode) theme = 'dark';
+                if (!theme) theme = 'light';
+                document.documentElement.className = theme;
+              } catch (e) {}
+            })();
+          `,
+        }} />
+      </head>
+      <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20`} suppressHydrationWarning>
         <Providers>
-          <div className="flex min-h-screen flex-col bg-zinc-950">
+          <div className="flex min-h-screen flex-col bg-background text-foreground">
             {children}
           </div>
         </Providers>

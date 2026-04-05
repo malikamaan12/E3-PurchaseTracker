@@ -1,4 +1,3 @@
-import passport from "passport";
 import { type Express, type Request, type Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
@@ -6,12 +5,10 @@ import { JWT_SECRET, TOKEN_COOKIE_NAME } from "./utils/config";
 
 /**
  * PurchaseTracker Authentication Middleware (Express-compatible)
- * This is still used by the Express bridge for domain-specific routes 
- * (like /api/vendors, /api/requests) that require authentication.
+ * Lightweight JWT verification — no Passport overhead.
  */
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.cookies[TOKEN_COOKIE_NAME];
-  console.log(`[AuthBridge] Verifying token for: ${req.method} ${req.url} - Token present: ${!!token}`);
+  const token = req.cookies?.[TOKEN_COOKIE_NAME];
   
   (req as any).isAuthenticated = () => !!req.user;
   (req as any).logout = (cb?: (err: any) => void) => {
@@ -24,7 +21,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.user = decoded;
-    console.log(`[AuthBridge] SUCCESS: User identified as ${decoded.username}`);
     next();
   } catch (err: any) {
     console.error("[AuthBridge] JWT Verification failed:", err.message);
@@ -37,13 +33,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
  * Setup Authentication (Middleware only)
  */
 export async function setupAuth(app: Express) {
-  console.log('[Auth] Initializing middleware-only layer...');
-  
   app.use(cookieParser());
-  app.use(passport.initialize());
+  // Passport removed — JWT is handled directly by authenticateToken
   app.use(authenticateToken);
-
-  // Note: All /api/auth/* routes have been migrated to native Next.js API routes
-  // to prevent serverless bridge hangs. See /src/app/api/auth/* for implementation.
-  // The 'AuthSeed' background hashing has been REMOVED to prevent CPU starvation.
 }

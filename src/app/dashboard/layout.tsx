@@ -7,7 +7,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden transition-colors duration-300">
       {/* Fixed Sidebar */}
       <Sidebar />
 
@@ -16,7 +16,7 @@ export default function DashboardLayout({
         <TopNav />
         
         {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto bg-zinc-950 px-12 py-10 custom-scrollbar relative">
+        <main className="flex-1 overflow-y-auto bg-background px-12 py-10 custom-scrollbar relative">
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>

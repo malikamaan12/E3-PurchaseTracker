@@ -5,7 +5,7 @@ import * as bcrypt from "bcryptjs";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 
-export const mandatoryDepartments = ["Finance", "CEO Office", "Director"];
+import { departments } from "@db/schema";
 
 // Extend Express.User interface
 declare global {
@@ -16,6 +16,7 @@ declare global {
       department: string;
       role: string;
       email: string;
+      isApprover: boolean;
       contactNumber: string;
       isActive: boolean;
     }
@@ -82,6 +83,7 @@ export async function configurePassport(passport: passport.Authenticator) {
           department: user.department,
           role: user.role,
           email: user.email,
+          isApprover: (await db.select().from(departments).where(eq(departments.name, user.department)).limit(1))[0]?.isApprover || user.role === 'admin',
           contactNumber: user.contact_number,
           isActive: user.isActive
         };
@@ -127,12 +129,19 @@ export async function configurePassport(passport: passport.Authenticator) {
         return done(null, false);
       }
 
+      // Add isApprover flag to deserialized user
+      const [dept] = await db.select().from(departments).where(eq(departments.name, user.department)).limit(1);
+      const userWithApprover = {
+        ...user,
+        isApprover: dept?.isApprover || user.role === 'admin'
+      };
+
       console.log('User deserialized successfully:', {
         id: user.id,
         username: user.username
       });
 
-      done(null, user);
+      done(null, userWithApprover);
     } catch (error) {
       console.error('Deserialization error:', error);
       done(error);
@@ -197,8 +206,14 @@ export async function canUserApprove(userId: number, requestId: number): Promise
       return false;
     }
 
+    // 1. Fetch user department info
+    const [deptInfo] = await db.select()
+      .from(departments)
+      .where(eq(departments.name, user.department))
+      .limit(1);
+
     // Admin or mandatory department approvers can approve all requests
-    if (user.role === 'admin' || mandatoryDepartments.includes(user.department)) {
+    if (user.role === 'admin' || deptInfo?.isApprover) {
       return true;
     }
 

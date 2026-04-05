@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard, ArrowRight, CheckCircle2, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { z } from "zod";
 
 // Extend the schema internally for the form if needed
@@ -19,6 +19,13 @@ export default function VendorOnboardingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
+  const step3EnteredAt = useRef(0);
+
+  useEffect(() => {
+    if (step === 3) {
+      step3EnteredAt.current = Date.now();
+    }
+  }, [step]);
 
   const { register, handleSubmit, formState: { errors }, watch, trigger } = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
@@ -40,7 +47,17 @@ export default function VendorOnboardingPage() {
     onError: (err: any) => toast.error(err.message || "Failed to onboard vendor"),
   });
 
-  const onSubmit = (data: VendorFormValues) => mutation.mutate(data);
+  const onSubmit = (data: VendorFormValues) => {
+    if (step !== 3) {
+      nextStep();
+      return;
+    }
+    // Prevent accidental double clicks from instantly submitting Step 3 since all fields are optional
+    if (Date.now() - step3EnteredAt.current < 500) {
+      return;
+    }
+    mutation.mutate(data);
+  };
 
   const nextStep = async () => {
     // Validate current step before proceeding
@@ -107,12 +124,12 @@ export default function VendorOnboardingPage() {
                         <p className="text-zinc-400 text-sm">Enter the officially registered company details.</p>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
-                        <FormField icon={<Building2 />} label="Company Name" name="companyName" register={register} error={errors.companyName} placeholder="Acme Tech Solutions" />
-                        <FormField icon={<User />} label="Contact Person" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
-                        <FormField icon={<Mail />} label="Business Email" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
-                        <FormField icon={<Phone />} label="Contact Number" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
+                        <FormField icon={<Building2 />} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="Acme Tech Solutions" />
+                        <FormField icon={<User />} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
+                        <FormField icon={<Mail />} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
+                        <FormField icon={<Phone />} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
                         <div className="col-span-2">
-                           <FormField icon={<Globe />} label="Headquarters Address" name="address" register={register} error={errors.address} placeholder="123 Business Avenue, City, Country" />
+                           <FormField icon={<Globe />} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="123 Business Avenue, City, Country" />
                         </div>
                       </div>
                     </motion.div>
@@ -131,14 +148,14 @@ export default function VendorOnboardingPage() {
                         <p className="text-zinc-400 text-sm">Secure banking information for automated wire transfers.</p>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
-                        <FormField icon={<Landmark />} label="Bank Name" name="bankName" register={register} error={errors.bankName} placeholder="Standard Chartered" />
-                        <FormField icon={<Landmark />} label="Branch Name" name="branchName" register={register} error={errors.branchName} placeholder="Doha Main Branch" />
-                        <FormField icon={<CreditCard />} label="Account Number" name="accountNumber" register={register} error={errors.accountNumber} />
-                        <FormField icon={<CreditCard />} label="IBAN Number" name="ibanNumber" register={register} error={errors.ibanNumber} />
+                        <FormField icon={<Landmark />} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Standard Chartered" />
+                        <FormField icon={<Landmark />} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Doha Main Branch" />
+                        <FormField icon={<CreditCard />} label="Account Number*" name="accountNumber" register={register} error={errors.accountNumber} />
+                        <FormField icon={<CreditCard />} label="IBAN Number*" name="ibanNumber" register={register} error={errors.ibanNumber} />
                         
                         <div className="space-y-2 col-span-2">
                           <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-2">
-                            Payment Currency
+                            Payment Currency*
                           </label>
                           <select 
                             {...register("payment_currency")} 
@@ -166,15 +183,23 @@ export default function VendorOnboardingPage() {
                         <p className="text-zinc-400 text-sm">Required for auditing and legal tracking purposes.</p>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
-                        <FormField icon={<FileCheck />} label="VAT Number (Optional)" name="taxNumber" register={register} error={errors.taxNumber} placeholder="e.g. 1234567890" />
-                        <FormField icon={<FileCheck />} label="Comm. Registration (Optional)" name="registrationNumber" register={register} error={errors.registrationNumber} placeholder="CR Number" />
+                        <FormField icon={<FileCheck />} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} placeholder="e.g. 1234567890" />
+                        <FormField icon={<FileCheck />} label="Comm. Registration" name="registrationNumber" register={register} error={errors.registrationNumber} placeholder="CR Number" />
                         
-                        <div className="col-span-2 p-8 rounded-xl bg-white/5 border border-dashed border-white/10 flex flex-col items-center justify-center gap-3 transition-colors hover:bg-white/[0.07] cursor-pointer">
-                          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-brand-primary mb-2">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          </div>
-                          <p className="text-zinc-300 font-medium">Upload Compliance Documents</p>
-                          <p className="text-zinc-500 text-sm">Drag and drop PDFs or click to browse</p>
+                        <FormField icon={<FileCheck />} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Any specific terms or notes" />
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-2">
+                            <span className="text-zinc-600"><span className="w-3 h-3 block"><CheckCircle2 /></span></span>
+                            Vendor Rating
+                          </label>
+                          <input 
+                            type="number"
+                            min="0"
+                            max="5"
+                            {...register("rating", { valueAsNumber: true })}
+                            placeholder="0-5"
+                            className="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 transition-all border-white/10 focus:ring-brand-primary/20 focus:border-brand-primary/50"
+                          />
                         </div>
                       </div>
                     </motion.div>

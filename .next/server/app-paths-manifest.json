@@ -1,0 +1,10 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/user/route": "app/api/auth/user/route.js",
+  "/api/[[...slug]]/route": "app/api/[[...slug]]/route.js",
+  "/dashboard/requests/page": "app/dashboard/requests/page.js",
+  "/dashboard/analytics/page": "app/dashboard/analytics/page.js",
+  "/dashboard/vendors/page": "app/dashboard/vendors/page.js",
+  "/dashboard/admin/diagnostics/page": "app/dashboard/admin/diagnostics/page.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js"
+}

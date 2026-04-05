@@ -12,12 +12,14 @@ import {
   errorLogs,
   purchaseApprovers,
   approvalAuditLogs,
-  auditLogs
+  auditLogs,
+  departments
 } from "@db/schema";
 import { eq, and, desc, inArray, gte, lte, or, isNull, sql, sum, count } from "drizzle-orm";
 import { AppError, ValidationError, DatabaseError } from "../utils/errors";
 import { debug } from "../utils/debug";
 import { notificationService } from "../services/NotificationService";
+import { requireAuth, requireApproverOrAdmin } from "../utils/middleware";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -55,6 +57,34 @@ async function analyzeError(error: Error, context: any) {
     context,
   };
 }
+
+// --- Shared Entities ---
+router.get("/requests/sub-purposes", async (req, res, next) => {
+  try {
+    if (!req.isAuthenticated()) throw new AppError("Not authenticated", 401);
+    const purposeType = req.query.purposeType as string;
+    
+    const conditions = [eq(subPurposes.is_frozen, false)];
+    if (purposeType) {
+      conditions.push(eq(subPurposes.purpose_type, purposeType));
+    }
+
+    const activeSubPurposes = await db
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purpose_type: subPurposes.purpose_type
+      })
+      .from(subPurposes)
+      .where(and(...conditions))
+      .orderBy(desc(subPurposes.created_at));
+
+    res.json(activeSubPurposes);
+  } catch (error) {
+    debug(req, "Error fetching sub-purposes:", error);
+    next(error);
+  }
+});
 
 // --- Analytics Endpoints ---
 
@@ -134,6 +164,22 @@ router.get("/requests", async (req, res, next) => {
       whereConditions.push(lte(purchaseRequests.createdAt, new Date(req.query.dateTo as string)));
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // PHASE 4: DEPARTMENT-SCOPED DASHBOARD
+    // - admin: sees all requests
+    // - isApprover: sees all requests from depts in their approval queue
+    // - user: sees all requests created by anyone in their own department
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const currentUser = req.user!;
+    const userIsAdmin = currentUser.role === 'admin';
+    const userIsApprover = (currentUser as any).isApprover === true;
+
+    if (!userIsAdmin && !userIsApprover) {
+      // Regular users see all requests from THEIR DEPARTMENT (not just their own)
+      whereConditions.push(eq(users.department, currentUser.department));
+    }
+    // Approvers and admins see all requests (no additional filter needed)
+
     const requests = await db
       .select({
         id: purchaseRequests.id,
@@ -206,15 +252,73 @@ router.get("/requests/:id", async (req, res, next) => {
       .leftJoin(users, eq(users.id, approvals.approverId))
       .where(eq(approvals.requestId, requestId));
 
+    // Fetch all Potential Stakeholders for these departments
+    const depts = [...new Set(requestApprovals.map(a => a.department))];
+    const deptStakeholders = depts.length > 0 
+      ? await db
+          .select({
+            id: users.id,
+            username: users.username,
+            department: users.department,
+          })
+          .from(users)
+          .where(
+            and(
+              inArray(users.department, depts),
+              eq(users.role, 'approver')
+            )
+          )
+      : [];
+
+    // Map stakeholders to each approval step
+    const approvalsWithStakeholders = requestApprovals.map(approval => ({
+      ...approval,
+      stakeholders: deptStakeholders.filter(s => s.department === approval.department)
+    }));
+
     const attachments = await db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId));
+
+    let parsedItems = request.items || [];
+    try {
+      if (typeof request.items === "string") parsedItems = JSON.parse(request.items);
+    } catch(e) {}
+
+    let parsedApprovers = request.additionalApprovers || [];
+    try {
+      if (typeof request.additionalApprovers === "string") parsedApprovers = JSON.parse(request.additionalApprovers);
+    } catch(e) {}
+
+    // Fetch Audit Logs for the Request Timeline
+    const requestAuditLogs = await db
+      .select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        timestamp: auditLogs.timestamp,
+        details: auditLogs.details,
+        user: {
+          username: users.username,
+        }
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.userId))
+      .where(
+        and(
+          eq(auditLogs.resourceId, requestId),
+          eq(auditLogs.resourceType, "purchase_request")
+        )
+      )
+      .orderBy(desc(auditLogs.timestamp));
 
     res.json({
       ...request,
+      items: parsedItems,
+      additionalApprovers: parsedApprovers,
       requester,
       vendor,
       subPurpose,
-      approvals: requestApprovals,
-      attachments
+      approvals: approvalsWithStakeholders,
+      attachments,
+      auditLogs: requestAuditLogs
     });
   } catch (error) {
     debug(req, "Error in /api/requests/:id:", error);
@@ -234,6 +338,9 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
       vendorId, 
       purposeType, 
       priority,
+      currency,
+      freightAmount,
+      subPurposeId,
       items,
       additionalApprovers,
       attachmentIds
@@ -255,10 +362,13 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
         totalEstimatedCost: parseInt(totalEstimatedCost) || 0,
         vendorId: parseInt(vendorId),
         purposeType: purposeType || "General",
+        subPurposeId: subPurposeId ? parseInt(subPurposeId) : null,
         priority: priority || "medium",
+        currency: currency || "QAR",
+        freightAmount: parseInt(freightAmount) || 0,
         requesterId: req.user!.id,
-        items: items || [], 
-        additionalApprovers: additionalApprovers || [], 
+        items: JSON.stringify(items || []) as any, 
+        additionalApprovers: JSON.stringify(additionalApprovers || []) as any, 
         status: "draft",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -279,6 +389,7 @@ router.post("/requests", async (req: Request, res: Response, next: NextFunction)
     next(error);
   }
 });
+
 
 // Update/Submit request with notification logic
 router.put("/requests/:id", async (req, res, next) => {
@@ -308,9 +419,39 @@ router.put("/requests/:id", async (req, res, next) => {
     // Clean up update data to match schema
     const { requester, vendor, subPurpose, approvals: _a, attachments: _att, ...cleanData } = updateData;
 
+    // Handle array primitives converting to DB text columns
+    if (cleanData.items && Array.isArray(cleanData.items)) {
+      cleanData.items = JSON.stringify(cleanData.items) as any;
+    }
+    if (cleanData.additionalApprovers && Array.isArray(cleanData.additionalApprovers)) {
+      cleanData.additionalApprovers = JSON.stringify(cleanData.additionalApprovers) as any;
+    }
+
     // Handle date strings
     if (cleanData.createdAt) cleanData.createdAt = new Date(cleanData.createdAt);
     if (cleanData.updatedAt) cleanData.updatedAt = new Date(cleanData.updatedAt);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // PHASE 3: APPROVAL RESET ON EDIT
+    // If user is editing a request that had "changes_requested",
+    // delete all existing approval records and re-flag for re-review.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const isEditAfterChangesRequested =
+      existing.status === "changes_requested" &&
+      updateData.status !== "changes_requested" &&
+      existing.requesterId === req.user!.id;
+
+    if (isEditAfterChangesRequested) {
+      debug(req, "[Approval Reset] Resetting approvals after requester edited.");
+      
+      // Delete all approval records for this request
+      const { approvals: approvalsTable } = await import("@db/schema");
+      await db.delete(approvalsTable).where(eq(approvalsTable.requestId, requestId));
+
+      // Force status back to draft so user can re-submit
+      cleanData.status = "draft";
+      cleanData.isLocked = false;
+    }
 
     const [updated] = await db
       .update(purchaseRequests)
@@ -318,11 +459,14 @@ router.put("/requests/:id", async (req, res, next) => {
       .where(eq(purchaseRequests.id, requestId))
       .returning();
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Notification logic if transitioning to 'pending'
     // ARCHITECTURAL CONSTRAINT: Bypass if still in 'draft' status
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested")) {
-      // 1. Define Mandatory Departments
-      const mandatoryDepts = ["Finance", "CEO Office", "Director"];
+      // 1. Fetch Mandatory Departments from DB
+      const mandatoryDeptRecords = await db.select().from(departments).where(eq(departments.isApprover, true));
+      const mandatoryDepts = mandatoryDeptRecords.map(d => d.name);
       
       // 2. Combine with Additional Approvers from the request
       let additionalDepts: string[] = [];
@@ -350,30 +494,47 @@ router.put("/requests/:id", async (req, res, next) => {
           .limit(1);
 
         if (!existingApproval) {
-          await db.insert(approvals).values({
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // PHASE 2: HOD AUTO-APPROVAL
+          // If the requester is an approver and this dept is their own dept,
+          // automatically mark it as approved.
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          const requesterIsApproverForThisDept =
+            req.user!.department === dept && (req.user as any).isApprover === true;
+
+          const [newApproval] = await db.insert(approvals).values({
             requestId,
+            approverId: requesterIsApproverForThisDept ? req.user!.id : null,
             department: dept,
-            status: "pending",
+            status: requesterIsApproverForThisDept ? "approved" : "pending",
             isMandatory: mandatoryDepts.includes(dept),
+            comments: requesterIsApproverForThisDept ? "Auto-approved: Request submitted by department HOD/GM" : null,
+            processedAt: requesterIsApproverForThisDept ? new Date() : null,
             createdAt: new Date(),
             updatedAt: new Date(),
-          });
+          }).returning();
+
+          if (requesterIsApproverForThisDept) {
+            debug(req, `[HOD Auto-Approval] Dept ${dept} auto-approved by HOD ${req.user!.username}`);
+            
+            // Add to Audit Logs for transparency
+            await db.insert(auditLogs).values({
+              resourceId: requestId,
+              resourceType: "purchase_request",
+              action: "department_auto_approved",
+              userId: req.user!.id,
+              details: { 
+                department: dept, 
+                reason: "Requester is Department Head/Approver",
+                approvalId: newApproval.id 
+              },
+              timestamp: new Date(),
+            });
+          }
         }
       }
 
-      // 4. Send Notifications to all potential approvers
-      const approvers = await db
-        .select()
-        .from(users)
-        .where(and(eq(users.role, "approver"), eq(users.isActive, true)));
-
-      // Parse targets for notifications
-      const targetUserIds = new Set<number>();
-      
-      // All general approvers
-      approvers.forEach(a => targetUserIds.add(a.id));
-
-      // Specific departmental approvers if any
+      // 4. Send Notifications to all potential approvers in required departments
       const deptApprovers = await db
         .select()
         .from(users)
@@ -381,19 +542,32 @@ router.put("/requests/:id", async (req, res, next) => {
           inArray(users.department, allRequiredDepts),
           eq(users.isActive, true)
         ));
+      
+      // Also include all admin users
+      const adminUsers = await db.select().from(users).where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
+
+      const targetUserIds = new Set<number>();
       deptApprovers.forEach(a => targetUserIds.add(a.id));
+      adminUsers.forEach(a => targetUserIds.add(a.id));
+      // Don't notify the requester themselves
+      targetUserIds.delete(req.user!.id);
 
       await Promise.all(Array.from(targetUserIds).map(userId => 
         notificationService.createNotification({
           userId,
-          title: "New Purchase Request",
-          message: `A new purchase request "${updated.title}" requires your approval`,
+          title: "New Purchase Request Pending",
+          message: `"${updated.title}" requires your approval`,
           type: "approval_required",
           requestId: updated.id,
           priority: "high",
           actionType: "approve",
         })
       ));
+
+      // Lock the request during approval process
+      await db.update(purchaseRequests)
+        .set({ isLocked: true, updatedAt: new Date() })
+        .where(eq(purchaseRequests.id, requestId));
     }
 
     res.json(updated);
@@ -424,7 +598,9 @@ router.put("/requests/:id", async (req, res, next) => {
 router.post("/requests/bulk-approve", async (req, res, next) => {
   try {
     if (!req.isAuthenticated()) throw new AppError("Not authenticated", 401);
-    if (req.user!.role !== 'admin' && req.user!.role !== 'approver') {
+    // Approver department OR admin can bulk-approve
+    const isApprover = (req.user as any).isApprover === true;
+    if (req.user!.role !== 'admin' && !isApprover) {
       throw new AppError("Unauthorized for bulk actions", 403);
     }
 
@@ -469,7 +645,7 @@ router.post("/requests/bulk-approve", async (req, res, next) => {
   }
 });
 
-// --- Approvals ---
+// --- Approvals: Full State Machine ---
 
 router.post("/requests/:requestId/approvals", async (req, res, next) => {
   try {
@@ -477,25 +653,142 @@ router.post("/requests/:requestId/approvals", async (req, res, next) => {
 
     const requestId = parseInt(req.params.requestId);
     const { status, comments } = req.body;
+    const actingUser = req.user!;
 
-    const [approval] = await db
-      .insert(approvals)
-      .values({
-        requestId,
-        approverId: req.user!.id,
-        status,
-        comments,
-        department: req.user!.department,
+    if (!["approved", "rejected", "changes_requested"].includes(status)) {
+      throw new ValidationError("Invalid approval status. Must be 'approved', 'rejected', or 'changes_requested'.");
+    }
+
+    // 1. Fetch the parent request
+    const [request] = await db
+      .select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!request) throw new AppError("Request not found", 404);
+    if (request.status !== "pending") {
+      throw new AppError(`Cannot act on a request with status: "${request.status}"`, 400);
+    }
+
+    // 2. Check if this user's department has a pending approval record
+    const [deptApproval] = await db
+      .select()
+      .from(approvals)
+      .where(and(
+        eq(approvals.requestId, requestId),
+        eq(approvals.department, actingUser.department)
+      ))
+      .limit(1);
+
+    // Allow admin to approve even without a dept record
+    const isAdmin = actingUser.role === 'admin';
+    const isApprover = (actingUser as any).isApprover === true;
+
+    if (!deptApproval && !isAdmin) {
+      throw new AppError("Your department is not in the approval chain for this request.", 403);
+    }
+    if (deptApproval?.status === "approved" && !isAdmin) {
+      throw new AppError("Your department has already approved this request.", 400);
+    }
+
+    // 3. Update the existing approval record
+    let updatedApproval;
+    if (deptApproval) {
+      const [result] = await db
+        .update(approvals)
+        .set({
+          approverId: actingUser.id,
+          status,
+          comments: comments || null,
+          processedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(approvals.id, deptApproval.id))
+        .returning();
+      updatedApproval = result;
+
+      // 4. Write audit log
+      await db.insert(approvalAuditLogs).values({
+        approvalId: deptApproval.id,
+        userId: actingUser.id,
+        action: status,
+        previousStatus: deptApproval.status,
+        newStatus: status,
+        comments: comments || null,
+        metadata: {
+          department: actingUser.department,
+          ipAddress: req.ip,
+        },
         createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+      });
+    }
 
-    res.status(201).json(approval);
+    // 5. Cascade Logic: Check all approvals to determine next request state
+    const allApprovals = await db
+      .select()
+      .from(approvals)
+      .where(eq(approvals.requestId, requestId));
+
+    let newRequestStatus: string | null = null;
+    let notifTitle = "";
+    let notifMessage = "";
+
+    if (status === "rejected") {
+      // Any rejection immediately rejects the whole request
+      newRequestStatus = "rejected";
+      notifTitle = "Purchase Request Rejected";
+      notifMessage = `"${request.title}" was rejected by ${actingUser.username} (${actingUser.department})${comments ? `: "${comments}"` : ""}`;
+    } else if (status === "changes_requested") {
+      // Any changes_requested puts the request back to the requester
+      newRequestStatus = "changes_requested";
+      notifTitle = "Changes Requested on Your Purchase Request";
+      notifMessage = `${actingUser.username} (${actingUser.department}) has requested changes on "${request.title}"${comments ? `: "${comments}"` : ""}`;
+    } else if (status === "approved") {
+      // Check if ALL approval records are now approved
+      const pendingOrRejected = allApprovals.filter(a => a.status !== "approved");
+      if (pendingOrRejected.length === 0) {
+        newRequestStatus = "approved";
+        notifTitle = "Purchase Request Fully Approved! 🎉";
+        notifMessage = `"${request.title}" has been approved by all required departments.`;
+      }
+      // Otherwise do nothing — more approvals still needed
+    }
+
+    // 6. Update request status if needed
+    if (newRequestStatus) {
+      await db
+        .update(purchaseRequests)
+        .set({
+          status: newRequestStatus,
+          isLocked: newRequestStatus === "approved" ? true : false, // Released for editing if changes_requested
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseRequests.id, requestId));
+
+      // 7. Send notification to the original requester
+      await notificationService.createNotification({
+        userId: request.requesterId,
+        title: notifTitle,
+        message: notifMessage,
+        type: newRequestStatus === "approved" ? "approval_complete" : newRequestStatus === "rejected" ? "rejection" : "changes_requested",
+        requestId,
+        priority: newRequestStatus === "rejected" ? "high" : "normal",
+      });
+    }
+
+    res.status(200).json({
+      approval: updatedApproval,
+      requestStatus: newRequestStatus || request.status,
+      message: status === "approved" && !newRequestStatus
+        ? "Approved. Waiting for remaining department sign-offs."
+        : `Request has been ${status.replace("_", " ")}.`
+    });
   } catch (error) {
     next(error);
   }
 });
+
 
 // --- Attachments ---
 

@@ -47,13 +47,6 @@ export async function handleApiRequest(req: NextRequest) {
   
   // 1. Path Stripping: Convert '/api/backend/vendors' -> '/api/vendors' (Backend alignment)
   const expressPath = url.pathname.replace("/api/backend", "/api");
-  
-  const headers = Object.fromEntries(req.headers.entries());
-  const clientVersion = req.headers.get("x-client-version") || "unknown";
-  const cookieHeader = req.headers.get("cookie") || "";
-  
-  console.log(`[API Bridge][${traceId}] Start: ${req.method} ${expressPath} (Client: ${clientVersion})`);
-  console.log(`[API Bridge][${traceId}] Headers Trace: Cookie present: ${!!cookieHeader}`);
 
   try {
     const app = await getExpressApp();
@@ -72,9 +65,8 @@ export async function handleApiRequest(req: NextRequest) {
     if (token) {
       try {
         user = jwt.verify(token, JWT_SECRET) as any;
-        console.log(`[API Bridge][${traceId}] Auth Verified: ${user.username}`);
       } catch (err: any) {
-        console.warn(`[API Bridge][${traceId}] Invalid Token:`, err.message);
+        // Token invalid — proceed unauthenticated
       }
     }
 

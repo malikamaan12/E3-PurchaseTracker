@@ -45,21 +45,21 @@ export default function VendorsDashboard() {
     <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
       <header className="flex justify-between items-center">
         <div className="space-y-1">
-          <h1 className="text-4xl font-serif tracking-tight text-white">Vendor Ecosystem</h1>
-          <p className="text-zinc-400">Manage global supplier relationships and compliance.</p>
+          <h1 className="text-4xl font-serif tracking-tight text-foreground">Vendor Ecosystem</h1>
+          <p className="text-muted-foreground">Manage global supplier relationships and compliance.</p>
         </div>
         <button 
           onClick={() => setIsOnboarding(true)}
-          className="flex items-center gap-2 bg-brand-secondary text-black font-bold px-5 py-2.5 rounded-full hover:scale-105 transition-transform shadow-lg active:scale-95"
+          className="flex items-center gap-2 bg-brand-secondary text-black font-extrabold px-6 py-2.5 rounded-full hover:brightness-110 hover:shadow-brand-secondary/20 transition-all shadow-lg active:scale-95"
         >
-          <Plus className="w-5 h-5" /> Onboard Vendor
+          <Plus className="w-5 h-5 stroke-[3]" /> Onboard Vendor
         </button>
       </header>
 
       <OnboardVendorModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
       <Tabs.Root defaultValue="all" className="flex flex-col gap-6">
-        <Tabs.List className="flex gap-4 p-1 glass w-fit rounded-lg self-start">
+        <Tabs.List className="flex gap-4 p-1 bg-secondary/50 border border-border w-fit rounded-lg self-start backdrop-blur-md">
           <Tabs.Trigger value="all" className="tabs-trigger">All Entities</Tabs.Trigger>
           <Tabs.Trigger value="active" className="tabs-trigger">Compliant</Tabs.Trigger>
           <Tabs.Trigger value="blocked" className="tabs-trigger">Restricted</Tabs.Trigger>
@@ -79,15 +79,15 @@ export default function VendorsDashboard() {
       <section className="mt-12 space-y-6">
         <div className="flex items-center gap-3">
           <Upload className="w-5 h-5 text-brand-secondary" />
-          <h2 className="text-xl font-semibold text-white">Compliance Document Gateway</h2>
+          <h2 className="text-xl font-semibold text-foreground">Compliance Document Gateway</h2>
         </div>
-        <div className="glass h-48 border-dashed border-2 border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 hover:border-brand-secondary/50 transition-colors group cursor-pointer">
-          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Upload className="w-6 h-6 text-zinc-400 group-hover:text-brand-secondary" />
+        <div className="bg-secondary/20 h-48 border-dashed border-2 border-border rounded-2xl flex flex-col items-center justify-center gap-4 hover:border-brand-secondary/50 transition-colors group cursor-pointer">
+          <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Upload className="w-6 h-6 text-muted-foreground group-hover:text-brand-secondary" />
           </div>
           <div className="text-center">
-            <p className="text-zinc-300 font-medium">Drop regulatory files here</p>
-            <p className="text-zinc-500 text-xs">PDF, XLSX, or DOCX (Max 10MB)</p>
+            <p className="text-foreground font-medium">Drop regulatory files here</p>
+            <p className="text-muted-foreground text-xs">PDF, XLSX, or DOCX (Max 10MB)</p>
           </div>
         </div>
       </section>
@@ -113,8 +113,8 @@ function VendorCard({ vendor, onStatusChange }: { vendor: any; onStatusChange: (
             <Building2 className="w-7 h-7 text-brand-primary" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white tracking-tight">{vendor.companyName}</h3>
-            <p className="text-xs text-zinc-500 font-medium">VAT: {vendor.taxNumber || "N/A"}</p>
+            <h3 className="text-lg font-bold text-foreground tracking-tight">{vendor.companyName}</h3>
+            <p className="text-xs text-muted-foreground font-medium">VAT: {vendor.taxNumber || "N/A"}</p>
           </div>
         </div>
         <StatusToggle current={vendor.status} onChange={onStatusChange} />
@@ -126,10 +126,10 @@ function VendorCard({ vendor, onStatusChange }: { vendor: any; onStatusChange: (
         <ContactInfo icon={<Globe className="w-3.5 h-3.5" />} text={vendor.address} colSpan="col-span-2" />
       </div>
 
-      <div className="pt-4 border-t border-white/5 flex justify-between items-center">
+      <div className="pt-4 border-t border-border flex justify-between items-center">
         <div className="flex items-center gap-1.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Verified Entity</span>
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Verified Entity</span>
         </div>
         <span className={`text-xs font-bold uppercase tracking-tighter ${statusColors[vendor.status]}`}>
           {vendor.status}
@@ -142,8 +142,8 @@ function VendorCard({ vendor, onStatusChange }: { vendor: any; onStatusChange: (
 function ContactInfo({ icon, text, colSpan = "" }: { icon: any; text: string; colSpan?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${colSpan}`}>
-      <div className="text-zinc-500">{icon}</div>
-      <span className="text-xs text-zinc-300 font-medium truncate">{text}</span>
+      <div className="text-muted-foreground">{icon}</div>
+      <span className="text-xs text-foreground font-medium truncate">{text}</span>
     </div>
   );
 }
@@ -156,12 +156,12 @@ function StatusToggle({ current, onChange }: { current: string; onChange: (s: an
   ];
 
   return (
-    <div className="flex gap-1.5 p-1 glass rounded-md">
+    <div className="flex gap-1.5 p-1 bg-secondary/50 border border-border rounded-md">
       {options.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`p-1.5 rounded transition-all ${current === opt.value ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-400"}`}
+          className={`p-1.5 rounded transition-all ${current === opt.value ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
           title={opt.label}
         >
           {opt.icon}
@@ -179,7 +179,7 @@ function LoadingState() {
         transition={{ repeat: Infinity, duration: 1.5 }}
         className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30"
       />
-      <p className="text-zinc-500 font-mono tracking-widest text-xs uppercase">Mapping Ecosystem...</p>
+      <p className="text-muted-foreground font-mono tracking-widest text-[10px] font-bold uppercase transition-colors">Mapping Ecosystem...</p>
     </div>
   );
 }

@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "next dev & tsx server/index.ts",
+    "dev": "npx concurrently \"next dev\" \"tsx --watch --env-file=.env server/index.ts\"",
     "build": "next build",
     "start": "next start",
     "check": "tsc",
@@ -75,6 +75,7 @@
     "framer-motion": "^11.18.2",
     "html-pdf-node": "^1.0.7",
     "html-to-pdfmake": "^2.5.19",
+    "http-proxy-middleware": "^3.0.5",
     "input-otp": "^1.2.4",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^3.0.1",

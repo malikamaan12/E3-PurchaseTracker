@@ -5,8 +5,12 @@ import { vendors, purchaseRequests, insertVendorSchema } from "@db/schema";
 import { eq, and, desc, ne, sql } from "drizzle-orm";
 import { debug } from "../utils/debug";
 import { AppError, ValidationError, DatabaseError } from "../utils/errors";
+import { requireAuth, requireRole } from "../utils/middleware";
 
 const router = Router();
+
+// All vendor routes require authentication
+router.use(requireAuth);
 
 // GET all vendors
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
@@ -30,13 +34,9 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// POST new vendor
-router.post("/", async (req: Request, res: Response, next: NextFunction) => {
+// POST new vendor — admin only
+router.post("/", requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.isAuthenticated()) {
-      throw new AppError("Not authenticated", 401);
-    }
-
     debug(req, "Creating new vendor - Raw request body:", req.body);
 
     // Validate vendor data
@@ -122,13 +122,9 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// PATCH update vendor
-router.patch("/:id", async (req: Request, res: Response, next: NextFunction) => {
+// PATCH update vendor — admin only
+router.patch("/:id", requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.isAuthenticated()) {
-      throw new AppError("Not authenticated", 401);
-    }
-
     const vendorId = parseInt(req.params.id);
     debug(req, `Updating vendor with ID: ${vendorId}`, req.body);
 
@@ -213,17 +209,9 @@ router.patch("/:id", async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
-// PATCH update vendor status
-router.patch("/:id/status", async (req: Request, res: Response, next: NextFunction) => {
+// PATCH update vendor status — admin only
+router.patch("/:id/status", requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.isAuthenticated()) {
-      throw new AppError("Not authenticated", 401);
-    }
-
-    if (req.user?.role !== "admin") {
-      throw new AppError("Admin access required for vendor status changes", 403);
-    }
-
     const vendorId = parseInt(req.params.id);
     const { status } = req.body;
 
@@ -261,17 +249,9 @@ router.patch("/:id/status", async (req: Request, res: Response, next: NextFuncti
   }
 });
 
-// DELETE vendor
-router.delete("/:id", async (req: Request, res: Response, next: NextFunction) => {
+// DELETE vendor — admin only
+router.delete("/:id", requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.isAuthenticated()) {
-      throw new AppError("Not authenticated", 401);
-    }
-
-    if (req.user?.role !== "admin") {
-      throw new AppError("Admin access required for deleting vendors", 403);
-    }
-
     const vendorId = parseInt(req.params.id);
     if (isNaN(vendorId)) {
       throw new ValidationError("Invalid vendor ID", { id: "Must be a number" });

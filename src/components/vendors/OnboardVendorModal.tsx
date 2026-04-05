@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { z } from "zod";
 
 type VendorFormValues = z.infer<typeof vendorFormSchema>;
@@ -17,6 +17,13 @@ type VendorFormValues = z.infer<typeof vendorFormSchema>;
 export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
+  const step3EnteredAt = useRef(0);
+
+  useEffect(() => {
+    if (step === 3) {
+      step3EnteredAt.current = Date.now();
+    }
+  }, [step]);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
@@ -39,7 +46,16 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
     onError: (err: any) => toast.error(err.message || "Failed to onboard vendor"),
   });
 
-  const onSubmit = (data: any) => mutation.mutate(data);
+  const onSubmit = (data: any) => {
+    if (step !== 3) {
+      setStep(s => Math.min(3, s + 1));
+      return;
+    }
+    if (Date.now() - step3EnteredAt.current < 500) {
+      return;
+    }
+    mutation.mutate(data);
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -54,8 +70,8 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
             {/* Header */}
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-3xl font-serif text-white tracking-tight">Onboard New Vendor</h2>
-                <p className="text-zinc-400 mt-2">Integrate a new supplier into the procurement ecosystem.</p>
+                <Dialog.Title className="text-3xl font-serif text-white tracking-tight">Onboard New Vendor</Dialog.Title>
+                <Dialog.Description className="text-zinc-400 mt-2">Integrate a new supplier into the procurement ecosystem.</Dialog.Description>
               </div>
               <Dialog.Close className="p-2 rounded-full hover:bg-white/5 text-zinc-400 transition-colors">
                 <X className="w-5 h-5" />
@@ -79,12 +95,12 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<Building2 />} label="Company Name" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
-                    <FormField icon={<User />} label="Contact Person" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
-                    <FormField icon={<Mail />} label="Business Email" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
-                    <FormField icon={<Phone />} label="Contact Number" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
+                    <FormField icon={<Building2 />} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
+                    <FormField icon={<User />} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
+                    <FormField icon={<Mail />} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
+                    <FormField icon={<Phone />} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
                     <div className="col-span-2">
-                       <FormField icon={<Globe />} label="Headquarters Address" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
+                       <FormField icon={<Globe />} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
                     </div>
                   </motion.div>
                 )}
@@ -97,10 +113,10 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<Landmark />} label="Bank Name" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
-                    <FormField icon={<Landmark />} label="Branch Name" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
-                    <FormField icon={<CreditCard />} label="Account Number" name="accountNumber" register={register} error={errors.accountNumber} />
-                    <FormField icon={<CreditCard />} label="IBAN Number" name="ibanNumber" register={register} error={errors.ibanNumber} />
+                    <FormField icon={<Landmark />} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
+                    <FormField icon={<Landmark />} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
+                    <FormField icon={<CreditCard />} label="Account Number*" name="accountNumber" register={register} error={errors.accountNumber} />
+                    <FormField icon={<CreditCard />} label="IBAN Number*" name="ibanNumber" register={register} error={errors.ibanNumber} />
                   </motion.div>
                 )}
 
@@ -112,13 +128,21 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<FileCheck />} label="VAT Number (Optional)" name="taxNumber" register={register} error={errors.taxNumber} />
-                    <FormField icon={<FileCheck />} label="Comm. Reg # (Optional)" name="registrationNumber" register={register} error={errors.registrationNumber} />
-                    <div className="col-span-2 p-6 rounded-xl bg-white/5 border border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
-                      <p className="text-zinc-400 text-sm">Upload Regulatory Documents (Coming Soon)</p>
-                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-zinc-600">
-                        <UploadIcon />
-                      </div>
+                    <FormField icon={<FileCheck />} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
+                    <FormField icon={<FileCheck />} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
+                    <FormField icon={<FileCheck />} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-2">
+                        Vendor Rating
+                      </label>
+                      <input 
+                        type="number"
+                        min="0"
+                        max="5"
+                        {...register("rating", { valueAsNumber: true })}
+                        placeholder="0-5"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/50 transition-all"
+                      />
                     </div>
                   </motion.div>
                 )}

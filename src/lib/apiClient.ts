@@ -71,9 +71,17 @@ class ApiClient {
     update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     approve: (id: number, data: { status: string; comments?: string }) => 
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
+    submitApproval: (id: number, data: { status: string; comments: string }) =>
+      this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
     analytics: () => this.request<any>("/requests/analytics"),
     bulkApprove: (data: { requestIds: number[]; comments?: string }) => 
       this.request<any>("/requests/bulk-approve", { method: "POST", body: JSON.stringify(data) }),
+    subPurposes: {
+      list: (params: Record<string, any> = {}) => {
+        const search = new URLSearchParams(params).toString();
+        return this.request<any[]>(`/requests/sub-purposes?${search}`);
+      }
+    },
   };
 
   // Vendors Domain
@@ -88,20 +96,71 @@ class ApiClient {
   // Documents & Exports
   public documents = {
     downloadPdf: (id: number) => {
-      window.open(`${this.baseUrl}/requests/${id}/pdf`, "_blank");
+      window.open(`${this.backendUrl}/requests/${id}/pdf`, "_blank");
     },
     downloadZip: (id: number) => {
-      window.open(`${this.baseUrl}/requests/${id}/zip`, "_blank");
+      window.open(`${this.backendUrl}/requests/${id}/zip`, "_blank");
     },
     exportExcel: (params: Record<string, any> = {}) => {
       const search = new URLSearchParams({ ...params, format: "excel" }).toString();
-      window.open(`${this.baseUrl}/requests/export?${search}`, "_blank");
+      window.open(`${this.backendUrl}/requests/export?${search}`, "_blank");
     },
+  };
+
+  // Departments Domain
+  public departments = {
+    list: () => this.request<any[]>("/departments"),
+  };
+
+  // Notifications Domain
+  public notifications = {
+    list: (params: { includeRead?: boolean } = {}) => {
+      const search = new URLSearchParams(params as any).toString();
+      return this.request<any[]>(`/notifications/fast${search ? '?' + search : ''}`);
+    },
+    markRead: (id: number) => this.request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
+    markAllRead: () => this.request<any>("/notifications/read-all", { method: "PATCH" }),
+    getUnreadCount: () => this.request<{ count: number}>("/notifications/unread-count"),
   };
 
   // Admin Domain
   public admin = {
     auditLogs: () => this.request<any[]>("/admin/audit-logs"),
+    users: {
+      list: () => this.request<any[]>("/admin/users"),
+      updateRole: (id: number, role: string) => this.request<any>(`/admin/users/${id}/update-role`, { method: "POST", body: JSON.stringify({ role }) }),
+      toggleActivation: (id: number, isActive: boolean) => this.request<any>(`/admin/users/${id}/toggle-activation`, { method: "POST", body: JSON.stringify({ isActive }) })
+    },
+    accountRequests: {
+      list: (params: Record<string, any> = {}) => {
+        const search = new URLSearchParams(params).toString();
+        return this.request<any[]>(`/admin/account-requests?${search}`);
+      },
+      approve: (id: number) => this.request<any>(`/admin/account-requests/${id}/approve`, { method: "POST" }),
+      reject: (id: number) => this.request<any>(`/admin/account-requests/${id}/reject`, { method: "POST" })
+    },
+    subPurposes: {
+      list: () => this.request<any[]>("/admin/sub-purposes"),
+      create: (data: any) => this.request<any>("/admin/sub-purposes", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/admin/sub-purposes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+      delete: (id: number) => this.request<any>(`/admin/sub-purposes/${id}`, { method: "DELETE" })
+    },
+    systemSettings: {
+      get: () => this.request<Record<string, string>>("/admin/system-settings"),
+      update: (data: Record<string, string>) => this.request<any>("/admin/system-settings", { method: "POST", body: JSON.stringify(data) })
+    },
+    vendors: {
+      updateStatus: (id: number, status: string) => this.request<any>(`/admin/vendors/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) })
+    },
+    analytics: {
+      get: () => this.request<any[]>("/admin/analytics")
+    },
+    departments: {
+      list: () => this.request<any[]>("/departments"),
+      create: (data: any) => this.request<any>("/departments", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/departments/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (id: number) => this.request<any>(`/departments/${id}`, { method: "DELETE" }),
+    }
   };
 }
 

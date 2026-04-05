@@ -85,11 +85,11 @@ export default function DocumentUploadZone({ onUploadComplete }: DocumentUploadZ
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Upload className="w-4 h-4 text-brand-primary" />
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2 transition-colors">
+          <Upload className="w-4 h-4 text-primary" />
           Supporting Documents
         </h3>
-        <p className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase mt-1">Quotes, Specs, or PDF Reports</p>
+        <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">Quotes, Specs, or PDF Reports</p>
       </div>
 
       <div
@@ -97,7 +97,7 @@ export default function DocumentUploadZone({ onUploadComplete }: DocumentUploadZ
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`relative border-2 border-dashed rounded-2xl p-10 transition-all duration-300 flex flex-col items-center justify-center text-center group ${
-          isDragging ? "border-brand-primary bg-brand-primary/5 scale-[0.99]" : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.03]"
+          isDragging ? "border-primary bg-primary/5 scale-[0.99]" : "border-border bg-secondary/20 hover:border-primary/50 hover:bg-secondary/30"
         }`}
       >
         <input
@@ -108,16 +108,16 @@ export default function DocumentUploadZone({ onUploadComplete }: DocumentUploadZ
         />
 
         <div className={`w-16 h-16 rounded-2xl mb-4 flex items-center justify-center transition-all duration-500 ${
-          isDragging ? "bg-brand-primary text-white rotate-12" : "bg-white/5 text-zinc-600 group-hover:scale-110 group-hover:text-zinc-400"
+          isDragging ? "bg-primary text-primary-foreground rotate-12" : "bg-secondary text-muted-foreground group-hover:scale-110 group-hover:text-foreground"
         }`}>
           {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
         </div>
 
         <div className="space-y-1">
-          <p className="text-sm font-bold text-white">
+          <p className="text-sm font-bold text-foreground transition-colors">
             {isUploading ? "Uploading files..." : "Click or drag files here to upload"}
           </p>
-          <p className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase">Max 10MB per file (PDF, JPG, PNG)</p>
+          <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase transition-colors">Max 10MB per file (PDF, JPG, PNG)</p>
         </div>
       </div>
 
@@ -133,21 +133,21 @@ export default function DocumentUploadZone({ onUploadComplete }: DocumentUploadZ
               <motion.div
                 key={i}
                 layout
-                className="glass p-3 rounded-xl border border-white/5 flex items-center gap-3 group relative"
+                className="bg-card p-3 rounded-xl border border-border shadow-sm flex items-center gap-3 group relative transition-all"
               >
-                <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-brand-primary" />
+                <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0 pr-8">
-                  <p className="text-xs font-bold text-white truncate">{file.fileName}</p>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                  <p className="text-xs font-bold text-foreground truncate transition-colors">{file.fileName}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider transition-colors">
                     {(file.fileSize / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeFile(i)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-zinc-700 hover:text-rose-500 hover:bg-rose-500/5 transition-all"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>

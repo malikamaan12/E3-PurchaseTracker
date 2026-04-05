@@ -1,12 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: oklch(45% 0.15 285); /* Deep Enterprise Purple */
-  --color-brand-secondary: oklch(65% 0.2 195); /* Vibrant Teal */
-  --color-brand-accent: oklch(75% 0.18 310); /* Soft Lavender */
+  --color-brand-primary: #6F2AE6; /* E3 Premium Purple */
+  --color-brand-secondary: #15CDD8; /* E3 Vibrant Teal */
+  --color-brand-accent: #A78BFA; /* Soft Lavender */
   
-  --color-background-glass: rgba(255, 255, 255, 0.05);
-  --color-border-glass: rgba(255, 255, 255, 0.1);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   --font-sans: "Inter", system-ui, sans-serif;
   --font-serif: "Outfit", serif;
@@ -20,18 +42,72 @@
 }
 
 @layer base {
+  :root {
+    --background: #fafafa;
+    --foreground: #09090b;
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --popover: #ffffff;
+    --popover-foreground: #09090b;
+    --primary: #6F2AE6;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #6F2AE6;
+
+    --chart-1: #6F2AE6;
+    --chart-2: #15CDD8;
+    --chart-3: #f59e0b;
+    --chart-4: #10b981;
+    --chart-5: #ef4444;
+  }
+
+  .dark {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #101012;
+    --card-foreground: #fafafa;
+    --popover: #09090b;
+    --popover-foreground: #fafafa;
+    --primary: #6F2AE6;
+    --primary-foreground: #ffffff;
+    --secondary: #1c1c1f;
+    --secondary-foreground: #fafafa;
+    --muted: #1c1c1f;
+    --muted-foreground: #a1a1aa;
+    --accent: #1c1c1f;
+    --accent-foreground: #fafafa;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #d4d4d8;
+
+    --chart-1: #6F2AE6;
+    --chart-2: #15CDD8;
+    --chart-3: #f59e0b;
+    --chart-4: #10b981;
+    --chart-5: #ef4444;
+  }
+
   body {
-    @apply bg-zinc-950 text-zinc-50 antialiased selection:bg-brand-primary/30;
+    @apply bg-background text-foreground antialiased selection:bg-brand-primary/20;
+    transition: background-color 0.3s ease, color 0.3s ease;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   /* Custom glassmorphism classes */
   .glass {
-    @apply bg-zinc-900/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-background/60 backdrop-blur-xl border border-border shadow-2xl;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
   
   .glass-card {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300;
+    @apply bg-card border border-border rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
   }
 }
 
@@ -43,7 +119,11 @@
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
+  @apply bg-muted rounded-full hover:bg-muted-foreground/30 transition-colors;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-muted hover:bg-muted-foreground/20;
 }
 
 @keyframes accordion-down {

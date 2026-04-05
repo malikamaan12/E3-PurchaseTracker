@@ -1,78 +1,73 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { db } from "@db";
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import fs from 'fs';
 import path from 'path';
 import { AppError, handleError } from './utils/errors';
-import { sql } from 'drizzle-orm';
 import { setupAuth } from './auth';
+import { seedDepartments } from './seed/departments';
+
+export function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
 
 // Initialize express app
 const app = express();
 
-// Enhanced middleware setup
+// 1. PROXY MIDDLEWARE (Must be before body parsers in development)
+if (app.get("env") === "development") {
+  app.use(createProxyMiddleware({
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    ws: true,
+    pathFilter: (pathname: string) => {
+      // Only proxy to Next.js if NOT a backend API route or an uploads route
+      return !pathname.startsWith('/api/backend') && !pathname.startsWith('/uploads');
+    },
+    on: {
+      error: (err, _req, res: any) => {
+        if (res && !res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'text/plain' });
+          res.end('Next.js is starting up... Please wait.');
+        }
+      }
+    }
+  }));
+  console.log("Next.js proxy configured for port 3000");
+}
+
+// 2. BODY PARSERS
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Add host bypass middleware for Vite compatibility
-app.use((req, res, next) => {
-  // Override host header to bypass Vite's host check
-  if (req.headers.host && req.headers.host.includes('replit.dev')) {
-    req.headers.host = 'localhost:5000';
-  }
-  next();
-});
-
-// Set default content type for API routes
+// 3. INTERNAL MIDDLEWARE
 app.use('/api', (req, res, next) => {
   res.type('application/json');
   next();
 });
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory
 const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Serve static files from the public directory
-app.use(express.static(path.join(process.cwd(), 'public')));
-
-// Add detailed request logging middleware
+// 4. LOGGING MIDDLEWARE
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  // Log request details for debugging
-  if (path.startsWith('/api')) {
-    console.log('API request received:', {
-      method: req.method,
-      path: req.path,
-      body: req.body,
-      query: req.query,
-      headers: req.headers
-    });
-  }
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
 
@@ -85,80 +80,37 @@ if (app.get("env") === "production") {
 
 async function initializeServer() {
   try {
-    // Test database connection first
-    log("Testing database connection...");
-    let isConnected = false;
-    let retries = 0;
-    const maxRetries = 3;
+    // Seed initial departments
+    await seedDepartments();
 
-    while (!isConnected && retries < maxRetries) {
-      try {
-        await db.execute(sql`SELECT 1`);
-        isConnected = true;
-        log("Database connection established successfully");
-      } catch (err) {
-        retries++;
-        if (retries < maxRetries) {
-          log(`Database connection attempt ${retries} failed, retrying in ${retries * 1000}ms...`);
-          await new Promise(resolve => setTimeout(resolve, retries * 1000));
-        } else {
-          throw new Error("Failed to establish database connection after multiple attempts");
-        }
-      }
-    }
-
-    // Set up authentication before routes
+    // Setup Auth and Routes (DB connection validated on first real query)
     await setupAuth(app);
-    log("Authentication setup completed");
-
-    // Set up routes
     const server = await registerRoutes(app);
-    log("Routes registered successfully");
 
-    // Global error handler with proper async handling
+    // Error Handler
     app.use(async (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Server error:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
-      });
-
+      console.error('Server error:', err);
       const appError = await handleError(err);
-
       if (!res.headersSent) {
         res.status(appError.status).json({
           error: true,
           message: appError.message,
           severity: appError.severity,
-          predictions: appError.predictions || [],
-          suggestions: appError.suggestions || [],
-          details: app.get('env') === 'development' ? {
-            stack: appError.stack,
-            ...appError.details
-          } : undefined
+          details: app.get('env') === 'development' ? appError.details : undefined
         });
       }
     });
 
-    // 404 handler for API routes
-    app.use('/api/*', (req, res) => {
-      const error = new AppError(`API endpoint not found: ${req.path}`, 404, 'warning');
-      res.status(404).json({
-        error: true,
-        message: error.message,
-        severity: error.severity
+    // Production Static Files
+    if (app.get("env") !== "development") {
+      const distPath = path.resolve(process.cwd(), "public");
+      app.use(express.static(distPath));
+      app.use("*", (_req, res) => {
+        res.sendFile(path.resolve(distPath, "index.html"));
       });
-    });
-
-    // Setup vite in development or serve static files in production
-    if (app.get("env") === "development") {
-      await setupVite(app, server);
-      log("Vite development server initialized");
-    } else {
-      serveStatic(app);
-      log("Static files serving configured");
     }
 
-    // Try different ports if the default is in use
+    // Start listening
     const ports = [5000, 3000, 8080, 4000];
     let serverStarted = false;
 
@@ -167,44 +119,29 @@ async function initializeServer() {
         await new Promise((resolve, reject) => {
           server.listen(port, "0.0.0.0")
             .once('listening', () => {
-              log(`Server started and listening on port ${port}`);
+              log(`Server listening on port ${port}`);
               serverStarted = true;
               resolve(true);
             })
             .once('error', (err: any) => {
               if (err.code === 'EADDRINUSE') {
-                log(`Port ${port} is in use, trying next port...`);
+                log(`Port ${port} in use, trying next...`);
                 resolve(false);
               } else {
                 reject(err);
               }
             });
         });
-
         if (serverStarted) break;
-      } catch (error: any) {
-        log(`Error starting server on port ${port}: ${error.message}`);
-        if (port === ports[ports.length - 1]) {
-          throw error;
-        }
+      } catch (err) {
+        if (port === ports[ports.length -1]) throw err;
       }
     }
 
-    if (!serverStarted) {
-      throw new Error('Failed to start server on any available port');
-    }
-
   } catch (error: any) {
-    console.error('Fatal server initialization error:', {
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Fatal initialization error:', error);
     process.exit(1);
   }
 }
 
-// Start the server
-initializeServer().catch(error => {
-  console.error('Failed to initialize server:', error);
-  process.exit(1);
-});
+initializeServer();

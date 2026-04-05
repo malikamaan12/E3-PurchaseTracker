@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    console.log(`[Auth][Native][${traceId}] SUCCESS: ${decoded.username}`);
+    console.log(`[Auth][Native][${traceId}] SUCCESS: ${decoded.username} | Role: ${decoded.role} | Dept: ${decoded.department}`);
     return NextResponse.json(decoded);
 
   } catch (error: any) {

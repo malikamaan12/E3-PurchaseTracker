@@ -17,6 +17,15 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// New departments table
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").unique().notNull(),
+  isApprover: boolean("is_approver").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 //accountRequests table
 export const accountRequests = pgTable("account_requests", {
   id: serial("id").primaryKey(),
@@ -338,8 +347,10 @@ export type InsertSubPurpose = InferModel<typeof subPurposes, "insert">;
 export type Vendor = InferModel<typeof vendors>;
 export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
-export type VendorPerformance = InferModel<typeof vendorPerformance>;
 export type VendorPayment = InferModel<typeof vendorPayments>;
+export type Department = typeof departments.$inferSelect;
+export type InsertDepartment = typeof departments.$inferInsert;
+export type SelectDepartment = typeof departments.$inferSelect;
 
 // Add PurchaseRequestWithRelations type
 export type PurchaseRequestWithRelations = PurchaseRequest & {
@@ -486,10 +497,10 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   bankName: z.string().min(2, "Bank name must be at least 2 characters"),
   accountNumber: z.string()
     .min(5, "Account number must be at least 5 characters")
-    .regex(/^[\w\s-]+$/, "Account number can only contain letters, numbers, spaces, and hyphens"),
+    .regex(/^[\w\s\-\.\/]+$/, "Account number can only contain letters, numbers, spaces, hyphens, dots, and slashes"),
   ibanNumber: z.string()
-    .min(15, "IBAN must be at least 15 characters")
-    .regex(/^[A-Z0-9\s]+$/, "IBAN must contain only uppercase letters, numbers, and spaces"),
+    .min(10, "IBAN must be at least 10 characters") // Relaxed from 15
+    .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and hyphens"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
@@ -539,6 +550,15 @@ export const selectVendorSchema = createSelectSchema(vendors);
 export const selectVendorCategorySchema = createSelectSchema(vendorCategories);
 export const selectVendorPerformanceSchema = createSelectSchema(vendorPerformance);
 export const selectVendorPaymentSchema = createSelectSchema(vendorPayments);
+export const selectDepartmentSchema = createSelectSchema(departments);
+export const insertDepartmentSchema = createInsertSchema(departments, {
+  name: z.string().min(2, "Department name must be at least 2 characters"),
+  isApprover: z.boolean().default(false),
+}).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
 
 // ============= Error log schemas =============
 export const insertErrorLogSchema = z.object({
@@ -551,35 +571,7 @@ export const insertErrorLogSchema = z.object({
   aiAnalysis: z.record(z.unknown()).optional(),
 });
 
-// ============= Department Constants =============
-export const mandatoryDepartments = [
-  "Business",
-  "Management",
-  "Operation",
-  "Support",
-  "Finance",
-  "Director",
-  "CEO Office",
-  "Sales",
-  "Marketing",
-  "Business Growth",
-  "Branding",
-  "Logistics",
-  "Mall Activations",
-  "Information Technology",
-  "HR",
-  "Procurement",
-  "Legal",
-  "Research and Development",
-  "Quality Assurance",
-  "Customer Service",
-  "Project Management",
-  "Administration"
-] as const;
-
-export type MandatoryDepartment = typeof mandatoryDepartments[number];
-
-// Add after the existing notifications table definition
+// ============= Notification System Settings =============
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -807,3 +799,16 @@ export const pdfSettingsRelations = relations(pdfSettings, ({ one }) => ({
 // Add types
 export type PdfSettings = typeof pdfSettings.$inferSelect;
 export type InsertPdfSettings = typeof pdfSettings.$inferInsert;
+
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").unique().notNull(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id),
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings);
+export const selectSystemSettingSchema = createSelectSchema(systemSettings);
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;

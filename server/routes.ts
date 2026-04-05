@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import path from "path";
 import express from "express";
 import fsSync from "fs";
-import { setupAuth } from "./auth";
 import { debug } from "./utils/debug";
 
 // Modular Routers
@@ -12,11 +11,11 @@ import adminRouter from "./routes/admin-routes";
 import requestRouter from "./routes/request-routes";
 import documentRouter from "./routes/document-routes";
 import conversionRouter from "./routes/conversion-routes";
+import departmentRouter from "./routes/department-routes";
 import { registerNotificationRoutes } from "./routes/notification-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup Authentication
-  await setupAuth(app);
+  // Auth is already initialized in index.ts — do NOT call setupAuth here again
 
   // API Router for general logic
   const apiRouter = express.Router();
@@ -32,12 +31,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mount modular routers
-  app.use("/api/vendors", vendorRouter);
-  app.use("/api/admin", adminRouter);
-  app.use("/api/conversion", conversionRouter);
-  app.use("/api", requestRouter);
-  app.use("/api", documentRouter);
-  app.use("/api", apiRouter);
+  app.use("/api/backend/vendors", vendorRouter);
+  app.use("/api/backend/admin", adminRouter);
+  app.use("/api/backend/departments", departmentRouter);
+  app.use("/api/backend/conversion", conversionRouter);
+  app.use("/api/backend", requestRouter);
+  app.use("/api/backend", documentRouter);
+  app.use("/api/backend", apiRouter);
 
   // Initialize uploads directory (only for local development)
   if (process.env.NODE_ENV !== 'production') {
@@ -50,8 +50,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Catch-all for API 404s
-  app.use("/api/*", (req, res) => {
-    res.status(404).json({ message: "Not Found" });
+  app.use("/api/backend/*", (req, res) => {
+    res.status(404).json({ message: "Not Found on Backend" });
   });
 
   const httpServer = createServer(app);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -78,6 +79,11 @@ function AuthContent() {
     }
   };
 
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments-public"],
+    queryFn: () => apiClient.departments.list(),
+  });
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Decorative Background Elements */}
@@ -118,9 +124,10 @@ function AuthContent() {
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="wait">
               {error && (
                 <motion.div 
+                  key="auth-error"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
@@ -179,12 +186,11 @@ function AuthContent() {
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-sm appearance-none"
                     >
                       <option value="" disabled className="bg-zinc-900">Select Department</option>
-                      <option value="Finance" className="bg-zinc-900">Finance</option>
-                      <option value="IT" className="bg-zinc-900">IT</option>
-                      <option value="Operations" className="bg-zinc-900">Operations</option>
-                      <option value="Logistics" className="bg-zinc-900">Logistics</option>
-                      <option value="Marketing" className="bg-zinc-900">Marketing</option>
-                      <option value="Procurement" className="bg-zinc-900">Procurement</option>
+                      {departments.map((dept: any) => (
+                        <option key={dept.id} value={dept.name} className="bg-zinc-900 text-sm">
+                          {dept.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </motion.div>

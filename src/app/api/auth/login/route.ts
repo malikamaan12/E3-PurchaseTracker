@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as bcrypt from 'bcryptjs';
 import jwt from "jsonwebtoken";
 import { db } from "@db";
-import { users } from "@db/schema";
+import { users, departments } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { JWT_SECRET, TOKEN_COOKIE_NAME, IS_PRODUCTION } from "@/../server/utils/config";
 
@@ -34,7 +34,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Invalid username or password" }, { status: 401 });
     }
 
-    // 3. Session Generation
+    // 3. Department Lookup to determine Approval Authority
+    const [dept] = await db.select()
+      .from(departments)
+      .where(eq(departments.name, user.department))
+      .limit(1);
+
+    const isApprover = dept?.isApprover || user.role === 'admin';
+
+    // 4. Session Generation
     const sanitizedUser = {
       id: user.id,
       username: user.username,
@@ -42,7 +50,8 @@ export async function POST(req: NextRequest) {
       department: user.department,
       role: user.role,
       contactNumber: user.contact_number,
-      isActive: user.isActive
+      isActive: user.isActive,
+      isApprover // Inject the dynamic flag
     };
 
     const token = jwt.sign(sanitizedUser, JWT_SECRET, { expiresIn: '24h' });
