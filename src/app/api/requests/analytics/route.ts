@@ -1,35 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { purchaseRequests } from "@db/schema";
-import { sql, count, sum } from "drizzle-orm";
-import jwt from "jsonwebtoken";
-import { JWT_SECRET, TOKEN_COOKIE_NAME } from "@/lib/utils/config";
-import { AppError } from "@/lib/utils/errors";
+import { count, sum } from "drizzle-orm";
+import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
 
+// GET /api/requests/analytics
 export async function GET(req: NextRequest) {
   try {
-    // 1. Verify Session (Native implementation of Bridge Auth)
-    const cookieHeader = req.headers.get("cookie") || "";
-    const cookies: Record<string, string> = {};
-    cookieHeader.split(";").forEach((c) => {
-      const [key, value] = c.split("=").map((s) => s.trim());
-      if (key && value) cookies[key] = value;
-    });
+    const user = await getAuthenticatedUser(req);
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const token = cookies[TOKEN_COOKIE_NAME];
-    if (!token) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
-
-    // 2. Optimized Grouped Aggregation
+    // Execute a single grouped aggregation to prevent multiple round-trips
     const stats = await db
       .select({
         status: purchaseRequests.status,

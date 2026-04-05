@@ -12,6 +12,7 @@ export const users = pgTable("users", {
   contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
   role: text("role").notNull().default("user"),
+  canManageVendors: boolean("can_manage_vendors").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -377,6 +378,7 @@ export const insertUserSchema = createInsertSchema(users, {
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   department: z.string().min(1, "Department is required"),
   role: z.enum(["user", "approver", "admin"]).default("user"),
+  canManageVendors: z.boolean().default(false),
 });
 
 // SubPurpose validation schema with proper purpose types

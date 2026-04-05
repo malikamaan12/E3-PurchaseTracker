@@ -13,22 +13,16 @@ export class ApiError extends Error {
  */
 class ApiClient {
   private baseUrl = "/api";
-  private backendUrl = "/api/backend";
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    // Auth routes use the standard /api/auth path (Native Next.js)
-    // All other routes use the /api/backend path (Express Bridge)
-    const isAuth = path.startsWith("/auth");
-    const isNative = path === "/requests/analytics" || path.startsWith("/requests?") || path === "/requests" || path === "/departments";
-    const base = (isAuth || isNative) ? this.baseUrl : this.backendUrl;
-    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
     
     const response = await fetch(url, {
       ...options,
       credentials: "include", // Force inclusion of auth_token cookie
       headers: {
         "Content-Type": "application/json",
-        "X-Client-Version": "1.0.3-transport-fix",
+        "X-Client-Version": "1.0.4-native-final",
         ...options.headers,
       },
     });
@@ -69,7 +63,7 @@ class ApiClient {
     },
     get: (id: number) => this.request<any>(`/requests/${id}`),
     create: (data: any) => this.request<any>("/requests", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     approve: (id: number, data: { status: string; comments?: string }) => 
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
     submitApproval: (id: number, data: { status: string; comments: string }) =>
@@ -83,6 +77,10 @@ class ApiClient {
         return this.request<any[]>(`/requests/sub-purposes?${search}`);
       }
     },
+    analyzeAi: (requestDetails: any) => 
+      this.request<any>("/ai/analyze-request", { method: "POST", body: JSON.stringify({ requestDetails }) }),
+    recommendVendors: (requestDetails: any, vendorOptions: any[]) => 
+      this.request<any>("/ai/recommend-vendors", { method: "POST", body: JSON.stringify({ requestDetails, vendorOptions }) }),
   };
 
   // Vendors Domain
@@ -97,14 +95,14 @@ class ApiClient {
   // Documents & Exports
   public documents = {
     downloadPdf: (id: number) => {
-      window.open(`${this.backendUrl}/requests/${id}/pdf`, "_blank");
+      window.open(`/api/requests/${id}/pdf`, "_blank");
     },
     downloadZip: (id: number) => {
-      window.open(`${this.backendUrl}/requests/${id}/zip`, "_blank");
+      window.open(`/api/requests/${id}/zip`, "_blank");
     },
     exportExcel: (params: Record<string, any> = {}) => {
       const search = new URLSearchParams({ ...params, format: "excel" }).toString();
-      window.open(`${this.backendUrl}/requests/export?${search}`, "_blank");
+      window.open(`/api/requests/export?${search}`, "_blank");
     },
   };
 
@@ -117,11 +115,14 @@ class ApiClient {
   public notifications = {
     list: (params: { includeRead?: boolean } = {}) => {
       const search = new URLSearchParams(params as any).toString();
-      return this.request<any[]>(`/notifications/fast${search ? '?' + search : ''}`);
+      return this.request<any[]>(`/notifications${search ? '?' + search : ''}`);
     },
     markRead: (id: number) => this.request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
-    markAllRead: () => this.request<any>("/notifications/read-all", { method: "PATCH" }),
+    markAllRead: () => this.request<any>("/notifications/mark-all-read", { method: "PATCH" }),
     getUnreadCount: () => this.request<{ count: number}>("/notifications/unread-count"),
+    getPreferences: () => this.request<any[]>("/notification-preferences"),
+    updatePreference: (id: number, data: any) => this.request<any>(`/notification-preferences/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    getMetadata: () => this.request<any>("/notification-preferences/metadata"),
   };
 
   // Admin Domain
@@ -130,7 +131,9 @@ class ApiClient {
     users: {
       list: () => this.request<any[]>("/admin/users"),
       updateRole: (id: number, role: string) => this.request<any>(`/admin/users/${id}/update-role`, { method: "POST", body: JSON.stringify({ role }) }),
-      toggleActivation: (id: number, isActive: boolean) => this.request<any>(`/admin/users/${id}/toggle-activation`, { method: "POST", body: JSON.stringify({ isActive }) })
+      toggleActivation: (id: number, isActive: boolean) => this.request<any>(`/admin/users/${id}/toggle-activation`, { method: "POST", body: JSON.stringify({ isActive }) }),
+      updatePermissions: (id: number, permissions: { canManageVendors: boolean }) => 
+        this.request<any>(`/admin/users/${id}/permissions`, { method: "PATCH", body: JSON.stringify(permissions) }),
     },
     accountRequests: {
       list: (params: Record<string, any> = {}) => {
@@ -143,7 +146,7 @@ class ApiClient {
     subPurposes: {
       list: () => this.request<any[]>("/admin/sub-purposes"),
       create: (data: any) => this.request<any>("/admin/sub-purposes", { method: "POST", body: JSON.stringify(data) }),
-      update: (id: number, data: any) => this.request<any>(`/admin/sub-purposes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/admin/sub-purposes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
       delete: (id: number) => this.request<any>(`/admin/sub-purposes/${id}`, { method: "DELETE" })
     },
     systemSettings: {
@@ -151,10 +154,14 @@ class ApiClient {
       update: (data: Record<string, string>) => this.request<any>("/admin/system-settings", { method: "POST", body: JSON.stringify(data) })
     },
     vendors: {
-      updateStatus: (id: number, status: string) => this.request<any>(`/admin/vendors/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) })
+      updateStatus: (id: number, status: string) => this.request<any>(`/admin/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
     },
     analytics: {
       get: () => this.request<any[]>("/admin/analytics")
+    },
+    pdfSettings: {
+      get: () => this.request<any>("/admin/pdf-settings"),
+      update: (data: any) => this.request<any>("/admin/pdf-settings", { method: "PATCH", body: JSON.stringify(data) })
     },
     departments: {
       list: () => this.request<any[]>("/departments"),

@@ -15,6 +15,7 @@ interface User {
   role: string;
   contact_number: string;
   isActive: boolean;
+  canManageVendors: boolean;
   createdAt: string;
 }
 
@@ -44,6 +45,16 @@ export default function UserManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
     },
     onError: (error: any) => toast.error(error.message || "Failed to update role"),
+  });
+  
+  const updatePermissionsMutation = useMutation({
+    mutationFn: ({ id, canManageVendors }: { id: number; canManageVendors: boolean }) =>
+      apiClient.admin.users.updatePermissions(id, { canManageVendors }),
+    onSuccess: (data: any) => {
+      toast.success(data.message || "Permissions updated");
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    },
+    onError: (error: any) => toast.error(error.message || "Failed to update permissions"),
   });
 
   if (isLoading) {
@@ -76,6 +87,7 @@ export default function UserManagementPage() {
                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Contact</th>
                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Department</th>
                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Role</th>
+                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Permissions</th>
                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Status</th>
                 <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
               </tr>
@@ -103,6 +115,18 @@ export default function UserManagementPage() {
                     }`}>
                       {user.role}
                     </span>
+                  </td>
+                  <td className="p-4">
+                    <button 
+                      onClick={() => updatePermissionsMutation.mutate({ id: user.id, canManageVendors: !user.canManageVendors })}
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                        user.canManageVendors 
+                          ? 'bg-amber-500/20 text-amber-500 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                          : 'bg-zinc-800/50 text-zinc-500 border-white/5 opacity-50 hover:opacity-80'
+                      }`}
+                    >
+                      {user.canManageVendors ? 'Vendor Manager' : 'No Extra Rights'}
+                    </button>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">

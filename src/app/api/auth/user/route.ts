@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AppError } from "@/lib/utils/errors";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET, TOKEN_COOKIE_NAME } from "@/../server/utils/config";
+import { JWT_SECRET, TOKEN_COOKIE_NAME } from "@/lib/utils/config";
 
 /**
  * NATIVE SESSION VERIFICATION

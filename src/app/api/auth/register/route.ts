@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as bcrypt from 'bcryptjs';
 import { db } from "@db";
+import { JWT_SECRET, TOKEN_COOKIE_NAME, COOKIE_OPTIONS } from "@/lib/utils/config";
+import { AppError } from "@/lib/utils/errors";
 import { accountRequests, users } from "@db/schema";
 import { eq, or } from "drizzle-orm";
 

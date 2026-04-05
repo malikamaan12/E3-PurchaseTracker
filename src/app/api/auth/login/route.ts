@@ -4,7 +4,8 @@ import jwt from "jsonwebtoken";
 import { db } from "@db";
 import { users, departments } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { JWT_SECRET, TOKEN_COOKIE_NAME, IS_PRODUCTION } from "@/../server/utils/config";
+import { JWT_SECRET, TOKEN_COOKIE_NAME, IS_PRODUCTION } from "@/lib/utils/config";
+import { AppError } from "@/lib/utils/errors";
 
 /**
  * NATIVE NEXT.JS LOGIN ROUTE
@@ -51,7 +52,8 @@ export async function POST(req: NextRequest) {
       role: user.role,
       contactNumber: user.contact_number,
       isActive: user.isActive,
-      isApprover // Inject the dynamic flag
+      isApprover, // Inject the dynamic flag
+      canManageVendors: user.canManageVendors // Inject the new permission
     };
 
     const token = jwt.sign(sanitizedUser, JWT_SECRET, { expiresIn: '24h' });
