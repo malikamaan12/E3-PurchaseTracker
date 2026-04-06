@@ -1,63 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { subPurposes, purchaseRequests, insertSubPurposeSchema } from "@db/schema";
+import { subPurposes, subPurposeBudgets, insertSubPurposeSchema } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
 
+type Params = Promise<{ id: string }>;
+
 /**
  * PATCH /api/admin/sub-purposes/[id]
- * Update an existing sub-purpose.
+ * Update a project/sub-purpose (status, dates, or budgets).
  * Access: Admin only.
  */
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   try {
-    const { id: paramId } = await params;
     const admin = await getAuthenticatedUser(req);
-    if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-    if (admin.role !== 'admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 
-    const subPurposeId = parseInt(paramId);
-    if (isNaN(subPurposeId)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-
+    const { id: projectId } = await params;
     const body = await req.json();
-    
-    // Normalize body keys
-    const normalizedData = {
-      name: body.name,
-      purpose_type: body.purposeType || body.purpose_type,
-      is_frozen: body.isFrozen || body.is_frozen,
-      valid_from: body.valid_from ? new Date(body.valid_from) : undefined,
-      valid_to: body.valid_to ? new Date(body.valid_to) : undefined,
-    };
 
-    const validationResult = insertSubPurposeSchema.partial().safeParse(normalizedData);
+    // Destructure to extract ONLY valid database columns for the subPurposes table
+    const { 
+      name, 
+      purposeCategoryId, 
+      purposeType, 
+      status, 
+      totalBudget, 
+      isFrozen, 
+      validFrom, 
+      validTo 
+    } = body;
 
-    if (!validationResult.success) {
-      return NextResponse.json({
-        message: "Validation failed",
-        errors: validationResult.error.format(),
-      }, { status: 400 });
+    const [existing] = await db
+      .select()
+      .from(subPurposes)
+      .where(eq(subPurposes.id, parseInt(projectId)))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const { id: _id, updated_at: _ua, created_at: _ca, ...updateData } = validationResult.data as any;
-
-    const [updated] = await db
+    // Sequential Update for Sub-Purpose and Budget Updates (Neon HTTP compatible)
+    const [project] = await db
       .update(subPurposes)
       .set({
-        ...updateData,
-        updated_at: new Date(),
+        name,
+        purposeCategoryId,
+        purposeType: purposeType || "PROJECT",
+        status,
+        totalBudget: totalBudget !== undefined ? Number(totalBudget) : undefined,
+        isFrozen,
+        validFrom: validFrom ? new Date(validFrom) : (validFrom === null ? null : undefined),
+        validTo: validTo ? new Date(validTo) : (validTo === null ? null : undefined),
+        updatedAt: new Date(),
       })
-      .where(eq(subPurposes.id, subPurposeId))
+      .where(eq(subPurposes.id, parseInt(projectId)))
       .returning();
 
-    if (!updated) return NextResponse.json({ error: "Sub-purpose not found" }, { status: 404 });
+    // If budget splits are updated, re-sync them
+    if (body.budgetSplits && Array.isArray(body.budgetSplits)) {
+      // Clear existing splits and insert new ones
+      await db.delete(subPurposeBudgets).where(eq(subPurposeBudgets.subPurposeId, parseInt(projectId)));
+      
+      const budgetInserts = body.budgetSplits.map((split: any) => ({
+        subPurposeId: project.id,
+        departmentId: Number(split.departmentId),
+        allocatedAmount: Number(split.amount || split.allocatedAmount || 0),
+      }));
 
-    return NextResponse.json(updated);
+      if (budgetInserts.length > 0) {
+        await db.insert(subPurposeBudgets).values(budgetInserts);
+      }
+    }
+
+    return NextResponse.json(project);
   } catch (error: any) {
     console.error("[Native Admin API] Sub-Purpose PATCH Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -65,48 +86,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 /**
- * DELETE /api/admin/sub-purposes/[id]
- * Delete a sub-purpose (with reference checks).
+ * GET /api/admin/sub-purposes/[id]
+ * Get detailed project info including its budget splits.
  * Access: Admin only.
  */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Params }) {
   try {
-    const { id: paramId } = await params;
     const admin = await getAuthenticatedUser(req);
-    if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-    if (admin.role !== 'admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 
-    const subPurposeId = parseInt(paramId);
-    if (isNaN(subPurposeId)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    const { id: projectId } = await params;
 
-    // 1. Check for references in Purchase Requests
-    const [pr] = await db
+    const [project] = await db
       .select()
-      .from(purchaseRequests)
-      .where(eq(purchaseRequests.subPurposeId, subPurposeId))
+      .from(subPurposes)
+      .where(eq(subPurposes.id, parseInt(projectId)))
       .limit(1);
 
-    if (pr) {
-      return NextResponse.json({ 
-        error: "Cannot delete sub-purpose", 
-        message: "This sub-purpose is currently referenced by active purchase requests. Use 'is_frozen' to disable it instead." 
-      }, { status: 400 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // 2. Perform deletion
-    const [deleted] = await db
-      .delete(subPurposes)
-      .where(eq(subPurposes.id, subPurposeId))
-      .returning();
+    const budgets = await db
+      .select()
+      .from(subPurposeBudgets)
+      .where(eq(subPurposeBudgets.subPurposeId, project.id));
 
-    if (!deleted) return NextResponse.json({ error: "Sub-purpose not found" }, { status: 404 });
-
-    return NextResponse.json({ message: "Sub-purpose deleted successfully" });
+    return NextResponse.json({
+      ...project,
+      budgetSplits: budgets
+    });
   } catch (error: any) {
-    console.error("[Native Admin API] Sub-Purpose DELETE Error:", error);
+    console.error("[Native Admin API] Sub-Purpose GET Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

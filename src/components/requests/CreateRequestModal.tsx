@@ -18,12 +18,17 @@ import {
   ClipboardList,
   Paperclip,
   Sparkles,
-  Building2
+  Building2,
+  FolderTree,
+  TrendingDown,
+  TrendingUp,
+  Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 import RequestItemGrid, { RequestItem } from "./RequestItemGrid";
 import DocumentUploadZone from "../shared/DocumentUploadZone";
 
@@ -32,8 +37,8 @@ const requestSchema = z.object({
   description: z.string().min(10, "Requirement Overview must be at least 10 characters"),
   totalEstimatedCost: z.coerce.number().min(0),
   vendorId: z.coerce.number().positive("Please select a vendor"),
-  purposeType: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH", "General"]),
-  subPurposeId: z.coerce.number().optional(),
+  purposeCategoryId: z.coerce.number().positive("Select Purpose Category"),
+  subPurposeId: z.coerce.number().positive("Select Project"),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "EUR", "AED"]).default("QAR"),
   freightAmount: z.coerce.number().min(0).default(0),
@@ -56,13 +61,21 @@ interface CreateRequestModalProps {
 }
 
 export default function CreateRequestModal({ isOpen, onClose, onSuccess }: CreateRequestModalProps) {
-  const { data: departments = [] } = useQuery({
+  const { user } = useAuth();
+  const { data: globalDepartments = [] } = useQuery({
     queryKey: ["departments-public"],
     queryFn: () => apiClient.departments.list(),
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["active-purpose-categories"],
+    queryFn: () => apiClient.purposes.list(),
+    enabled: isOpen
+  });
+
   const [vendors, setVendors] = useState<any[]>([]);
   const [subPurposes, setSubPurposes] = useState<any[]>([]);
+  const [selectedBudget, setSelectedBudget] = useState<number | null>(null);
   const [isLoadingSubPurposes, setIsLoadingSubPurposes] = useState(false);
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +92,6 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
   } = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
-      purposeType: "General",
       priority: "medium",
       currency: "QAR",
       freightAmount: 0,
@@ -90,9 +102,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
   });
 
   const formItems = watch("items");
-  const formPurposeType = watch("purposeType");
+  const formCategoryId = watch("purposeCategoryId");
+  const formSubPurposeId = watch("subPurposeId");
 
-  // Sync total cost when items change
+  // Sync total cost
   const totals = useMemo(() => {
     const itemsTotal = formItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 0);
     return itemsTotal;
@@ -108,16 +121,22 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
     }
   }, [isOpen]);
 
+  // Fetch Sub-Purposes based on Category
   useEffect(() => {
-    if (isOpen && formPurposeType) {
-      fetchSubPurposes(formPurposeType);
+    if (isOpen && formCategoryId) {
+      fetchSubPurposes(Number(formCategoryId));
+    } else if (isOpen && !formCategoryId) {
+      setSubPurposes([]);
     }
-  }, [isOpen, formPurposeType]);
+  }, [isOpen, formCategoryId]);
 
-  const fetchSubPurposes = async (type: string) => {
+  // Allocation synchronization is now handled by the subPurposes search results effect below
+
+  const fetchSubPurposes = async (categoryId: number) => {
     setIsLoadingSubPurposes(true);
     try {
-      const data = await apiClient.requests.subPurposes.list({ purposeType: type });
+      // Modern Filtering: Only fetch by Category ID
+      const data = await apiClient.requests.subPurposes.list({ purposeCategoryId: categoryId });
       setSubPurposes(data);
     } catch (error) {
       console.error("Failed to load sub-purposes", error);
@@ -125,6 +144,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
       setIsLoadingSubPurposes(false);
     }
   };
+
+  // Sync selected project's budget allocation locally from the prefetched list
+  useEffect(() => {
+    if (formSubPurposeId && subPurposes.length > 0) {
+      const project = subPurposes.find(p => p.id === Number(formSubPurposeId));
+      setSelectedBudget(project?.allocatedAmount || 0);
+    } else {
+      setSelectedBudget(null);
+    }
+  }, [formSubPurposeId, subPurposes]);
 
   const fetchVendors = async () => {
     setIsLoadingVendors(true);
@@ -138,11 +167,13 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
     }
   };
 
+  const isOverBudget = selectedBudget !== null && totals > selectedBudget;
+
   const onSubmit = async (data: RequestFormValues) => {
     setIsSubmitting(true);
     try {
       await apiClient.requests.create(data);
-      toast.success("Purchase request created successfully");
+      toast.success("Purchase request initialized successfully");
       reset();
       onSuccess();
       onClose();
@@ -169,20 +200,24 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className="relative w-full max-w-5xl bg-card border border-border rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] z-[101] transition-colors duration-500"
+            className={`relative w-full max-w-5xl bg-card border rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] z-[101] transition-all duration-500 ${isOverBudget ? 'border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.2)]' : 'border-border'}`}
           >
             {/* Header */}
-            <div className="p-10 border-b border-border flex items-center justify-between bg-gradient-to-br from-primary/10 via-card to-card">
+            <div className={`p-10 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? 'bg-rose-500/5' : 'bg-gradient-to-br from-primary/10 via-card to-card'}`}>
               <div className="flex items-center gap-6">
-                <div className="w-14 h-14 rounded-[1.25rem] bg-primary/20 flex items-center justify-center shadow-2xl shadow-primary/20">
-                  <Plus className="text-primary w-8 h-8" />
+                <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-2xl transition-all ${isOverBudget ? 'bg-rose-500/20 shadow-rose-500/20' : 'bg-primary/20 shadow-primary/20'}`}>
+                  {isOverBudget ? <AlertCircle className="text-rose-500 w-8 h-8" /> : <Plus className="text-primary w-8 h-8" />}
                 </div>
                 <div>
-                  <h2 className="text-3xl font-serif font-bold text-foreground tracking-tight transition-colors">Create Purchase Request</h2>
+                  <h2 className="text-3xl font-serif font-bold text-foreground tracking-tight transition-colors">
+                    {isOverBudget ? "Budget Variance Detected" : "Create Purchase Request"}
+                  </h2>
                   <div className="flex items-center gap-3 mt-1.5">
                     <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">Internal Procurement Engine</p>
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                    <p className="text-[10px] text-primary font-bold tracking-widest uppercase">Draft Mode</p>
+                    <div className={`w-1.5 h-1.5 rounded-full ${isOverBudget ? 'bg-rose-500 animate-pulse' : 'bg-primary/40'}`} />
+                    <p className={`text-[10px] font-bold tracking-widest uppercase ${isOverBudget ? 'text-rose-500' : 'text-primary'}`}>
+                      {isOverBudget ? "Finance Review Required" : "Draft Mode"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -219,14 +254,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
-              <form id="request-form" onSubmit={handleSubmit(onSubmit, (errs) => {
-                const firstError = Object.values(errs)[0];
-                if (firstError?.message) {
-                  toast.error(`Validation Error: ${firstError.message}`);
-                } else {
-                  toast.error("Please fill in all required fields correctly.");
-                }
-              })} className="space-y-10">
+              <form id="request-form" onSubmit={handleSubmit(onSubmit)} className="space-y-10">
                 
                 {/* 1. General Details Section */}
                 <AnimatePresence mode="wait">
@@ -271,35 +299,51 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
                       <div className="space-y-3">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Purpose Category</label>
                         <div className="relative group">
-                          <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
+                          <FolderTree className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
                           <select
-                            {...register("purposeType")}
+                            {...register("purposeCategoryId")}
                             className="w-full bg-secondary/50 border border-border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold"
                           >
-                            <option value="General" className="bg-card">General Requirement</option>
-                            <option value="E3 EVENT" className="bg-card">E3 EVENT</option>
-                            <option value="PROJECT" className="bg-card">PROJECT</option>
-                            <option value="MALL" className="bg-card">MALL</option>
-                            <option value="BUSINESS GROWTH" className="bg-card">BUSINESS GROWTH</option>
+                            <option value="" disabled className="bg-card text-muted-foreground/50">Select category...</option>
+                            {categories.map((c: any) => (
+                              <option key={c.id} value={c.id} className="bg-card">{c.name}</option>
+                            ))}
                           </select>
+                          {errors.purposeCategoryId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.purposeCategoryId.message}</p>}
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Sub Purpose</label>
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Project/Asset Selection</label>
                         <div className="relative group">
                           <Layers className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
                           <select
                             {...register("subPurposeId")}
-                            className="w-full bg-secondary/50 border border-border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold disabled:opacity-50"
+                            className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-bold disabled:opacity-50 ${isOverBudget ? 'border-rose-500 text-rose-500' : 'border-border'}`}
                             disabled={isLoadingSubPurposes || subPurposes.length === 0}
                           >
-                            <option value="" className="bg-card">Optional: Select Sub Purpose...</option>
-                            {subPurposes.map(sp => (
-                              <option key={sp.id} value={sp.id} className="bg-card">{sp.name}</option>
-                            ))}
+                            <option value="" className="bg-card">Select Project Lifecycle...</option>
+                            {subPurposes.map(sp => {
+                              const isFuture = sp.validFrom && new Date(sp.validFrom) > new Date();
+                              const startDate = sp.validFrom ? new Date(sp.validFrom).toLocaleDateString() : '';
+                              return (
+                                <option 
+                                  key={sp.id} 
+                                  value={sp.id} 
+                                  className="bg-card"
+                                  disabled={isFuture}
+                                >
+                                  {sp.name} {isFuture ? `(Starts on ${startDate})` : ''}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
+                        {selectedBudget !== null && (
+                          <p className={`text-[10px] font-black uppercase tracking-widest pl-1 mt-1 ${isOverBudget ? 'text-rose-500' : 'text-emerald-500'}`}>
+                            {user?.department} Allocation: ${selectedBudget.toLocaleString()}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -416,7 +460,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
                           <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">Select departments required for secondary sign-off</p>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {departments.map((dept: any) => (
+                          {globalDepartments.map((dept: any) => (
                             <label key={dept.id} className="group cursor-pointer">
                               <input 
                                 type="checkbox" 
@@ -437,13 +481,36 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
               </form>
             </div>
 
-            {/* Footer Actions */}
-            <div className="p-10 border-t border-border bg-secondary/30 flex items-center justify-between transition-colors">
-              <div className="flex items-center gap-4">
+            {/* Footer Actions & Budget Status */}
+            <div className={`p-10 border-t transition-colors flex items-center justify-between ${isOverBudget ? 'bg-rose-500/10 border-rose-500/20' : 'bg-secondary/30 border-border'}`}>
+              <div className="flex items-center gap-8">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Calculated Budget</span>
-                  <span className="text-xl font-serif font-bold text-foreground transition-colors">{watch("currency")} {(watch("totalEstimatedCost") + watch("freightAmount")).toLocaleString()}</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Total Estimated Exposure</span>
+                  <span className={`text-2xl font-serif font-black transition-colors ${isOverBudget ? 'text-rose-500' : 'text-foreground'}`}>
+                    {watch("currency")} {(watch("totalEstimatedCost") + watch("freightAmount")).toLocaleString()}
+                  </span>
                 </div>
+                
+                {selectedBudget !== null && (
+                  <div className={`flex items-center gap-4 pl-8 border-l border-border/50 animate-in fade-in duration-700`}>
+                     <div className={`p-3 rounded-2xl ${isOverBudget ? 'bg-rose-500 text-white shadow-xl shadow-rose-500/20' : 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20'}`}>
+                        {isOverBudget ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                     </div>
+                     <div>
+                        <span className="text-[10px] font-black uppercase tracking-widest block opacity-50">Dept Allocation</span>
+                        <div className="flex items-center gap-2">
+                           <span className={`text-base font-black font-serif ${isOverBudget ? 'text-rose-500' : 'text-emerald-500'}`}>
+                             {watch("currency")} {selectedBudget.toLocaleString()}
+                           </span>
+                           {isOverBudget && (
+                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500 text-white text-[8px] font-black uppercase tracking-tighter">
+                               Flag for Finance
+                             </span>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center gap-4">
@@ -462,26 +529,26 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
                       if (activeTab === "general") setActiveTab("items");
                       else if (activeTab === "items") setActiveTab("approvals");
                     }}
-                    className="flex items-center gap-3 bg-secondary hover:bg-secondary/80 text-foreground px-10 py-4 rounded-[1.25rem] text-sm font-bold border border-border transition-all font-serif hover:scale-[1.02] active:scale-[0.98]"
+                    className={`flex items-center gap-3 px-10 py-4 rounded-[1.25rem] text-sm font-bold border transition-all font-serif hover:scale-[1.02] active:scale-[0.98] ${isOverBudget ? 'bg-rose-500/10 border-rose-500/30 text-rose-500 hover:bg-rose-500/20' : 'bg-secondary hover:bg-secondary/80 text-foreground border-border'}`}
                   >
                     Next Section
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className={`w-5 h-5 ${isOverBudget ? 'text-rose-500' : 'text-primary'}`} />
                   </button>
                 ) : (
                   <button
                     form="request-form"
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex items-center gap-4 bg-brand-primary text-white px-12 py-4 rounded-[1.25rem] text-sm font-bold shadow-[0_20px_40px_-10px_rgba(var(--brand-primary-rgb),0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale font-serif"
+                    className={`flex items-center gap-4 px-12 py-4 rounded-[1.25rem] text-sm font-bold shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale font-serif ${isOverBudget ? 'bg-rose-500 text-white shadow-rose-500/30' : 'bg-brand-primary text-white shadow-brand-primary/30'}`}
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Finalizing...
+                        Initializing...
                       </>
                     ) : (
                       <>
-                        Initialize Workflow
+                        {isOverBudget ? "Override & Initialize" : "Initialize Workflow"}
                         <Sparkles className="w-5 h-5" />
                       </>
                     )}
@@ -495,3 +562,4 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess }: Creat
     </AnimatePresence>
   );
 }
+

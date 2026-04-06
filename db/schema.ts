@@ -72,16 +72,39 @@ export const errorLogs = pgTable("error_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Sub-purposes table definition with proper columns
+// Purpose Categories (e.g., CAPEX, OPEX, INTERNAL IT)
+export const purposeCategories = pgTable("purpose_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  status: text("status").notNull().default("active"), // 'active', 'frozen'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Sub-purposes table (Projects/Events) - Upgraded for Phase 6
 export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
+  purposeCategoryId: integer("purpose_category_id").references(() => purposeCategories.id),
   name: text("name").notNull(),
-  purpose_type: text("purpose_type").notNull(),
-  is_frozen: boolean("is_frozen").notNull().default(false),
-  valid_from: timestamp("valid_from"),
-  valid_to: timestamp("valid_to"),
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow(),
+  purposeType: text("purpose_type").notNull(), 
+  status: text("status").notNull().default("active"), // 'active', 'frozen', 'closed'
+  totalBudget: integer("total_budget").notNull().default(0),
+  isFrozen: boolean("is_frozen").notNull().default(false),
+  validFrom: timestamp("valid_from"),
+  validTo: timestamp("valid_to"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Departmental Budget Allocations for Projects
+export const subPurposeBudgets = pgTable("sub_purpose_budgets", {
+  id: serial("id").primaryKey(),
+  subPurposeId: integer("sub_purpose_id").notNull().references(() => subPurposes.id),
+  departmentId: integer("department_id").notNull().references(() => departments.id),
+  allocatedAmount: integer("allocated_amount").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const purchaseRequests = pgTable("purchase_requests", {
@@ -98,6 +121,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
     description?: string;
   }>>().notNull(),
   purposeType: text("purpose_type").notNull(),
+  purposeCategoryId: integer("purpose_category_id").references(() => purposeCategories.id),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
   priorityScore: integer("priority_score"),
@@ -274,6 +298,30 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
   }),
 }));
 
+export const purposeCategoryRelations = relations(purposeCategories, ({ many }) => ({
+  subPurposes: many(subPurposes),
+}));
+
+export const subPurposeRelations = relations(subPurposes, ({ one, many }) => ({
+  category: one(purposeCategories, {
+    fields: [subPurposes.purposeCategoryId],
+    references: [purposeCategories.id],
+  }),
+  budgets: many(subPurposeBudgets),
+  requests: many(purchaseRequests),
+}));
+
+export const subPurposeBudgetRelations = relations(subPurposeBudgets, ({ one }) => ({
+  subPurpose: one(subPurposes, {
+    fields: [subPurposeBudgets.subPurposeId],
+    references: [subPurposes.id],
+  }),
+  department: one(departments, {
+    fields: [subPurposeBudgets.departmentId],
+    references: [departments.id],
+  }),
+}));
+
 export const approvalRelations = relations(approvals, ({ one, many }) => ({
   request: one(purchaseRequests, {
     fields: [approvals.requestId],
@@ -344,6 +392,8 @@ export type SelectUser = InferModel<typeof users, "select">;
 export type InsertNotification = InferModel<typeof notifications, "insert">;
 export type SelectNotification = InferModel<typeof notifications, "select">;
 export type PurchaseApprover = InferModel<typeof purchaseApprovers>;
+export type PurposeCategory = InferModel<typeof purposeCategories>;
+export type SubPurposeBudget = InferModel<typeof subPurposeBudgets>;
 export type InsertSubPurpose = InferModel<typeof subPurposes, "insert">;
 export type Vendor = InferModel<typeof vendors>;
 export type InsertVendor = InferModel<typeof vendors, "insert">;
@@ -381,18 +431,29 @@ export const insertUserSchema = createInsertSchema(users, {
   canManageVendors: z.boolean().default(false),
 });
 
-// SubPurpose validation schema with proper purpose types
+// PurposeCategory validation
+export const insertPurposeCategorySchema = createInsertSchema(purposeCategories, {
+  name: z.string().min(1, "Name is required"),
+  status: z.enum(["active", "frozen"]).default("active"),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+// SubPurpose validation schema (Projects/Events)
 export const insertSubPurposeSchema = createInsertSchema(subPurposes, {
   name: z.string().min(1, "Name is required"),
-  purpose_type: z.enum(["E3 EVENT", "PROJECT", "MALL", "BUSINESS GROWTH"], {
-    required_error: "Purpose type is required",
-    invalid_type_error: "Must be one of: E3 EVENT, PROJECT, MALL, BUSINESS GROWTH"
-  }),
-  is_frozen: z.boolean().default(false),
-  valid_from: z.coerce.date().optional().nullable(),
-  valid_to: z.coerce.date().optional().nullable(),
-  created_at: z.coerce.date().optional(),
-  updated_at: z.coerce.date().optional()
+  purposeCategoryId: z.number().optional().nullable(),
+  purposeType: z.string().default("PROJECT"),
+  status: z.enum(["active", "frozen", "closed"]).default("active"),
+  totalBudget: z.number().min(0, "Total budget cannot be negative"),
+  isFrozen: z.boolean().default(false),
+  validFrom: z.coerce.date().optional().nullable(),
+  validTo: z.coerce.date().optional().nullable(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+// SubPurposeBudget validation
+export const insertSubPurposeBudgetSchema = createInsertSchema(subPurposeBudgets, {
+  subPurposeId: z.number().int().positive(),
+  departmentId: z.number().int().positive(),
+  allocatedAmount: z.number().min(0, "Allocated amount cannot be negative"),
 });
 
 export const insertAccountRequestSchema = createInsertSchema(accountRequests, {

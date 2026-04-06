@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="flex-1 w-full bg-card p-8 rounded-3xl border border-border relative shadow-xl overflow-hidden transition-all duration-500">
         {/* Subtle grid/noise background for the content area */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.05] pointer-events-none mix-blend-overlay" />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
         <div className="relative z-10">
           {children}
         </div>

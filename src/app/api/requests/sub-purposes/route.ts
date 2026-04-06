@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { subPurposes } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { subPurposes, purposeCategories, subPurposeBudgets, departments } from "@db/schema";
+import { eq, and, desc, sql, lte, gte, or } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
@@ -14,25 +14,59 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const purposeType = searchParams.get("purposeType");
+    const purposeCategoryId = searchParams.get("purposeCategoryId");
+    const now = new Date();
     
-    const conditions = [eq(subPurposes.is_frozen, false)];
-    if (purposeType) {
-      conditions.push(eq(subPurposes.purpose_type, purposeType));
+    // 1. Resolve user's department ID
+    const [userDept] = await db
+      .select({ id: departments.id })
+      .from(departments)
+      .where(eq(departments.name, user.department))
+      .limit(1);
+
+    if (!userDept) {
+      return NextResponse.json([]); // No department, no projects
     }
 
+    // 2. Core filtering: Project must be 'active'
+    // Note: Date validity is handled separately to allow "Visible but Disabled" logic in UI
+    const conditions = [
+      eq(subPurposes.status, 'active'),
+      eq(purposeCategories.status, 'active'), // Parent category must also be active
+    ];
+
+    if (purposeType) {
+      conditions.push(eq(subPurposes.purposeType, purposeType));
+    }
+
+    if (purposeCategoryId) {
+      conditions.push(eq(subPurposes.purposeCategoryId, parseInt(purposeCategoryId)));
+    }
+
+    // 3. Fetch sub-purposes WITH departmental budget allocations
+    // We strictly filter out projects where the user's department has no budget split ($0 allocation)
     const activeSubPurposes = await db
       .select({
         id: subPurposes.id,
         name: subPurposes.name,
-        purpose_type: subPurposes.purpose_type
+        purposeType: subPurposes.purposeType,
+        totalBudget: subPurposes.totalBudget,
+        validFrom: subPurposes.validFrom,
+        validTo: subPurposes.validTo,
+        allocatedAmount: sql`COALESCE(${subPurposeBudgets.allocatedAmount}, 0)`.mapWith(Number),
       })
       .from(subPurposes)
+      .innerJoin(purposeCategories, eq(subPurposes.purposeCategoryId, purposeCategories.id))
+      .innerJoin(subPurposeBudgets, and(
+        eq(subPurposes.id, subPurposeBudgets.subPurposeId),
+        eq(subPurposeBudgets.departmentId, userDept.id)
+      ))
       .where(and(...conditions))
-      .orderBy(desc(subPurposes.created_at));
+      .orderBy(desc(subPurposes.createdAt));
 
     return NextResponse.json(activeSubPurposes);
   } catch (error: any) {
-    console.error("[Native API] Sub-purposes Error:", error);
+    console.error("[Native API] Sub-purposes Filtering Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

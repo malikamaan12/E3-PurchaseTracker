@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const deptFilter = searchParams.get("department");
     const vendorFilter = searchParams.get("vendor");
     const purposeFilter = searchParams.get("purpose");
+    const categoryFilter = searchParams.get("purposeCategoryId");
     const subPurposeFilter = searchParams.get("subPurpose");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -37,6 +38,10 @@ export async function GET(req: NextRequest) {
 
     if (purposeFilter) {
       whereConditions.push(eq(purchaseRequests.purposeType, purposeFilter));
+    }
+
+    if (categoryFilter) {
+      whereConditions.push(eq(purchaseRequests.purposeCategoryId, parseInt(categoryFilter)));
     }
 
     if (subPurposeFilter) {
@@ -70,6 +75,7 @@ export async function GET(req: NextRequest) {
         createdAt: purchaseRequests.createdAt,
         updatedAt: purchaseRequests.updatedAt,
         purposeType: purchaseRequests.purposeType,
+        purposeCategoryId: purchaseRequests.purposeCategoryId,
         priority: purchaseRequests.priority,
         isLocked: purchaseRequests.isLocked,
         requester: {
@@ -107,6 +113,7 @@ export async function POST(req: NextRequest) {
       currency,
       freightAmount,
       subPurposeId,
+      purposeCategoryId,
       items,
       additionalApprovers,
       attachmentIds
@@ -128,6 +135,7 @@ export async function POST(req: NextRequest) {
         totalEstimatedCost: parseInt(totalEstimatedCost) || 0,
         vendorId: parseInt(vendorId),
         purposeType: purposeType || "General",
+        purposeCategoryId: purposeCategoryId ? parseInt(purposeCategoryId) : null,
         subPurposeId: subPurposeId ? parseInt(subPurposeId) : null,
         priority: priority || "medium",
         currency: currency || "QAR",

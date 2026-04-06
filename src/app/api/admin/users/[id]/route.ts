@@ -51,6 +51,55 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 /**
+ * PATCH /api/admin/users/[id]
+ * Standardized update for user details (role, isActive, permissions).
+ * Access: Admin only.
+ */
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const admin = await getAuthenticatedUser(req);
+    if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    if (admin.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
+    }
+
+    const userId = parseInt(id);
+    if (isNaN(userId)) return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+
+    const body = await req.json();
+    
+    // Payload Sanitization: Only allow specific fields
+    const updateData: any = {};
+    if (body.role !== undefined) updateData.role = body.role;
+    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.canManageVendors !== undefined) updateData.canManageVendors = body.canManageVendors;
+    if (body.department !== undefined) updateData.department = body.department;
+    if (body.contact_number !== undefined) updateData.contact_number = body.contact_number;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    updateData.updatedAt = new Date();
+
+    const [updated] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updated) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    return NextResponse.json({ message: "User updated successfully", user: updated });
+  } catch (error: any) {
+    console.error("[Native Admin API] User PATCH Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/admin/users/[id]
  * Delete a user profile (with Safe Deletion logic).
  * Access: Admin only.

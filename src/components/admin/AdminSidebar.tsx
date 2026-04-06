@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, FileText, Settings, Activity, FileCheck, Shield, ChevronRight, BarChart, Building2 } from "lucide-react";
+import { Users, FileText, Settings, Activity, FolderTree, Shield, ChevronRight, BarChart, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const adminNavItems = [
@@ -10,7 +10,7 @@ const adminNavItems = [
   { name: "User Management", path: "/dashboard/admin/users", icon: Users },
   { name: "Account Requests", path: "/dashboard/admin/account-requests", icon: Shield },
   { name: "Departments", path: "/dashboard/admin/departments", icon: Building2 },
-  { name: "Sub-purposes", path: "/dashboard/admin/sub-purposes", icon: FileCheck },
+  { name: "Catalog Management", path: "/dashboard/admin/catalog", icon: FolderTree },
   { name: "Vendor Management", path: "/dashboard/admin/vendors", icon: FileText },
   { name: "PDF Settings", path: "/dashboard/admin/pdf-settings", icon: Settings },
   { name: "Export Diagnostics", path: "/dashboard/admin/diagnostics", icon: Activity },

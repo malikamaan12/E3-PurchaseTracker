@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export interface AuthUser {
   id: number;
@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const fetchUser = useCallback(async () => {
     try {
@@ -40,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) {
         setUser(null);
         if (res.status === 401) {
-          router.replace("/auth?expired=true");
+          const isAuthPage = pathname?.startsWith("/auth");
+          if (!isAuthPage) {
+            router.replace("/auth?expired=true");
+          }
         }
         return;
       }

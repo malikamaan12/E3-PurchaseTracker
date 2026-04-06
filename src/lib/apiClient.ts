@@ -29,7 +29,10 @@ class ApiClient {
 
     if (response.status === 401 || response.status === 403) {
       if (typeof window !== "undefined") {
-        window.location.href = "/auth?expired=true";
+        const isAuthPage = window.location.pathname.startsWith("/auth");
+        if (!isAuthPage) {
+          window.location.href = "/auth?expired=true";
+        }
       }
       throw new ApiError(response.status, "Session expired. Please login again.");
     }
@@ -111,6 +114,11 @@ class ApiClient {
     list: () => this.request<any[]>("/departments"),
   };
 
+  // Purposes Domain (Public/User)
+  public purposes = {
+    list: () => this.request<any[]>("/purposes"),
+  };
+
   // Notifications Domain
   public notifications = {
     list: (params: { includeRead?: boolean } = {}) => {
@@ -130,10 +138,15 @@ class ApiClient {
     auditLogs: () => this.request<any[]>("/admin/audit-logs"),
     users: {
       list: () => this.request<any[]>("/admin/users"),
-      updateRole: (id: number, role: string) => this.request<any>(`/admin/users/${id}/update-role`, { method: "POST", body: JSON.stringify({ role }) }),
-      toggleActivation: (id: number, isActive: boolean) => this.request<any>(`/admin/users/${id}/toggle-activation`, { method: "POST", body: JSON.stringify({ isActive }) }),
+      create: (data: any) => this.request<any>("/admin/users", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      updatePassword: (id: number, data: { password: string }) => 
+        this.request<any>(`/admin/users/${id}/update-password`, { method: "PATCH", body: JSON.stringify(data) }),
+      // Legacy compatibility / Aliases
+      updateRole: (id: number, role: string) => this.request<any>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ role }) }),
+      toggleActivation: (id: number, isActive: boolean) => this.request<any>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
       updatePermissions: (id: number, permissions: { canManageVendors: boolean }) => 
-        this.request<any>(`/admin/users/${id}/permissions`, { method: "PATCH", body: JSON.stringify(permissions) }),
+        this.request<any>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(permissions) }),
     },
     accountRequests: {
       list: (params: Record<string, any> = {}) => {
@@ -155,6 +168,14 @@ class ApiClient {
     },
     vendors: {
       updateStatus: (id: number, status: string) => this.request<any>(`/admin/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) })
+    },
+    purposes: {
+      list: () => this.request<any[]>("/admin/purposes"),
+      create: (data: any) => this.request<any>("/admin/purposes", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/admin/purposes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    },
+    catalog: {
+      list: () => this.request<any[]>("/admin/catalog"),
     },
     analytics: {
       get: () => this.request<any[]>("/admin/analytics")
