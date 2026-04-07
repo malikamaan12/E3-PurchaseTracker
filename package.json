@@ -58,6 +58,7 @@
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-color": "^3.0.13",
     "@types/react-image-gallery": "^1.2.4",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
