@@ -28,20 +28,27 @@ class ApiClient {
     });
 
     if (response.status === 401 || response.status === 403) {
-      if (typeof window !== "undefined") {
-        const isAuthPage = window.location.pathname.startsWith("/auth");
-        if (!isAuthPage) {
-          window.location.href = "/auth?expired=true";
+      const isAuthPage = typeof window !== "undefined" && (window.location.pathname.startsWith("/login") || window.location.pathname.startsWith("/signup"));
+      let errorMessage = "Session expired. Please login again.";
+      
+      // If we are on the login page, it's likely a bad password, read the actual message
+      if (isAuthPage && response.status === 401) {
+        const errorData = await response.json().catch(() => ({}));
+        errorMessage = errorData.message || errorData.error || "Invalid username or password";
+      } else {
+        if (typeof window !== "undefined" && !isAuthPage) {
+          window.location.href = "/login?expired=true";
         }
       }
-      throw new ApiError(response.status, "Session expired. Please login again.");
+      
+      throw new ApiError(response.status, errorMessage);
     }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
         response.status,
-        errorData.message || "An unexpected error occurred",
+        errorData.error || errorData.message || "An unexpected error occurred",
         errorData
       );
     }
@@ -185,10 +192,10 @@ class ApiClient {
       update: (data: any) => this.request<any>("/admin/pdf-settings", { method: "PATCH", body: JSON.stringify(data) })
     },
     departments: {
-      list: () => this.request<any[]>("/departments"),
-      create: (data: any) => this.request<any>("/departments", { method: "POST", body: JSON.stringify(data) }),
-      update: (id: number, data: any) => this.request<any>(`/departments/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-      delete: (id: number) => this.request<any>(`/departments/${id}`, { method: "DELETE" }),
+      list: () => this.request<any[]>("/admin/departments"),
+      create: (data: any) => this.request<any>("/admin/departments", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: number, data: any) => this.request<any>(`/admin/departments/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (id: number) => this.request<any>(`/admin/departments/${id}`, { method: "DELETE" }),
     }
   };
 }

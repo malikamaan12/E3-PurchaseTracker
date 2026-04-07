@@ -15,5 +15,5 @@ export default async function RootPage() {
   }
 
   // Not authenticated - go to the custom auth hub
-  return redirect("/auth");
+  return redirect("/login");
 }

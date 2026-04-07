@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Fetch sub-purposes WITH departmental budget allocations
-    // We strictly filter out projects where the user's department has no budget split ($0 allocation)
+    // Using LEFT JOIN so projects without a specific departmental budget allocation still appear.
+    // If no allocation exists, allocatedAmount defaults to 0.
     const activeSubPurposes = await db
       .select({
         id: subPurposes.id,
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
       })
       .from(subPurposes)
       .innerJoin(purposeCategories, eq(subPurposes.purposeCategoryId, purposeCategories.id))
-      .innerJoin(subPurposeBudgets, and(
+      .leftJoin(subPurposeBudgets, and(
         eq(subPurposes.id, subPurposeBudgets.subPurposeId),
         eq(subPurposeBudgets.departmentId, userDept.id)
       ))

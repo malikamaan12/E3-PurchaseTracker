@@ -41,9 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) {
         setUser(null);
         if (res.status === 401) {
-          const isAuthPage = pathname?.startsWith("/auth");
+          const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/signup");
           if (!isAuthPage) {
-            router.replace("/auth?expired=true");
+            router.replace("/login?expired=true");
           }
         }
         return;

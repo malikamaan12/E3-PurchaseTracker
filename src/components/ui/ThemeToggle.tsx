@@ -1,16 +1,26 @@
 "use client";
 
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="w-10 h-10" />;
+  }
 
   return (
     <button
-      onClick={toggleTheme}
-      className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors border border-border flex items-center justify-center w-10 h-10 overflow-hidden relative"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors border border-zinc-200 dark:border-zinc-700 flex items-center justify-center w-10 h-10 overflow-hidden relative"
       aria-label="Toggle Theme"
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -22,7 +32,7 @@ export function ThemeToggle() {
             exit={{ y: -20, rotate: -45, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <Moon className="w-5 h-5 text-brand-secondary" />
+            <Moon className="w-5 h-5 text-indigo-400" />
           </motion.div>
         ) : (
           <motion.div
@@ -32,7 +42,7 @@ export function ThemeToggle() {
             exit={{ y: -20, rotate: -45, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <Sun className="w-5 h-5 text-brand-primary" />
+            <Sun className="w-5 h-5 text-amber-500" />
           </motion.div>
         )}
       </AnimatePresence>

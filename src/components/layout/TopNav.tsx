@@ -19,6 +19,11 @@ import { apiClient } from "@/lib/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
 import CreateRequestModal from "@/components/requests/CreateRequestModal";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { toast } from "sonner";
+import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut } from "lucide-react";
 
 export default function TopNav() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +31,29 @@ export default function TopNav() {
   const notifRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const today = new Date();
+  const pathname = usePathname();
+  const { user, isAdmin, isApprover } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.auth.logout();
+      toast.success("Successfully logged out");
+      window.location.href = "/login";
+    } catch (error: any) {
+      toast.error("Logout failed: " + error.message);
+    }
+  };
+
+  const navItems = [
+    { name: "Purchases", path: "/dashboard/requests", icon: <FileText className="w-4 h-4" /> },
+    { name: "Vendors", path: "/dashboard/vendors", icon: <Users className="w-4 h-4" /> },
+    ...(isAdmin || isApprover ? [
+      { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-4 h-4" /> }
+    ] : []),
+    ...(isAdmin ? [
+      { name: "Admin", path: "/dashboard/admin", icon: <Settings className="w-4 h-4" /> }
+    ] : []),
+  ];
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PHASE 6: NOTIFICATIONS POLLING & LOGIC
@@ -63,20 +91,40 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="h-20 border-b border-border bg-background/80 backdrop-blur-xl px-12 flex items-center sticky top-0 z-40 transition-colors duration-300">
-        <div className="flex items-center gap-4 text-muted-foreground">
-          <Calendar className="w-4 h-4 text-brand-primary" />
-          <span className="text-xs font-bold tracking-widest uppercase">
-            {format(today, "EEEE, dd MMM yyyy")}
-          </span>
+      <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl px-8 flex items-center sticky top-0 z-40 transition-colors duration-300">
+        <div className="flex items-center gap-6 mr-8 min-w-[200px]">
+          {/* Replaced pure typography with theme-aware images */}
+          <Link href="/dashboard/requests" className="flex items-center">
+            <img src="/logo-color.png" alt="E3 PR System" className="h-8 w-auto dark:hidden object-contain" />
+            <img src="/logo-white.png" alt="E3 PR System" className="h-8 w-auto hidden dark:block object-contain" />
+          </Link>
         </div>
 
-        <div className="flex-1 flex justify-center px-24">
-          <div className="w-full max-w-xl group relative">
+        <nav className="flex items-center gap-1 mr-8">
+          {navItems.map((item) => {
+            const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
+            return (
+              <Link key={item.path} href={item.path}>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isActive ? 'bg-brand-primary/10 text-brand-primary font-bold' : 'text-muted-foreground hover:bg-secondary hover:text-foreground font-semibold'}`}>
+                  {item.icon}
+                  <span className="text-sm tracking-tight">{item.name}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1 flex px-4">
+          <div className="w-full max-w-md group relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
             <input 
               type="text" 
               placeholder="Search vendor database, request IDs, or audit logs..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value) {
+                  window.location.href = `/dashboard/requests?q=${encodeURIComponent(e.currentTarget.value)}`;
+                }
+              }}
               className="w-full bg-secondary/50 border border-border rounded-xl px-12 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-secondary transition-all"
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md border border-border bg-secondary/80 text-[10px] text-muted-foreground font-bold">
@@ -106,7 +154,7 @@ export default function TopNav() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-full right-0 mt-4 w-96 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
+                  className="absolute top-full right-0 mt-4 w-[400px] bg-card border border-border rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden z-[100]"
                 >
                   <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
                     <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Notifications</h3>
@@ -172,20 +220,44 @@ export default function TopNav() {
               )}
             </AnimatePresence>
 
-            <button className="p-2.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all">
-              <HelpCircle className="w-5 h-5" />
-            </button>
+            <ThemeToggle />
           </div>
 
           <div className="h-8 w-px bg-border" />
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-primary/20 transition-all group scale-lg"
+            className="flex items-center gap-2 bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-primary/20 transition-all group"
           >
             <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
             New Request
           </button>
+
+          <div className="h-8 w-px bg-border hidden md:block" />
+
+          {/* User Profile */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-[10px] font-bold text-brand-primary uppercase">
+              {user?.username?.slice(0, 2).toUpperCase() || "??"}
+            </div>
+            <div className="hidden xl:block">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-bold text-foreground truncate max-w-[100px]">{user?.username}</p>
+                {isAdmin ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
+                ) : isApprover ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                ) : null}
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all ml-1"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 

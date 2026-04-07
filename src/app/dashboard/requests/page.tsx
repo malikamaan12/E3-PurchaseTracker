@@ -25,6 +25,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useEffect, useRef } from "react";
+import { initMagnetic, initGlow, pageLoad } from "@/lib/animations";
 
 export default function RequestsDashboard() {
   const queryClient = useQueryClient();
@@ -37,6 +39,10 @@ export default function RequestsDashboard() {
     queryFn: () => apiClient.departments.list(),
     enabled: !!(isAdmin || isApprover),
   });
+
+  useEffect(() => {
+    pageLoad(".glass-card, header, .glass");
+  }, []);
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["requests", filterStatus, filterDept],
@@ -120,40 +126,43 @@ export default function RequestsDashboard() {
         <FilterBar current={filterStatus} set={setFilterStatus} />
         
         {(isAdmin || isApprover) && (
-          <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-1.5 glass">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-r border-border pr-3">Dept</span>
-            <select 
-              value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
-              className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-4"
-            >
-              <option value="all" className="bg-background text-foreground">All Departments</option>
-              {departments.map((d: any) => (
-                <option key={d.id} value={d.name} className="bg-background text-foreground">{d.name}</option>
-              ))}
-            </select>
+          <div className="relative group">
+            <div className="flex items-center gap-3 glass rounded-[var(--radius-md)] px-4 py-2 hover:border-white/20 transition-all cursor-pointer">
+              <Filter className="w-3.5 h-3.5 text-brand-secondary" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-r border-white/10 pr-3">Dept</span>
+              <select 
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-6 appearance-none relative z-10"
+              >
+                <option value="all" className="bg-background text-foreground">All Departments</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.name} className="bg-background text-foreground">{d.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 absolute right-4 text-muted-foreground pointer-events-none group-hover:text-foreground transition-colors" />
+            </div>
           </div>
         )}
       </div>
 
       <main className="glass-card overflow-x-auto custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-secondary/30 border-b border-border uppercase text-xs tracking-widest text-muted-foreground font-semibold font-bold">
+          <thead className="bg-white/5 dark:bg-white/[0.02] border-b border-white/10 dark:border-white/5 uppercase text-[10px] tracking-widest text-muted-foreground font-bold font-sans">
             <tr>
-              <th className="px-6 py-4 w-12">
+              <th className="px-6 py-5 w-12 text-center">
                 <input 
                   type="checkbox"
-                  className="rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary"
+                  className="w-4 h-4 rounded-md border-white/20 bg-white/5 text-brand-primary focus:ring-brand-primary cursor-pointer transition-all"
                   checked={selectedIds.length === requests?.length && requests?.length > 0}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th className="px-6 py-4">Request #</th>
-              <th className="px-6 py-4">Title & Requester</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Amount</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+              <th className="px-6 py-5 font-bold">Request #</th>
+              <th className="px-6 py-5 font-bold">Title & Requester</th>
+              <th className="px-6 py-5 font-bold">Status</th>
+              <th className="px-6 py-5 font-bold">Amount</th>
+              <th className="px-6 py-5 text-right font-bold pr-10">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -195,42 +204,65 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         label="Total Approved" 
         value={approved} 
         suffix="QAR" 
-        icon={<TrendingUp className="text-emerald-500" />} 
-        borderColor="border-emerald-500/20"
+        icon={<TrendingUp className="text-emerald-400 w-6 h-6" />} 
+        glowClass="bg-emerald-500"
       />
       <AnalyticsCard 
         label="Pending Volume" 
         value={pending} 
         suffix="QAR" 
-        icon={<BarChart3 className="text-brand-primary" />} 
-        borderColor="border-brand-primary/20"
+        icon={<BarChart3 className="text-brand-secondary w-6 h-6" />} 
+        glowClass="bg-brand-secondary"
       />
       <AnalyticsCard 
         label="Active Requests" 
         value={count} 
-        icon={<DollarSign className="text-muted-foreground" />} 
+        icon={<DollarSign className="text-brand-primary w-6 h-6" />} 
+        glowClass="bg-brand-primary"
       />
     </div>
   );
 }
 
-function AnalyticsCard({ label, value, suffix = "", icon, borderColor = "border-border" }: any) {
+function AnalyticsCard({ label, value, suffix = "", icon, glowClass = "" }: any) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (cardRef.current && glowRef.current) {
+      const cleanMagnetic = initMagnetic(cardRef.current);
+      const cleanGlow = initGlow(cardRef.current, glowRef.current);
+      return () => {
+        cleanMagnetic?.();
+        cleanGlow?.();
+      };
+    }
+  }, []);
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`glass-card p-6 border-l-4 ${borderColor} flex justify-between items-center`}
+    <div 
+      ref={cardRef}
+      className="glass-card p-8 relative overflow-hidden group cursor-default"
     >
-      <div>
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">{label}</p>
-        <h3 className="text-2xl font-bold text-foreground tracking-tighter">
-          {value.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">{suffix}</span>
-        </h3>
+      {/* Sublte Cursor-following Glow */}
+      <div 
+        ref={glowRef}
+        className={`absolute w-48 h-48 rounded-full blur-3xl opacity-0 pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0 ${glowClass.replace('bg-', 'bg-')}/10`}
+      />
+      
+      <div className="relative z-10 flex justify-between items-center">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold mb-2 opacity-60">{label}</p>
+          <h3 className="text-3xl font-bold text-foreground tracking-tighter flex items-baseline gap-2">
+            {value.toLocaleString()} 
+            {suffix && <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{suffix}</span>}
+          </h3>
+        </div>
+        <div className="w-14 h-14 rounded-xl bg-white/5 dark:bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner">
+          {icon}
+        </div>
       </div>
-      <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center">
-        {icon}
-      </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -242,26 +274,27 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 glass px-6 py-4 rounded-full border border-border shadow-2xl z-50 flex items-center gap-6"
+          className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-card px-8 py-5 rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-50 flex items-center gap-8"
         >
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Selection</span>
-            <span className="text-foreground font-bold">{selectedCount} Requests</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
+            <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>
           </div>
-          <div className="h-8 w-px bg-border" />
-          <div className="flex gap-2">
+          <div className="h-10 w-px bg-white/10" />
+          <div className="flex gap-3">
             <button 
               onClick={onApprove}
               disabled={isProcessing}
-              className="bg-brand-primary text-white text-xs font-bold px-4 py-2 rounded-lg hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
+              className="bg-brand-gradient text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
             >
-              {isProcessing ? "Processing..." : "Approve Selected"}
+              {isProcessing ? "Processing..." : "Approve Now"}
+              <CheckCircle className="w-4 h-4" />
             </button>
             <button 
               onClick={onClear}
-              className="bg-secondary text-muted-foreground text-xs font-bold px-4 py-2 rounded-lg hover:bg-secondary/80 transition-all border border-border"
+              className="bg-white/5 dark:bg-white/[0.03] text-muted-foreground hover:text-foreground text-xs font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-all border border-white/10"
             >
-              Cancel
+              Deselect
             </button>
           </div>
         </motion.div>
@@ -279,7 +312,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove }: any) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -10 }}
-      className={`group hover:bg-secondary/50 transition-colors ${isSelected ? 'bg-primary/10' : ''}`}
+      className={`group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`}
     >
       <td className="px-6 py-5">
         <input 

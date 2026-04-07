@@ -132,6 +132,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   freightAmount: integer("freight_amount").notNull().default(0),
   status: text("status").notNull().default("draft"),
+  paymentStructure: text("payment_structure").notNull().default("POST_PROJECT"), // 'ADVANCE', 'IN_PARTS', 'POST_PROJECT'
   isLocked: boolean("is_locked").notNull().default(false),
   mandatoryApproversCount: integer("mandatory_approvers_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -169,7 +170,7 @@ export const approvalAuditLogs = pgTable("approval_audit_logs", {
 
 export const fileAttachments = pgTable("file_attachments", {
   id: serial("id").primaryKey(),
-  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
@@ -239,18 +240,35 @@ export const vendorPerformance = pgTable("vendor_performance", {
   reviewedAt: timestamp("reviewed_at").defaultNow(),
 });
 
-export const vendorPayments = pgTable("vendor_payments", {
+export const paymentInstallments = pgTable("payment_installments", {
   id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),
-  requestId: integer("request_id").references(() => purchaseRequests.id),
-  amount: integer("amount").notNull(),
-  currency: text("currency").notNull().default("QAR"),
-  status: text("status").notNull().default("pending"),
+  installmentName: text("installment_name").notNull(), // "1st Advance", "Delivery Milestone"
   dueDate: timestamp("due_date").notNull(),
+  amount: integer("amount").notNull(), // Missing column found in diagnostic check
+  valueType: text("value_type").notNull().default("FIXED_AMOUNT"), // 'PERCENTAGE', 'FIXED_AMOUNT'
+  amountValue: integer("amount_value").notNull(), // The actual % or $ value
+  calculatedAmount: integer("calculated_amount").notNull(), // The exact QAR amount
+  currency: text("currency").notNull().default("QAR"),
+  status: text("status").notNull().default("pending"), // 'pending', 'paid'
   paidAt: timestamp("paid_at"),
   transactionReference: text("transaction_reference"),
   remarks: text("remarks"),
   createdBy: integer("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const paymentVariations = pgTable("payment_variations", {
+  id: serial("id").primaryKey(),
+  installmentId: integer("installment_id").notNull().references(() => paymentInstallments.id),
+  variationType: text("variation_type").notNull(), // 'EXCEEDED', 'REDUCED'
+  amountDifference: integer("amount_difference").notNull(),
+  reason: text("reason").notNull(),
+  approvalStatus: text("approval_status").notNull().default("PENDING_FINANCE"), // 'PENDING_FINANCE', 'APPROVED', 'REJECTED'
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -296,6 +314,7 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     fields: [purchaseRequests.vendorId],
     references: [vendors.id],
   }),
+  installments: many(paymentInstallments),
 }));
 
 export const purposeCategoryRelations = relations(purposeCategories, ({ many }) => ({
@@ -357,7 +376,7 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
 export const vendorRelations = relations(vendors, ({ many }) => ({
   categories: many(vendorToCategories),
   performance: many(vendorPerformance),
-  payments: many(vendorPayments),
+  installments: many(paymentInstallments),
 }));
 
 export const vendorCategoryRelations = relations(vendorCategories, ({ many }) => ({
@@ -398,7 +417,8 @@ export type InsertSubPurpose = InferModel<typeof subPurposes, "insert">;
 export type Vendor = InferModel<typeof vendors>;
 export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
-export type VendorPayment = InferModel<typeof vendorPayments>;
+export type PaymentInstallment = InferModel<typeof paymentInstallments>;
+export type PaymentVariation = InferModel<typeof paymentVariations>;
 export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = typeof departments.$inferInsert;
 export type SelectDepartment = typeof departments.$inferSelect;
@@ -410,6 +430,7 @@ export type PurchaseRequestWithRelations = PurchaseRequest & {
   subPurpose?: SubPurpose;
   attachments?: FileAttachment[];
   vendor?: Vendor;
+  installments?: PaymentInstallment[];
 };
 
 // ============= Validation Schemas =============
@@ -587,13 +608,22 @@ export const insertVendorPerformanceSchema = createInsertSchema(vendorPerformanc
   comments: z.string().optional(),
 });
 
-export const insertVendorPaymentSchema = createInsertSchema(vendorPayments, {
-  amount: z.number().positive("Amount must be greater than 0"),
+export const insertPaymentInstallmentSchema = createInsertSchema(paymentInstallments, {
+  installmentName: z.string().min(1, "Installment name is required"),
+  valueType: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]),
+  amountValue: z.number().min(0),
+  calculatedAmount: z.number().min(0),
   currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
   status: z.enum(["pending", "paid", "cancelled"]).default("pending"),
   dueDate: z.coerce.date(),
   transactionReference: z.string().optional(),
   remarks: z.string().optional(),
+});
+
+export const insertPaymentVariationSchema = createInsertSchema(paymentVariations, {
+  variationType: z.enum(["EXCEEDED", "REDUCED"]),
+  amountDifference: z.number(),
+  reason: z.string().min(5, "Reason must be at least 5 characters"),
 });
 
 // ============= Create Select Schemas =============
@@ -612,7 +642,8 @@ export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const selectVendorSchema = createSelectSchema(vendors);
 export const selectVendorCategorySchema = createSelectSchema(vendorCategories);
 export const selectVendorPerformanceSchema = createSelectSchema(vendorPerformance);
-export const selectVendorPaymentSchema = createSelectSchema(vendorPayments);
+export const selectPaymentInstallmentSchema = createSelectSchema(paymentInstallments);
+export const selectPaymentVariationSchema = createSelectSchema(paymentVariations);
 export const selectDepartmentSchema = createSelectSchema(departments);
 export const insertDepartmentSchema = createInsertSchema(departments, {
   name: z.string().min(2, "Department name must be at least 2 characters"),
@@ -726,16 +757,28 @@ export const notificationPreferenceRelations = relations(notificationPreferences
   })
 }));
 
-export const vendorPaymentRelations = relations(vendorPayments, ({one, many}) => ({
-    vendor: one(vendors, {
-        fields: [vendorPayments.vendorId],
-        references: [vendors.id]
-    }),
-    request: one(purchaseRequests, {
-        fields: [vendorPayments.requestId],
-        references: [purchaseRequests.id]
-    })
-}))
+export const paymentInstallmentRelations = relations(paymentInstallments, ({ one, many }) => ({
+  vendor: one(vendors, {
+    fields: [paymentInstallments.vendorId],
+    references: [vendors.id]
+  }),
+  request: one(purchaseRequests, {
+    fields: [paymentInstallments.requestId],
+    references: [purchaseRequests.id]
+  }),
+  variations: many(paymentVariations),
+}));
+
+export const paymentVariationRelations = relations(paymentVariations, ({ one }) => ({
+  installment: one(paymentInstallments, {
+    fields: [paymentVariations.installmentId],
+    references: [paymentInstallments.id]
+  }),
+  approver: one(users, {
+    fields: [paymentVariations.approvedBy],
+    references: [users.id]
+  }),
+}));
 
 export const vendorPerformanceRelations = relations(vendorPerformance, ({one, many}) => ({
     vendor: one(vendors, {

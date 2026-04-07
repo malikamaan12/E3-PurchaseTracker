@@ -20,13 +20,16 @@ import {
   RotateCcw,
   Loader2,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Archive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import CreateRequestModal from "@/components/requests/CreateRequestModal";
+import { Edit3 } from "lucide-react";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -37,6 +40,8 @@ export default function RequestDetailPage() {
   const [activeAttachment, setActiveAttachment] = useState<any>(null);
   const [approvalComments, setApprovalComments] = useState("");
   const [showActionPanel, setShowActionPanel] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
 
   const { data: request, isLoading } = useQuery({
     queryKey: ["request", requestId],
@@ -103,6 +108,13 @@ export default function RequestDetailPage() {
               className="flex items-center gap-2 bg-secondary/50 border border-border text-foreground px-3 py-1.5 rounded-lg hover:bg-secondary transition-all font-semibold text-xs"
             >
               <Download className="w-4 h-4" /> Download PDF
+            </button>
+            <button 
+              onClick={() => apiClient.documents.downloadZip(requestId)}
+              className="flex items-center gap-2 bg-secondary/50 border border-border text-brand-primary px-3 py-1.5 rounded-lg hover:bg-brand-primary hover:text-white transition-all font-semibold text-xs border-brand-primary/20"
+              title="Download Request PDF and all supporting documents as a ZIP archive"
+            >
+              <Archive className="w-4 h-4" /> Export Bundle (ZIP)
             </button>
 
             {/* Approver Action Button */}
@@ -185,14 +197,29 @@ export default function RequestDetailPage() {
         </AnimatePresence>
       </header>
 
-      {/* "Changes Requested" Banner */}
-      {request.status === "changes_requested" && request.requesterId === user?.id && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3">
-          <div className="max-w-[1600px] mx-auto flex items-center gap-3 text-amber-400">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <p className="text-sm font-semibold">
-              An approver has requested changes. Edit this request and re-submit for approval.
-            </p>
+      {/* "Changes Requested" or "Draft" Banner */}
+      {(request.status === "changes_requested" || request.status === "draft") && request.requesterId === user?.id && (
+        <div className={request.status === "draft" ? "bg-zinc-500/10 border-b border-zinc-500/20 px-6 py-4" : "bg-amber-500/10 border-b border-amber-500/20 px-6 py-4"}>
+          <div className={`max-w-[1600px] mx-auto flex items-center justify-between gap-3 ${request.status === "draft" ? "text-zinc-400" : "text-amber-400"}`}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <p className="text-sm font-semibold">
+                {request.status === "draft" 
+                  ? "This request is currently a draft. Please edit and submit to initialize the workflow."
+                  : "An approver has requested changes. Update this request and re-submit it for approval."}
+              </p>
+            </div>
+            <button
+               onClick={() => setShowEditModal(true)}
+               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-lg ${
+                 request.status === "draft"
+                   ? "bg-zinc-200 text-black hover:bg-white"
+                   : "bg-amber-500 text-black hover:bg-amber-400"
+               }`}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              {request.status === "draft" ? "Continue Editing" : "Edit Request"}
+            </button>
           </div>
         </div>
       )}
@@ -310,14 +337,23 @@ export default function RequestDetailPage() {
                 </div>
               </div>
               <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   <div className="space-y-1 border-r border-border pr-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Net Item Subtotal</p>
                     <p className="text-xl font-serif text-foreground tracking-tighter">{(request.totalEstimatedCost - (request.freightAmount || 0)).toLocaleString()}</p>
                   </div>
-                  <div className="space-y-1 border-r border-border px-4 hidden md:block">
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Estimated VAT (0%)</p>
-                    <p className="text-xl font-serif text-muted-foreground tracking-tighter">0.00</p>
+                  <div className="space-y-1 border-r border-border px-4">
+                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Payment Cycle</p>
+                     <div className="flex flex-col gap-1 mt-1">
+                       <p className="text-base font-serif text-foreground capitalize leading-none pt-1">
+                          {request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Not Specified"}
+                       </p>
+                       {request.paymentStructure === 'IN_PARTS' && request.paymentInstallments && (
+                         <p className="text-[10px] text-muted-foreground font-bold">
+                           {request.paymentInstallments.length} Installments Defined
+                         </p>
+                       )}
+                     </div>
                   </div>
                   <div className="space-y-1 pl-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Freight & Logistics</p>
@@ -362,7 +398,23 @@ export default function RequestDetailPage() {
                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest bg-secondary px-3 py-1 rounded-full border border-border">
                    {request.items?.length || 0} Line Items
                  </span>
-                 <button className="text-[10px] text-muted-foreground hover:text-foreground font-bold uppercase tracking-widest flex items-center gap-1.5 px-3 py-1 rounded-md hover:bg-secondary transition-all">
+                 <button 
+                   onClick={() => {
+                     if (!request.items) return;
+                     const csvRows = ['Item Specification,Qty,Unit Price,Extended Total'];
+                     request.items.forEach((i: any) => {
+                       csvRows.push(`"${i.name.replace(/"/g, '""')}","${i.quantity}","${i.estimatedCost}","${(i.quantity * i.estimatedCost)}"`);
+                     });
+                     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                     const url = window.URL.createObjectURL(blob);
+                     const a = document.createElement('a');
+                     a.href = url;
+                     a.download = `request-items-${request.id}.csv`;
+                     a.click();
+                     window.URL.revokeObjectURL(url);
+                   }}
+                   className="text-[10px] text-muted-foreground hover:text-foreground font-bold uppercase tracking-widest flex items-center gap-1.5 px-3 py-1 rounded-md hover:bg-secondary transition-all"
+                 >
                     <Download className="w-3 h-3" /> Export CSV
                  </button>
               </div>
@@ -379,36 +431,94 @@ export default function RequestDetailPage() {
                     <th className="px-8 py-5 text-right font-serif">Ext. Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.03]">
+                <tbody className="divide-y divide-border">
                   {request.items?.map((item: any, idx: number) => (
-                    <tr key={idx} className="group hover:bg-white/[0.01] transition-colors relative">
-                      <td className="px-8 py-6 text-zinc-600 font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
+                    <tr key={idx} className="group hover:bg-secondary/30 transition-colors relative">
+                      <td className="px-8 py-6 text-muted-foreground font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
                       <td className="px-6 py-6">
                         <div className="flex flex-col gap-1">
-                          <p className="text-sm font-bold text-white group-hover:text-brand-primary transition-colors">{item.name}</p>
+                          <p className="text-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">{item.name}</p>
                           {item.remarks && (
                             <div className="flex items-center gap-1.5 opacity-60">
-                              <MessageSquare className="w-3 h-3 text-zinc-500" />
-                              <p className="text-[11px] text-zinc-400 font-medium italic">{item.remarks}</p>
+                              <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                              <p className="text-[11px] text-muted-foreground font-medium italic">{item.remarks}</p>
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-6 text-center">
-                        <span className="bg-zinc-900 border border-white/5 px-2.5 py-1 rounded-md text-[11px] font-bold text-zinc-400">
+                        <span className="bg-secondary border border-border px-2.5 py-1 rounded-md text-[11px] font-bold text-foreground">
                           {item.quantity}
                         </span>
                       </td>
-                      <td className="px-6 py-6 text-right text-zinc-400 font-medium tabular-nums font-serif">
+                      <td className="px-6 py-6 text-right text-muted-foreground font-medium tabular-nums font-serif">
                         {Number(item.estimatedCost).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-8 py-6 text-right text-white font-bold tabular-nums font-serif text-base">
+                      <td className="px-8 py-6 text-right text-foreground font-bold tabular-nums font-serif text-base">
                         {(item.quantity * item.estimatedCost).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </motion.div>
+
+          {/* Payment Cycle & Installments Preview */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+            className="glass-card overflow-hidden"
+          >
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                   <CreditCard className="w-4 h-4 text-emerald-500" />
+                </div>
+                <h2 className="text-base font-bold text-foreground tracking-tight">Payment Cycle Preview</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest bg-secondary px-3 py-1 rounded-full border border-border">
+                   {request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Not Specified"}
+                 </span>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {request.paymentStructure === 'IN_PARTS' && request.paymentInstallments?.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {request.paymentInstallments.map((inst: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-secondary/30 border border-border rounded-xl">
+                      <div className="flex justify-between items-start mb-2">
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Inst {idx + 1}</span>
+                         <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest">
+                           {inst.valueType === 'PERCENTAGE' ? `${inst.amountValue}%` : 'FIXED'}
+                         </span>
+                      </div>
+                      <p className="text-sm font-bold text-foreground mb-1">{inst.installmentName}</p>
+                      <div className="flex justify-between items-end mt-4 pt-4 border-t border-border">
+                         <div className="flex flex-col">
+                           <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Due Date</span>
+                           <span className="text-xs font-mono font-medium text-foreground">{format(new Date(inst.dueDate), "MMM dd, yyyy")}</span>
+                         </div>
+                         <div className="flex flex-col items-end">
+                           <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Amount</span>
+                           <span className="text-base font-serif font-bold text-foreground tabular-nums">{Number(inst.calculatedAmount).toLocaleString()}</span>
+                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center flex flex-col items-center justify-center">
+                   <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mb-3">
+                     <CreditCard className="w-5 h-5 text-muted-foreground" />
+                   </div>
+                   <p className="text-sm font-bold text-foreground capitalize mb-1">{request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Standard Processing"}</p>
+                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">No custom installments configured</p>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -569,7 +679,10 @@ export default function RequestDetailPage() {
             </div>
             
             <div className="p-4 bg-zinc-900/50 border-t border-white/5">
-               <button className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+               <button 
+                 onClick={() => setShowAuditModal(true)}
+                 className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+               >
                  <History className="w-3 h-3" /> View Full Audit Trail
                </button>
             </div>
@@ -578,6 +691,26 @@ export default function RequestDetailPage() {
         </aside>
 
       </div>
+
+      <CreateRequestModal 
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        requestId={requestId}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+          setShowEditModal(false);
+        }}
+      />
+
+      <AnimatePresence>
+        {showAuditModal && (
+          <AuditTrailModal 
+            isOpen={showAuditModal} 
+            onClose={() => setShowAuditModal(false)} 
+            auditLogs={request.auditLogs || []} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -724,6 +857,83 @@ function ErrorState() {
       <XCircle className="w-16 h-16 text-rose-500 opacity-20" />
       <h2 className="text-xl font-bold text-white">Record Not Found</h2>
       <p className="text-zinc-500 text-sm">The purchase request may have been removed or archived.</p>
+    </div>
+  );
+}
+
+function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onClose: () => void, auditLogs: any[] }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-background/90 backdrop-blur-md cursor-pointer"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 10 }}
+        className="relative w-full max-w-3xl bg-card border border-border rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-[201]"
+      >
+        <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center">
+              <History className="w-5 h-5 text-brand-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-serif font-bold text-foreground">Complete Audit Trail</h2>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Immutable Activity Log</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {(!auditLogs || auditLogs.length === 0) ? (
+            <div className="text-center py-12">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">No activity recorded yet</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
+              <div className="space-y-6">
+                {auditLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log, idx) => (
+                  <div key={idx} className="relative flex gap-4 pl-10">
+                    <div className="absolute left-[-1.15rem] top-1">
+                      <div className="w-8 h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-muted-foreground">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 bg-secondary/20 border border-border rounded-xl p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-white/10 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">{log.action.replace(/_/g, ' ')}</span>
+                          <span className="text-xs font-bold text-foreground">{log.details?.processedBy || "System User"}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono">{format(new Date(log.timestamp), "MMM dd, yyyy • hh:mm:ss a")}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-2 grid grid-cols-2 gap-2">
+                        {Object.entries(log.details || {}).filter(([k]) => k !== 'processedBy').map(([k, v]) => (
+                          <div key={k} className="flex flex-col">
+                            <span className="text-[9px] uppercase tracking-wider font-bold opacity-60">{k}</span>
+                            <span className="text-xs font-medium text-foreground">{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

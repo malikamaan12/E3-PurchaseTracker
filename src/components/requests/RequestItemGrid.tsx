@@ -20,13 +20,14 @@ export interface RequestItem {
 
 interface RequestItemGridProps {
   items: RequestItem[];
+  errors?: any;
   onChange: (items: RequestItem[]) => void;
   currency: string;
   freightAmount: number;
   onFreightChange: (amount: number) => void;
 }
 
-export default function RequestItemGrid({ items, onChange, currency, freightAmount, onFreightChange }: RequestItemGridProps) {
+export default function RequestItemGrid({ items, errors, onChange, currency, freightAmount, onFreightChange }: RequestItemGridProps) {
   const addItem = () => {
     onChange([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
   };
@@ -76,14 +77,12 @@ export default function RequestItemGrid({ items, onChange, currency, freightAmou
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            <AnimatePresence mode="wait">
-              {items.map((item, index) => (
-                <motion.tr
-                  key={`item-${index}-${item.name}`}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                  className="group hover:bg-white/[0.01] transition-colors"
+            {items.map((item, index) => {
+              const rowError = errors?.[index];
+              return (
+                <tr
+                  key={`item-row-${index}`}
+                  className={`group transition-colors ${rowError ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}
                 >
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
@@ -92,7 +91,7 @@ export default function RequestItemGrid({ items, onChange, currency, freightAmou
                         value={item.name}
                         onChange={(e) => updateItem(index, "name", e.target.value)}
                         placeholder="Item name / specification..."
-                        className="w-full bg-transparent border-none p-0 text-sm font-semibold text-foreground placeholder:text-muted-foreground/30 focus:ring-0"
+                        className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-0 ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
                       />
                       <input
                         type="text"
@@ -140,9 +139,9 @@ export default function RequestItemGrid({ items, onChange, currency, freightAmou
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
-                </motion.tr>
-              ))}
-            </AnimatePresence>
+                </tr>
+              );
+            })}
             {items.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center">

@@ -1,0 +1,253 @@
+"use client";
+
+import { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  UserPlus, 
+  ArrowRight, 
+  Loader2, 
+  AlertCircle,
+  Building2,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ChevronDown
+} from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
+import Link from "next/link";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+
+function SignupContent() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
+    email: "",
+    department: "",
+    contactNumber: "",
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments-public"],
+    queryFn: () => apiClient.departments.list(),
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await apiClient.auth.register({
+        username: formData.username,
+        password: formData.password,
+        email: formData.email,
+        contact_number: formData.contactNumber,
+        department: formData.department,
+        role: "user"
+      });
+      toast.success("Account request submitted! Please wait for admin approval.");
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
+      toast.error(err.message || "Registration failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
+      <div className="absolute top-8 right-8 z-50">
+        <ThemeToggle />
+      </div>
+
+      {/* Premium Ambient Background (Fluid Blobs) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+        <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-brand-primary/20 dark:bg-brand-primary/30 rounded-full blur-[120px] animate-fluid-drift" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-brand-secondary/20 dark:bg-brand-secondary/30 rounded-full blur-[120px] animate-fluid-drift [animation-delay:2s]" />
+        <div className="absolute top-[20%] right-[10%] w-[35%] h-[35%] bg-brand-mid/15 dark:bg-brand-mid/25 rounded-full blur-[110px] animate-fluid-drift [animation-delay:4s]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px] animate-fluid-drift [animation-delay:6s]" />
+        
+        {/* Fine grain overlay for premium texture */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md z-10"
+      >
+        <div className="flex flex-col items-center mb-8 text-center">
+          <div className="mb-6 relative">
+            <img src="/logo-color.png" className="h-16 w-auto block dark:hidden" alt="PR System Logo" />
+            <img src="/logo-white.png" className="h-16 w-auto hidden dark:block" alt="PR System Logo" />
+          </div>
+          <h1 className="text-4xl font-serif tracking-tight mb-1 bg-brand-gradient text-transparent bg-clip-text">PR System</h1>
+          <p className="text-brand-text dark:text-gray-300 text-sm tracking-widest uppercase font-bold">Events & Entertainment Enterprises</p>
+        </div>
+
+        {/* Glassmorphism Hub Card */}
+        <div className="glass-card p-10 relative overflow-hidden group">
+          {/* Internal card sheen */}
+          <div className="absolute -top-[150%] -left-[150%] w-[400%] h-[400%] bg-white/5 dark:bg-white/[0.02] transform rotate-12 pointer-events-none group-hover:duration-1000 transition-transform duration-500" />
+          
+          <div className="flex gap-4 mb-10 p-1 bg-white/5 dark:bg-white/[0.02] rounded-[var(--radius-md)] border border-white/10">
+            <Link 
+              href="/login"
+              className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
+            >
+              LOGIN
+            </Link>
+            <div className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 bg-brand-gradient text-white shadow-lg">
+              <UserPlus className="w-3.5 h-3.5" /> SIGN UP
+            </div>
+          </div>
+
+          <form onSubmit={handleSignup} className="space-y-4">
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  key="auth-error"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg flex items-center gap-3 text-rose-500 text-xs font-semibold"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-4">
+              <AuthInput 
+                icon={<User className="w-4 h-4" />}
+                label="Username"
+                name="username"
+                type="text"
+                value={formData.username}
+                onChange={handleInputChange}
+                required
+              />
+
+              <AuthInput 
+                icon={<Mail className="w-4 h-4" />}
+                label="Work Email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+              />
+
+              <AuthInput 
+                icon={<Phone className="w-4 h-4" />}
+                label="Contact Number"
+                name="contactNumber"
+                type="tel"
+                value={formData.contactNumber}
+                onChange={handleInputChange}
+                required
+              />
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
+                   Department
+                </label>
+                <div className="relative group">
+                  <select 
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    required
+                    className="glass-select relative z-10 !py-3"
+                  >
+                    <option value="" disabled className="bg-background text-foreground">Select Department</option>
+                    {departments.map((dept: any) => (
+                      <option 
+                        key={dept.id} 
+                        value={dept.name} 
+                        className="bg-background text-foreground"
+                      >
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground group-hover:text-foreground transition-colors w-4 h-4" />
+                </div>
+              </div>
+
+              <AuthInput 
+                icon={<Lock className="w-4 h-4" />}
+                label="Password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 bg-brand-gradient text-white hover:opacity-90 rounded-[var(--radius-md)] font-bold tracking-[0.2em] text-[10px] mt-6 flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-xl disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  SUBMIT REQUEST
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-8 text-center text-zinc-400 dark:text-zinc-600 text-[10px] italic">
+            Registration requires administrator verification.
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-brand-primary animate-spin" />
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
+  );
+}
+
+function AuthInput({ label, icon, ...props }: any) {
+  return (
+    <div className="space-y-2">
+      <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
+        {label}
+      </label>
+      <input 
+        {...props}
+        className="glass-input shadow-inner"
+        placeholder={`Enter ${label.toLowerCase()}...`}
+      />
+    </div>
+  );
+}

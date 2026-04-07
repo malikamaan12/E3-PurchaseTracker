@@ -143,10 +143,15 @@ export class NotificationService {
       updatedAt: new Date()
     };
 
-    const [result] = await db
+    const results = await db
       .insert(notifications)
       .values(notification)
       .returning();
+
+    const result = results[0];
+    if (!result) {
+      console.warn("[NotificationService] No record returned from insertion, but proceeding...");
+    }
 
     return result;
   }

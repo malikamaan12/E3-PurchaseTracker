@@ -18,22 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              try {
-                var theme = localStorage.getItem('theme');
-                var supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
-                if (!theme && supportDarkMode) theme = 'dark';
-                if (!theme) theme = 'light';
-                document.documentElement.className = theme;
-              } catch (e) {}
-            })();
-          `,
-        }} />
-      </head>
-      <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20 bg-gray-50 dark:bg-black transition-colors duration-500`} suppressHydrationWarning>
         <Providers>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             {children}

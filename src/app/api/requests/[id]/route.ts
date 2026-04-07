@@ -9,7 +9,8 @@ import {
   approvals, 
   fileAttachments, 
   auditLogs,
-  departments 
+  departments,
+  paymentInstallments
 } from "@db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       [subPurpose],
       requestApprovals,
       attachments,
+      installments,
       requestAuditLogs
     ] = await Promise.all([
       db.select().from(users).where(eq(users.id, request.requesterId)).limit(1),
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .leftJoin(users, eq(users.id, approvals.approverId))
       .where(eq(approvals.requestId, requestId)),
       db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId)),
+      db.select().from(paymentInstallments).where(eq(paymentInstallments.requestId, requestId)),
       db.select({
         id: auditLogs.id,
         action: auditLogs.action,
@@ -128,6 +131,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       subPurpose,
       approvals: approvalsWithStakeholders,
       attachments,
+      paymentInstallments: installments,
       auditLogs: requestAuditLogs
     });
   } catch (error: any) {
@@ -166,7 +170,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Clean up update data to match schema
-    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, ...cleanData } = updateData;
+    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, ...cleanData } = updateData;
+
+    // Financial Integer Safety (Phase 8 Directive)
+    if (cleanData.totalEstimatedCost) cleanData.totalEstimatedCost = Math.round(Number(cleanData.totalEstimatedCost));
+    if (cleanData.freightAmount) cleanData.freightAmount = Math.round(Number(cleanData.freightAmount));
 
     // Handle array primitives converting to DB text columns
     if (cleanData.items && Array.isArray(cleanData.items)) {
@@ -198,13 +206,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .where(eq(purchaseRequests.id, requestId))
       .returning();
 
+    // Link any newly uploaded attachments
+    if (attachmentIds && Array.isArray(attachmentIds) && attachmentIds.length > 0) {
+      await db.update(fileAttachments)
+        .set({ requestId: requestId })
+        .where(inArray(fileAttachments.id, attachmentIds));
+    }
+
     // Transition to pending: Create approval records and send notifications
     if (updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested")) {
-      // 1. Fetch Mandatory Departments
-      const mandatoryDeptRecords = await db.select().from(departments).where(eq(departments.isApprover, true));
-      const mandatoryDepts = mandatoryDeptRecords.map(d => d.name);
-      
-      // 2. Combine with Additional Approvers
+      // 1. Three mandatory departments are ALWAYS required, regardless of DB config or request value.
+      //    These are the non-negotiable gatekeeper sign-offs in the procurement workflow.
+      const mandatoryDepts = ["Finance", "CEO Office", "General Manager"];
+
+      // 3. Combine with Additional Approvers (non-mandatory)
       let additionalDepts: string[] = [];
       try {
         if (typeof updated.additionalApprovers === 'string') {
@@ -214,9 +229,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       } catch (e) {}
 
-      const allRequiredDepts = Array.from(new Set([...mandatoryDepts, ...additionalDepts]));
+      // Additional approvers must not overlap with mandatory departments
+      const filteredAdditional = additionalDepts.filter(d => !mandatoryDepts.includes(d));
+      const allRequiredDepts = [...mandatoryDepts, ...filteredAdditional];
 
-      // 3. Create Approval Records
+      // 4. Create Approval Records
+      //    IMPORTANT: Mandatory gatekeeper rows (Finance, CEO Office, Directors) are
+      //    NEVER auto-approved, even if the requester is an admin. They must always
+      //    receive an explicit sign-off from a qualified person in that department.
       for (const dept of allRequiredDepts) {
         const [existingApproval] = await db
           .select()
@@ -225,27 +245,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           .limit(1);
 
         if (!existingApproval) {
-          const requesterIsApproverForThisDept = user.department === dept && user.isApprover === true;
+          const isMandatory = mandatoryDepts.includes(dept);
+
+          // Auto-approval is ONLY allowed for non-mandatory (additional) approver steps
+          // where the requester has authority in that specific department.
+          const canAutoApprove =
+            !isMandatory &&
+            user.department === dept &&
+            (user.role === 'approver' || user.role === 'admin');
 
           const [newApproval] = await db.insert(approvals).values({
             requestId,
-            approverId: requesterIsApproverForThisDept ? user.id : null,
+            approverId: canAutoApprove ? user.id : null,
             department: dept,
-            status: requesterIsApproverForThisDept ? "approved" : "pending",
-            isMandatory: mandatoryDepts.includes(dept),
-            comments: requesterIsApproverForThisDept ? "Auto-approved: Request submitted by department HOD/GM" : null,
-            processedAt: requesterIsApproverForThisDept ? new Date() : null,
+            status: canAutoApprove ? "approved" : "pending",
+            isMandatory,
+            comments: canAutoApprove ? "Auto-approved: Request submitted by authorized department authority" : null,
+            processedAt: canAutoApprove ? new Date() : null,
             createdAt: new Date(),
             updatedAt: new Date(),
           }).returning();
 
-          if (requesterIsApproverForThisDept) {
+          if (canAutoApprove) {
             await db.insert(auditLogs).values({
               resourceId: requestId,
               resourceType: "purchase_request",
-              action: "department_auto_approved",
+              action: "approver_deduplicated",
               userId: user.id,
-              details: { department: dept, reason: "Requester is Department Head/Approver", approvalId: newApproval.id },
+              details: {
+                department: dept,
+                reason: "Non-mandatory step: requester has authority for this stage",
+                approvalId: newApproval.id
+              },
               timestamp: new Date(),
             });
           }
