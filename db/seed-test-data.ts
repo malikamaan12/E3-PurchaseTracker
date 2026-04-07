@@ -15,28 +15,33 @@ async function seed() {
 
   const defaultPassword = await bcrypt.hash('Password123!', 10);
 
-  // 1. CLEAR EXISTING DATA (Reverse FK order)
-  console.log('🧹 Clearing old test data...');
-  await db.delete(schema.paymentVariations);
-  await db.delete(schema.paymentInstallments);
-  await db.delete(schema.fileAttachments);
-  await db.delete(schema.approvals);
-  await db.delete(schema.purchaseRequests);
-  await db.delete(schema.auditLogs);
-  await db.delete(schema.pdfSettings);
-  await db.delete(schema.systemSettings);
-  await db.delete(schema.notificationPreferences);
-  await db.delete(schema.notifications);
-  await db.delete(schema.errorLogs);
-  await db.delete(schema.vendorPerformance);
-  await db.delete(schema.vendorToCategories);
-  await db.delete(schema.subPurposeBudgets);
-  await db.delete(schema.subPurposes);
-  await db.delete(schema.purposeCategories);
-  await db.delete(schema.users);
-  await db.delete(schema.departments);
-  await db.delete(schema.vendors);
-  await db.delete(schema.vendorCategories);
+  // 1. CLEAR EXISTING DATA (TRUNCATE CASCADE ensures a clean slate without dropping schema)
+  console.log('🧹 Clearing old test data via TRUNCATE CASCADE...');
+  // Note: Drizzle tables use snake_case for the underlying DB tables by default.
+  await sql(`
+    TRUNCATE TABLE 
+      payment_variations, 
+      payment_installments, 
+      file_attachments, 
+      approvals, 
+      purchase_requests, 
+      audit_logs, 
+      pdf_settings, 
+      system_settings, 
+      notification_preferences, 
+      notifications, 
+      error_logs, 
+      vendor_performance, 
+      vendor_to_categories, 
+      sub_purpose_budgets, 
+      sub_purposes, 
+      purpose_categories, 
+      users, 
+      departments, 
+      vendors, 
+      vendor_categories 
+    RESTART IDENTITY CASCADE;
+  `);
 
   // 2. INSERT MOCK VENDOR (Mandatory for PRs)
   console.log('🏢 Creating Global Test Vendor...');
@@ -81,7 +86,7 @@ async function seed() {
     { name: 'Adil Ahmed', role: 'admin', department: 'CEO Office' }, // Mapping CEO -> Admin for sign-off
     { name: 'Mohammad Ali Awada', role: 'admin', department: 'Management' }, // Mapping GM -> Admin
     { name: 'Indika Manendra', role: 'admin', department: 'Finance' }, // Mapping Finance Head -> Admin
-    { name: 'Abdullah', role: 'approver', department: 'Finance' }, // Accountant -> Approver
+    { name: 'Abdullah', role: 'user', department: 'Finance' }, // Accountant -> Standard User
     { name: 'Rajan Pathak', role: 'approver', department: 'IT' }, // Manager -> Approver
     { name: 'Izan Sahid', role: 'user', department: 'IT' }, // Support -> User
     { name: 'Ahmad Faraz', role: 'approver', department: 'Marketing' },
@@ -135,8 +140,10 @@ async function seed() {
     if (!requester) continue;
 
     for (let i = 1; i <= 2; i++) {
-        const totalBaseCost = Math.round(15000.75 * i + (prCounter * 100));
-        const requestNumber = `PR-${year}-${prCounter.toString().padStart(4, '0')}`;
+        // Ensure at least 1 request (i === 2) exceeds 50,000 to test CEO Office mandatory sign-off
+        const baseCalc = i === 1 ? 15000.75 : 55200.50; 
+        const totalBaseCost = Math.round(baseCalc * i + (prCounter * 100));
+        const requestNumber = `PR-2026-${prCounter.toString().padStart(4, '0')}`;
 
         // Insert Base Request
         const [request] = await db.insert(schema.purchaseRequests).values({
