@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google"; // High-quality Google Fonts
 import Providers from "@/components/shared/Providers";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["700"], variable: "--font-serif" });
@@ -24,6 +25,7 @@ export default function RootLayout({
             {children}
           </div>
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
