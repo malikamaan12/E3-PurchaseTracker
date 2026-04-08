@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const kpis = await db.select({
       status: purchaseRequests.status,
       count: count(),
-      totalValue: sum(sql`COALESCE(${purchaseRequests.revisedTotalCost}, ${purchaseRequests.totalEstimatedCost})`)
+      totalValue: sum(sql`COALESCE(${purchaseRequests["revisedTotalCost"]}, ${purchaseRequests["totalEstimatedCost"]})`)
     }).from(purchaseRequests)
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(whereClause)

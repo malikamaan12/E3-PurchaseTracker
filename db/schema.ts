@@ -45,7 +45,7 @@ export const accountRequests = pgTable("account_requests", {
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  requestId: integer("request_id").references(() => purchaseRequests.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id, { onDelete: 'cascade' }),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull(),
@@ -131,6 +131,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   currency: text("currency").notNull().default("QAR"),
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   freightAmount: integer("freight_amount").notNull().default(0),
+  revisedTotalCost: integer("revised_total_cost"), // Tracks budget variations [FORCE_REFRESH]
   status: text("status").notNull().default("draft"),
   paymentStructure: text("payment_structure").notNull().default("POST_PROJECT"), // 'ADVANCE', 'IN_PARTS', 'POST_PROJECT'
   isLocked: boolean("is_locked").notNull().default(false),
@@ -141,7 +142,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
 
 export const approvals = pgTable("approvals", {
   id: serial("id").primaryKey(),
-  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id, { onDelete: 'cascade' }),
   approverId: integer("approver_id").references(() => users.id),
   department: text("department").notNull(),
   status: text("status").notNull().default("pending"),
@@ -170,7 +171,7 @@ export const approvalAuditLogs = pgTable("approval_audit_logs", {
 
 export const fileAttachments = pgTable("file_attachments", {
   id: serial("id").primaryKey(),
-  requestId: integer("request_id").references(() => purchaseRequests.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id, { onDelete: 'cascade' }),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
@@ -242,7 +243,7 @@ export const vendorPerformance = pgTable("vendor_performance", {
 
 export const paymentInstallments = pgTable("payment_installments", {
   id: serial("id").primaryKey(),
-  requestId: integer("request_id").notNull().references(() => purchaseRequests.id),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id, { onDelete: 'cascade' }),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   installmentName: text("installment_name").notNull(), // "1st Advance", "Delivery Milestone"
   dueDate: timestamp("due_date").notNull(),
@@ -250,11 +251,16 @@ export const paymentInstallments = pgTable("payment_installments", {
   valueType: text("value_type").notNull().default("FIXED_AMOUNT"), // 'PERCENTAGE', 'FIXED_AMOUNT'
   amountValue: integer("amount_value").notNull(), // The actual % or $ value
   calculatedAmount: integer("calculated_amount").notNull(), // The exact QAR amount
+  paidAmount: integer("paid_amount"), // The actual amount paid by Finance
   currency: text("currency").notNull().default("QAR"),
-  status: text("status").notNull().default("pending"), // 'pending', 'paid'
+  status: text("status").notNull().default("pending"), // 'pending', 'paid', 'partial', 'rescheduled'
   paidAt: timestamp("paid_at"),
+  actualPaymentDate: timestamp("actual_payment_date"),
+  rescheduledDate: timestamp("rescheduled_date"),
   transactionReference: text("transaction_reference"),
   remarks: text("remarks"),
+  financeNotes: text("finance_notes"),
+  attachmentUrl: text("attachment_url"), // Receipt/invoice URL from R2 storage
   createdBy: integer("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
