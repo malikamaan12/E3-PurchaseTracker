@@ -149,7 +149,11 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
             {statusOptions.slice(0, 4).map(status => (
               <button
                 key={status}
-                onClick={() => setFilters({ ...filters, status })}
+                onClick={() => {
+                  if (filters.status !== status) {
+                    setFilters({ ...filters, status });
+                  }
+                }}
                 className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filters.status === status ? "bg-brand-primary text-white shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {status}

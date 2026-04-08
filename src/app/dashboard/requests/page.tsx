@@ -24,18 +24,23 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useRef } from "react";
 import { initMagnetic, initGlow, pageLoad } from "@/lib/animations";
 import { RequestFilters } from "@/components/requests/RequestFilters";
 import CreateRequestModal from "@/components/requests/CreateRequestModal";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Zap } from "lucide-react";
+import { usePerformance } from "@/context/PerformanceContext";
+import { Suspense } from "react";
 
-export default function RequestsDashboard() {
+function RequestsDashboardContent() {
   const queryClient = useQueryClient();
   const { user, isAdmin, isApprover } = useAuth();
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q");
+
   const [filters, setFilters] = useState({
     status: "all",
     priority: "all",
@@ -48,9 +53,16 @@ export default function RequestsDashboard() {
     dateTo: "",
     costMin: "",
     costMax: "",
-    search: "",
+    search: q || "",
     requestNo: ""
   });
+
+  // Sink URL search param 'q' into filter state
+  useEffect(() => {
+    if (q !== null && q !== filters.search) {
+      setFilters(prev => ({ ...prev, search: q }));
+    }
+  }, [q]);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
@@ -160,6 +172,8 @@ export default function RequestsDashboard() {
     }
   };
 
+  const { highPerformanceMode } = usePerformance();
+
   if (isLoading) return <LoadingState />;
 
   return (
@@ -200,8 +214,8 @@ export default function RequestsDashboard() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            <AnimatePresence mode="wait">
-              {requests?.map((req: any) => (
+            {highPerformanceMode ? (
+              requests?.map((req: any) => (
                 <RequestRow 
                   key={req.id} 
                   request={req} 
@@ -211,8 +225,22 @@ export default function RequestsDashboard() {
                   onEdit={() => setEditingId(req.id)}
                   onDelete={() => setDeleteRequest(req)}
                 />
-              ))}
-            </AnimatePresence>
+              ))
+            ) : (
+              <AnimatePresence mode="wait">
+                {requests?.map((req: any) => (
+                  <RequestRow 
+                    key={req.id} 
+                    request={req} 
+                    isSelected={selectedIds.includes(req.id)}
+                    onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                    onApprove={() => approveMutation.mutate(req.id)}
+                    onEdit={() => setEditingId(req.id)}
+                    onDelete={() => setDeleteRequest(req)}
+                  />
+                ))}
+              </AnimatePresence>
+            )}
           </tbody>
         </table>
       </main>
@@ -249,12 +277,34 @@ export default function RequestsDashboard() {
   );
 }
 
+export default function RequestsDashboard() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <RequestsDashboardContent />
+    </Suspense>
+  );
+}
+
 function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) {
+  const { highPerformanceMode } = usePerformance();
   if (isLoading) return <div className="h-32 glass animate-pulse rounded-2xl" />;
 
-  const approved = data?.approved?.total || 0;
-  const pending = data?.pending?.total || 0;
-  const count = (data?.pending?.count || 0) + (data?.approved?.count || 0);
+  // The API returns kpis: { byStatus: [], totalPaid: number }
+  const kpis = data?.kpis?.byStatus || [];
+  
+  const approvedObj = kpis.find((k: any) => k.status === 'approved');
+  const pendingObj = kpis.find((k: any) => k.status === 'pending');
+  
+  const approved = approvedObj?.totalValue || 0;
+  const approvedCount = approvedObj?.count || 0;
+  
+  const pending = pendingObj?.totalValue || 0;
+  const pendingCount = pendingObj?.count || 0;
+  
+  // Active count = pending + approved + variation_pending
+  const activeCount = kpis.filter((k: any) => 
+    ['pending', 'approved', 'VARIATION_PENDING', 'changes_requested'].includes(k.status)
+  ).reduce((acc: number, curr: any) => acc + curr.count, 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -262,6 +312,8 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         label="Total Approved" 
         value={approved} 
         suffix="QAR" 
+        subValue={approvedCount}
+        subLabel="requests"
         icon={<TrendingUp className="text-emerald-400 w-6 h-6" />} 
         glowClass="bg-emerald-500"
       />
@@ -269,25 +321,30 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         label="Pending Volume" 
         value={pending} 
         suffix="QAR" 
+        subValue={pendingCount}
+        subLabel="requests"
         icon={<BarChart3 className="text-brand-secondary w-6 h-6" />} 
         glowClass="bg-brand-secondary"
       />
       <AnalyticsCard 
-        label="Active Requests" 
-        value={count} 
-        icon={<DollarSign className="text-brand-primary w-6 h-6" />} 
+        label="Active Status" 
+        value={activeCount} 
+        suffix="REQ"
+        icon={<div className="text-brand-primary font-black text-sm tracking-tighter">QAR</div>} 
         glowClass="bg-brand-primary"
       />
     </div>
   );
 }
 
-function AnalyticsCard({ label, value, suffix = "", icon, glowClass = "" }: any) {
+function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, glowClass = "" }: any) {
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
+  const { highPerformanceMode } = usePerformance();
+
   useEffect(() => {
-    if (cardRef.current && glowRef.current) {
+    if (!highPerformanceMode && cardRef.current && glowRef.current) {
       const cleanMagnetic = initMagnetic(cardRef.current);
       const cleanGlow = initGlow(cardRef.current, glowRef.current);
       return () => {
@@ -295,7 +352,7 @@ function AnalyticsCard({ label, value, suffix = "", icon, glowClass = "" }: any)
         cleanGlow?.();
       };
     }
-  }, []);
+  }, [highPerformanceMode]);
 
   return (
     <div 
@@ -309,12 +366,17 @@ function AnalyticsCard({ label, value, suffix = "", icon, glowClass = "" }: any)
       />
       
       <div className="relative z-10 flex justify-between items-center">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold mb-2 opacity-60">{label}</p>
+        <div className="space-y-1">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold mb-1 opacity-60">{label}</p>
           <h3 className="text-3xl font-bold text-foreground tracking-tighter flex items-baseline gap-2">
             {value.toLocaleString()} 
             {suffix && <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{suffix}</span>}
           </h3>
+          {subValue !== undefined && (
+            <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">
+              {subValue.toLocaleString()} {subLabel}
+            </p>
+          )}
         </div>
         <div className="w-14 h-14 rounded-xl bg-white/5 dark:bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner">
           {icon}
@@ -325,52 +387,157 @@ function AnalyticsCard({ label, value, suffix = "", icon, glowClass = "" }: any)
 }
 
 function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: any) {
+  const { highPerformanceMode } = usePerformance();
+
+  if (selectedCount === 0) return null;
+
+  const content = (
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-card px-8 py-5 rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-50 flex items-center gap-8">
+      <div className="flex flex-col">
+        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
+        <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>
+      </div>
+      <div className="h-10 w-px bg-white/10" />
+      <div className="flex gap-3">
+        <button 
+          onClick={onApprove}
+          disabled={isProcessing}
+          className="bg-brand-gradient text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
+        >
+          {isProcessing ? "Processing..." : "Approve Now"}
+          <CheckCircle className="w-4 h-4" />
+        </button>
+        <button 
+          onClick={onClear}
+          className="bg-white/5 dark:bg-white/[0.03] text-muted-foreground hover:text-foreground text-xs font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-all border border-white/10"
+        >
+          Deselect
+        </button>
+      </div>
+    </div>
+  );
+
+  if (highPerformanceMode) return content;
+
   return (
     <AnimatePresence>
-      {selectedCount > 0 && (
-        <motion.div 
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-card px-8 py-5 rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-50 flex items-center gap-8"
-        >
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
-            <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>
-          </div>
-          <div className="h-10 w-px bg-white/10" />
-          <div className="flex gap-3">
-            <button 
-              onClick={onApprove}
-              disabled={isProcessing}
-              className="bg-brand-gradient text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
-            >
-              {isProcessing ? "Processing..." : "Approve Now"}
-              <CheckCircle className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={onClear}
-              className="bg-white/5 dark:bg-white/[0.03] text-muted-foreground hover:text-foreground text-xs font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-all border border-white/10"
-            >
-              Deselect
-            </button>
-          </div>
-        </motion.div>
-      )}
+      <motion.div 
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 100, opacity: 0 }}
+      >
+        {content}
+      </motion.div>
     </AnimatePresence>
   );
 }
 
 function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
   const router = useRouter();
+  const { highPerformanceMode } = usePerformance();
+
+  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
+
+  if (highPerformanceMode) {
+    return (
+      <tr className={rowClassName}>
+        {/* Cells content */}
+        <td className="px-6 py-5">
+          <input 
+            type="checkbox"
+            className="rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer transition-colors"
+            checked={isSelected}
+            onChange={(e) => onSelect(e.target.checked)}
+          />
+        </td>
+        <td className="px-6 py-5 font-mono text-xs text-brand-secondary">
+          {request.requestNumber}
+        </td>
+        <td className="px-6 py-5">
+          <div className="font-semibold text-foreground tracking-tight transition-colors">{request.title}</div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1">
+            {request.requester?.username} • {request.requester?.department}
+            {request.subPurpose?.name && (
+              <>
+                <span className="mx-1.5 opacity-30">|</span>
+                <span className="text-brand-primary">{request.subPurpose.name}</span>
+              </>
+            )}
+          </div>
+        </td>
+        <td className="px-6 py-5">
+          <StatusBadge status={request.status} />
+        </td>
+        <td className="px-6 py-5 font-semibold text-foreground">
+          {request.totalEstimatedCost?.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">QAR</span>
+        </td>
+        <td className="px-6 py-5 text-right">
+          <div className="flex justify-end gap-1.5">
+            {request.status === "pending" && (
+              <button 
+                onClick={onApprove}
+                className="p-2 rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all active:scale-90"
+                title="Quick Approve"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </button>
+            )}
+            
+            <button 
+              onClick={() => router.push(`/dashboard/requests/${request.id}`)}
+              className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
+              title="View Details"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+
+            {(request.status === 'draft' || request.status === 'changes_requested' || (request.status === 'pending' && Number(request.approvedCount || 0) === 0)) && (
+              <>
+                <button 
+                  onClick={onEdit}
+                  className="p-2 rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
+                  title="Edit Request"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                
+                <button 
+                  onClick={onDelete}
+                  className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
+                  title="Delete Request"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
+            )}
+
+            <button 
+              onClick={() => apiClient.documents.downloadPdf(request.id)}
+              className="p-2 rounded-xl hover:bg-brand-primary/10 text-zinc-400 hover:text-brand-primary transition-all active:scale-90"
+              title="Download PDF"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+
+            <button 
+              onClick={() => apiClient.documents.downloadZip(request.id)}
+              className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
+              title="Download All (ZIP)"
+            >
+              <Archive className="w-4 h-4" />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
 
   return (
     <motion.tr 
-      layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -10 }}
-      className={`group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`}
+      className={rowClassName}
     >
       <td className="px-6 py-5">
         <input 

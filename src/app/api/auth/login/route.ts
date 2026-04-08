@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       canManageVendors: user.canManageVendors // Inject the new permission
     };
 
-    const token = jwt.sign(sanitizedUser, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(sanitizedUser, JWT_SECRET, { expiresIn: '300h' });
     
     // 4. Response with HTTP-Only Cookie
     const response = NextResponse.json({ user: sanitizedUser });
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: IS_PRODUCTION,
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60, // 24 hours
+      maxAge: 300 * 60 * 60, // 300 hours (approximately 12.5 days)
       path: '/'
     });
 

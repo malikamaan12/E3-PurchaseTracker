@@ -23,9 +23,11 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { toast } from "sonner";
-import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut, FileSpreadsheet } from "lucide-react";
+import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut, FileSpreadsheet, Zap } from "lucide-react";
+import { usePerformance } from "@/context/PerformanceContext";
 
 export default function TopNav() {
+  const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -153,7 +155,7 @@ export default function TopNav() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-full right-0 mt-4 w-[400px] bg-card border border-border rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden z-[100]"
+                  className="absolute top-full right-0 mt-4 w-[400px] bg-card border border-border rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden z-[1000]"
                 >
                   <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
                     <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Notifications</h3>
@@ -218,6 +220,14 @@ export default function TopNav() {
                 </motion.div>
               )}
             </AnimatePresence>
+            
+            <button
+              onClick={() => setHighPerformanceMode(!highPerformanceMode)}
+              className={`p-2.5 rounded-xl transition-all ${highPerformanceMode ? 'bg-amber-500/10 text-amber-500' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+              title={highPerformanceMode ? "High Performance Mode: ON" : "High Performance Mode: OFF"}
+            >
+              <Zap className={`w-5 h-5 ${highPerformanceMode ? 'fill-current' : ''}`} />
+            </button>
 
             <ThemeToggle />
           </div>

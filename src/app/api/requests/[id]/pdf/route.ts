@@ -258,8 +258,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="E3-Request-${requestData.requestNumber}.pdf"`,
-        'Cache-Control': 'private, max-age=3600, stale-while-revalidate=86400',
-        'X-PDF-Engine': 'Optimized-E3-v2'
+        'Cache-Control': 'private, max-age=600, stale-while-revalidate=3600',
+        'X-PDF-Engine': 'Optimized-E3-v2',
+        'X-Performance-Optimized': 'true'
       }
     });
 

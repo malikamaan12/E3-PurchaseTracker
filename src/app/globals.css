@@ -1,46 +1,20 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
 
-@theme { 
-  /* --- NEW E3 BRAND COLORS --- */
-  --color-brand-primary: #5B4B8A;   /* Purple */
-  --color-brand-secondary: #2FB7B2; /* Teal */
-  --color-brand-text: #2E2A5E;      /* Dark Indigo */
-  --color-brand-mid: #3B82F6;       /* Blue-ish blend for premium feel */
-  
-  --background-image-brand-gradient: linear-gradient(90deg, var(--color-brand-primary) 0%, var(--color-brand-mid) 50%, var(--color-brand-secondary) 100%);
-
-  /* --- RADIUS DISCIPLINE (Apple Specs) --- */
-  --radius-lg: 1.25rem;
-  --radius-md: 0.75rem;
-  --radius-sm: 0.5rem;
-
-  /* --- SHADCN MAPPINGS --- */
-  --color-background: hsl(var(--background)); 
-  --color-foreground: hsl(var(--foreground)); 
-  --color-card: hsl(var(--card)); 
-  --color-card-foreground: hsl(var(--card-foreground)); 
-  --color-border: hsl(var(--border)); 
-  --color-input: hsl(var(--input)); 
-  --color-ring: hsl(var(--ring));
-
-  --animate-accordion-down: accordion-down 0.2s ease-out; 
-  --animate-accordion-up: accordion-up 0.2s ease-out; 
-  --animate-fluid-drift: fluid-drift 20s infinite alternate-reverse ease-in-out;
-}
-
-@keyframes fluid-drift {
-  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-  33% { transform: translate(2% , 5%) scale(1.1) rotate(5deg); }
-  66% { transform: translate(-3%, 2%) scale(0.9) rotate(-3deg); }
-  100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-}
+/* 
+  Explicitly tell Tailwind where to find your classes. 
+  This fixes the "Huge Logo" issues by ensuring every .tsx file is scanned.
+*/
+@source "../**/*.{ts,tsx}";
 
 @layer base { 
   :root { 
     --background: 0 0% 100%;
-    --foreground: 240 25% 18%;   /* Darker for readability */
+    --foreground: 240 25% 18%;
     --card: 0 0% 100%;
     --card-foreground: 240 25% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 25% 18%;
     --primary: 255 30% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
@@ -60,6 +34,8 @@
     --foreground: 0 0% 98%;
     --card: 240 10% 6%;
     --card-foreground: 0 0% 95%;
+    --popover: 240 10% 4%;
+    --popover-foreground: 0 0% 98%;
     --primary: 255 30% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 3.7% 15.9%;
@@ -72,88 +48,86 @@
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
   }
+
+  body { 
+    @apply bg-background text-foreground antialiased; 
+    transition: background-color 0.4s ease, color 0.4s ease; 
+  }
 }
 
-body { 
-  @apply bg-background text-foreground antialiased selection:bg-brand-primary/20; 
-  transition: background-color 0.4s ease, color 0.4s ease; 
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-xl backdrop-saturate-150 relative overflow-hidden;
+    background: rgba(255, 255, 255, 0.08); 
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 10px 30px rgba(0,0,0,0.08);
+  }
+
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('/noise.svg');
+    opacity: 0.05;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .dark .glass {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .glass-card {
+    @apply rounded-[var(--radius-lg)] backdrop-blur-md relative overflow-hidden;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow:
+      0 8px 24px rgba(0,0,0,0.08),
+      0 2px 6px rgba(0,0,0,0.04);
+  }
+
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('/noise.svg');
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .dark .glass-card {
+    background: rgba(255,255,255,0.05);
+  }
+
+  .glass-input {
+    @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium outline-none;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+  }
+
+  .glass-select {
+    @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium outline-none cursor-pointer appearance-none;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+  }
 }
 
-/* --- TRUE GLASS (Apple-level) --- */
-.glass {
-  @apply backdrop-blur-xl backdrop-saturate-150;
-  background: rgba(255, 255, 255, 0.08); /* Slightly adjusted for better daylight visibility */
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 10px 30px rgba(0,0,0,0.08);
-  transition: all 0.4s ease;
+/* --- INPUT OVERRIDES --- */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-.dark .glass {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.04),
-    0 10px 40px rgba(0,0,0,0.6);
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
-
-.glass-card {
-  @apply rounded-[var(--radius-lg)] backdrop-blur-xl;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow:
-    0 8px 24px rgba(0,0,0,0.08),
-    0 2px 6px rgba(0,0,0,0.04);
-  transition: all 0.4s ease;
-}
-
-.dark .glass-card {
-  background: rgba(255,255,255,0.05);
-}
-
-.glass-input {
-  @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium outline-none;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  transition: all 0.3s ease;
-}
-
-.glass-input:focus {
-  border-color: rgba(91, 75, 138, 0.4);
-  box-shadow: 0 0 0 4px rgba(91, 75, 138, 0.08);
-}
-
-.glass-select {
-  @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium outline-none cursor-pointer appearance-none;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  transition: all 0.3s ease;
-}
-
-.dropdown-panel {
-  @apply rounded-[var(--radius-md)] p-2 mt-2 backdrop-blur-xl backdrop-saturate-150;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  animation: dropdownIn 0.2s ease;
-}
-
-.dark .dropdown-panel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-}
-
-@keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.glow-brand {
-  box-shadow: 0 0 30px rgba(91, 75, 138, 0.3);
-}
-@keyframes accordion-down { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
-@keyframes accordion-up { from { height: var(--radix-accordion-content-height); } to { height: 0; } }

@@ -108,13 +108,14 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
                     <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg border border-border p-0.5">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
-                        className="w-12 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-0 h-8"
-                      />
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
+                          onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                          className="w-12 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-0 h-8"
+                        />
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
@@ -125,6 +126,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                         min="0"
                         value={item.estimatedCost}
                         onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0 h-auto"
                       />
                     </div>
@@ -178,6 +180,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                min="0"
                value={freightAmount}
                onChange={(e) => onFreightChange(parseFloat(e.target.value) || 0)}
+               onWheel={(e) => (e.target as HTMLInputElement).blur()}
                className="w-32 h-10 text-right font-extrabold"
              />
           </div>

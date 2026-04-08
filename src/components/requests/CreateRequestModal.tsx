@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -44,10 +44,10 @@ const requestSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Requirement Overview must be at least 10 characters"),
   totalEstimatedCost: z.coerce.number().min(0),
-  vendorId: z.coerce.number().positive("Please select a vendor"),
-  purposeCategoryId: z.coerce.number().positive("Select Purpose Category"),
+  vendorId: z.any().refine(val => val !== "" && Number(val) > 0, "Please select a vendor"),
+  purposeCategoryId: z.any().refine(val => val !== "" && Number(val) > 0, "Select Purpose Category"),
   purposeType: z.string().min(1, "Purpose Type missing"),
-  subPurposeId: z.coerce.number().positive("Select Project"),
+  subPurposeId: z.any().refine(val => val !== "" && Number(val) > 0, "Select Project"),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   currency: z.enum(["QAR", "USD", "EUR", "AED"]).default("QAR"),
   freightAmount: z.coerce.number().min(0).default(0),
@@ -67,6 +67,17 @@ const requestSchema = z.object({
     amountValue: z.number().min(0, "Value must be positive"),
     calculatedAmount: z.number().min(0),
   })).default([]),
+}).refine((data) => {
+  if (data.paymentStructure === "IN_PARTS") {
+    const totalPct = data.installments
+      .filter(i => i.valueType === "PERCENTAGE")
+      .reduce((sum, i) => sum + (i.amountValue || 0), 0);
+    return totalPct <= 100;
+  }
+  return true;
+}, {
+  message: "Total milestone percentage cannot exceed 100%",
+  path: ["installments"]
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
@@ -114,10 +125,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     defaultValues: {
       title: "",
       description: "",
-      vendorId: undefined,
-      purposeCategoryId: undefined,
-      subPurposeId: undefined,
+      vendorId: "",
+      purposeCategoryId: "",
       purposeType: "PROJECT",
+      subPurposeId: "",
       priority: "medium",
       currency: "QAR",
       totalEstimatedCost: 0,
@@ -130,9 +141,13 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     },
   });
 
-  const formItems = watch("items");
-  const formCategoryId = watch("purposeCategoryId");
-  const formSubPurposeId = watch("subPurposeId");
+  const formItems = useWatch({ control, name: "items" }) || [];
+  const formCategoryId = useWatch({ control, name: "purposeCategoryId" });
+  const formSubPurposeId = useWatch({ control, name: "subPurposeId" });
+  const paymentStructure = useWatch({ control, name: "paymentStructure" });
+  const installments = useWatch({ control, name: "installments" }) || [];
+  const totalEstimatedCost = useWatch({ control, name: "totalEstimatedCost" }) || 0;
+  const freightAmount = useWatch({ control, name: "freightAmount" }) || 0;
 
   const totals = useMemo(() => {
     return formItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 0);
@@ -161,10 +176,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             title: reqData.title || "",
             description: reqData.description || "",
             totalEstimatedCost: reqData.totalEstimatedCost || 0,
-            vendorId: reqData.vendorId || undefined,
-            purposeCategoryId: reqData.purposeCategoryId || undefined,
+            vendorId: reqData.vendorId?.toString() || "",
+            purposeCategoryId: reqData.purposeCategoryId?.toString() || "",
             purposeType: reqData.purposeType || "PROJECT",
-            subPurposeId: reqData.subPurposeId || undefined,
+            subPurposeId: reqData.subPurposeId?.toString() || "",
             priority: reqData.priority || "medium",
             currency: reqData.currency || "QAR",
             freightAmount: reqData.freightAmount || 0,
@@ -190,13 +205,21 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         }
       } else if (isOpen && !requestId) {
         reset({
+          title: "",
+          description: "",
+          vendorId: "",
+          purposeCategoryId: "",
+          purposeType: "PROJECT",
+          subPurposeId: "",
+          priority: "medium",
+          currency: "QAR",
+          totalEstimatedCost: 0,
+          freightAmount: 0,
           items: [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
           additionalApprovers: [],
           attachmentIds: [],
           paymentStructure: "POST_PROJECT",
           installments: [],
-          title: "",
-          description: "",
         });
         setInitialFiles([]);
       }
@@ -270,6 +293,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     try {
       const finalizedData = { 
         ...data, 
+        vendorId: Number(data.vendorId),
+        purposeCategoryId: Number(data.purposeCategoryId),
+        subPurposeId: Number(data.subPurposeId),
         purposeType: data.purposeType || "PROJECT",
         status: "pending" // Explicitly mark as active to prevent auto-drafting
       };
@@ -430,7 +456,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                            {errors.vendorId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.vendorId.message}</p>}
+                            {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.vendorId.message}</p>}
                           </div>
                         </div>
 
@@ -454,7 +480,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                            {errors.purposeCategoryId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.purposeCategoryId.message}</p>}
+                             {errors.purposeCategoryId?.message && typeof errors.purposeCategoryId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.purposeCategoryId.message}</p>}
                           </div>
                         </div>
 
@@ -491,7 +517,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                            {errors.subPurposeId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.subPurposeId.message}</p>}
+                            {errors.subPurposeId?.message && typeof errors.subPurposeId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.subPurposeId.message}</p>}
                           </div>
                           {selectedBudget !== null && (
                             <p className={`text-[10px] font-black uppercase tracking-widest pl-1 mt-1 ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
@@ -628,7 +654,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         {/* Milestone Builder (IN_PARTS only) */}
-                        {watch("paymentStructure") === "IN_PARTS" ? (
+                        {paymentStructure === "IN_PARTS" ? (
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
                               <div>
@@ -662,8 +688,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             )}
 
                             <div className="space-y-3">
-                              {watch("installments").map((inst, idx) => {
-                                const totalCostBase = watch("totalEstimatedCost") + watch("freightAmount");
+                              {installments.map((inst: any, idx) => {
+                                const totalCostBase = totalEstimatedCost + freightAmount;
                                 const calcAmt = inst.valueType === "PERCENTAGE"
                                   ? Math.round((inst.amountValue / 100) * totalCostBase)
                                   : Math.round(Number(inst.amountValue) || 0);
@@ -714,7 +740,12 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                         <input
                                           type="number"
                                           min={0}
-                                          {...register(`installments.${idx}.amountValue`, { valueAsNumber: true })}
+                                          max={inst.valueType === "PERCENTAGE" ? 100 : undefined}
+                                          onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                                          {...register(`installments.${idx}.amountValue`, { 
+                                            valueAsNumber: true,
+                                            max: inst.valueType === "PERCENTAGE" ? 100 : undefined
+                                          })}
                                           className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2.5 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all"
                                         />
                                       </div>
@@ -729,21 +760,41 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             </div>
 
                             {/* Reconciliation Bar */}
-                            {watch("installments").length > 0 && (() => {
-                              const totalPct = watch("installments").reduce((acc, curr) => acc + (curr.valueType === "PERCENTAGE" ? curr.amountValue : 0), 0);
+                            {installments.length > 0 && (() => {
+                              const totalPct = installments.reduce((acc: number, curr: any) => acc + (curr.valueType === "PERCENTAGE" ? curr.amountValue : 0), 0);
                               const isBalanced = totalPct === 100;
+                              const isOver = totalPct > 100;
                               return (
-                                <div className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${isBalanced ? "bg-emerald-500/10 border-emerald-500/30" : "bg-secondary/50 border-border"}`}>
+                                <div className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${
+                                  isBalanced ? "bg-emerald-500/10 border-emerald-500/30" : 
+                                  isOver ? "bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]" : 
+                                  "bg-secondary/50 border-border"
+                                }`}>
                                   <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Percentage Allocated</p>
-                                    <p className={`text-sm font-bold mt-0.5 ${isBalanced ? "text-emerald-600" : "text-foreground"}`}>
-                                      {isBalanced ? "✓ Fully reconciled — ready to submit" : `${100 - totalPct}% remaining to allocate`}
+                                    <p className={`text-[10px] font-black uppercase tracking-widest ${isOver ? "text-rose-500" : "text-muted-foreground"}`}>
+                                      {isOver ? "Allocation Error" : "Percentage Allocated"}
+                                    </p>
+                                    <p className={`text-sm font-bold mt-0.5 ${
+                                      isBalanced ? "text-emerald-600" : 
+                                      isOver ? "text-rose-600" : 
+                                      "text-foreground"
+                                    }`}>
+                                      {isBalanced ? "✓ Fully reconciled — ready to submit" : 
+                                       isOver ? `Exceeded limit by ${totalPct - 100}%` :
+                                       `${100 - totalPct}% remaining to allocate`}
                                     </p>
                                   </div>
-                                  <div className={`text-3xl font-black font-mono ${isBalanced ? "text-emerald-500" : "text-primary"}`}>{totalPct}%</div>
+                                  <div className={`text-3xl font-black font-mono ${
+                                    isBalanced ? "text-emerald-500" : 
+                                    isOver ? "text-rose-500 animate-pulse" : 
+                                    "text-primary"
+                                  }`}>{totalPct}%</div>
                                 </div>
                               );
                             })()}
+                            {errors.installments?.root?.message && (
+                              <p className="text-[10px] text-rose-500 font-bold uppercase tracking-wider pl-1">{errors.installments.root.message}</p>
+                            )}
                           </div>
                         ) : (
                           /* Info card for ADVANCE / POST_PROJECT */
@@ -753,10 +804,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             </div>
                             <div className="max-w-sm space-y-1">
                               <h4 className="text-sm font-bold text-foreground">
-                                {watch("paymentStructure") === "ADVANCE" ? "100% Upfront Settlement" : "Final Delivery Settlement"}
+                                {paymentStructure === "ADVANCE" ? "100% Upfront Settlement" : "Final Delivery Settlement"}
                               </h4>
                               <p className="text-xs text-muted-foreground leading-relaxed">
-                                {watch("paymentStructure") === "ADVANCE"
+                                {paymentStructure === "ADVANCE"
                                   ? "Full payment will be processed immediately upon internal approval."
                                   : "Payment is deferred until the final project handover and verification of all deliverables."}
                               </p>

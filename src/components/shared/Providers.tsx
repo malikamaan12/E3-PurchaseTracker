@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
+import { PerformanceProvider } from "@/context/PerformanceContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -19,15 +20,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-        <AuthProvider>
-          {children}
-          <Toaster 
-            position="top-right" 
-            richColors 
-            closeButton
-            expand={false}
-          />
-        </AuthProvider>
+        <PerformanceProvider>
+          <AuthProvider>
+            {children}
+            <Toaster 
+              position="top-right" 
+              richColors 
+              closeButton
+              expand={false}
+            />
+          </AuthProvider>
+        </PerformanceProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
