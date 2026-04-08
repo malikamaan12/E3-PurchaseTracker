@@ -23,10 +23,9 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { toast } from "sonner";
-import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut } from "lucide-react";
+import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut, FileSpreadsheet } from "lucide-react";
 
 export default function TopNav() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -226,11 +225,11 @@ export default function TopNav() {
           <div className="h-8 w-px bg-border" />
 
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => apiClient.documents.exportExcel()}
             className="flex items-center gap-2 bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-primary/20 transition-all group"
           >
-            <PlusCircle className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-            New Request
+            <FileSpreadsheet className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+            Bulk Excel
           </button>
 
           <div className="h-8 w-px bg-border hidden md:block" />
@@ -261,16 +260,6 @@ export default function TopNav() {
         </div>
       </header>
 
-      <CreateRequestModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["requests"] });
-          if (window.location.pathname === '/dashboard/requests') {
-            // No need to reload, react-query handles it
-          }
-        }} 
-      />
     </>
   );
 }

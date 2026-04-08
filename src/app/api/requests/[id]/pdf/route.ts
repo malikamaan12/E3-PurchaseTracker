@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { purchaseRequests, pdfSettings, systemSettings, paymentInstallments } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { format } from "date-fns";
-import axios from "axios";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Pre-fetch utility to convert R2 assets to PDF-compatible buffers.
- * This prevents Vercel timeouts and blank images in serverless environments.
+ * Optimized Image Buffer Fetcher
+ * Uses native fetch with a strict timeout to prevent thread blocking.
  */
 async function fetchImageBuffer(url: string | null): Promise<Uint8Array | null> {
   if (!url) return null;
   try {
-    const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
-    return new Uint8Array(response.data);
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
   } catch (error) {
-    console.error(`[PDF Engine] Failed to pre-fetch branding asset: ${url}`, error);
+    console.warn(`[PDF Engine] Image fetch failed for ${url}:`, error);
     return null;
   }
 }
 
-// Helper to fetch request with all relations needed for the high-density contract
 async function getFullRequestData(requestId: number) {
   return await db.query.purchaseRequests.findFirst({
     where: (pr, { eq }) => eq(pr.id, requestId),
@@ -32,13 +32,11 @@ async function getFullRequestData(requestId: number) {
       vendor: true,
       subPurpose: true,
       attachments: true,
-      installments: true, // Updated: Using the new Strategic Installments relation
+      installments: true, 
       approvals: {
         with: {
           approver: {
-            columns: {
-              username: true
-            }
+            columns: { username: true }
           }
         }
       }
@@ -46,10 +44,13 @@ async function getFullRequestData(requestId: number) {
   });
 }
 
-/**
- * GET /api/requests/[id]/pdf
- * Modernized E3 Enterprise PDF Engine with Hierarchical Branding & Payment Schedule.
- */
+// Design Tokens for E3 Minimal Engine (Hardware Accelerated UI Colors)
+const COLOR_BLACK = { r: 0, g: 0, b: 0 }; 
+const COLOR_INDIGO = { r: 46 / 255, g: 42 / 255, b: 94 / 255 }; 
+const COLOR_WHITE = { r: 1, g: 1, b: 1 };
+const COLOR_GRAY = { r: 0.9, g: 0.9, b: 0.9 };
+const COLOR_DARK_GRAY = { r: 0.4, g: 0.4, b: 0.4 };
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: paramId } = await params;
@@ -62,249 +63,208 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const requestData = await getFullRequestData(requestId) as any;
     if (!requestData) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
-    // 1. Permissions (Admin, Requester, or involved Approver)
     const canView = user.role === "admin" || 
                     requestData.requesterId === user.id || 
                     requestData.approvals.some((a: any) => a.approverId === user.id);
-
     if (!canView) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-    // 2. Fetch Branding & System Config
-    const settingsResult = await db.select().from(pdfSettings).limit(1);
+    // Parallelize all initialization steps to unblock the event loop
+    const [settingsResult, { PDFDocument, rgb, StandardFonts }] = await Promise.all([
+      db.select().from(pdfSettings).limit(1),
+      import("pdf-lib")
+    ]);
+
     const settings = settingsResult[0] || null;
-    const systemSettingsRecords = await db.select().from(systemSettings).catch(() => []);
-
-    const getSetting = (key: string, defaultValue: any) => {
-      const records = systemSettingsRecords as any[];
-      return records.find(r => r.key === key)?.value || defaultValue;
-    };
-
-    const primaryHex = settings?.headerColor || getSetting("brand_primary_color", "#6F2AE6");
-    const secondaryHex = settings?.footerColor || getSetting("brand_secondary_color", "#15CDD8");
-    
-    // Vibrant Design Tokens
-    const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
     const pdfDoc = await PDFDocument.create();
-    
-    const hexToRgb = (hex: string) => {
-      const r = parseInt(hex.replace('#','').slice(0, 2), 16) / 255;
-      const g = parseInt(hex.replace('#','').slice(2, 4), 16) / 255;
-      const b = parseInt(hex.replace('#','').slice(4, 6), 16) / 255;
-      return { r, g, b };
-    };
 
-    const p = hexToRgb(primaryHex);
-    const s = hexToRgb(secondaryHex);
-    const brandPurple = rgb(p.r, p.g, p.b);
-    const brandTeal = rgb(s.r, s.g, s.b);
-
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    // 3. Asset Pre-fetching (The Vercel Lifesaver)
-    const [headerImgBuffer, footerImgBuffer, logoImgBuffer] = await Promise.all([
+    const [fontBold, fontRegular, headerImgBuffer, footerImgBuffer, logoImgBuffer] = await Promise.all([
+      pdfDoc.embedFont(StandardFonts.HelveticaBold),
+      pdfDoc.embedFont(StandardFonts.Helvetica),
       fetchImageBuffer(settings?.headerImage || null),
       fetchImageBuffer(settings?.footerImage || null),
       fetchImageBuffer(settings?.logo || null)
     ]);
 
-    const headerImg = headerImgBuffer ? await pdfDoc.embedPng(headerImgBuffer) : null;
-    const footerImg = footerImgBuffer ? await pdfDoc.embedPng(footerImgBuffer) : null;
-    const logoImg = logoImgBuffer ? await pdfDoc.embedPng(logoImgBuffer) : null;
+    const headerImg = headerImgBuffer ? await pdfDoc.embedPng(headerImgBuffer).catch(() => null) : null;
+    const footerImg = footerImgBuffer ? await pdfDoc.embedPng(footerImgBuffer).catch(() => null) : null;
+    const logoImg = logoImgBuffer ? await pdfDoc.embedPng(logoImgBuffer).catch(() => null) : null;
 
-    // --- Layout Constants ("The Content Sandwich") ---
-    const SAFE_ZONE_TOP = 110;
-    const SAFE_ZONE_BOTTOM = 90;
     const PAGE_HEIGHT = 841.89;
     const PAGE_WIDTH = 595.28;
+    const SAFE_ZONE_TOP = 80;
+    const SAFE_ZONE_BOTTOM = 80;
+    
+    const black = rgb(COLOR_BLACK.r, COLOR_BLACK.g, COLOR_BLACK.b);
+    const indigo = rgb(COLOR_INDIGO.r, COLOR_INDIGO.g, COLOR_INDIGO.b);
+    const white = rgb(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b);
+    const borderGray = rgb(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b);
+    const darkGray = rgb(COLOR_DARK_GRAY.r, COLOR_DARK_GRAY.g, COLOR_DARK_GRAY.b);
 
-    /**
-     * Specialized Drawing helper for Repeating Branding on every page.
-     */
-    const drawBranding = (page: any, data: any) => {
-      const { width, height } = page.getSize();
-      
-      // I. Absolute Watermark Pattern
-      const watermarkText = "INTERNAL ONLY • NOT FOR EXTERNAL DISTRIBUTION";
-      const wSize = 18;
-      page.drawText(watermarkText, {
-        x: 100, y: 300, size: wSize, font: fontBold,
-        color: rgb(0.96, 0.96, 0.98), rotate: degrees(45),
-        opacity: 0.5,
-      });
-
-      // II. Custom Header (R2 PNG support)
+    const drawHeaderAndFooter = (page: any) => {
+      // Header
       if (headerImg) {
-        page.drawImage(headerImg, {
-          x: 0, y: height - 80, width, height: 80,
-        });
-      } else {
-        // Fallback Vector Header
-        page.drawRectangle({ x: 0, y: height - 5, width, height: 5, color: brandPurple });
-        page.drawText("E3 ENTERPRISE", { x: 50, y: height - 50, size: 28, font: fontBold, color: brandPurple });
-      }
-      
-      // III. Logo Placement
-      if (logoImg) {
+        page.drawImage(headerImg, { x: 0, y: PAGE_HEIGHT - 80, width: PAGE_WIDTH, height: 80 });
+      } else if (logoImg) {
         const logoWidth = 60;
         const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-        page.drawImage(logoImg, { x: 50, y: height - 60, width: logoWidth, height: logoHeight });
+        page.drawImage(logoImg, { x: 40, y: PAGE_HEIGHT - 65, width: logoWidth, height: logoHeight });
       }
 
-      // IV. Custom Footer (R2 PNG support)
+      const timestamp = format(new Date(), "dd MMM yyyy, hh:mm a");
+      page.drawText(`Downloaded: ${timestamp}`, { x: PAGE_WIDTH - 180, y: PAGE_HEIGHT - 95, size: 8, font: fontRegular, color: darkGray });
+      
+      // Footer
       if (footerImg) {
-        page.drawImage(footerImg, {
-          x: 0, y: 0, width, height: SAFE_ZONE_BOTTOM - 10,
-        });
+        page.drawImage(footerImg, { x: 0, y: 0, width: PAGE_WIDTH, height: 80 });
       } else {
-        // Fallback Vector Footer
-        page.drawRectangle({ x: 0, y: 0, width, height: 3, color: brandTeal });
-        page.drawText("PurchaseTracker Enterprise Platform | Strategic Asset Management", {
-          x: 50, y: 15, size: 7, font: fontBold, color: rgb(0.7, 0.7, 0.7)
+        page.drawLine({
+          start: { x: 40, y: 40 },
+          end: { x: PAGE_WIDTH - 40, y: 40 },
+          thickness: 0.5,
+          color: borderGray,
         });
+        page.drawText("PurchaseTracker Enterprise Platform", { x: 40, y: 25, size: 8, font: fontBold, color: indigo });
       }
-
-      // V. Page Numbering
-      page.drawText(`${pdfDoc.getPages().length}`, {
-        x: width - 40, y: 15, size: 8, font: fontBold, color: brandPurple
-      });
     };
 
-    // Initialize Page 1
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    drawBranding(page, requestData);
+    drawHeaderAndFooter(page);
 
-    let y = PAGE_HEIGHT - 120;
+    let y = PAGE_HEIGHT - SAFE_ZONE_TOP - 20;
+
+    // --- Title & Core Tracking ---
+    page.drawText("PURCHASE REQUEST", { x: 40, y, size: 24, font: fontBold, color: black });
+    page.drawText(`PR REF: ${requestData.requestNumber}`, { x: PAGE_WIDTH - 150, y, size: 12, font: fontBold, color: indigo });
     
-    // --- 1. Header Metadata Section ---
-    page.drawText("PURCHASE REQUEST CONTRACT", { x: 50, y, size: 8, font: fontBold, color: brandTeal });
-    page.drawText(requestData.requestNumber, { x: 50, y: y - 18, size: 22, font: fontBold, color: brandPurple });
-    
-    y -= 45;
-    
-    // Info Grid
-    const drawGridItem = (p: any, xVal: number, yVal: number, label: string, value: string) => {
-      p.drawText(label.toUpperCase(), { x: xVal, y: yVal, size: 7, font: fontBold, color: rgb(0.5, 0.5, 0.6) });
-      p.drawText(value.toUpperCase(), { x: xVal, y: yVal - 14, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.25) });
+    y -= 25;
+    page.drawText(`STATUS: `, { x: 40, y, size: 9, font: fontBold, color: indigo });
+    page.drawText(`${requestData.status.toUpperCase().replace(/_/g, ' ')}`, { x: 85, y, size: 9, font: fontBold, color: black });
+
+    y -= 15;
+    page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 1, color: borderGray });
+    y -= 20;
+
+    // --- Metadata Grid ---
+    const drawMeta = (p: any, xVal: number, yVal: number, key: string, val: string) => {
+      p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: indigo });
+      p.drawText(val || "N/A", { x: xVal + 70, y: yVal, size: 8, font: fontRegular, color: black });
     };
 
-    drawGridItem(page, 50, y, "Requester", requestData.requester?.name || "N/A");
-    drawGridItem(page, 200, y, "Department", requestData.requester?.department || "N/A");
-    drawGridItem(page, 350, y, "Requested Date", format(new Date(requestData.createdAt), "dd MMM yyyy"));
-    drawGridItem(page, 480, y, "Priority", requestData.priority || "Medium");
+    drawMeta(page, 40, y, "Requester", requestData.requester?.username || "N/A");
+    drawMeta(page, PAGE_WIDTH / 2, y, "Department", requestData.requester?.department || "N/A");
+    y -= 20;
+    drawMeta(page, 40, y, "Created Date", format(new Date(requestData.createdAt), "dd MMM yyyy"));
+    drawMeta(page, PAGE_WIDTH / 2, y, "Priority", requestData.priority?.toUpperCase() || "MEDIUM");
+    y -= 20;
+    drawMeta(page, 40, y, "Vendor", requestData.vendor?.companyName || "N/A");
+    drawMeta(page, PAGE_WIDTH / 2, y, "Currency", requestData.currency || "QAR");
 
-    y -= 60;
+    y -= 40;
+    page.drawText("REQUIREMENT OVERVIEW", { x: 40, y, size: 9, font: fontBold, color: indigo });
+    y -= 15;
+    page.drawText(requestData.title || "Untitled", { x: 40, y, size: 12, font: fontBold, color: black });
 
-    // Subject Area
-    page.drawRectangle({ x: 50, y: y - 10, width: PAGE_WIDTH - 100, height: 40, color: rgb(0.97, 0.97, 1) });
-    page.drawText("REQUIREMENT OVERVIEW", { x: 60, y: y + 18, size: 7, font: fontBold, color: brandTeal });
-    page.drawText(requestData.title, { x: 60, y: y + 2, size: 12, font: fontBold, color: rgb(0,0,0) });
+    y -= 40;
 
-    y -= 60;
+    // --- "Request Item Breakdown" Table ---
+    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 20, color: indigo });
+    page.drawText("REQUEST ITEM BREAKDOWN", { x: 45, y: y + 2, size: 9, font: fontBold, color: white });
+    y -= 25;
 
-    // --- 2. Item Table (with Page Tracking) ---
-    const drawTableHeaders = (p: any, yVal: number) => {
-      p.drawRectangle({ x: 45, y: yVal - 5, width: PAGE_WIDTH - 90, height: 22, color: rgb(0.94, 0.94, 0.97) });
-      p.drawText("ITEM DESCRIPTION", { x: 55, y: yVal, size: 8, font: fontBold, color: brandPurple });
-      p.drawText("QTY", { x: 350, y: yVal, size: 8, font: fontBold, color: brandPurple });
-      p.drawText("UNIT COST", { x: 420, y: yVal, size: 8, font: fontBold, color: brandPurple });
-      p.drawText("TOTAL", { x: 505, y: yVal, size: 8, font: fontBold, color: brandPurple });
-    };
-
-    drawTableHeaders(page, y);
-    y -= 30;
+    page.drawLine({ start: { x: 40, y: y+15 }, end: { x: PAGE_WIDTH - 40, y: y+15 }, thickness: 1, color: indigo });
+    page.drawText("DESCRIPTION", { x: 45, y, size: 8, font: fontBold, color: indigo });
+    page.drawText("QTY", { x: 350, y, size: 8, font: fontBold, color: indigo });
+    page.drawText("COST", { x: 420, y, size: 8, font: fontBold, color: indigo });
+    page.drawText("TOTAL", { x: 490, y, size: 8, font: fontBold, color: indigo });
+    y -= 10;
+    page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
+    y -= 15;
 
     const items = typeof requestData.items === 'string' ? JSON.parse(requestData.items) : (requestData.items || []);
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (y < SAFE_ZONE_BOTTOM + 20) {
+    for (const item of items) {
+      if (y < SAFE_ZONE_BOTTOM + 50) {
         page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-        drawBranding(page, requestData);
-        y = PAGE_HEIGHT - SAFE_ZONE_TOP;
-        drawTableHeaders(page, y);
-        y -= 30;
-      }
-
-      if (i % 2 === 1) page.drawRectangle({ x: 45, y: y - 8, width: PAGE_WIDTH - 90, height: 20, color: rgb(0.98, 0.98, 1) });
-      
-      page.drawText(item.name.substring(0, 55), { x: 55, y, size: 9, font: fontRegular });
-      page.drawText(item.quantity.toString(), { x: 350, y, size: 9, font: fontRegular });
-      page.drawText(item.estimatedCost.toLocaleString(), { x: 420, y, size: 9, font: fontRegular });
-      page.drawText((item.quantity * item.estimatedCost).toLocaleString(), { x: 505, y, size: 9, font: fontBold, color: brandPurple });
-      
-      y -= 25;
-    }
-
-    // --- 3. Payment Schedule Grid ---
-    if (requestData.installments && requestData.installments.length > 0) {
-      if (y < SAFE_ZONE_BOTTOM + 120) {
-        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-        drawBranding(page, requestData);
+        drawHeaderAndFooter(page);
         y = PAGE_HEIGHT - SAFE_ZONE_TOP;
       }
 
-      y -= 20;
-      page.drawText("PAYMENT MECHANISM & INSTALLMENTS", { x: 50, y, size: 9, font: fontBold, color: brandTeal });
-      y -= 25;
+      page.drawText((item.name || "").substring(0, 50), { x: 45, y, size: 8, font: fontRegular, color: black });
+      page.drawText((item.quantity || 0).toString(), { x: 350, y, size: 8, font: fontRegular, color: black });
+      page.drawText((item.estimatedCost || 0).toLocaleString(), { x: 420, y, size: 8, font: fontRegular, color: black });
+      page.drawText(((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString(), { x: 490, y, size: 8, font: fontBold, color: black });
       
-      // Grid Headers
-      page.drawRectangle({ x: 45, y: y - 5, width: PAGE_WIDTH - 90, height: 20, color: rgb(1, 0.96, 0.96) });
-      page.drawText("MILESTONE / DESCRIPTION", { x: 55, y, size: 7.5, font: fontBold, color: rgb(0.6, 0.2, 0.2) });
-      page.drawText("DUE DATE", { x: 350, y, size: 7.5, font: fontBold, color: rgb(0.6, 0.2, 0.2) });
-      page.drawText("PAYMENT STATUS", { x: 430, y, size: 7.5, font: fontBold, color: rgb(0.6, 0.2, 0.2) });
-      page.drawText("AMOUNT", { x: 510, y, size: 7.5, font: fontBold, color: rgb(0.6, 0.2, 0.2) });
-      
-      y -= 22;
-
-      for (const pay of requestData.installments) {
-        page.drawText((pay.installmentName || "Standard Installment").substring(0, 45), { x: 55, y, size: 8, font: fontRegular });
-        page.drawText(format(new Date(pay.dueDate), "dd MMM yyyy"), { x: 350, y, size: 8, font: fontRegular });
-        page.drawText((pay.status || "Pending").toUpperCase(), { x: 430, y, size: 7, font: fontBold, color: brandTeal });
-        page.drawText(`${pay.calculatedAmount.toLocaleString()} ${pay.currency || "QAR"}`, { x: 510, y, size: 8, font: fontBold });
-        y -= 18;
-      }
+      y -= 15;
+      page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
+      y -= 10;
     }
 
-    // --- 4. Final Totals Area ---
-    if (y < SAFE_ZONE_BOTTOM + 100) {
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      drawBranding(page, requestData);
-      y = PAGE_HEIGHT - SAFE_ZONE_TOP;
-    }
+    y -= 25;
 
-    y -= 30;
-    page.drawRectangle({ x: 350, y, width: 200, height: 50, color: rgb(0.97, 0.97, 0.99), borderOpacity: 0.5, borderColor: brandPurple });
-    page.drawText("GRAND TOTAL EXPOSURE", { x: 360, y: y + 32, size: 7.5, font: fontBold, color: brandTeal });
-    page.drawText(`${requestData.totalEstimatedCost.toLocaleString()} QAR`, { x: 360, y: y + 10, size: 20, font: fontBold, color: brandPurple });
-
-    // --- 5. Signature Workflow (The Contract) ---
-    y -= 120;
+    // --- Total Box ---
     if (y < SAFE_ZONE_BOTTOM + 80) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      drawBranding(page, requestData);
+      drawHeaderAndFooter(page);
       y = PAGE_HEIGHT - SAFE_ZONE_TOP;
     }
 
-    const drawSigBlock = (p: any, xVal: number, yVal: number, title: string, sub: string) => {
-      p.drawText(title, { x: xVal, y: yVal, size: 7.5, font: fontBold, color: brandTeal });
-      p.drawRectangle({ x: xVal, y: yVal - 45, width: 150, height: 0.5, color: rgb(0.8, 0.8, 0.8) });
-      p.drawText(sub, { x: xVal, y: yVal - 58, size: 7.5, font: fontRegular, color: rgb(0.6, 0.6, 0.6) });
-    };
+    page.drawRectangle({ x: PAGE_WIDTH - 220, y: y - 35, width: 180, height: 40, color: white, borderColor: indigo, borderWidth: 1 });
+    page.drawText("TOTAL ESTIMATED EXPENDITURE", { x: PAGE_WIDTH - 210, y: y - 12, size: 8, font: fontBold, color: indigo });
+    page.drawText(`${(requestData.totalEstimatedCost + (requestData.freightAmount || 0)).toLocaleString()} ${requestData.currency || "QAR"}`, { x: PAGE_WIDTH - 210, y: y - 28, size: 14, font: fontBold, color: black });
 
-    drawSigBlock(page, 50, y, "REQUESTER AUTHORIZATION", "DEPARTMENT HEAD SIGNATURE");
-    drawSigBlock(page, 220, y, "FINANCE CONTROL OFFICE", "BUDGET VERIFICATION STAMP");
-    drawSigBlock(page, 390, y, "EXECUTIVE OFFICE (CEO)", "FINAL BOARD APPROVAL");
+    y -= 80;
 
-    const pdfBytes = await pdfDoc.save();
+    // --- Universal Signature Workflows ---
+    if (y < SAFE_ZONE_BOTTOM + 110) {
+      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      drawHeaderAndFooter(page);
+      y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+    }
+
+    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 15, color: indigo });
+    page.drawText("MANDATORY SIGN-OFFS", { x: 45, y: y + 1, size: 8, font: fontBold, color: white });
+    
+    y -= 55;
+
+    const allApprovals = requestData.approvals || [];
+    const sigs = [
+      { title: "Department Manager", data: allApprovals.find((a: any) => !['Finance', 'CEO Office', 'Management'].includes(a.department)) },
+      { title: "Finance Head", data: allApprovals.find((a: any) => a.department === "Finance") },
+      { title: "Management", data: allApprovals.find((a: any) => a.department === "Management") },
+      { title: "CEO", data: allApprovals.find((a: any) => a.department === "CEO Office") }
+    ];
+
+    let blockX = 50;
+    for (const sig of sigs) {
+      page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 110, y }, thickness: 1, color: black });
+      page.drawText(sig.title, { x: blockX, y: y - 12, size: 7, font: fontBold, color: indigo });
+      
+      let statusText = "Awaiting Approval";
+      let statusColor = darkGray;
+
+      if (sig.data?.status === 'approved') {
+        statusText = `Approved: ${sig.data.approver?.username || 'SYSTEM'}`;
+        statusColor = black;
+      } else if (sig.data?.status === 'rejected') {
+        statusText = "REJECTED";
+      }
+
+      page.drawText(statusText, { x: blockX, y: y + 5, size: 6, font: fontRegular, color: statusColor });
+      blockX += 125;
+    }
+
+    const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+    
     return new Response(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="E3-Request-${requestData.requestNumber}.pdf"`,
+        'Cache-Control': 'private, max-age=3600, stale-while-revalidate=86400',
+        'X-PDF-Engine': 'Optimized-E3-v2'
       }
     });
 
   } catch (error: any) {
-    console.error("[E3 PDF Engine] Critical Generation Failure:", error);
+    console.error("[E3 PDF Engine] Generation Failure:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

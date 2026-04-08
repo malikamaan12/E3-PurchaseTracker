@@ -1,11 +1,17 @@
 {
-  "/api/notifications/unread-count/route": "app/api/notifications/unread-count/route.js",
-  "/api/requests/analytics/route": "app/api/requests/analytics/route.js",
   "/api/departments/route": "app/api/departments/route.js",
+  "/api/notifications/unread-count/route": "app/api/notifications/unread-count/route.js",
+  "/api/vendors/route": "app/api/vendors/route.js",
+  "/api/purposes/route": "app/api/purposes/route.js",
+  "/api/requests/sub-purposes/route": "app/api/requests/sub-purposes/route.js",
+  "/api/requests/analytics/route": "app/api/requests/analytics/route.js",
   "/api/auth/user/route": "app/api/auth/user/route.js",
   "/api/requests/route": "app/api/requests/route.js",
+  "/api/admin/analytics/route": "app/api/admin/analytics/route.js",
   "/api/requests/[id]/route": "app/api/requests/[id]/route.js",
-  "/page": "app/page.js",
+  "/dashboard/requests/[id]/page": "app/dashboard/requests/[id]/page.js",
   "/dashboard/requests/page": "app/dashboard/requests/page.js",
-  "/dashboard/requests/[id]/page": "app/dashboard/requests/[id]/page.js"
+  "/dashboard/vendors/page": "app/dashboard/vendors/page.js",
+  "/dashboard/analytics/page": "app/dashboard/analytics/page.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js"
 }

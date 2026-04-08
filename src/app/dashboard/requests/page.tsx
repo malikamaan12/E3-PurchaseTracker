@@ -18,7 +18,8 @@ import {
   DollarSign,
   Eye,
   Link as LinkIcon,
-  FileSpreadsheet
+  FileSpreadsheet,
+  PlusCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -27,17 +28,49 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useRef } from "react";
 import { initMagnetic, initGlow, pageLoad } from "@/lib/animations";
+import { RequestFilters } from "@/components/requests/RequestFilters";
+import CreateRequestModal from "@/components/requests/CreateRequestModal";
+import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
+import { Edit2, Trash2 } from "lucide-react";
 
 export default function RequestsDashboard() {
   const queryClient = useQueryClient();
   const { user, isAdmin, isApprover } = useAuth();
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterDept, setFilterDept] = useState<string>("all");
+  const [filters, setFilters] = useState({
+    status: "all",
+    priority: "all",
+    department: "all",
+    vendor: "all",
+    purpose: "all",
+    purposeCategoryId: "all",
+    subPurposeId: "all",
+    dateFrom: "",
+    dateTo: "",
+    costMin: "",
+    costMax: "",
+    search: "",
+    requestNo: ""
+  });
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
     queryFn: () => apiClient.departments.list(),
-    enabled: !!(isAdmin || isApprover),
+    enabled: true,
+  });
+
+  const { data: vendors = [] } = useQuery({
+    queryKey: ["vendors"],
+    queryFn: () => apiClient.vendors.list(),
+  });
+
+  const { data: purposes = [] } = useQuery({
+    queryKey: ["purposes"],
+    queryFn: () => apiClient.purposes.list(),
+  });
+
+  const { data: subPurposes = [] } = useQuery({
+    queryKey: ["subPurposes"],
+    queryFn: () => apiClient.requests.subPurposes.list(),
   });
 
   useEffect(() => {
@@ -45,11 +78,14 @@ export default function RequestsDashboard() {
   }, []);
 
   const { data: requests, isLoading } = useQuery({
-    queryKey: ["requests", filterStatus, filterDept],
+    queryKey: ["requests", filters],
     queryFn: () => {
       const params: any = {};
-      if (filterStatus !== "all") params.status = filterStatus;
-      if (filterDept !== "all") params.department = filterDept;
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          params[key] = value;
+        }
+      });
       return apiClient.requests.list(params);
     },
   });
@@ -60,10 +96,26 @@ export default function RequestsDashboard() {
     queryFn: () => apiClient.requests.analytics(),
   });
 
+  // Edit/Delete State
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deleteRequest, setDeleteRequest] = useState<any | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiClient.requests.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      toast.success("Request deleted successfully");
+      setDeleteRequest(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to delete request"),
+  });
+
   const approveMutation = useMutation({
     mutationFn: (requestId: number) => apiClient.requests.approve(requestId, { status: "approved" }),
     onMutate: async (requestId) => {
-      const queryKey = ["requests", filterStatus, filterDept];
+      const queryKey = ["requests", filters];
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
       queryClient.setQueryData(queryKey, (old: any[]) => 
@@ -73,7 +125,7 @@ export default function RequestsDashboard() {
       return { previous };
     },
     onError: (err, id, context) => {
-      queryClient.setQueryData(["requests", filterStatus, filterDept], context?.previous);
+      queryClient.setQueryData(["requests", filters], context?.previous);
       toast.error("Failed to approve request. Rollback complete.");
     },
     onSuccess: () => {
@@ -117,34 +169,16 @@ export default function RequestsDashboard() {
           <h1 className="text-4xl font-serif tracking-tight text-foreground">Purchase Requests</h1>
           <p className="text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
         </div>
-        <ActionBar />
+        <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
       </header>
 
       <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
 
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <FilterBar current={filterStatus} set={setFilterStatus} />
-        
-        {(isAdmin || isApprover) && (
-          <div className="relative group">
-            <div className="flex items-center gap-3 glass rounded-[var(--radius-md)] px-4 py-2 hover:border-white/20 transition-all cursor-pointer">
-              <Filter className="w-3.5 h-3.5 text-brand-secondary" />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-r border-white/10 pr-3">Dept</span>
-              <select 
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-6 appearance-none relative z-10"
-              >
-                <option value="all" className="bg-background text-foreground">All Departments</option>
-                {departments.map((d: any) => (
-                  <option key={d.id} value={d.name} className="bg-background text-foreground">{d.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-4 text-muted-foreground pointer-events-none group-hover:text-foreground transition-colors" />
-            </div>
-          </div>
-        )}
-      </div>
+      <RequestFilters 
+        filters={filters} 
+        setFilters={setFilters} 
+        metadata={{ departments, vendors, purposes }} 
+      />
 
       <main className="glass-card overflow-x-auto custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
@@ -174,6 +208,8 @@ export default function RequestsDashboard() {
                   isSelected={selectedIds.includes(req.id)}
                   onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
                   onApprove={() => approveMutation.mutate(req.id)}
+                  onEdit={() => setEditingId(req.id)}
+                  onDelete={() => setDeleteRequest(req)}
                 />
               ))}
             </AnimatePresence>
@@ -186,6 +222,28 @@ export default function RequestsDashboard() {
         onApprove={() => bulkApproveMutation.mutate(selectedIds)}
         onClear={() => setSelectedIds([])}
         isProcessing={bulkApproveMutation.isPending}
+      />
+
+      <CreateRequestModal 
+        isOpen={!!editingId || isCreateModalOpen}
+        onClose={() => {
+          setEditingId(null);
+          setIsCreateModalOpen(false);
+        }}
+        requestId={editingId || undefined}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["requests"] });
+          setEditingId(null);
+          setIsCreateModalOpen(false);
+        }}
+      />
+
+      <DeleteRequestDialog 
+        isOpen={!!deleteRequest}
+        onOpenChange={(open) => !open && setDeleteRequest(null)}
+        onConfirm={() => deleteMutation.mutate(deleteRequest.id)}
+        isLoading={deleteMutation.isPending}
+        requestNumber={deleteRequest?.requestNumber}
       />
     </div>
   );
@@ -303,7 +361,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   );
 }
 
-function RequestRow({ request, isSelected, onSelect, onApprove }: any) {
+function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
   const router = useRouter();
 
   return (
@@ -327,7 +385,15 @@ function RequestRow({ request, isSelected, onSelect, onApprove }: any) {
       </td>
       <td className="px-6 py-5">
         <div className="font-semibold text-foreground tracking-tight transition-colors">{request.title}</div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1">{request.requester?.username} • {request.requester?.department}</div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1">
+          {request.requester?.username} • {request.requester?.department}
+          {request.subPurpose?.name && (
+            <>
+              <span className="mx-1.5 opacity-30">|</span>
+              <span className="text-brand-primary">{request.subPurpose.name}</span>
+            </>
+          )}
+        </div>
       </td>
       <td className="px-6 py-5">
         <StatusBadge status={request.status} />
@@ -354,6 +420,27 @@ function RequestRow({ request, isSelected, onSelect, onApprove }: any) {
           >
             <Eye className="w-4 h-4" />
           </button>
+
+          {/* EDIT & DELETE ACTIONS (Condition: No approvals yet) */}
+          {(request.status === 'draft' || request.status === 'changes_requested' || (request.status === 'pending' && Number(request.approvedCount || 0) === 0)) && (
+            <>
+              <button 
+                onClick={onEdit}
+                className="p-2 rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
+                title="Edit Request"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              
+              <button 
+                onClick={onDelete}
+                className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
+                title="Delete Request"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
           <button 
             onClick={() => apiClient.documents.downloadPdf(request.id)}
@@ -383,6 +470,7 @@ function StatusBadge({ status }: { status: string }) {
     rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20",
     draft: "bg-secondary text-muted-foreground border-border",
     changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
+    VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20 animate-pulse",
   };
 
   return (
@@ -392,21 +480,21 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ActionBar() {
+function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
   return (
     <div className="flex gap-3">
       <button 
-        onClick={() => apiClient.documents.exportExcel()}
+        onClick={onNewRequest}
         className="flex items-center gap-2 bg-brand-primary text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-primary/90 transition-all shadow-lg active:scale-95"
       >
-        <FileSpreadsheet className="w-4 h-4" /> Bulk Excel
+        <PlusCircle className="w-4 h-4" /> New Request
       </button>
     </div>
   );
 }
 
 function FilterBar({ current, set }: { current: string; set: (v: string) => void }) {
-  const filters = ["all", "pending", "approved", "rejected", "draft", "changes_requested"];
+  const filters = ["all", "pending", "VARIATION_PENDING", "approved", "rejected", "draft", "changes_requested"];
   return (
     <div className="flex gap-2 p-1 glass w-fit rounded-lg self-start">
       {filters.map(f => (

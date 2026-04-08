@@ -1,12 +1,19 @@
-import { gsap } from "gsap";
+/**
+ * Optimized Performance-First Animation Engine
+ * Replaced GSAP with hardware-accelerated CSS transforms and Framer Motion logic.
+ */
 
 /**
- * Premium Apple-style Magnetic Effect
- * Creates a physical attraction between the cursor and the element.
+ * Lightweight Magnetic Effect
+ * Uses CSS variables and transform for GPU acceleration.
  */
 export const initMagnetic = (el: HTMLElement) => {
   if (!el) return;
   const strength = 20;
+
+  // Ensure transition is set for smooth non-mouse movement
+  el.style.transition = "transform 0.4s cubic-bezier(0.23, 1, 0.32, 1)";
+  el.style.willChange = "transform";
 
   const onMove = (e: MouseEvent) => {
     const rect = el.getBoundingClientRect();
@@ -19,26 +26,20 @@ export const initMagnetic = (el: HTMLElement) => {
     const deltaX = (x - centerX) / centerX;
     const deltaY = (y - centerY) / centerY;
 
-    gsap.to(el, {
-      x: deltaX * strength,
-      y: deltaY * strength,
-      rotationX: deltaY * -6,
-      rotationY: deltaX * 6,
-      transformPerspective: 1000,
-      transformOrigin: "center",
-      ease: "power3.out",
-      duration: 0.4,
+    // Use requestAnimationFrame for smooth hardware-accelerated updates
+    window.requestAnimationFrame(() => {
+      el.style.transform = `
+        translate3d(${deltaX * strength}px, ${deltaY * strength}px, 0)
+        rotateX(${deltaY * -6}deg)
+        rotateY(${deltaX * 6}deg)
+      `;
     });
   };
 
   const onLeave = () => {
-    gsap.to(el, {
-      x: 0,
-      y: 0,
-      rotationX: 0,
-      rotationY: 0,
-      ease: "elastic.out(1, 0.4)",
-      duration: 0.8,
+    window.requestAnimationFrame(() => {
+      el.style.transform = `translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg)`;
+      el.style.transition = "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
     });
   };
 
@@ -52,28 +53,29 @@ export const initMagnetic = (el: HTMLElement) => {
 };
 
 /**
- * Premium Cursor-following Glow Effect
+ * Optimized Cursor-following Glow
  */
 export const initGlow = (el: HTMLElement, glowEl: HTMLElement) => {
   if (!el || !glowEl) return;
+
+  glowEl.style.transition = "opacity 0.4s ease";
+  glowEl.style.willChange = "transform, opacity";
+  glowEl.style.pointerEvents = "none";
 
   const onMove = (e: MouseEvent) => {
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    gsap.to(glowEl, {
-      x: x,
-      y: y,
-      opacity: 1,
-      duration: 0.3,
+    window.requestAnimationFrame(() => {
+      glowEl.style.transform = `translate3d(${x}px, ${y}px, 0) translate3d(-50%, -50%, 0)`;
+      glowEl.style.opacity = "1";
     });
   };
 
   const onLeave = () => {
-    gsap.to(glowEl, {
-      opacity: 0,
-      duration: 0.4,
+    window.requestAnimationFrame(() => {
+      glowEl.style.opacity = "0";
     });
   };
 
@@ -87,15 +89,22 @@ export const initGlow = (el: HTMLElement, glowEl: HTMLElement) => {
 };
 
 /**
- * Premium Page Load Entry
+ * Sequential Entry Animation
+ * Replaces GSAP stagger with a lightweight CSS-driven variant.
  */
 export const pageLoad = (selector: string) => {
-  gsap.from(selector, {
-    opacity: 0,
-    y: 30,
-    duration: 0.8,
-    stagger: 0.1,
-    ease: "power3.out",
-    delay: 0.2
+  const elements = document.querySelectorAll(selector);
+  elements.forEach((el: any, index: number) => {
+    // Set initial state
+    el.style.opacity = "0";
+    el.style.transform = "translate3d(0, 30px, 0)";
+    el.style.transition = "opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.23, 1, 0.32, 1)";
+    el.style.transitionDelay = `${0.2 + (index * 0.1)}s`;
+
+    // Trigger animation
+    window.requestAnimationFrame(() => {
+      el.style.opacity = "1";
+      el.style.transform = "translate3d(0, 0, 0)";
+    });
   });
 };

@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google"; // High-quality Google Fonts
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Providers from "@/components/shared/Providers";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-sans" });
@@ -22,6 +23,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             {children}
+            <SpeedInsights />
           </div>
         </Providers>
       </body>

@@ -11,6 +11,7 @@ const adminNavItems = [
   { name: "Account Requests", path: "/dashboard/admin/account-requests", icon: Shield },
   { name: "Departments", path: "/dashboard/admin/departments", icon: Building2 },
   { name: "Catalog Management", path: "/dashboard/admin/catalog", icon: FolderTree },
+  { name: "Project Management", path: "/dashboard/admin/sub-purposes", icon: Activity },
   { name: "Vendor Management", path: "/dashboard/admin/vendors", icon: FileText },
   { name: "PDF Settings", path: "/dashboard/admin/pdf-settings", icon: Settings },
   { name: "Export Diagnostics", path: "/dashboard/admin/diagnostics", icon: Activity },

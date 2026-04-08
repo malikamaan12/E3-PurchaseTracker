@@ -1,0 +1,589 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
+import {
+  Wallet, Calendar, CheckCircle2, Calculator,
+  Upload, FileCheck2, X, AlertCircle, Loader2,
+  SplitSquareVertical, Lock, TrendingDown, TrendingUp, Sparkles
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface FinanceLedgerProps {
+  request: any;
+}
+
+// ── Status rendering config ─────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, {
+  label: string; bg: string; text: string; border: string;
+  rowBg?: string; icon?: React.ReactNode; locked?: boolean;
+}> = {
+  paid: {
+    label: "Paid", bg: "bg-[#2FB7B2]/10", text: "text-[#2FB7B2]", border: "border-[#2FB7B2]/20",
+    icon: <CheckCircle2 className="w-3 h-3" />,
+  },
+  partial: {
+    label: "Partial", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20",
+    icon: <SplitSquareVertical className="w-3 h-3" />,
+  },
+  pending: {
+    label: "Pending", bg: "bg-zinc-500/10", text: "text-zinc-400", border: "border-zinc-500/20",
+  },
+  rescheduled: {
+    label: "Rescheduled", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20",
+  },
+  settled_savings: {
+    label: "Savings",
+    bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/25",
+    rowBg: "bg-emerald-500/5",
+    icon: <TrendingDown className="w-3 h-3" />,
+    locked: true,
+  },
+  pending_approval: {
+    label: "Pending Approval",
+    bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20",
+    rowBg: "bg-orange-500/5",
+    icon: <Lock className="w-3 h-3" />,
+    locked: true,
+  },
+};
+
+function getStatusCfg(status: string) {
+  return STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG.pending;
+}
+
+// ── Ledger summary footer ────────────────────────────────────────────────────
+function LedgerSummary({ payments, currency }: { payments: any[]; currency: string }) {
+  const totalEstimated = payments.reduce((s: number, p: any) => s + (p.calculatedAmount || 0), 0);
+  const totalPaid = payments.reduce((s: number, p: any) => s + (p.paidAmount ?? 0), 0);
+  const totalSavings = payments
+    .filter((p: any) => p.status === "settled_savings")
+    .reduce((s: number, p: any) => s + (p.calculatedAmount || 0), 0);
+  const totalPendingApproval = payments
+    .filter((p: any) => p.status === "pending_approval")
+    .reduce((s: number, p: any) => s + (p.calculatedAmount || 0), 0);
+
+  return (
+    <div className="px-6 py-4 border-t border-border bg-secondary/20 grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[
+        { label: "Total Budgeted", value: totalEstimated, color: "text-foreground" },
+        { label: "Total Disbursed", value: totalPaid, color: "text-[#2FB7B2]" },
+        { label: "Confirmed Savings", value: totalSavings, color: "text-emerald-400", icon: <TrendingDown className="w-3 h-3" /> },
+        { label: "Pending Approval", value: totalPendingApproval, color: "text-orange-400", icon: <TrendingUp className="w-3 h-3" /> },
+      ].map(({ label, value, color, icon }) => (
+        <div key={label} className="space-y-0.5">
+          <p className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground flex items-center gap-1">
+            {icon}{label}
+          </p>
+          <p className={`text-base font-mono font-bold ${color}`}>
+            {value.toLocaleString()} <span className="text-[10px] font-normal opacity-60">{currency}</span>
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function FinanceLedger({ request }: FinanceLedgerProps) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editingPayment, setEditingPayment] = useState<number | null>(null);
+  const [formData, setFormData] = useState<any>({});
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isFinalSettlement, setIsFinalSettlement] = useState(false);
+
+  const [variationAmount, setVariationAmount] = useState<string>("");
+  const [showVariationConfirm, setShowVariationConfirm] = useState(false);
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const updatePaymentMutation = useMutation({
+    mutationFn: ({ paymentId, data }: { paymentId: number; data: any }) =>
+      apiClient.requests.updatePayment(request.id, paymentId, data),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["request", request.id] });
+      toast.success(res.message || "Payment updated.", { duration: 5000 });
+      setEditingPayment(null);
+      setUploadedFileUrl(null);
+      setUploadedFileName(null);
+      setIsFinalSettlement(false);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to update payment"),
+  });
+
+  const variationMutation = useMutation({
+    mutationFn: (newTotal: number) =>
+      apiClient.requests.update(request.id, { revisedTotalCost: newTotal }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["request", request.id] });
+      toast.success(res.message || "Budget variation initiated.", { duration: 6000 });
+      setShowVariationConfirm(false);
+      setVariationAmount("");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to trigger variation"),
+  });
+
+  // ── File Upload ───────────────────────────────────────────────────────────
+  async function handleFileUpload(file: File) {
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) { toast.error("Only PDF, JPG, PNG, WEBP accepted."); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("File must be under 10 MB."); return; }
+    setIsUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/attachments/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const [record] = await res.json();
+      setUploadedFileUrl(record.fileUrl);
+      setUploadedFileName(file.name);
+      toast.success("Receipt uploaded");
+    } catch (e: any) {
+      toast.error(e.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  function handleDropEvent(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileUpload(file);
+  }
+
+  // ── Edit Controls ─────────────────────────────────────────────────────────
+  function handleEditClick(payment: any) {
+    setEditingPayment(payment.id);
+    setIsFinalSettlement(false);
+    setUploadedFileUrl(payment.attachmentUrl || null);
+    setUploadedFileName(payment.attachmentUrl ? "Existing receipt" : null);
+    setFormData({
+      status: payment.status || "pending",
+      paidAmount: payment.paidAmount ?? payment.calculatedAmount ?? "",
+      financeNotes: payment.financeNotes || "",
+      actualPaymentDate: payment.actualPaymentDate
+        ? new Date(payment.actualPaymentDate).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10),
+      rescheduledDate: payment.rescheduledDate
+        ? new Date(payment.rescheduledDate).toISOString().slice(0, 10)
+        : "",
+      transactionReference: payment.transactionReference || "",
+    });
+  }
+
+  function handleSave(paymentId: number) {
+    if (formData.status === "partial" && !formData.rescheduledDate && !isFinalSettlement) {
+      toast.error("A rescheduled date is required for partial payments."); return;
+    }
+    updatePaymentMutation.mutate({
+      paymentId,
+      data: { ...formData, attachmentUrl: uploadedFileUrl ?? undefined, isFinalSettlement },
+    });
+  }
+
+  function handleVariationSubmit() {
+    const num = Math.round(Number(variationAmount));
+    const currentBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
+    if (isNaN(num) || num <= currentBudget) {
+      toast.error("Revised cost must be greater than the current budget."); return;
+    }
+    variationMutation.mutate(num);
+  }
+
+  const payments: any[] = request.paymentInstallments || [];
+  const isPartial = formData.status === "partial";
+  const showSavingsCheckbox =
+    editingPayment !== null &&
+    formData.paidAmount !== "" &&
+    Number(formData.paidAmount) < (payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? Infinity);
+
+  return (
+    <div className="flex flex-col gap-8">
+
+      {/* ── Budget Variation Panel ─────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-6 border-rose-500/20 bg-rose-500/5"
+      >
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex gap-4 items-center">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+              <Calculator className="w-6 h-6 text-rose-500" />
+            </div>
+            <div>
+              <h3 className="text-foreground font-bold font-serif text-lg leading-none">Budget Variation Protocol</h3>
+              <p className="text-muted-foreground text-xs font-medium mt-1.5">
+                Original Est: <span className="font-mono font-bold text-foreground">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
+                {request.revisedTotalCost && (
+                  <span className="ml-3 text-rose-400 font-mono font-bold">
+                    → Revised: {request.revisedTotalCost.toLocaleString()} {request.currency}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {!showVariationConfirm ? (
+              <button onClick={() => setShowVariationConfirm(true)}
+                className="px-4 py-2 bg-background border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+              >
+                Trigger Overrun
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <input type="number" placeholder="New Total (QAR)" value={variationAmount}
+                  onChange={(e) => setVariationAmount(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-background border border-border outline-none focus:border-rose-500 font-mono w-44"
+                />
+                <button onClick={handleVariationSubmit} disabled={variationMutation.isPending}
+                  className="px-4 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-rose-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  {variationMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Confirm
+                </button>
+                <button onClick={() => setShowVariationConfirm(false)}
+                  className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+        {showVariationConfirm && (
+          <p className="text-[10px] uppercase font-bold text-rose-500/70 mt-4 tracking-wider">
+            ⚠ Confirming will: (1) reset Finance, Management & CEO Office to pending re-approval, (2) auto-create a PENDING_APPROVAL delta installment for the cost difference.
+          </p>
+        )}
+      </motion.div>
+
+      {/* ── Installments Ledger Table ─────────────────────────────────── */}
+      <div className="glass-card overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-secondary/20 flex items-center gap-3">
+          <Wallet className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-bold text-foreground tracking-tight uppercase">Installment Ledger</h3>
+          <div className="ml-auto flex items-center gap-2">
+            {payments.some((p: any) => p.status === "settled_savings") && (
+              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                <TrendingDown className="w-2.5 h-2.5" /> savings detected
+              </span>
+            )}
+            {payments.some((p: any) => p.status === "pending_approval") && (
+              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full animate-pulse">
+                <Lock className="w-2.5 h-2.5" /> variation pending
+              </span>
+            )}
+            <span className="text-[10px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded border border-border">
+              {payments.length} records
+            </span>
+          </div>
+        </div>
+
+        <table className="w-full text-left">
+          <thead className="bg-secondary/10 border-b border-border">
+            <tr>
+              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Installment</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Amounts</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receipt</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/50">
+            {payments.map((p: any) => {
+              const cfg = getStatusCfg(p.status);
+              const isEditing = editingPayment === p.id;
+              const editingInstallment = payments.find((x: any) => x.id === editingPayment);
+              const calcAmount = editingInstallment?.calculatedAmount ?? 0;
+
+              return (
+                <tr key={p.id} className={`transition-colors hover:bg-secondary/10 ${cfg.rowBg ?? ""}`}>
+                  {isEditing ? (
+                    <td colSpan={4} className="p-0">
+                      <AnimatePresence>
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="p-6 bg-secondary/30 border-b border-border"
+                        >
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+                            {/* Status */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Status</label>
+                              <select value={formData.status}
+                                onChange={(e) => { setFormData({ ...formData, status: e.target.value }); setIsFinalSettlement(false); }}
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="partial">Partial</option>
+                                <option value="paid">Paid</option>
+                                <option value="rescheduled">Rescheduled</option>
+                              </select>
+                            </div>
+
+                            {/* Paid Amount */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Paid Amount (QAR)</label>
+                              <input type="number" value={formData.paidAmount}
+                                onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] font-mono transition-colors"
+                              />
+                              {/* Preview messages */}
+                              {isPartial && !isFinalSettlement && formData.paidAmount !== "" && Number(formData.paidAmount) < calcAmount && (
+                                <p className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                                  <SplitSquareVertical className="w-3 h-3" />
+                                  Remainder: {(calcAmount - Number(formData.paidAmount)).toLocaleString()} QAR → new installment
+                                </p>
+                              )}
+                              {isFinalSettlement && formData.paidAmount !== "" && Number(formData.paidAmount) < calcAmount && (
+                                <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                  <TrendingDown className="w-3 h-3" />
+                                  Savings: {(calcAmount - Number(formData.paidAmount)).toLocaleString()} QAR → SETTLED_SAVINGS row
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Actual Date */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Actual Date</label>
+                              <input type="date" value={formData.actualPaymentDate}
+                                onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
+                              />
+                            </div>
+
+                            {/* Rescheduled Date — mandatory for PARTIAL */}
+                            <div className="space-y-1.5">
+                              <label className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 ${isPartial && !isFinalSettlement ? "text-amber-400" : "text-muted-foreground"}`}>
+                                Rescheduled Date {isPartial && !isFinalSettlement && <span className="text-rose-400">*</span>}
+                              </label>
+                              <input type="date" value={formData.rescheduledDate}
+                                onChange={(e) => setFormData({ ...formData, rescheduledDate: e.target.value })}
+                                required={isPartial && !isFinalSettlement}
+                                className={`w-full bg-background border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${isPartial && !isFinalSettlement ? "border-amber-500/50 focus:border-amber-400" : "border-border focus:border-[#5B4B8A]"}`}
+                              />
+                              {isPartial && !isFinalSettlement && !formData.rescheduledDate && (
+                                <p className="text-[10px] text-rose-400 font-bold flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> Required for partial
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Tx Reference */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Tx Reference</label>
+                              <input type="text" value={formData.transactionReference}
+                                onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
+                                placeholder="e.g. TRF-20240408"
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] font-mono transition-colors"
+                              />
+                            </div>
+
+                            {/* Finance Notes */}
+                            <div className="col-span-2 lg:col-span-3 space-y-1.5">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Finance Notes</label>
+                              <input type="text" value={formData.financeNotes}
+                                onChange={(e) => setFormData({ ...formData, financeNotes: e.target.value })}
+                                placeholder="e.g. Wire fee deducted, awaiting confirmation..."
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
+                              />
+                            </div>
+
+                            {/* ── Final Settlement Checkbox ──────────────── */}
+                            {showSavingsCheckbox && (
+                              <div className="col-span-2 lg:col-span-4">
+                                <label
+                                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                    isFinalSettlement
+                                      ? "bg-emerald-500/10 border-emerald-500/30"
+                                      : "bg-background border-border hover:border-emerald-500/30"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isFinalSettlement}
+                                    onChange={(e) => {
+                                      setIsFinalSettlement(e.target.checked);
+                                      if (e.target.checked) setFormData({ ...formData, status: "paid" });
+                                    }}
+                                    className="w-4 h-4 rounded accent-emerald-500"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                                      <span className="text-sm font-bold text-foreground">Final Settlement (Savings)</span>
+                                      <span className="text-[9px] uppercase font-black tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                        Scenario A
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                      Mark this invoice as fully settled, and auto-create a <span className="text-emerald-400 font-bold">SETTLED_SAVINGS</span> ledger row for the difference ({(calcAmount - Number(formData.paidAmount || 0)).toLocaleString()} QAR).
+                                    </p>
+                                  </div>
+                                </label>
+                              </div>
+                            )}
+
+                            {/* ── Receipt Upload Dropzone ───────────────── */}
+                            <div className="col-span-2 lg:col-span-4 space-y-2">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receipt / Invoice</label>
+                              {uploadedFileUrl ? (
+                                <div className="flex items-center gap-3 p-3 rounded-xl border border-[#2FB7B2]/30 bg-[#2FB7B2]/5">
+                                  <FileCheck2 className="w-5 h-5 text-[#2FB7B2] shrink-0" />
+                                  <p className="text-sm text-foreground font-medium flex-1 truncate">{uploadedFileName}</p>
+                                  <button onClick={() => { setUploadedFileUrl(null); setUploadedFileName(null); }}
+                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                  ><X className="w-3.5 h-3.5" /></button>
+                                </div>
+                              ) : (
+                                <div
+                                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                  onDragLeave={() => setIsDragging(false)}
+                                  onDrop={handleDropEvent}
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className={`relative cursor-pointer rounded-xl border-2 border-dashed transition-all p-5 text-center ${
+                                    isDragging ? "border-[#5B4B8A] bg-[#5B4B8A]/10" : "border-border hover:border-[#5B4B8A]/50 hover:bg-[#5B4B8A]/5"
+                                  }`}
+                                >
+                                  <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
+                                  />
+                                  {isUploading ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                      <Loader2 className="w-7 h-7 text-[#5B4B8A] animate-spin" />
+                                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Uploading…</p>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col items-center gap-1.5">
+                                      <Upload className={`w-7 h-7 ${isDragging ? "text-[#5B4B8A]" : "text-muted-foreground"}`} />
+                                      <p className="text-sm font-bold text-foreground">Drop receipt or click to browse</p>
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">PDF, JPG, PNG, WEBP — max 10 MB</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex justify-end gap-3 pt-5 mt-2 border-t border-border">
+                            <button onClick={() => { setEditingPayment(null); setUploadedFileUrl(null); setUploadedFileName(null); setIsFinalSettlement(false); }}
+                              className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors"
+                            >Cancel</button>
+                            <button onClick={() => handleSave(p.id)}
+                              disabled={updatePaymentMutation.isPending || isUploading}
+                              className={`px-6 py-2 rounded-lg text-xs font-extrabold shadow-lg uppercase tracking-wider transition-all disabled:opacity-60 flex items-center gap-1.5 text-black ${
+                                isFinalSettlement ? "bg-emerald-400 hover:brightness-110" : "bg-[#2FB7B2] hover:brightness-110"
+                              }`}
+                            >
+                              {updatePaymentMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              {isFinalSettlement ? "Settle & Record Savings" : isPartial ? "Log Partial & Split" : "Save Changes"}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
+                    </td>
+                  ) : (
+                    <>
+                      {/* Installment info */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-foreground">{p.installmentName}</h4>
+                            <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded border flex items-center gap-0.5 ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                              {cfg.icon}{cfg.label}
+                            </span>
+                            {p.attachmentUrl && (
+                              <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                                className="text-[9px] font-black uppercase tracking-wider text-[#2FB7B2] flex items-center gap-0.5 hover:underline"
+                              ><FileCheck2 className="w-3 h-3" /> Receipt</a>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex-wrap">
+                            <Calendar className="w-3 h-3" /> Due: {new Date(p.dueDate).toLocaleDateString()}
+                            {p.actualPaymentDate && (
+                              <span className="text-[#2FB7B2] border-l border-border pl-2 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Paid: {new Date(p.actualPaymentDate).toLocaleDateString()}
+                              </span>
+                            )}
+                            {p.rescheduledDate && (
+                              <span className="text-purple-400 border-l border-border pl-2">↻ {new Date(p.rescheduledDate).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          {/* Locked notice for special statuses */}
+                          {cfg.locked && (
+                            <p className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${cfg.text}`}>
+                              <Lock className="w-3 h-3" />
+                              {p.status === "pending_approval" ? "Locked — awaiting gatekeeper re-approval" : "Company savings — no further payment required"}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Amounts */}
+                      <td className="px-6 py-4 space-y-1">
+                        <p className="text-xs font-mono text-muted-foreground">Est: {p.calculatedAmount.toLocaleString()} QAR</p>
+                        {p.paidAmount !== null && p.paidAmount !== undefined && (
+                          <p className={`text-sm font-mono font-bold ${
+                            p.status === "settled_savings" ? "text-emerald-400" :
+                            p.paidAmount < p.calculatedAmount ? "text-amber-400" :
+                            p.paidAmount > p.calculatedAmount ? "text-rose-400" : "text-[#2FB7B2]"
+                          }`}>
+                            {p.status === "settled_savings" ? "Saved:" : "Act:"} {p.paidAmount.toLocaleString()} QAR
+                          </p>
+                        )}
+                        {p.financeNotes && (
+                          <p className="text-[10px] text-muted-foreground max-w-[220px] truncate">{p.financeNotes}</p>
+                        )}
+                      </td>
+
+                      {/* Receipt */}
+                      <td className="px-6 py-4">
+                        {p.attachmentUrl ? (
+                          <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2FB7B2]/10 border border-[#2FB7B2]/20 text-[#2FB7B2] rounded-lg text-[10px] font-bold uppercase hover:bg-[#2FB7B2]/20 transition-colors"
+                          ><FileCheck2 className="w-3 h-3" /> View</a>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">—</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 text-right">
+                        {cfg.locked ? (
+                          <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center justify-end gap-1 ${cfg.text} opacity-60`}>
+                            <Lock className="w-3 h-3" /> {p.status === "pending_approval" ? "Locked" : "Settled"}
+                          </span>
+                        ) : (
+                          <button onClick={() => handleEditClick(p)}
+                            className="px-3 py-1.5 bg-secondary/50 hover:bg-[#5B4B8A]/20 hover:border-[#5B4B8A]/30 border border-transparent text-foreground rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >Update Ledger</button>
+                        )}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+            {payments.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-10 text-center text-muted-foreground text-xs uppercase tracking-[0.3em] font-bold">
+                  No Installments Defined
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Summary footer */}
+        {payments.length > 0 && (
+          <LedgerSummary payments={payments} currency={request.currency || "QAR"} />
+        )}
+      </div>
+    </div>
+  );
+}

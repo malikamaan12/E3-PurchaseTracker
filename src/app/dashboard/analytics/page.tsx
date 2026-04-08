@@ -49,7 +49,8 @@ export default function AnalyticsDashboard() {
   } = useQuery({
     queryKey: ["requests-analytics-filtered", filters],
     queryFn: () => apiClient.requests.analytics(filters),
-    staleTime: 60000,
+    staleTime: 300000, // 5 minutes stale time for heavy analytics
+    gcTime: 1800000,   // 30 minutes garbage collection
   });
 
   const isAdmin = user?.role === 'admin' || ["finance", "ceo office", "management"].includes(user?.department?.toLowerCase() || "");

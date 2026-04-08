@@ -169,7 +169,7 @@ export async function GET(req: NextRequest) {
       };
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       kpis: {
         byStatus: kpis.map(k => ({
           status: k.status,
@@ -201,6 +201,10 @@ export async function GET(req: NextRequest) {
       })),
       budgets: budgetsWithActuals
     });
+
+    // Cache for 5 minutes privately (per user browser) to avoid heavy re-aggregation
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
+    return response;
 
   } catch (error: any) {
     console.error("[Analytics API] Aggregation Error:", error);

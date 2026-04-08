@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Upload,
   FileText,
@@ -26,6 +26,7 @@ interface UploadedFile {
 
 interface DocumentUploadZoneProps {
   onUploadComplete: (files: UploadedFile[]) => void;
+  initialFiles?: UploadedFile[];
 }
 
 function FilePreviewModal({
@@ -162,11 +163,18 @@ function FilePreviewModal({
   );
 }
 
-export default function DocumentUploadZone({ onUploadComplete }: DocumentUploadZoneProps) {
+export default function DocumentUploadZone({ onUploadComplete, initialFiles }: DocumentUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(initialFiles || []);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  // Sync initialFiles to state if they change
+  useEffect(() => {
+    if (initialFiles) {
+      setUploadedFiles(initialFiles);
+    }
+  }, [initialFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

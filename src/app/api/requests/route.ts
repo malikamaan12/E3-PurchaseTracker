@@ -7,9 +7,10 @@ import {
   paymentInstallments,
   departments,
   approvals,
-  auditLogs
+  auditLogs,
+  subPurposes
 } from "@db/schema";
-import { eq, and, desc, inArray, gte, lte, count } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,11 @@ export async function GET(req: NextRequest) {
     const subPurposeFilter = searchParams.get("subPurpose");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
+    const priority = searchParams.get("priority");
+    const costMin = searchParams.get("costMin");
+    const costMax = searchParams.get("costMax");
+    const search = searchParams.get("search");
+    const requestNo = searchParams.get("requestNo");
 
     const whereConditions: any[] = [];
 
@@ -63,12 +69,38 @@ export async function GET(req: NextRequest) {
       whereConditions.push(lte(purchaseRequests.createdAt, new Date(dateTo)));
     }
 
+    if (priority) {
+      whereConditions.push(inArray(purchaseRequests.priority, priority.split(",")));
+    }
+
+    if (costMin) {
+      whereConditions.push(gte(purchaseRequests.totalEstimatedCost, parseInt(costMin)));
+    }
+    if (costMax) {
+      whereConditions.push(lte(purchaseRequests.totalEstimatedCost, parseInt(costMax)));
+    }
+
+    if (requestNo) {
+      whereConditions.push(ilike(purchaseRequests.requestNumber, `%${requestNo}%`));
+    }
+
+    if (search) {
+      whereConditions.push(or(
+        ilike(purchaseRequests.title, `%${search}%`),
+        ilike(purchaseRequests.requestNumber, `%${search}%`)
+      ));
+    }
+
     // Role-based visibility
     const isAdmin = user.role === 'admin';
-    const isApprover = user.isApprover === true;
 
-    if (!isAdmin && !isApprover) {
-      whereConditions.push(eq(users.department, user.department));
+    if (!isAdmin) {
+      whereConditions.push(
+        or(
+          eq(users.department, user.department),
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} = ${user.department})`
+        )
+      );
     }
 
     const requests = await db
@@ -84,15 +116,26 @@ export async function GET(req: NextRequest) {
         purposeCategoryId: purchaseRequests.purposeCategoryId,
         priority: purchaseRequests.priority,
         isLocked: purchaseRequests.isLocked,
+        subPurpose: {
+          id: subPurposes.id,
+          name: subPurposes.name,
+        },
         requester: {
           id: users.id,
           username: users.username,
           department: users.department,
           role: users.role,
         },
+        approvedCount: sql<number>`(
+          SELECT count(*) 
+          FROM ${approvals} 
+          WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+          AND ${approvals.status} = 'approved'
+        )`.mapWith(Number),
       })
       .from(purchaseRequests)
       .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+      .leftJoin(subPurposes, eq(subPurposes.id, purchaseRequests.subPurposeId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(purchaseRequests.createdAt));
 
@@ -222,7 +265,7 @@ export async function POST(req: NextRequest) {
     // 4. Approval row seeding on direct submission to "pending"
     if (body.status === "pending") {
       // Always guarantee exactly the three mandatory gatekeeper departments
-      const mandatoryDepts = ["Finance", "CEO Office", "General Manager"];
+      const mandatoryDepts = ["Finance", "CEO Office", "Management"];
 
       // Additional approvers must not overlap with mandatory
       const filteredAdditional = (additionalApprovers || []).filter(

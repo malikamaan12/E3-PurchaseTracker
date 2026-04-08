@@ -29,7 +29,10 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import CreateRequestModal from "@/components/requests/CreateRequestModal";
-import { Edit3 } from "lucide-react";
+import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
+import { Edit3, Trash2 } from "lucide-react";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { FinanceLedger } from "@/components/requests/FinanceLedger";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -42,6 +45,13 @@ export default function RequestDetailPage() {
   const [showActionPanel, setShowActionPanel] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showConfirmAction, setShowConfirmAction] = useState(false);
+  const [confirmData, setConfirmData] = useState<{
+    status: "approved" | "rejected" | "changes_requested";
+    title: string;
+    desc: string;
+  } | null>(null);
 
   const { data: request, isLoading } = useQuery({
     queryKey: ["request", requestId],
@@ -62,27 +72,78 @@ export default function RequestDetailPage() {
     onError: (err: any) => toast.error(err.message || "Failed to submit action"),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => apiClient.requests.delete(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      toast.success("Request deleted successfully");
+      router.push("/dashboard/requests");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to delete request"),
+  });
+
   if (isLoading) return <LoadingState />;
   if (!request) return <ErrorState />;
 
   // Check if the current user's dept has a pending approval record for this request
   const myDeptApproval = request.approvals?.find(
-    (a: any) => a.department === user?.department
+    (a: any) => a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim()
   );
   const canAct =
-    request.status === "pending" &&
+    (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
     (isAdmin || (isApprover && myDeptApproval && myDeptApproval.status === "pending"));
 
-  const handleApprovalAction = (status: string) => {
+  const isFinanceOrAdmin = isAdmin || user?.department?.toLowerCase() === "finance";
+
+  const handleApprovalAction = (status: "approved" | "rejected" | "changes_requested") => {
     if ((status === "rejected" || status === "changes_requested") && !approvalComments.trim()) {
       toast.error("Comments are required when rejecting or requesting changes.");
       return;
     }
-    approvalMutation.mutate({ status, comments: approvalComments });
+
+    const titles = {
+      approved: "Confirm Request Approval",
+      rejected: "Reject Purchase Request",
+      changes_requested: "Request Modifications"
+    };
+
+    const descs = {
+      approved: "Are you sure you want to approve this request? This action will move it to the next stage of the procurement workflow.",
+      rejected: "Warning: Rejecting this request will terminate the procurement cycle for these items.",
+      changes_requested: "The requester will be notified to update the documentation based on your comments below."
+    };
+
+    setConfirmData({
+      status,
+      title: titles[status],
+      desc: descs[status]
+    });
+    setShowConfirmAction(true);
+  };
+
+  const executeApprovalAction = () => {
+    if (!confirmData) return;
+    approvalMutation.mutate({ 
+      status: confirmData.status, 
+      comments: approvalComments 
+    });
+    setShowConfirmAction(false);
   };
 
   return (
     <div className="flex flex-col bg-background min-h-screen transition-colors duration-300">
+      {/* Confirmation Dialog (Global Scope) */}
+      <ConfirmActionDialog 
+        isOpen={showConfirmAction}
+        onClose={() => setShowConfirmAction(false)}
+        onConfirm={executeApprovalAction}
+        title={confirmData?.title || ""}
+        description={confirmData?.desc || ""}
+        type={confirmData?.status === 'approved' ? 'approve' : confirmData?.status === 'rejected' ? 'reject' : 'changes'}
+        comments={approvalComments}
+        isPending={approvalMutation.isPending}
+      />
+
       {/* Sticky Action Bar */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex justify-between items-center">
@@ -116,6 +177,28 @@ export default function RequestDetailPage() {
             >
               <Archive className="w-4 h-4" /> Export Bundle (ZIP)
             </button>
+
+            {/* EDIT & DELETE (Condition: Owner/Admin and No Approvals) */}
+            {(request.requesterId === user?.id || isAdmin) && 
+             (request.status === 'draft' || request.status === 'changes_requested' || 
+              (request.status === 'pending' && (request.approvals?.filter((a: any) => a.status === 'approved').length || 0) === 0)) && (
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="flex items-center gap-2 bg-secondary/30 border border-border text-foreground px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all font-semibold text-xs"
+                  title="Edit Request"
+                >
+                  <Edit3 className="w-4 h-4 text-brand-primary" /> Edit
+                </button>
+                <button 
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 px-3 py-1.5 rounded-lg hover:bg-rose-500/20 transition-all font-semibold text-xs"
+                  title="Delete Request"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>
+            )}
 
             {/* Approver Action Button */}
             {canAct && (
@@ -209,17 +292,28 @@ export default function RequestDetailPage() {
                   : "An approver has requested changes. Update this request and re-submit it for approval."}
               </p>
             </div>
-            <button
-               onClick={() => setShowEditModal(true)}
-               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-lg ${
-                 request.status === "draft"
-                   ? "bg-zinc-200 text-black hover:bg-white"
-                   : "bg-amber-500 text-black hover:bg-amber-400"
-               }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              {request.status === "draft" ? "Continue Editing" : "Edit Request"}
-            </button>
+            <div className="flex items-center gap-2">
+              {request.status === "draft" && (
+                <button
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/20"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              )}
+              <button
+                 onClick={() => setShowEditModal(true)}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-lg ${
+                   request.status === "draft"
+                     ? "bg-zinc-200 text-black hover:bg-white"
+                     : "bg-amber-500 text-black hover:bg-amber-400"
+                 }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                {request.status === "draft" ? "Continue Editing" : "Edit Request"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -340,7 +434,7 @@ export default function RequestDetailPage() {
                 <div className="grid grid-cols-3 gap-6">
                   <div className="space-y-1 border-r border-border pr-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Net Item Subtotal</p>
-                    <p className="text-xl font-serif text-foreground tracking-tighter">{(request.totalEstimatedCost - (request.freightAmount || 0)).toLocaleString()}</p>
+                    <p className="text-xl font-serif text-foreground tracking-tighter">{(request.totalEstimatedCost || 0).toLocaleString()}</p>
                   </div>
                   <div className="space-y-1 border-r border-border px-4">
                      <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Payment Cycle</p>
@@ -363,9 +457,14 @@ export default function RequestDetailPage() {
 
                 <div className="pt-6 border-t border-border flex justify-between items-end">
                   <div className="space-y-0.5">
-                    <h3 className="text-brand-primary text-[9px] font-bold uppercase tracking-[0.3em]">Total Estimated Expenditure</h3>
+                    <h3 className="text-brand-primary text-[9px] font-bold uppercase tracking-[0.3em] flex items-center gap-2">
+                       Total Estimated Expenditure
+                       <span className="text-[8px] bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded border border-brand-primary/20">INC. FREIGHT</span>
+                    </h3>
                     <div className="flex items-baseline gap-2">
-                      <p className="text-4xl font-serif text-brand-primary tracking-tighter leading-none">{request.totalEstimatedCost.toLocaleString()}</p>
+                      <p className="text-4xl font-serif text-brand-primary tracking-tighter leading-none">
+                        {((request.totalEstimatedCost || 0) + (request.freightAmount || 0)).toLocaleString()}
+                      </p>
                       <span className="text-muted-foreground text-xs font-serif">{request.currency || "QAR"}</span>
                     </div>
                   </div>
@@ -464,65 +563,7 @@ export default function RequestDetailPage() {
             </div>
           </motion.div>
 
-          {/* Payment Cycle & Installments Preview */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.22 }}
-            className="glass-card overflow-hidden"
-          >
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/10">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                   <CreditCard className="w-4 h-4 text-emerald-500" />
-                </div>
-                <h2 className="text-base font-bold text-foreground tracking-tight">Payment Cycle Preview</h2>
-              </div>
-              <div className="flex items-center gap-4">
-                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest bg-secondary px-3 py-1 rounded-full border border-border">
-                   {request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Not Specified"}
-                 </span>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {request.paymentStructure === 'IN_PARTS' && request.paymentInstallments?.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {request.paymentInstallments.map((inst: any, idx: number) => (
-                    <div key={idx} className="p-4 bg-secondary/30 border border-border rounded-xl">
-                      <div className="flex justify-between items-start mb-2">
-                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Inst {idx + 1}</span>
-                         <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest">
-                           {inst.valueType === 'PERCENTAGE' ? `${inst.amountValue}%` : 'FIXED'}
-                         </span>
-                      </div>
-                      <p className="text-sm font-bold text-foreground mb-1">{inst.installmentName}</p>
-                      <div className="flex justify-between items-end mt-4 pt-4 border-t border-border">
-                         <div className="flex flex-col">
-                           <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Due Date</span>
-                           <span className="text-xs font-mono font-medium text-foreground">{format(new Date(inst.dueDate), "MMM dd, yyyy")}</span>
-                         </div>
-                         <div className="flex flex-col items-end">
-                           <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Amount</span>
-                           <span className="text-base font-serif font-bold text-foreground tabular-nums">{Number(inst.calculatedAmount).toLocaleString()}</span>
-                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center flex flex-col items-center justify-center">
-                   <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mb-3">
-                     <CreditCard className="w-5 h-5 text-muted-foreground" />
-                   </div>
-                   <p className="text-sm font-bold text-foreground capitalize mb-1">{request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Standard Processing"}</p>
-                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">No custom installments configured</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+          <div className="flex flex-col gap-6 pb-12">
             {/* Document Vault */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -577,7 +618,7 @@ export default function RequestDetailPage() {
                     <h2 className="text-sm font-bold text-foreground tracking-tight">Interactive Preview</h2>
                  </div>
               </div>
-              <div className="h-[300px] w-full bg-zinc-900/50 flex items-center justify-center relative">
+              <div className="min-h-[600px] w-full bg-zinc-900/50 flex items-center justify-center relative">
                  {activeAttachment ? (
                    <iframe 
                     src={`/api/attachments/${activeAttachment.id}`} 
@@ -595,6 +636,18 @@ export default function RequestDetailPage() {
               </div>
             </motion.div>
           </div>
+          
+          {/* Finance Ledger Section (RBAC Protected) */}
+          {isFinanceOrAdmin && (
+             <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+             >
+                <FinanceLedger request={request} />
+             </motion.div>
+          )}
+
         </div>
 
         {/* Sidebar Info (1 Column) */}
@@ -688,6 +741,62 @@ export default function RequestDetailPage() {
             </div>
           </motion.div>
 
+          {/* Payment Cycle & Installments Sidebar Component */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="glass-card overflow-hidden"
+          >
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-secondary/10">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                   <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+                </div>
+                <h2 className="text-sm font-bold text-foreground tracking-tight">Payment Cycle</h2>
+              </div>
+              <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest bg-secondary px-2 py-0.5 rounded border border-border">
+                {request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Not Specified"}
+              </span>
+            </div>
+            
+            <div className="p-5">
+              {request.paymentStructure === 'IN_PARTS' && request.paymentInstallments?.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {request.paymentInstallments.map((inst: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-secondary/30 border border-border rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                         <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Inst {idx + 1}</span>
+                         <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest">
+                           {inst.valueType === 'PERCENTAGE' ? `${inst.amountValue}%` : 'FIXED'}
+                         </span>
+                      </div>
+                      <p className="text-xs font-bold text-foreground mb-1">{inst.installmentName}</p>
+                      <div className="flex justify-between items-end mt-3 pt-3 border-t border-border">
+                         <div className="flex flex-col">
+                           <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest">Due</span>
+                           <span className="text-[10px] font-mono font-medium text-foreground">{format(new Date(inst.dueDate), "MMM dd")}</span>
+                         </div>
+                         <div className="flex flex-col items-end">
+                           <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest">Amount</span>
+                           <span className="text-sm font-serif font-bold text-foreground tabular-nums">{Number(inst.calculatedAmount).toLocaleString()}</span>
+                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center flex flex-col items-center justify-center">
+                   <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center mb-2">
+                     <CreditCard className="w-4 h-4 text-muted-foreground" />
+                   </div>
+                   <p className="text-xs font-bold text-foreground capitalize mb-1">{request.paymentStructure?.replace(/_/g, ' ').toLowerCase() || "Standard Processing"}</p>
+                   <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">No custom installments</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
         </aside>
 
       </div>
@@ -700,6 +809,14 @@ export default function RequestDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["request", requestId] });
           setShowEditModal(false);
         }}
+      />
+
+      <DeleteRequestDialog 
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => deleteMutation.mutate()}
+        isLoading={deleteMutation.isPending}
+        requestNumber={request?.requestNumber}
       />
 
       <AnimatePresence>
@@ -748,6 +865,7 @@ function StatusBadge({ status }: { status: string }) {
     rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]",
     draft: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
     changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
+    VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)] animate-pulse",
   };
 
   return (

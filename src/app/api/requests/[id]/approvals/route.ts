@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * before the next one in the chain is permitted to act.
  * Directors / GM sit at the same sequential level (either can satisfy).
  */
-const MANDATORY_SEQUENCE: string[] = ["Finance", "CEO Office", "General Manager"];
+const MANDATORY_SEQUENCE: string[] = ["Finance", "CEO Office", "Management"];
 
 /**
  * Neon-HTTP Compatible Approval Lifecycle (Phase 16 — State Machine Fix)
@@ -82,13 +82,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .from(approvals)
       .where(eq(approvals.requestId, requestId));
 
-    const mySequenceIndex = MANDATORY_SEQUENCE.indexOf(user.department);
-    if (mySequenceIndex > 0 && targetApproval?.isMandatory) {
+    // Fix: Base the sequence check on the TARGET department being approved, not the user's department.
+    // This allows Admins in later departments (e.g. Management) to approve earlier steps (e.g. Finance).
+    const targetDeptName = targetApproval?.department?.trim() || "";
+    const targetSequenceIndex = MANDATORY_SEQUENCE.findIndex(
+      dept => dept.toLowerCase().trim() === targetDeptName.toLowerCase()
+    );
+
+    // Skip the check if:
+    // 1. The user is an ADMIN (Admins have super-user bypass authority)
+    // 2. The step is NOT a mandatory sign-off step
+    // 3. The step is the first one in the sequence (Finance)
+    const isAdminOverride = user.role === 'admin';
+    
+    if (!isAdminOverride && targetSequenceIndex > 0 && targetApproval?.isMandatory) {
       // Every department that appears BEFORE this one in the sequence must
       // already be 'approved' before this user can act.
-      const priorDepts = MANDATORY_SEQUENCE.slice(0, mySequenceIndex);
+      const priorDepts = MANDATORY_SEQUENCE.slice(0, targetSequenceIndex);
       const priorMandatory = currentApprovals.filter(
-        a => a.isMandatory && priorDepts.includes(a.department)
+        a => a.isMandatory && priorDepts.some(d => d.toLowerCase().trim() === a.department.toLowerCase().trim())
       );
       const priorAllApproved = priorMandatory.every(a => a.status === 'approved');
 
@@ -100,7 +112,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json(
           {
             error: `Sequential approval requirement not met.`,
-            hint: `The following mandatory steps must be completed before your department can approve: ${pendingDepts}.`
+            hint: `The following mandatory steps must be completed before the ${targetDeptName} stage can be approved: ${pendingDepts}.`
           },
           { status: 409 }
         );

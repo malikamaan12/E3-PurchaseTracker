@@ -29,6 +29,16 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import RequestItemGrid, { RequestItem } from "./RequestItemGrid";
 import DocumentUploadZone from "../shared/DocumentUploadZone";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 
 const requestSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -88,6 +98,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "items" | "payments" | "approvals">("general");
+  const [initialFiles, setInitialFiles] = useState<any[]>([]);
 
   const {
     register,
@@ -137,6 +148,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         setIsSubmitting(true);
         try {
           const reqData = await apiClient.requests.get(requestId);
+          
+          setInitialFiles(reqData.attachments ? reqData.attachments.map((a: any) => ({
+            id: a.id,
+            fileName: a.fileName,
+            fileType: a.fileType,
+            fileSize: a.fileSize,
+            fileUrl: a.fileUrl
+          })) : []);
+
           reset({
             title: reqData.title || "",
             description: reqData.description || "",
@@ -152,7 +172,12 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             additionalApprovers: reqData.additionalApprovers || [],
             attachmentIds: reqData.attachments?.map((a: any) => a.id) || [],
             paymentStructure: reqData.paymentStructure || "POST_PROJECT",
-            installments: reqData.installments || [],
+            installments: reqData.paymentInstallments?.map((inst: any) => ({
+              ...inst,
+              dueDate: typeof inst.dueDate === 'string' 
+                ? inst.dueDate.split('T')[0] 
+                : new Date(inst.dueDate).toISOString().split('T')[0]
+            })) || [],
           });
           if (reqData.subPurposeId) {
             const subs = await apiClient.requests.subPurposes.list();
@@ -173,6 +198,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
           title: "",
           description: "",
         });
+        setInitialFiles([]);
       }
     }
     if (isOpen) fetchVendors();
@@ -265,7 +291,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   };
 
   // Mandatory depts — excluded from additional approvers list
-  const MANDATORY_DEPTS = ["CEO Office", "Finance", "General Manager"];
+  const MANDATORY_DEPTS = ["CEO Office", "Finance", "Management"];
   const additionalDeptOptions = globalDepartments.filter((d: any) => !MANDATORY_DEPTS.includes(d.name));
 
   return (
@@ -374,10 +400,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="col-span-2 space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Request Title</label>
                           <div className="relative group">
-                            <Layout className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <input
+                            <Layout className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Input
                               {...register("title")}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold ${errors.title ? "border-rose-500 ring-1 ring-rose-500/20" : "border-border"}`}
+                              className={`pl-14 py-4 h-14 font-semibold ${errors.title ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
                               placeholder="e.g. Q3 Logistics Support & Fleet Hub..."
                             />
                             {errors.title && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.title.message}</p>}
@@ -387,14 +413,23 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Vendor Partnership</label>
                           <div className="relative group">
-                            <Truck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <select
-                              {...register("vendorId")}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold ${errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "border-border"}`}
-                            >
-                              <option value="" disabled className="bg-card">Select active vendor...</option>
-                              {vendors.map((v) => <option key={v.id} value={v.id} className="bg-card">{v.companyName}</option>)}
-                            </select>
+                            <Truck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Controller
+                              name="vendorId"
+                              control={control}
+                              render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                    <SelectValue placeholder="Select active vendor..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {vendors.map((v) => (
+                                      <SelectItem key={v.id} value={v.id.toString()}>{v.companyName}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
                             {errors.vendorId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.vendorId.message}</p>}
                           </div>
                         </div>
@@ -402,14 +437,23 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Purpose Category</label>
                           <div className="relative group">
-                            <FolderTree className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <select
-                              {...register("purposeCategoryId")}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold ${errors.purposeCategoryId ? "border-rose-500 ring-1 ring-rose-500/20" : "border-border"}`}
-                            >
-                              <option value="" disabled className="bg-card text-muted-foreground/50">Select category...</option>
-                              {categories.map((c: any) => <option key={c.id} value={c.id} className="bg-card">{c.name}</option>)}
-                            </select>
+                            <FolderTree className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Controller
+                              name="purposeCategoryId"
+                              control={control}
+                              render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.purposeCategoryId ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                    <SelectValue placeholder="Select category..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {categories.map((c: any) => (
+                                      <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
                             {errors.purposeCategoryId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.purposeCategoryId.message}</p>}
                           </div>
                         </div>
@@ -417,34 +461,36 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Project/Asset Selection</label>
                           <div className="relative group">
-                            <Layers className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
+                            <Layers className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
                             {isLoadingSubPurposes && (
-                              <Loader2 className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" />
+                              <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin z-10" />
                             )}
-                            <select
-                              {...register("subPurposeId")}
-                              disabled={isLoadingSubPurposes}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-bold disabled:opacity-40 disabled:cursor-not-allowed ${errors.subPurposeId ? "border-rose-500 ring-1 ring-rose-500/20" : isOverBudget ? "border-rose-500/50 text-rose-500" : "border-border"}`}
-                            >
-                              {!formCategoryId ? (
-                                <option value="" className="bg-card text-muted-foreground">Select a category first...</option>
-                              ) : isLoadingSubPurposes ? (
-                                <option value="" className="bg-card">Loading projects...</option>
-                              ) : subPurposes.length === 0 ? (
-                                <option value="" className="bg-card text-muted-foreground">No active projects found</option>
-                              ) : (
-                                <option value="" className="bg-card">Select Project Lifecycle...</option>
+                            <Controller
+                              name="subPurposeId"
+                              control={control}
+                              render={({ field }) => (
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  value={field.value?.toString()}
+                                  disabled={isLoadingSubPurposes || !formCategoryId}
+                                >
+                                  <SelectTrigger className={`pl-14 py-4 h-14 font-bold ${errors.subPurposeId ? "border-rose-500 ring-1 ring-rose-500/20" : isOverBudget ? "border-rose-500/50 text-rose-500" : ""}`}>
+                                    <SelectValue placeholder={!formCategoryId ? "Select a category first..." : isLoadingSubPurposes ? "Loading projects..." : subPurposes.length === 0 ? "No active projects found" : "Select Project Lifecycle..."} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {subPurposes.map((sp) => {
+                                      const isFuture = sp.validFrom && new Date(sp.validFrom) > new Date();
+                                      const startDate = sp.validFrom ? new Date(sp.validFrom).toLocaleDateString() : "";
+                                      return (
+                                        <SelectItem key={sp.id} value={sp.id.toString()} disabled={isFuture}>
+                                          {sp.name}{isFuture ? ` (Starts on ${startDate})` : ""}
+                                        </SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
                               )}
-                              {subPurposes.map((sp) => {
-                                const isFuture = sp.validFrom && new Date(sp.validFrom) > new Date();
-                                const startDate = sp.validFrom ? new Date(sp.validFrom).toLocaleDateString() : "";
-                                return (
-                                  <option key={sp.id} value={sp.id} className="bg-card" disabled={isFuture}>
-                                    {sp.name}{isFuture ? ` (Starts on ${startDate})` : ""}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                            />
                             {errors.subPurposeId && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.subPurposeId.message}</p>}
                           </div>
                           {selectedBudget !== null && (
@@ -457,43 +503,59 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Priority</label>
                           <div className="relative group">
-                            <AlertCircle className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <select
-                              {...register("priority")}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold ${errors.priority ? "border-rose-500 ring-1 ring-rose-500/20" : "border-border"}`}
-                            >
-                              <option value="low" className="bg-card">Low Priority</option>
-                              <option value="medium" className="bg-card">Medium Priority</option>
-                              <option value="high" className="bg-card text-orange-500">High Priority</option>
-                              <option value="urgent" className="bg-card text-rose-500">Urgent Requirement</option>
-                            </select>
+                            <AlertCircle className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Controller
+                              name="priority"
+                              control={control}
+                              render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.priority ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                    <SelectValue placeholder="Priority" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="low">Low Priority</SelectItem>
+                                    <SelectItem value="medium">Medium Priority</SelectItem>
+                                    <SelectItem value="high" className="text-orange-500">High Priority</SelectItem>
+                                    <SelectItem value="urgent" className="text-rose-500">Urgent Requirement</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
                           </div>
                         </div>
 
                         <div className="space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Currency</label>
                           <div className="relative group">
-                            <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <select
-                              {...register("currency")}
-                              className="w-full bg-secondary/50 border border-border rounded-2xl px-14 py-4 text-sm text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all font-semibold"
-                            >
-                              <option value="QAR" className="bg-card">QAR - Qatari Riyal</option>
-                              <option value="USD" className="bg-card">USD - US Dollar</option>
-                              <option value="EUR" className="bg-card">EUR - Euro</option>
-                              <option value="AED" className="bg-card">AED - UAE Dirham</option>
-                            </select>
+                            <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Controller
+                              name="currency"
+                              control={control}
+                              render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger className="pl-14 py-4 h-14 font-semibold">
+                                    <SelectValue placeholder="Currency" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="QAR">QAR - Qatari Riyal</SelectItem>
+                                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                    <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
                           </div>
                         </div>
 
                         <div className="col-span-2 space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Requirement Overview</label>
                           <div className="relative group">
-                            <AlignLeft className="absolute left-5 top-5 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-                            <textarea
+                            <AlignLeft className="absolute left-5 top-5 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Textarea
                               {...register("description")}
                               rows={4}
-                              className={`w-full bg-secondary/50 border rounded-2xl px-14 py-5 text-sm text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary transition-all resize-none font-medium leading-relaxed ${errors.description ? "border-rose-500 ring-1 ring-rose-500/20" : "border-border"}`}
+                              className={`pl-14 py-5 font-medium leading-relaxed ${errors.description ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
                               placeholder="Detail the scope of work and reason for purchase..."
                             />
                             {errors.description && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.description.message}</p>}
@@ -712,6 +774,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     {activeTab === "approvals" && (
                       <motion.div key="approvals" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-12">
                         <DocumentUploadZone
+                          initialFiles={initialFiles}
                           onUploadComplete={(files) => {
                             setValue("attachmentIds", files.map((f) => f.id).filter((id) => id !== undefined) as number[]);
                           }}
@@ -819,29 +882,38 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <button type="button" onClick={onClose} className="px-8 py-4 rounded-2xl text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
+                    <Button 
+                      variant="ghost" 
+                      size="lg"
+                      type="button" 
+                      onClick={onClose} 
+                      className="px-8"
+                    >
                       Close Draft
-                    </button>
+                    </Button>
 
                     {activeTab !== "approvals" ? (
-                      <button
+                      <Button
+                        variant={isOverBudget ? "outline" : "secondary"}
+                        size="lg"
                         type="button"
                         onClick={() => {
                           if (activeTab === "general") setActiveTab("items");
                           else if (activeTab === "items") setActiveTab("payments");
                           else if (activeTab === "payments") setActiveTab("approvals");
                         }}
-                        className={`flex items-center gap-3 px-10 py-4 rounded-[1.25rem] text-sm font-bold border transition-all font-serif hover:scale-[1.02] active:scale-[0.98] ${isOverBudget ? "bg-rose-500/10 border-rose-500/30 text-rose-500 hover:bg-rose-500/20" : "bg-secondary hover:bg-secondary/80 text-foreground border-border"}`}
+                        className={`flex items-center gap-3 px-10 rounded-[1.25rem] font-serif ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : ""}`}
                       >
                         Next Section
-                        <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : "text-primary"}`} />
-                      </button>
+                        <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : "text-brand-primary"}`} />
+                      </Button>
                     ) : (
-                      <button
+                      <Button
                         form="request-form"
                         type="submit"
                         disabled={isSubmitting}
-                        className={`flex items-center gap-4 px-12 py-4 rounded-[1.25rem] text-sm font-bold shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale font-serif ${isOverBudget ? "bg-rose-500 text-white shadow-rose-500/30" : "bg-primary text-primary-foreground shadow-primary/30"}`}
+                        size="lg"
+                        className={`flex items-center gap-4 px-12 rounded-[1.25rem] shadow-xl font-serif ${isOverBudget ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-brand-primary/30"}`}
                       >
                         {isSubmitting ? (
                           <>
@@ -854,7 +926,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             <Sparkles className="w-5 h-5" />
                           </>
                         )}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>

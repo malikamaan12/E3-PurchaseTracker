@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   const isAdmin = user?.role?.toLowerCase() === "admin";
-  const isApprover = user?.isApprover || false;
+  const isApprover = user?.role?.toLowerCase() === "approver" || user?.isApprover === true;
 
   const value = useMemo(() => ({
     user,

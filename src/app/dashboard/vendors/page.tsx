@@ -10,19 +10,33 @@ import {
   Plus, 
   Upload, 
   CheckCircle2, 
-  Globe, 
   Mail, 
-  Phone 
+  Phone, 
+  Search, 
+  LayoutGrid, 
+  List as ListIcon, 
+  MapPin, 
+  Wallet, 
+  ChevronRight, 
+  Globe 
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
 import { OnboardVendorModal } from "@/components/vendors/OnboardVendorModal";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { StarRating } from "@/components/shared/StarRating";
+import { VendorListView } from "@/components/vendors/VendorListView";
 
 export default function VendorsDashboard() {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const { data: vendors, isLoading } = useQuery({
     queryKey: ["vendors"],
@@ -34,60 +48,159 @@ export default function VendorsDashboard() {
       apiClient.vendors.patchStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      toast.success("Vendor status updated successfully");
+      toast.success("Vendor status updated");
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: () => toast.error("Update failed"),
   });
+
+  const rateMutation = useMutation({
+    mutationFn: ({ id, rating }: { id: number; rating: number }) => 
+      apiClient.vendors.rate(id, rating),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      toast.success("Vendor rated successfully");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to submit rating"),
+  });
+
+  // Advanced Filtering Logic
+  const filteredVendors = useMemo(() => {
+    if (!vendors) return [];
+    
+    // First apply status filter
+    let processed = vendors;
+    if (statusFilter !== "All") {
+      processed = vendors.filter((v: any) => v.status.toLowerCase() === statusFilter.toLowerCase());
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return processed;
+
+    return processed.filter((v: any) => 
+      v.companyName?.toLowerCase().includes(query) ||
+      v.email?.toLowerCase().includes(query) ||
+      v.contactPerson?.toLowerCase().includes(query) ||
+      v.registrationNumber?.toLowerCase().includes(query) ||
+      v.taxNumber?.toLowerCase().includes(query) ||
+      v.bankName?.toLowerCase().includes(query) ||
+      v.address?.toLowerCase().includes(query)
+    );
+  }, [vendors, searchQuery, statusFilter]);
 
   if (isLoading) return <LoadingState />;
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-serif tracking-tight text-foreground">Vendor Ecosystem</h1>
-          <p className="text-muted-foreground">Manage global supplier relationships and compliance.</p>
+          <p className="text-muted-foreground">Manage and evaluate global supplier relationships.</p>
         </div>
-        <button 
-          onClick={() => setIsOnboarding(true)}
-          className="flex items-center gap-2 bg-brand-secondary text-black font-extrabold px-6 py-2.5 rounded-full hover:brightness-110 hover:shadow-brand-secondary/20 transition-all shadow-lg active:scale-95"
-        >
-          <Plus className="w-5 h-5 stroke-[3]" /> Onboard Vendor
-        </button>
+        
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* View Toggles */}
+          <div className="flex bg-secondary/50 p-1 rounded-xl border border-border shadow-inner">
+            <button 
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <ListIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {isAdmin && (
+            <button 
+              onClick={() => setIsOnboarding(true)}
+              className="flex items-center gap-2 bg-brand-secondary text-black font-extrabold px-6 py-2.5 rounded-full hover:brightness-110 shadow-lg"
+            >
+              <Plus className="w-5 h-5 stroke-[3]" /> Onboard Vendor
+            </button>
+          )}
+        </div>
       </header>
+
+      {/* Advanced Search & Filtering Toolbar */}
+      <section className="bg-secondary/10 p-4 rounded-2xl border border-border/50 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 group w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-secondary transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search by name, email, reg number, bank, or address..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary/20 focus:border-brand-secondary transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <span className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest whitespace-nowrap">Filter Status:</span>
+          {["All", "Active", "Blocked", "Frozen"].map(s => (
+            <button 
+              key={s} 
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full border transition-all text-[10px] font-bold uppercase ${
+                statusFilter === s 
+                  ? "bg-brand-secondary text-black border-brand-secondary shadow-lg shadow-brand-secondary/20" 
+                  : "bg-background border-border text-muted-foreground hover:border-brand-secondary"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <OnboardVendorModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
-      <Tabs.Root defaultValue="all" className="flex flex-col gap-6">
-        <Tabs.List className="flex gap-4 p-1 bg-secondary/50 border border-border w-fit rounded-lg self-start backdrop-blur-md">
-          <Tabs.Trigger value="all" className="tabs-trigger">All Entities</Tabs.Trigger>
-          <Tabs.Trigger value="active" className="tabs-trigger">Compliant</Tabs.Trigger>
-          <Tabs.Trigger value="blocked" className="tabs-trigger">Restricted</Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="all" className="grid grid-cols-1 lg:grid-cols-2 gap-6 outline-none">
-          {vendors?.map((vendor: any) => (
-            <VendorCard 
-              key={vendor.id} 
-              vendor={vendor} 
-              onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
+      <AnimatePresence mode="wait">
+        {viewMode === "grid" ? (
+          <motion.div 
+            key="grid"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"
+          >
+            {filteredVendors.map((vendor: any) => (
+              <VendorCard 
+                key={vendor.id} 
+                vendor={vendor} 
+                isAdmin={isAdmin}
+                onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
+                onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
+              />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="list"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <VendorListView 
+              vendors={filteredVendors} 
+              isAdmin={isAdmin}
+              onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
+              onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
             />
-          ))}
-        </Tabs.Content>
-      </Tabs.Root>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <section className="mt-12 space-y-6">
         <div className="flex items-center gap-3">
           <Upload className="w-5 h-5 text-brand-secondary" />
           <h2 className="text-xl font-semibold text-foreground">Compliance Document Gateway</h2>
         </div>
-        <div className="bg-secondary/20 h-48 border-dashed border-2 border-border rounded-2xl flex flex-col items-center justify-center gap-4 hover:border-brand-secondary/50 transition-colors group cursor-pointer">
+        <div className="bg-secondary/20 h-48 border-dashed border-2 border-border rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-brand-secondary/50 transition-colors group cursor-pointer shadow-inner">
           <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center group-hover:scale-110 transition-transform">
             <Upload className="w-6 h-6 text-muted-foreground group-hover:text-brand-secondary" />
           </div>
           <div className="text-center">
             <p className="text-foreground font-medium">Drop regulatory files here</p>
-            <p className="text-muted-foreground text-xs">PDF, XLSX, or DOCX (Max 10MB)</p>
+            <p className="text-muted-foreground text-xs font-mono tracking-tighter uppercase">PDF, XLSX, or DOCX (Max 10MB)</p>
           </div>
         </div>
       </section>
@@ -95,55 +208,87 @@ export default function VendorsDashboard() {
   );
 }
 
-function VendorCard({ vendor, onStatusChange }: { vendor: any; onStatusChange: (s: any) => void }) {
+function VendorCard({ vendor, isAdmin, onStatusChange, onRate }: { vendor: any; isAdmin: boolean; onStatusChange: (s: any) => void; onRate: (r: number) => void }) {
   const statusColors: any = {
-    active: "text-emerald-500",
-    blocked: "text-rose-500",
-    frozen: "text-amber-500",
+    active: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    blocked: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+    frozen: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   };
 
   return (
     <motion.div 
       whileHover={{ y: -5 }}
-      className="glass-card p-6 flex flex-col gap-6"
+      className="glass-card flex flex-col gap-0 overflow-hidden group border-border/50"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
-            <Building2 className="w-7 h-7 text-brand-primary" />
+      <div className="p-6 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20 shadow-inner group-hover:scale-105 transition-transform">
+              <Building2 className="w-8 h-8 text-brand-primary" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-foreground leading-none">{vendor.companyName}</h3>
+              <p className="text-[10px] text-brand-secondary font-bold uppercase tracking-widest leading-none pt-1">
+                {vendor.category || "GENERAL SUPPLIES"}
+              </p>
+              <div className="pt-1">
+                <StarRating rating={vendor.rating} onRate={onRate} size={14} />
+              </div>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground tracking-tight">{vendor.companyName}</h3>
-            <p className="text-xs text-muted-foreground font-medium">VAT: {vendor.taxNumber || "N/A"}</p>
-          </div>
+          {isAdmin && <StatusToggle current={vendor.status} onChange={onStatusChange} />}
         </div>
-        <StatusToggle current={vendor.status} onChange={onStatusChange} />
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 mt-8">
+           <ContactItem icon={<Mail className="w-3.5 h-3.5" />} label="Email Identity" value={vendor.email} />
+           <ContactItem icon={<Phone className="w-3.5 h-3.5" />} label="Connection Line" value={vendor.contactNumber} />
+           <ContactItem icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Tax Number (VAT)" value={vendor.taxNumber || "UNREGISTERED"} />
+           <ContactItem icon={<Globe className="w-3.5 h-3.5" />} label="Reg. Number (CR)" value={vendor.registrationNumber || "PENDING"} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <ContactInfo icon={<Mail className="w-3.5 h-3.5" />} text={vendor.email} />
-        <ContactInfo icon={<Phone className="w-3.5 h-3.5" />} text={vendor.contactNumber} />
-        <ContactInfo icon={<Globe className="w-3.5 h-3.5" />} text={vendor.address} colSpan="col-span-2" />
+      <div className="mt-2 p-4 bg-zinc-900/40 border-t border-border flex flex-col gap-3">
+         <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
+              <MapPin className="w-4 h-4 text-zinc-500" />
+            </div>
+            <div className="flex-1">
+               <p className="text-[8px] font-bold text-zinc-600 uppercase">Registered Address</p>
+               <p className="text-xs text-zinc-300 truncate max-w-[300px]">{vendor.address}</p>
+            </div>
+         </div>
+         <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10">
+              <Wallet className="w-4 h-4 text-emerald-500/70" />
+            </div>
+            <div className="flex-1">
+               <p className="text-[8px] font-bold text-emerald-500/50 uppercase">Banking Channel</p>
+               <p className="text-xs text-zinc-300 truncate">{vendor.bankName} — <span className="font-mono text-zinc-500">{vendor.ibanNumber?.substring(0, 12)}...</span></p>
+            </div>
+         </div>
       </div>
 
-      <div className="pt-4 border-t border-border flex justify-between items-center">
-        <div className="flex items-center gap-1.5">
+      <div className="p-4 py-3 bg-secondary/20 flex justify-between items-center px-6">
+        <div className="flex items-center gap-1.5 grayscale group-hover:grayscale-0 transition-all">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Verified Entity</span>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono">Compliant Record</span>
         </div>
-        <span className={`text-xs font-bold uppercase tracking-tighter ${statusColors[vendor.status]}`}>
+        <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${statusColors[vendor.status]}`}>
           {vendor.status}
-        </span>
+        </div>
       </div>
     </motion.div>
   );
 }
 
-function ContactInfo({ icon, text, colSpan = "" }: { icon: any; text: string; colSpan?: string }) {
+function ContactItem({ icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className={`flex items-center gap-2.5 ${colSpan}`}>
-      <div className="text-muted-foreground">{icon}</div>
-      <span className="text-xs text-foreground font-medium truncate">{text}</span>
+    <div className="space-y-1">
+      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">{label}</p>
+      <div className="flex items-center gap-2">
+        <div className="text-zinc-600">{icon}</div>
+        <span className="text-xs text-foreground font-medium truncate max-w-[120px]">{value}</span>
+      </div>
     </div>
   );
 }
@@ -156,12 +301,12 @@ function StatusToggle({ current, onChange }: { current: string; onChange: (s: an
   ];
 
   return (
-    <div className="flex gap-1.5 p-1 bg-secondary/50 border border-border rounded-md">
+    <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl border border-border shadow-inner">
       {options.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`p-1.5 rounded transition-all ${current === opt.value ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          className={`p-1.5 rounded-lg transition-all ${current === opt.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           title={opt.label}
         >
           {opt.icon}
@@ -175,11 +320,13 @@ function LoadingState() {
   return (
     <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center">
       <motion.div 
-        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-        transition={{ repeat: Infinity, duration: 1.5 }}
-        className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30"
-      />
-      <p className="text-muted-foreground font-mono tracking-widest text-[10px] font-bold uppercase transition-colors">Mapping Ecosystem...</p>
+        animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+        className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30 flex items-center justify-center shadow-lg"
+      >
+         <Building2 className="w-8 h-8 text-brand-secondary" />
+      </motion.div>
+      <p className="text-muted-foreground font-mono tracking-widest text-[10px] font-bold uppercase pt-4 animate-pulse">Syncing Entity Matrix...</p>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import {
   Truck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export interface RequestItem {
   name: string;
@@ -55,14 +57,16 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
           </h3>
           <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">Itemized Budget Breakdown</p>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           type="button"
           onClick={addItem}
-          className="flex items-center gap-2 bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-xl text-[10px] font-bold hover:bg-brand-primary/20 transition-all uppercase tracking-widest"
+          className="flex items-center gap-2 h-10 px-6"
         >
           <Plus className="w-3.5 h-3.5" />
           Add Item
-        </button>
+        </Button>
       </div>
 
       <div className="relative overflow-x-auto custom-scrollbar rounded-2xl border border-border bg-card shadow-sm transition-colors">
@@ -86,42 +90,42 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                 >
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
-                       <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => updateItem(index, "name", e.target.value)}
-                        placeholder="Item name / specification..."
-                        className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-0 ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
-                      />
-                      <input
-                        type="text"
-                        value={item.description || ''}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
-                        placeholder="Additional details..."
-                        className="w-full bg-transparent border-none p-0 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/20 focus:ring-0 focus:text-foreground transition-colors"
-                      />
+                        <Input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => updateItem(index, "name", e.target.value)}
+                          placeholder="Item name / specification..."
+                          className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-0 h-auto ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
+                        />
+                        <Input
+                          type="text"
+                          value={item.description || ''}
+                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          placeholder="Additional details..."
+                          className="w-full bg-transparent border-none p-0 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/20 focus:ring-0 focus:text-foreground transition-colors h-auto"
+                        />
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
-                    <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg border border-border p-1">
-                      <input
+                    <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg border border-border p-0.5">
+                      <Input
                         type="number"
                         min="1"
                         value={item.quantity}
                         onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
-                        className="w-12 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-0"
+                        className="w-12 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-0 h-8"
                       />
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground font-bold text-xs">{currency}</span>
-                      <input
+                      <Input
                         type="number"
                         min="0"
                         value={item.estimatedCost}
                         onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
-                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0"
+                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0 h-auto"
                       />
                     </div>
                   </td>
@@ -169,12 +173,12 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
           </div>
           <div className="flex items-center gap-3">
              <span className="text-muted-foreground font-bold text-xs">{currency}</span>
-             <input
+             <Input
                type="number"
                min="0"
                value={freightAmount}
                onChange={(e) => onFreightChange(parseFloat(e.target.value) || 0)}
-               className="w-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-right font-extrabold text-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/50 transition-all"
+               className="w-32 h-10 text-right font-extrabold"
              />
           </div>
         </div>
