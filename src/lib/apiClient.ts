@@ -74,11 +74,17 @@ class ApiClient {
     get: (id: number) => this.request<any>(`/requests/${id}`),
     create: (data: any) => this.request<any>("/requests", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: number) => this.request<any>(`/requests/${id}`, { method: "DELETE" }),
     approve: (id: number, data: { status: string; comments?: string }) => 
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
     submitApproval: (id: number, data: { status: string; comments: string }) =>
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
-    analytics: () => this.request<any>("/requests/analytics"),
+    updatePayment: (id: number, paymentId: number, data: any) =>
+      this.request<any>(`/requests/${id}/payments/${paymentId}`, { method: "PATCH", body: JSON.stringify(data) }),
+    analytics: (params: Record<string, string> = {}) => {
+      const search = new URLSearchParams(params).toString();
+      return this.request<any>(`/requests/analytics${search ? '?' + search : ''}`);
+    },
     bulkApprove: (data: { requestIds: number[]; comments?: string }) => 
       this.request<any>("/requests/bulk-approve", { method: "POST", body: JSON.stringify(data) }),
     subPurposes: {
@@ -100,6 +106,8 @@ class ApiClient {
     patchStatus: (id: number, status: "active" | "blocked" | "frozen") => 
       this.request<any>(`/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
+    rate: (id: number, rating: number) => 
+      this.request<any>(`/vendors/${id}/rate`, { method: "PATCH", body: JSON.stringify({ rating }) }),
   };
 
   // Documents & Exports
