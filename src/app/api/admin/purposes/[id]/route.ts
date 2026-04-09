@@ -54,3 +54,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+/**
+ * GET /api/admin/purposes/[id]
+ * Fetch details for a specific purpose category.
+ * Access: Admin only.
+ */
+export async function GET(req: NextRequest, { params }: { params: Params }) {
+  try {
+    const admin = await getAuthenticatedUser(req);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
+    }
+
+    const { id: categoryId } = await params;
+
+    const [category] = await db
+      .select()
+      .from(purposeCategories)
+      .where(eq(purposeCategories.id, parseInt(categoryId)))
+      .limit(1);
+
+    if (!category) {
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(category);
+  } catch (error: any) {
+    console.error("[Native Admin API] Purpose Category GET Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

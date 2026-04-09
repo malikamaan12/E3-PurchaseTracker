@@ -5,13 +5,16 @@ import { toast } from "sonner";
 import { CopyPlus, ShieldPlus, Check, X, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AccountRequestsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["admin_account_requests"],
     queryFn: () => apiClient.admin.accountRequests.list({ status: "pending" }),
+    enabled: !!user && !isAuthLoading
   });
 
   const approveMutation = useMutation({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/shared/ThemeToggle";
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,10 +30,21 @@ function LoginContent() {
   });
 
   useEffect(() => {
+    setMounted(true);
+    console.log("[Login] Hydrated Successfully.");
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
     if (searchParams.get("expired")) {
       toast.error("Session expired. Please login again.");
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("expired");
+      const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({ ...window.history.state }, '', newUrl);
     }
-  }, [searchParams]);
+  }, [mounted, searchParams]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -58,6 +70,21 @@ function LoginContent() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center relative overflow-hidden">
+        {/* Basic background while loading to prevent flash */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none opacity-20">
+          <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-brand-primary/20 rounded-full blur-[120px]" />
+        </div>
+        <div className="flex flex-col items-center gap-4 z-10">
+          <Loader2 className="w-10 h-10 text-brand-primary animate-spin" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Initializing Identity...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
       {/* Theme Toggle Positioned Top Right */}
@@ -73,13 +100,12 @@ function LoginContent() {
         <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px] animate-fluid-drift [animation-delay:6s]" />
         
         {/* Fine grain overlay for premium texture */}
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md z-10"
+      <div 
+        className="w-full max-w-md z-10 animate-fade-in-up"
+        style={{ opacity: 0 }} /* Standard CSS animation will handle the fade in */
       >
         {/* Logo Section */}
         <div className="flex flex-col items-center mb-8 text-center">
@@ -166,7 +192,7 @@ function LoginContent() {
             Enterprise system. Access is monitored and logged.
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -189,11 +215,18 @@ function AuthInput({ label, icon, ...props }: any) {
       <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
         {label}
       </label>
-      <input 
-        {...props}
-        className="glass-input shadow-inner"
-        placeholder={`Enter ${label.toLowerCase()}...`}
-      />
+      <div className="relative group/input">
+        {icon && (
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within/input:text-brand-primary transition-colors">
+            {icon}
+          </div>
+        )}
+        <input 
+          {...props}
+          className={`glass-input shadow-inner ${icon ? 'pl-11' : 'px-4'}`}
+          placeholder={`Enter ${label.toLowerCase()}...`}
+        />
+      </div>
     </div>
   );
 }

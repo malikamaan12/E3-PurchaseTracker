@@ -1,0 +1,37 @@
+{
+  "name": "PurchaseTracker | Enterprise Procurement",
+  "short_name": "PurchaseTracker",
+  "description": "High-performance purchase request management and vendor onboarding",
+  "start_url": "/dashboard/requests",
+  "display": "standalone",
+  "background_color": "#090D14",
+  "theme_color": "#5B4B8A",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-color.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "run_on_os_login": "windowed",
+  "orientation": "any",
+  "categories": ["business", "finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "New Request",
+      "url": "/dashboard/requests?new=true",
+      "description": "Create a new purchase request"
+    },
+    {
+      "name": "Vendor Audit",
+      "url": "/dashboard/vendors",
+      "description": "View vendor enforcement"
+    }
+  ]
+}

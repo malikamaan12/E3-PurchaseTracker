@@ -30,6 +30,8 @@ import {
   XCircle 
 } from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
+import { PWASettings } from "./PWASettings";
+import { cn } from "@/lib/utils";
 
 export default function TopNav() {
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
@@ -58,7 +60,8 @@ export default function TopNav() {
     { name: "Purchases", path: "/dashboard/requests", icon: <FileText className="w-4 h-4" /> },
     { name: "Vendors", path: "/dashboard/vendors", icon: <Users className="w-4 h-4" /> },
     ...(isAdmin || isApprover ? [
-      { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-4 h-4" /> }
+      { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-4 h-4" /> },
+      { name: "Compliance", path: "/dashboard/compliance", icon: <ShieldCheck className="w-4 h-4" /> }
     ] : []),
     ...(isAdmin ? [
       { name: "Admin", path: "/dashboard/admin", icon: <Settings className="w-4 h-4" /> }
@@ -163,12 +166,23 @@ export default function TopNav() {
           </Link>
         </div>
 
-        <nav className="flex items-center gap-1 mr-8">
+        <nav className="hidden lg:flex items-center gap-1 mr-8 shrink-0">
           {navItems.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
+            const isSecondary = item.name === "Vendors"; // Candidate for early hiding
             return (
-              <Link key={item.path} href={item.path}>
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isActive ? 'bg-brand-primary/10 text-brand-primary font-bold' : 'text-muted-foreground hover:bg-secondary hover:text-foreground font-semibold'}`}>
+              <Link 
+                key={item.path} 
+                href={item.path}
+                className={cn(
+                  "hidden xl:flex", 
+                  !isSecondary && "lg:flex"
+                )}
+              >
+                <div className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap",
+                  isActive ? "bg-brand-primary/10 text-brand-primary font-bold" : "text-muted-foreground hover:bg-secondary hover:text-foreground font-semibold"
+                )}>
                   {item.icon}
                   <span className="text-sm tracking-tight">{item.name}</span>
                 </div>
@@ -308,6 +322,7 @@ export default function TopNav() {
               <Zap className={`w-5 h-5 ${highPerformanceMode ? 'fill-current' : ''}`} />
             </button>
 
+            <PWASettings />
             <ThemeToggle />
           </div>
 

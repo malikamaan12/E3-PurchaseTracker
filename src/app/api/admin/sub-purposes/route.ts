@@ -51,13 +51,13 @@ export async function POST(req: NextRequest) {
     // Normalize body keys and handle new Phase 6 fields
     const normalizedData = {
       name: body.name,
-      purposeCategoryId: body.purposeCategoryId,
+      purposeCategoryId: body.purposeCategoryId ? Number(body.purposeCategoryId) : null,
       purposeType: body.purposeType || body.purpose_type || "PROJECT",
       status: body.status || "active",
       totalBudget: Number(body.totalBudget || 0),
       isFrozen: body.isFrozen || body.is_frozen || false,
-      validFrom: body.validFrom || body.valid_from ? new Date(body.validFrom || body.valid_from) : null,
-      validTo: body.validTo || body.valid_to ? new Date(body.validTo || body.valid_to) : null,
+      validFrom: (body.validFrom || body.valid_from) ? new Date(body.validFrom || body.valid_from) : null,
+      validTo: (body.validTo || body.valid_to) ? new Date(body.validTo || body.valid_to) : null,
     };
 
     const validationResult = insertSubPurposeSchema.safeParse(normalizedData);

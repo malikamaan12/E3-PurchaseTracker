@@ -238,7 +238,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           dept: user.department,
           role: user.role,
           status: status,
-          finalStatus: updatedRequest.status,
+          finalStatus: finalRequest.status,
           processedBy: user.username,
           isMandatoryStep: targetApproval?.isMandatory ?? false,
         },
@@ -269,7 +269,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({
       success: true,
       message: `Successfully processed ${status} status.`,
-      requestStatus: updatedRequest.status
+      requestStatus: finalRequest.status
     });
 
   } catch (error: any) {

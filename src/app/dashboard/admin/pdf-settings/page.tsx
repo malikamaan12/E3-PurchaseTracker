@@ -5,14 +5,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Settings2, Save, Droplet, Type, FileImage } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function PdfSettingsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<Record<string, any>>({});
 
   const { data: initialSettings, isLoading } = useQuery({
     queryKey: ["admin_pdf_settings"],
     queryFn: () => apiClient.admin.pdfSettings.get(),
+    enabled: !!user && !isAuthLoading
   });
 
   useEffect(() => {

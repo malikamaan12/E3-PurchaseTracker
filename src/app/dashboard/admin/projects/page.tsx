@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 import ProjectModal from "@/components/admin/ProjectModal";
 
 /**
@@ -31,6 +32,7 @@ import ProjectModal from "@/components/admin/ProjectModal";
  * with date-bound validity and departmental budget splits.
  */
 export default function AdminProjectsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,7 +45,8 @@ export default function AdminProjectsPage() {
       const res = await fetch("/api/admin/sub-purposes");
       if (!res.ok) throw new Error("Failed to fetch projects");
       return res.json();
-    }
+    },
+    enabled: !!user && !isAuthLoading
   });
 
   // 2. Fetch Departments for budget splits
@@ -53,7 +56,8 @@ export default function AdminProjectsPage() {
       const res = await fetch("/api/departments");
       if (!res.ok) throw new Error("Failed to fetch departments");
       return res.json();
-    }
+    },
+    enabled: !!user && !isAuthLoading
   });
 
   // 3. Status Toggle Mutation (Freeze/Activate)

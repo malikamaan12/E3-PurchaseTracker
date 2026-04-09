@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import {
   Wallet, Calendar, CheckCircle2, Calculator,
   Upload, FileCheck2, X, AlertCircle, Loader2,
-  SplitSquareVertical, Lock, TrendingDown, TrendingUp, Sparkles
+  SplitSquareVertical, Lock, TrendingDown, TrendingUp, Sparkles,
+  ShieldAlert, Landmark, Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePerformance } from "@/context/PerformanceContext";
@@ -16,34 +17,34 @@ interface FinanceLedgerProps {
   request: any;
 }
 
-// ── Status rendering config ─────────────────────────────────────────────────
+// ── Executive Status Config ─────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, {
   label: string; bg: string; text: string; border: string;
   rowBg?: string; icon?: React.ReactNode; locked?: boolean;
 }> = {
   paid: {
-    label: "Paid", bg: "bg-[#2FB7B2]/10", text: "text-[#2FB7B2]", border: "border-[#2FB7B2]/20",
+    label: "Fully Paid", bg: "bg-[#2FB7B2]/10", text: "text-[#2FB7B2]", border: "border-[#2FB7B2]/20",
     icon: <CheckCircle2 className="w-3 h-3" />,
   },
   partial: {
-    label: "Partial", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20",
+    label: "Partial Payment", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20",
     icon: <SplitSquareVertical className="w-3 h-3" />,
   },
   pending: {
-    label: "Pending", bg: "bg-zinc-500/10", text: "text-zinc-400", border: "border-zinc-500/20",
+    label: "Awaiting Action", bg: "bg-zinc-500/10", text: "text-zinc-400", border: "border-zinc-500/20",
   },
   rescheduled: {
     label: "Rescheduled", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20",
   },
   settled_savings: {
-    label: "Savings",
+    label: "Contractual Savings",
     bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/25",
     rowBg: "bg-emerald-500/5",
     icon: <TrendingDown className="w-3 h-3" />,
     locked: true,
   },
   pending_approval: {
-    label: "Pending Approval",
+    label: "Variation Pending",
     bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20",
     rowBg: "bg-orange-500/5",
     icon: <Lock className="w-3 h-3" />,
@@ -55,33 +56,81 @@ function getStatusCfg(status: string) {
   return STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG.pending;
 }
 
-// ── Ledger summary footer ────────────────────────────────────────────────────
-function LedgerSummary({ payments, currency }: { payments: any[]; currency: string }) {
-  const totalEstimated = payments.reduce((s: number, p: any) => s + (p.calculatedAmount || 0), 0);
-  const totalPaid = payments.reduce((s: number, p: any) => s + (p.paidAmount ?? 0), 0);
-  const totalSavings = payments.reduce((s: number, p: any) => 
-    s + (p.savingsAmount || 0) + (p.status === "settled_savings" ? (p.calculatedAmount || 0) : 0), 0);
-  const totalPendingApproval = payments
-    .filter((p: any) => p.status === "pending_approval")
-    .reduce((s: number, p: any) => s + (p.calculatedAmount || 0), 0);
+// ── Executive Financial Summary ──────────────────────────────────────────────
+function FinancialHealthSummary({ 
+  totalBudget, 
+  totalPaid, 
+  currency,
+  highPerformanceMode 
+}: { 
+  totalBudget: number; 
+  totalPaid: number; 
+  currency: string;
+  highPerformanceMode: boolean;
+}) {
+  const remaining = Math.max(0, totalBudget - totalPaid);
+  const utilization = totalBudget > 0 ? (totalPaid / totalBudget) * 100 : 0;
+  
+  const glassClass = highPerformanceMode ? "bg-secondary border border-border" : "glass-card";
 
   return (
-    <div className="px-6 py-4 border-t border-border bg-secondary/20 grid grid-cols-2 md:grid-cols-4 gap-4">
-      {[
-        { label: "Total Budgeted", value: totalEstimated, color: "text-foreground" },
-        { label: "Total Disbursed", value: totalPaid, color: "text-[#2FB7B2]" },
-        { label: "Confirmed Savings", value: totalSavings, color: "text-emerald-400", icon: <TrendingDown className="w-3 h-3" /> },
-        { label: "Pending Approval", value: totalPendingApproval, color: "text-orange-400", icon: <TrendingUp className="w-3 h-3" /> },
-      ].map(({ label, value, color, icon }) => (
-        <div key={label} className="space-y-0.5">
-          <p className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground flex items-center gap-1">
-            {icon}{label}
+    <div className={`${glassClass} overflow-hidden`}>
+      <div className="px-6 py-4 border-b border-border/10 bg-[#2E2A5E]/20 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Landmark className="w-4 h-4 text-[#5B4B8A]" />
+          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#5B4B8A]">Executive Financial Health</h3>
+        </div>
+        <div className="flex items-center gap-4">
+           <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2FB7B2]" />
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Disbursed</span>
+           </div>
+           <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-border" />
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Remaining</span>
+           </div>
+        </div>
+      </div>
+      
+      <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+        {/* Background Visualizer bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary">
+           <div 
+            className="h-full bg-gradient-to-r from-[#5B4B8A] to-[#2FB7B2] transition-all duration-1000 ease-out"
+            style={{ width: `${utilization}%` }}
+           />
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Budget</p>
+          <p className="text-3xl font-mono font-bold text-[#E2E8F0]">
+            {totalBudget.toLocaleString()} <span className="text-sm font-normal opacity-40">{currency}</span>
           </p>
-          <p className={`text-base font-mono font-bold ${color}`}>
-            {value.toLocaleString()} <span className="text-[10px] font-normal opacity-60">{currency}</span>
+          <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5">
+             <Coins className="w-3 h-3 text-[#5B4B8A]" /> Principal Commitment
           </p>
         </div>
-      ))}
+
+        <div className="space-y-1 border-x border-border/10 px-12">
+          <p className="text-[9px] font-black text-[#2FB7B2] uppercase tracking-widest">Fully Disbursed</p>
+          <p className="text-3xl font-mono font-bold text-[#2FB7B2]">
+            {totalPaid.toLocaleString()} <span className="text-sm font-normal opacity-40">{currency}</span>
+          </p>
+          <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5">
+             <CheckCircle2 className="w-3 h-3 text-[#2FB7B2]" /> {utilization.toFixed(1)}% Fund Utilization
+          </p>
+        </div>
+
+        <div className="space-y-1 text-right md:text-left">
+          <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Current Balance</p>
+          <p className="text-3xl font-mono font-bold text-foreground">
+            {remaining.toLocaleString()} <span className="text-sm font-normal opacity-40">{currency}</span>
+          </p>
+          <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 justify-end md:justify-start">
+             <TrendingDown className="w-3 h-3 text-amber-500" /> Pending Accounts Payable
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -102,13 +151,28 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const [variationAmount, setVariationAmount] = useState<string>("");
   const [showVariationConfirm, setShowVariationConfirm] = useState(false);
 
+  // ── Status & Locking Logic ──────────────────────────────────────────────
+  const isLockedByStatus = request.status !== "approved";
+  const statusMessage = isLockedByStatus 
+    ? "Awaiting Executive Approval" 
+    : "Financial Disbursement Schedule Active.";
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const updatePaymentMutation = useMutation({
     mutationFn: ({ paymentId, data }: { paymentId: number; data: any }) =>
       apiClient.requests.updatePayment(request.id, paymentId, data),
-    onSuccess: (res: any) => {
+    onSuccess: (res: any, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ["request", request.id] });
-      toast.success(res.message || "Payment updated.", { duration: 5000 });
+      toast.success(res.message || "Financial record updated.", { duration: 5000 });
+      
+      // UX: Balance shift notification
+      if (variables.data.status === 'partial' && !variables.data.isFinalSettlement) {
+        toast.info("Remaining balance automatically shifted to final installment.", {
+          icon: <SplitSquareVertical className="w-4 h-4" />,
+          duration: 6000
+        });
+      }
+
       setEditingPayment(null);
       setUploadedFileUrl(null);
       setUploadedFileName(null);
@@ -116,14 +180,13 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     },
     onError: (err: any) => {
       if (err.error === "BUDGET_EXCEEDED") {
-        toast.error(err.message || "Budget exceeded. Variation protocol required.", { 
+        toast.error("Requires Budget Variation protocol.", { 
           icon: <Calculator className="w-4 h-4" />,
           duration: 8000 
         });
-        // Scroll to variation panel
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        toast.error(err.message || "Failed to update payment");
+        toast.error(err.message || "Failed to finalize disbursement");
       }
     },
   });
@@ -133,11 +196,11 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       apiClient.requests.update(request.id, { revisedTotalCost: newTotal }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["request", request.id] });
-      toast.success(res.message || "Budget variation initiated.", { duration: 6000 });
+      toast.success("Budget variation initiated for executive review.", { duration: 6000 });
       setShowVariationConfirm(false);
       setVariationAmount("");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to trigger variation"),
+    onError: (err: any) => toast.error(err.message || "Failed to trigger variation protocol"),
   });
 
   // ── File Upload ───────────────────────────────────────────────────────────
@@ -154,9 +217,9 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       const [record] = await res.json();
       setUploadedFileUrl(record.fileUrl);
       setUploadedFileName(file.name);
-      toast.success("Receipt uploaded");
+      toast.success("Receipt successfully archived.");
     } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+      toast.error(e.message || "Vault upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -171,10 +234,11 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
 
   // ── Edit Controls ─────────────────────────────────────────────────────────
   function handleEditClick(payment: any) {
+    if (isLockedByStatus) return;
     setEditingPayment(payment.id);
     setIsFinalSettlement(false);
     setUploadedFileUrl(payment.attachmentUrl || null);
-    setUploadedFileName(payment.attachmentUrl ? "Existing receipt" : null);
+    setUploadedFileName(payment.attachmentUrl ? "Existing archival proof" : null);
     setFormData({
       status: payment.status || "pending",
       paidAmount: payment.paidAmount ?? payment.calculatedAmount ?? "",
@@ -189,552 +253,358 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     });
   }
 
-  function handleSave(paymentId: number) {
-    if (formData.status === "partial" && !formData.rescheduledDate && !isFinalSettlement) {
-      toast.error("A rescheduled date is required for partial payments."); return;
-    }
-    updatePaymentMutation.mutate({
-      paymentId,
-      data: { ...formData, attachmentUrl: uploadedFileUrl ?? undefined, isFinalSettlement },
-    });
-  }
-
-  function handleVariationSubmit() {
-    const num = Math.round(Number(variationAmount));
-    const currentBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
-    if (isNaN(num) || num <= currentBudget) {
-      toast.error("Revised cost must be greater than the current budget."); return;
-    }
-    variationMutation.mutate(num);
-  }
-
   const payments: any[] = request.paymentInstallments || [];
   
-  // ── Status & Locking Logic ──────────────────────────────────────────────
-  const isLockedByStatus = request.status !== "approved";
-  const statusMessage = isLockedByStatus 
-    ? `Schedule locked while status is '${request.status.replace(/_/g, ' ')}'.` 
-    : "Financial schedule active.";
-
   // ── Calculation Engine ──────────────────────────────────────────────────
   const globalTarget = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
   const globalPaid = payments.reduce((sum: number, p: any) => sum + (p.paidAmount ?? 0), 0);
-  const globalRemaining = Math.max(0, globalTarget - globalPaid);
-
   const installmentTarget = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
   const currentEntryValue = Number(formData.paidAmount || 0);
   const currentItemPaid = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
-  
-  // Calculate what the global paid would be if this edit is saved
   const newGlobalPaid = globalPaid - currentItemPaid + currentEntryValue;
-  const newGlobalRemaining = globalTarget - newGlobalPaid;
   const isOverpaid = newGlobalPaid > globalTarget;
 
-  // Animation variants controlled by highPerformanceMode
-  const motionProps = highPerformanceMode ? { initial: false, animate: false } : {};
   const glassClass = highPerformanceMode ? "bg-secondary border border-border" : "glass-card";
-
-  const isPartial = formData.status === "partial";
-  const showSavingsCheckbox =
-    editingPayment !== null &&
-    formData.paidAmount !== "" &&
-    Number(formData.paidAmount) < installmentTarget;
 
   return (
     <div className="flex flex-col gap-8">
 
       {/* ── Financial Health Dashboard ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { 
-            label: "Allocated Budget", 
-            value: globalTarget, 
-            sub: "Total Authorized",
-            icon: <Wallet className="w-5 h-5 text-[#5B4B8A]" />, // Brand Purple
-            border: "border-[#5B4B8A]/20",
-            bg: "bg-[#5B4B8A]/5",
-            accent: "#5B4B8A"
-          },
-          { 
-            label: "Total Disbursed", 
-            value: globalPaid, 
-            sub: `${((globalPaid / globalTarget) * 100).toFixed(1)}% Utilization`,
-            icon: <CheckCircle2 className="w-5 h-5 text-[#2FB7B2]" />, // Brand Teal
-            border: "border-[#2FB7B2]/20",
-            bg: "bg-[#2FB7B2]/5",
-            accent: "#2FB7B2"
-          },
-          { 
-            label: "Pending Payables", 
-            value: globalRemaining, 
-            sub: globalRemaining <= 0 ? "Account Fully Settled" : "Remaining Commitment",
-            icon: <TrendingDown className="w-5 h-5 text-amber-500" />,
-            border: "border-amber-500/20",
-            bg: "bg-amber-500/5",
-            accent: "#F59E0B"
-          },
-        ].map((stat, i) => (
-          <motion.div key={i} 
-            {...(!highPerformanceMode ? { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.1 } } : {})}
-            className={`${glassClass} p-5 relative overflow-hidden group border-l-4 transition-all hover:translate-y-[-2px]`}
-            style={{ borderLeftColor: stat.accent }}
-          >
-            <div className="flex justify-between items-start relative z-10">
-               <div>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-                  <p className="text-2xl font-mono font-bold text-foreground">
-                    {stat.value.toLocaleString()} <span className="text-xs font-normal opacity-40">{request.currency}</span>
-                  </p>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">{stat.sub}</p>
-               </div>
-               <div className="p-3 bg-background/50 rounded-xl border border-white/5 shadow-inner backdrop-blur-sm">
-                 {stat.icon}
-               </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      <FinancialHealthSummary 
+        totalBudget={globalTarget} 
+        totalPaid={globalPaid} 
+        currency={request.currency || "QAR"} 
+        highPerformanceMode={highPerformanceMode}
+      />
 
+      {/* ── Strict Edit Lock Banner ───────────────────────────────────────── */}
       {isLockedByStatus && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-4"
-        >
-          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-             <Lock className="w-5 h-5 text-amber-500" />
+        <div className="bg-[#2E2A5E]/10 border border-[#5B4B8A]/20 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 backdrop-blur-md">
+          <div className="w-14 h-14 rounded-2xl bg-[#5B4B8A]/20 flex items-center justify-center shrink-0 border border-[#5B4B8A]/30">
+             <ShieldAlert className="w-7 h-7 text-[#5B4B8A]" />
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-amber-400">Financial Schedule Locked</h4>
-            <p className="text-xs text-muted-foreground">{statusMessage} No disbursements can be logged until management gives final sign-off.</p>
+          <div className="text-center md:text-left flex-1">
+            <div className="flex items-center gap-2 justify-center md:justify-start">
+              <h4 className="text-sm font-black text-[#5B4B8A] uppercase tracking-widest">{statusMessage}</h4>
+              <span className="px-2 py-0.5 bg-[#5B4B8A] text-white text-[8px] font-black rounded font-mono animate-pulse">HARD LOCK</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+              The disbursement schedule is in read-only mode while the request is in '{request.status.replace(/_/g, ' ')}' status. 
+              Finance cannot disburse funds or modify the ledger until executive management provides final procurement sign-off.
+            </p>
           </div>
-        </motion.div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-muted-foreground bg-secondary px-3 py-1.5 rounded-lg border border-border flex items-center gap-2">
+              <Lock className="w-3 h-3" /> Security Protocol 16-Active
+            </span>
+          </div>
+        </div>
       )}
 
-      {/* ── Budget Variation Panel ─────────────────────────────────────── */}
-      <motion.div 
-        {...(!highPerformanceMode ? { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } } : {})}
-        className={`${glassClass} p-6 border-dashed border-2 transition-all ${isOverpaid ? "border-rose-500 bg-rose-500/10 shadow-[0_0_30px_rgba(244,63,94,0.1)]" : "border-rose-500/20 bg-rose-500/5"}`}
-      >
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex gap-4 items-center">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverpaid ? "bg-rose-500 text-white animate-bounce" : "bg-rose-500/10 text-rose-500"}`}>
-              <Calculator className="w-6 h-6" />
+      {/* ── Budget Variation Protocol ─────────────────────────────────────── */}
+      <div className={`${glassClass} p-8 border-dashed border-2 relative overflow-hidden transition-all ${isOverpaid ? "border-rose-500 bg-rose-500/10" : "border-[#5B4B8A]/20 bg-[#5B4B8A]/5"}`}>
+        {isOverpaid && (
+          <div className="absolute top-0 right-0 p-4">
+             <div className="bg-rose-500 text-white px-3 py-1 text-[9px] font-black rounded-bl-xl items-center flex gap-1 animate-pulse">
+                <AlertCircle className="w-3 h-3" /> COMPLIANCE REQUIRED
+             </div>
+          </div>
+        )}
+
+        <div className="flex items-start justify-between gap-8 flex-wrap relative z-10">
+          <div className="flex gap-6 items-center">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border shadow-inner transition-all ${isOverpaid ? "bg-rose-500 text-white border-rose-400 rotate-12" : "bg-white/5 text-[#5B4B8A] border-[#5B4B8A]/30"}`}>
+              <Calculator className="w-8 h-8" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-foreground font-bold font-serif text-lg leading-none">Budget Variation Protocol</h3>
-                {isOverpaid && <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded uppercase tracking-widest animate-pulse">Requires Budget Variation</span>}
+                <h3 className="text-foreground font-black text-xl uppercase tracking-tighter">Budget Variation Protocol</h3>
               </div>
-              <p className="text-muted-foreground text-xs font-medium mt-1.5">
-                Baseline: <span className="font-mono font-bold text-foreground">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
+              <p className="text-muted-foreground text-xs font-semibold mt-1">
+                Authorized Baseline: <span className="font-mono font-bold text-[#5B4B8A]">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
                 {request.revisedTotalCost && (
-                  <span className="ml-3 text-rose-400 font-mono font-bold">
-                    → Revised: {request.revisedTotalCost.toLocaleString()} {request.currency}
+                  <span className="ml-4 text-[#2FB7B2] font-mono font-bold bg-[#2FB7B2]/10 px-2 py-0.5 rounded">
+                    → Revised Total: {request.revisedTotalCost.toLocaleString()} {request.currency}
                   </span>
                 )}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          
+          <div className="flex items-center gap-3">
             {!showVariationConfirm ? (
-              <button onClick={() => {
-                if (isOverpaid) setVariationAmount(newGlobalPaid.toString());
-                setShowVariationConfirm(true);
-              }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm border ${isOverpaid ? "bg-rose-500 text-white border-rose-400 hover:bg-rose-600" : "bg-background border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white"}`}
+              <button 
+                onClick={() => {
+                  if (isOverpaid) setVariationAmount(newGlobalPaid.toString());
+                  setShowVariationConfirm(true);
+                }}
+                disabled={isLockedByStatus}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl border ${
+                  isOverpaid 
+                    ? "bg-rose-600 text-white border-rose-400 hover:bg-rose-700 active:scale-95" 
+                    : "bg-secondary border-border text-foreground hover:bg-foreground hover:text-background active:scale-95 disabled:opacity-50"
+                }`}
               >
-                {isOverpaid ? "Initate Variation for Overpayment" : "Trigger Manual Overrun"}
+                {isOverpaid ? "Initiate Variation for Overpayment" : "Request Manual Overrun"}
               </button>
             ) : (
-              <div className="flex items-center gap-2 flex-wrap">
-                <input type="number" placeholder="New Total (QAR)" value={variationAmount}
+              <div className="flex items-center gap-2 bg-background p-2 rounded-xl border border-border shadow-2xl">
+                <input type="number" placeholder="Enter New Total Cost" value={variationAmount}
                   onChange={(e) => setVariationAmount(e.target.value)}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-background border border-border outline-none focus:border-rose-500 font-mono w-44"
+                  className="px-4 py-2 text-sm rounded-lg bg-secondary border-none outline-none focus:ring-2 focus:ring-[#5B4B8A]/30 font-mono w-56 text-foreground"
                 />
-                <button onClick={handleVariationSubmit} disabled={variationMutation.isPending}
-                  className="px-4 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-rose-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+                <button onClick={() => {
+                   const num = Math.round(Number(variationAmount));
+                   const currentBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
+                   if (isNaN(num) || num <= currentBudget) {
+                     toast.error("Revised cost must exceed authorized baseline."); return;
+                   }
+                   variationMutation.mutate(num);
+                }} disabled={variationMutation.isPending}
+                  className="px-6 py-2 bg-[#5B4B8A] text-white rounded-lg text-[10px] font-black uppercase hover:bg-[#4A3d72] transition-all disabled:opacity-60 flex items-center gap-2"
                 >
-                  {variationMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Confirm
+                  {variationMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Finalize
                 </button>
                 <button onClick={() => setShowVariationConfirm(false)}
-                  className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-4 py-2 text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-widest"
                 >Cancel</button>
               </div>
             )}
           </div>
         </div>
-        {(showVariationConfirm || isOverpaid) && (
-          <p className="text-[10px] uppercase font-bold text-rose-500 mt-4 tracking-wider flex items-center gap-2">
-            <AlertCircle className="w-3.5 h-3.5" />
-            {isOverpaid 
-              ? `Compliance Alert: Current payment of ${currentEntryValue.toLocaleString()} QAR exceeds remaining budget by ${(newGlobalPaid - globalTarget).toLocaleString()} QAR. A Variation is MANDATORY.`
-              : "⚠ Variation will reset Gatekeeper approvals & auto-generate a delta installment row."}
-          </p>
-        )}
-      </motion.div>
-
-      {/* ── Installments Ledger Table ─────────────────────────────────── */}
-      <div className={glassClass + " overflow-hidden"}>
-        <div className="px-6 py-4 border-b border-border bg-secondary/20 flex items-center gap-3">
-          <Wallet className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-sm font-bold text-foreground tracking-tight uppercase">Disbursement Schedule</h3>
-          <div className="ml-auto flex items-center gap-2">
-            {payments.some((p: any) => p.status === "settled_savings") && (
-              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                <TrendingDown className="w-2.5 h-2.5" /> savings detected
-              </span>
-            )}
-            {payments.some((p: any) => p.status === "pending_approval") && (
-              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full animate-pulse">
-                <Lock className="w-2.5 h-2.5" /> variation pending
-              </span>
-            )}
-            <span className="text-[10px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded border border-border">
-              {payments.length} records
-            </span>
+        
+        {isOverpaid && (
+          <div className="mt-6 flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl">
+             <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0" />
+             <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest leading-relaxed">
+               Compliance Alert: Disbursement exceeds remaining authorized funds. A formal Budget Variation is MANDATORY before این record can be settled.
+             </p>
           </div>
+        )}
+      </div>
+
+      {/* ── Disbursement Schedule Table ─────────────────────────────────── */}
+      <div className={glassClass + " overflow-hidden border-border/50"}>
+        <div className="px-8 py-5 border-b border-border/10 bg-[#2E2A5E]/10 flex items-center justify-between">
+           <div className="flex items-center gap-3">
+              <Landmark className="w-4 h-4 text-[#5B4B8A]" />
+              <h3 className="text-[13px] font-black text-foreground tracking-[0.1em] uppercase">Disbursement Schedule</h3>
+           </div>
+           <div className="flex items-center gap-3">
+             <span className="text-[10px] font-bold text-muted-foreground bg-secondary/50 px-3 py-1 rounded-lg border border-border/50">
+               {payments.length} Items Indexed
+             </span>
+           </div>
         </div>
 
-        <table className="w-full text-left">
-          <thead className="bg-secondary/10 border-b border-border">
-            <tr>
-              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Installment</th>
-              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Amounts</th>
-              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receipt</th>
-              <th className="px-6 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/50">
-            {payments.map((p: any) => {
-              const cfg = getStatusCfg(p.status);
-              const isEditing = editingPayment === p.id;
-              const editingInstallment = payments.find((x: any) => x.id === editingPayment);
-              const calcAmount = editingInstallment?.calculatedAmount ?? 0;
-
-              return (
-                <tr key={p.id} className={`transition-colors hover:bg-secondary/10 ${cfg.rowBg ?? ""}`}>
-                  {isEditing ? (
-                    <td colSpan={4} className="p-0">
-                      <AnimatePresence>
-                        <motion.div
-                          {...(!highPerformanceMode ? { initial: { opacity: 0, height: 0 }, animate: { opacity: 1, height: "auto" }, exit: { opacity: 0, height: 0 } } : {})}
-                          className="p-6 bg-secondary/30 border-b border-border"
-                        >
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-                            {/* Status */}
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Status</label>
-                              <select value={formData.status}
-                                onChange={(e) => { setFormData({ ...formData, status: e.target.value }); setIsFinalSettlement(false); }}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="partial">Partial</option>
-                                <option value="paid">Paid</option>
-                                <option value="rescheduled">Rescheduled</option>
-                              </select>
-                            </div>
-
-                             {/* Paid Amount */}
-                             <div className="space-y-1.5 relative">
-                               <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex justify-between">
-                                  <span>Paid Amount (QAR)</span>
-                                  {isOverpaid && <span className="text-rose-500 animate-pulse">Over Budget!</span>}
-                               </label>
-                               <div className="relative">
-                                  <input type="number" value={formData.paidAmount}
-                                    onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                    className={`w-full bg-background border rounded-lg px-3 py-2 text-sm outline-none font-mono transition-all ${isOverpaid ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-border focus:border-[#5B4B8A]"}`}
-                                  />
-                                  <div className="absolute right-2 top-1.2 flex gap-1">
-                                    <button 
-                                      onClick={() => setFormData({...formData, paidAmount: installmentTarget, status: 'paid'})}
-                                      className="px-2 py-0.5 bg-secondary hover:bg-brand-primary/10 text-[9px] font-bold rounded border border-border transition-colors uppercase"
-                                    >Full</button>
-                                    <button 
-                                      onClick={() => {
-                                        const globalLeft = globalTarget - (globalPaid - currentItemPaid);
-                                        setFormData({...formData, paidAmount: globalLeft, status: 'paid'});
-                                      }}
-                                      className="px-2 py-0.5 bg-secondary hover:bg-amber-500/10 text-[9px] font-bold rounded border border-border transition-colors uppercase"
-                                    >Balance</button>
-                                  </div>
-                               </div>
-
-                               {/* Preview messages */}
-                               <div className="space-y-1 mt-1.5">
-                                  {isPartial && !isFinalSettlement && currentEntryValue !== 0 && currentEntryValue < installmentTarget && (
-                                    <p className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                                      <SplitSquareVertical className="w-3 h-3" />
-                                      Inst. Remainder: {(installmentTarget - currentEntryValue).toLocaleString()} QAR → Split
-                                    </p>
-                                  )}
-                                  {isFinalSettlement && currentEntryValue !== 0 && currentEntryValue < installmentTarget && (
-                                    <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                                      <TrendingDown className="w-3 h-3" />
-                                      Savings: {(installmentTarget - currentEntryValue).toLocaleString()} QAR → INLINE SAVINGS
-                                    </p>
-                                  )}
-                                  <div className={`p-2 rounded-lg border text-[10px] font-bold font-mono flex items-center justify-between ${isOverpaid ? "bg-rose-500/10 border-rose-500/20 text-rose-500" : "bg-emerald-500/5 border-emerald-500/10 text-emerald-500"}`}>
-                                      <span>NEW REQ. BALANCE:</span>
-                                      <span>{newGlobalRemaining.toLocaleString()} QAR</span>
-                                  </div>
-                               </div>
-                             </div>
-
-                            {/* Actual Date */}
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Actual Date</label>
-                              <input type="date" value={formData.actualPaymentDate}
-                                onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
-                              />
-                            </div>
-
-                            {/* Rescheduled Date — mandatory for PARTIAL */}
-                            <div className="space-y-1.5">
-                              <label className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 ${isPartial && !isFinalSettlement ? "text-amber-400" : "text-muted-foreground"}`}>
-                                Rescheduled Date {isPartial && !isFinalSettlement && <span className="text-rose-400">*</span>}
-                              </label>
-                              <input type="date" value={formData.rescheduledDate}
-                                onChange={(e) => setFormData({ ...formData, rescheduledDate: e.target.value })}
-                                required={isPartial && !isFinalSettlement}
-                                className={`w-full bg-background border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${isPartial && !isFinalSettlement ? "border-amber-500/50 focus:border-amber-400" : "border-border focus:border-[#5B4B8A]"}`}
-                              />
-                              {isPartial && !isFinalSettlement && !formData.rescheduledDate && (
-                                <p className="text-[10px] text-rose-400 font-bold flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" /> Required for partial
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Tx Reference */}
-                            <div className="space-y-1.5">
-                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Tx Reference</label>
-                              <input type="text" value={formData.transactionReference}
-                                onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
-                                placeholder="e.g. TRF-20240408"
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] font-mono transition-colors"
-                              />
-                            </div>
-
-                            {/* Finance Notes */}
-                            <div className="col-span-2 lg:col-span-3 space-y-1.5">
-                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Finance Notes</label>
-                              <input type="text" value={formData.financeNotes}
-                                onChange={(e) => setFormData({ ...formData, financeNotes: e.target.value })}
-                                placeholder="e.g. Wire fee deducted, awaiting confirmation..."
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#5B4B8A] transition-colors"
-                              />
-                            </div>
-
-                            {/* ── Final Settlement Checkbox ──────────────── */}
-                            {showSavingsCheckbox && (
-                              <div className="col-span-2 lg:col-span-4">
-                                <label
-                                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                                    isFinalSettlement
-                                      ? "bg-emerald-500/10 border-emerald-500/30"
-                                      : "bg-background border-border hover:border-emerald-500/30"
-                                  }`}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-secondary/5 border-b border-border/10 uppercase font-black text-[9px] text-muted-foreground tracking-[0.25em]">
+                <th className="px-8 py-5">Milestone</th>
+                <th className="px-8 py-5">Ledger Status</th>
+                <th className="px-8 py-5">Value Analysis</th>
+                <th className="px-8 py-5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/10">
+              {payments.map((p: any) => {
+                const cfg = getStatusCfg(p.status);
+                const isEditing = editingPayment === p.id;
+                
+                return (
+                  <tr 
+                    key={p.id} 
+                    className={`transition-all duration-300 hover:bg-[#5B4B8A]/5 ${cfg.rowBg ?? ""}`}
+                  >
+                    {isEditing ? (
+                      <td colSpan={4} className="p-0">
+                        <div className="p-10 bg-[#2E2A5E]/5 border-b border-[#5B4B8A]/20">
+                           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                              {/* Status Select */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-[#5B4B8A] uppercase tracking-widest">Disbursement Phase</label>
+                                <select 
+                                  value={formData.status}
+                                  onChange={(e) => { 
+                                    setFormData({ ...formData, status: e.target.value }); 
+                                    setIsFinalSettlement(false); 
+                                  }}
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all"
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={isFinalSettlement}
-                                    onChange={(e) => {
-                                      setIsFinalSettlement(e.target.checked);
-                                      if (e.target.checked) setFormData({ ...formData, status: "paid" });
-                                    }}
-                                    className="w-4 h-4 rounded accent-emerald-500"
-                                  />
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                                      <span className="text-sm font-bold text-foreground">Mark as Fully Settled (with Savings)</span>
-                                    </div>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                      Log this payment as the final closure for this installment, recording a <span className="text-emerald-400 font-bold">SAVINGS</span> of ({(calcAmount - Number(formData.paidAmount || 0)).toLocaleString()} QAR) on this record.
-                                    </p>
-                                  </div>
-                                </label>
+                                  <option value="pending">Awaiting Action</option>
+                                  <option value="partial">Partial Payment</option>
+                                  <option value="paid">Fully Paid</option>
+                                  <option value="rescheduled">Rescheduled</option>
+                                </select>
                               </div>
-                            )}
 
-                            {/* ── Receipt Upload Dropzone ───────────────── */}
-                            <div className="col-span-2 lg:col-span-4 space-y-2">
-                              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receipt / Invoice</label>
-                              {uploadedFileUrl ? (
-                                <div className="flex items-center gap-3 p-3 rounded-xl border border-[#2FB7B2]/30 bg-[#2FB7B2]/5">
-                                  <FileCheck2 className="w-5 h-5 text-[#2FB7B2] shrink-0" />
-                                  <p className="text-sm text-foreground font-medium flex-1 truncate">{uploadedFileName}</p>
-                                  <button onClick={() => { setUploadedFileUrl(null); setUploadedFileName(null); }}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
-                                  ><X className="w-3.5 h-3.5" /></button>
-                                </div>
-                              ) : (
-                                <div
-                                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                                  onDragLeave={() => setIsDragging(false)}
-                                  onDrop={handleDropEvent}
-                                  onClick={() => fileInputRef.current?.click()}
-                                  className={`relative cursor-pointer rounded-xl border-2 border-dashed transition-all p-5 text-center ${
-                                    isDragging ? "border-[#5B4B8A] bg-[#5B4B8A]/10" : "border-border hover:border-[#5B4B8A]/50 hover:bg-[#5B4B8A]/5"
-                                  }`}
-                                >
-                                  <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
+                              {/* Amount Input */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-[#5B4B8A] uppercase tracking-widest flex justify-between">
+                                  <span>Paid Value (QAR)</span>
+                                  {isOverpaid && <span className="text-rose-500">Exceeds Cap!</span>}
+                                </label>
+                                <div className="relative group">
+                                  <input 
+                                    type="number" 
+                                    value={formData.paidAmount}
+                                    onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
+                                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm font-mono font-bold transition-all ${
+                                      isOverpaid ? "border-rose-500 ring-4 ring-rose-500/10" : "border-border focus:border-[#2FB7B2]"
+                                    }`}
                                   />
-                                  {isUploading ? (
-                                    <div className="flex flex-col items-center gap-2">
-                                      <Loader2 className="w-7 h-7 text-[#5B4B8A] animate-spin" />
-                                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Uploading…</p>
-                                    </div>
-                                  ) : (
-                                    <div className="flex flex-col items-center gap-1.5">
-                                      <Upload className={`w-7 h-7 ${isDragging ? "text-[#5B4B8A]" : "text-muted-foreground"}`} />
-                                      <p className="text-sm font-bold text-foreground">Drop receipt or click to browse</p>
-                                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">PDF, JPG, PNG, WEBP — max 10 MB</p>
-                                    </div>
-                                  )}
+                                  <div className="absolute right-3 top-3 flex gap-1 invisible group-hover:visible translate-y-[-2px] transition-all">
+                                     <button onClick={() => setFormData({...formData, paidAmount: installmentTarget, status: 'paid'})} className="px-2 py-0.5 bg-secondary border border-border text-[8px] font-black rounded hover:bg-[#2FB7B2]/10 hover:text-[#2FB7B2] uppercase">Fix</button>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
+                              </div>
 
-                          </div>
+                              {/* Date Selection */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-[#5B4B8A] uppercase tracking-widest">Value Date</label>
+                                <input 
+                                  type="date" 
+                                  value={formData.actualPaymentDate}
+                                  onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all"
+                                />
+                              </div>
 
-                          {/* Actions */}
-                          <div className="flex justify-end gap-3 pt-5 mt-2 border-t border-border">
-                            <button onClick={() => { setEditingPayment(null); setUploadedFileUrl(null); setUploadedFileName(null); setIsFinalSettlement(false); }}
-                              className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors"
-                            >Cancel</button>
+                              {/* Reference / Notes */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-[#5B4B8A] uppercase tracking-widest">Audit Reference</label>
+                                <input 
+                                  type="text" 
+                                  value={formData.transactionReference}
+                                  onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
+                                  placeholder="TRF-..."
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-[#2FB7B2] transition-all"
+                                />
+                              </div>
+                           </div>
 
-                            {isOverpaid ? (
-                               <button onClick={() => {
-                                 setVariationAmount(newGlobalPaid.toString());
-                                 setShowVariationConfirm(true);
-                                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                               }}
-                               className="px-6 py-2 rounded-lg text-xs font-extrabold shadow-lg uppercase tracking-wider transition-all bg-rose-500 text-white hover:bg-rose-600 flex items-center gap-1.5"
-                               >
-                                 <AlertCircle className="w-3.5 h-3.5" />
-                                 Adjust Budget Variation
-                               </button>
-                            ) : (
-                              <button onClick={() => handleSave(p.id)}
-                                disabled={updatePaymentMutation.isPending || isUploading}
-                                className={`px-6 py-2 rounded-lg text-xs font-extrabold shadow-lg uppercase tracking-wider transition-all disabled:opacity-60 flex items-center gap-1.5 text-black ${
-                                  isFinalSettlement ? "bg-emerald-400 hover:brightness-110" : "bg-[#2FB7B2] hover:brightness-110"
+                           {/* Savings Checkbox */}
+                           {formData.status === 'paid' && Number(formData.paidAmount) < installmentTarget && (
+                              <div className="mt-8 p-4 rounded-2xl bg-[#2FB7B2]/5 border border-[#2FB7B2]/20 flex items-center gap-4 cursor-pointer"
+                                   onClick={() => setIsFinalSettlement(!isFinalSettlement)}>
+                                 <input type="checkbox" checked={isFinalSettlement} readOnly className="w-5 h-5 accent-[#2FB7B2]" />
+                                 <div className="flex-1">
+                                    <h4 className="text-sm font-black text-[#2FB7B2] uppercase tracking-tighter">Contractual Savings Protocol</h4>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                                      Flag this delta of ({(installmentTarget - Number(formData.paidAmount)).toLocaleString()} QAR) as realized savings for the organization.
+                                    </p>
+                                 </div>
+                                 <Sparkles className="w-6 h-6 text-[#2FB7B2] animate-pulse" />
+                              </div>
+                           )}
+
+                           <div className="mt-8 flex justify-end gap-3 pt-8 border-t border-border/10">
+                              <button 
+                                onClick={() => setEditingPayment(null)}
+                                className="px-6 py-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest"
+                              >Abort</button>
+                              <button 
+                                onClick={() => {
+                                  if (formData.status === "partial" && !formData.rescheduledDate && !isFinalSettlement) {
+                                    toast.error("Audit Protocol: Rescheduled date is required for partial payouts."); 
+                                    return;
+                                  }
+                                  updatePaymentMutation.mutate({
+                                    paymentId: p.id,
+                                    data: { ...formData, isFinalSettlement }
+                                  });
+                                }}
+                                disabled={updatePaymentMutation.isPending || isOverpaid}
+                                className={`px-10 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl transition-all disabled:opacity-50 ${
+                                  isOverpaid ? "bg-rose-500 text-white" : "bg-[#2FB7B2] text-black hover:brightness-110 active:scale-95"
                                 }`}
                               >
-                                {updatePaymentMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                {isFinalSettlement ? "Settle & Record Savings" : isPartial ? "Log Partial & Consolidate" : "Save Changes"}
+                                {updatePaymentMutation.isPending ? "Journaling..." : isOverpaid ? "Over-Budget Locked" : "Finalize Disbursement"}
                               </button>
-                            )}
-                          </div>
-                        </motion.div>
-                      </AnimatePresence>
-                    </td>
-                  ) : (
-                    <>
-                      {/* Installment info */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-foreground">{p.installmentName}</h4>
-                            <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded border flex items-center gap-0.5 ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                              {cfg.icon}{cfg.label}
-                            </span>
-                            {p.attachmentUrl && (
-                              <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                                className="text-[9px] font-black uppercase tracking-wider text-[#2FB7B2] flex items-center gap-0.5 hover:underline"
-                              ><FileCheck2 className="w-3 h-3" /> Receipt</a>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex-wrap">
-                            <Calendar className="w-3 h-3" /> Due: {new Date(p.dueDate).toLocaleDateString()}
-                            {p.actualPaymentDate && (
-                              <span className="text-[#2FB7B2] border-l border-border pl-2 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Paid: {new Date(p.actualPaymentDate).toLocaleDateString()}
-                              </span>
-                            )}
-                            {p.rescheduledDate && (
-                              <span className="text-purple-400 border-l border-border pl-2">↻ {new Date(p.rescheduledDate).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                          {/* Locked notice for special statuses */}
-                          {cfg.locked && (
-                            <p className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${cfg.text}`}>
-                              <Lock className="w-3 h-3" />
-                              {p.status === "pending_approval" ? "Locked — awaiting gatekeeper re-approval" : "Company savings — no further payment required"}
-                            </p>
-                          )}
+                           </div>
                         </div>
                       </td>
+                    ) : (
+                      <>
+                        {/* Milestone info */}
+                        <td className="px-8 py-6">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 ${cfg.bg} ${cfg.border}`}>
+                                 {cfg.icon || <Calendar className="w-5 h-5 opacity-40" />}
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-black text-foreground tracking-tight">{p.installmentName}</h4>
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                                   <Calendar className="w-3 h-3" /> Due: {new Date(p.dueDate).toLocaleDateString()}
+                                </div>
+                              </div>
+                           </div>
+                        </td>
 
-                      {/* Amounts */}
-                      <td className="px-6 py-4 space-y-1">
-                        <p className="text-xs font-mono text-muted-foreground">Est: {p.calculatedAmount.toLocaleString()} QAR</p>
-                        {p.paidAmount !== null && p.paidAmount !== undefined && (
-                          <p className={`text-sm font-mono font-bold ${
-                            p.savingsAmount > 0 ? "text-emerald-400" :
-                            p.paidAmount < p.calculatedAmount ? "text-amber-400" :
-                            p.paidAmount > p.calculatedAmount ? "text-rose-400" : "text-[#2FB7B2]"
-                          }`}>
-                            {p.savingsAmount > 0 ? "Saved:" : "Act:"} {p.paidAmount.toLocaleString()} QAR
-                          </p>
-                        )}
-                        {p.savingsAmount > 0 && (
-                           <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-tight">+ {p.savingsAmount.toLocaleString()} QAR discount</p>
-                        )}
-                        {p.financeNotes && (
-                          <p className="text-[10px] text-muted-foreground max-w-[220px] truncate">{p.financeNotes}</p>
-                        )}
-                      </td>
+                        {/* Ledger Status */}
+                        <td className="px-8 py-6">
+                           <div className="flex flex-col gap-1.5 items-start">
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                                 {cfg.label}
+                              </span>
+                              {p.actualPaymentDate && (
+                                <p className="text-[10px] font-mono font-bold text-[#2FB7B2] ml-1">
+                                   ARCHIVED: {new Date(p.actualPaymentDate).toLocaleDateString()}
+                                </p>
+                              )}
+                           </div>
+                        </td>
 
-                      {/* Receipt */}
-                      <td className="px-6 py-4">
-                        {p.attachmentUrl ? (
-                          <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2FB7B2]/10 border border-[#2FB7B2]/20 text-[#2FB7B2] rounded-lg text-[10px] font-bold uppercase hover:bg-[#2FB7B2]/20 transition-colors"
-                          ><FileCheck2 className="w-3 h-3" /> View</a>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">—</span>
-                        )}
-                      </td>
+                        {/* Value Analysis */}
+                        <td className="px-8 py-6">
+                           <div className="space-y-1">
+                              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Authorized: {p.calculatedAmount.toLocaleString()} QAR</p>
+                              {p.paidAmount !== null && (
+                                <p className={`text-sm font-mono font-bold ${
+                                  p.savingsAmount > 0 ? "text-emerald-400" :
+                                  p.paidAmount < p.calculatedAmount ? "text-amber-400" : "text-[#2FB7B2]"
+                                }`}>
+                                   Disbursed: {p.paidAmount.toLocaleString()} {request.currency}
+                                </p>
+                              )}
+                              {p.savingsAmount > 0 && (
+                                 <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tighter flex items-center gap-1">
+                                    <TrendingDown className="w-2.5 h-2.5" /> organization savings: {p.savingsAmount.toLocaleString()} QAR
+                                 </p>
+                              )}
+                           </div>
+                        </td>
 
-                      {/* Actions */}
-                      <td className="px-6 py-4 text-right">
-                        {cfg.locked || isLockedByStatus ? (
-                          <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center justify-end gap-1 ${isLockedByStatus ? "text-amber-500" : cfg.text} opacity-60`}>
-                            <Lock className="w-3 h-3" /> {isLockedByStatus ? "Schedule Locked" : p.status === "pending_approval" ? "Locked" : "Settled"}
-                          </span>
-                        ) : (
-                          <button onClick={() => handleEditClick(p)}
-                            className="px-3 py-1.5 bg-secondary/50 hover:bg-[#5B4B8A]/20 hover:border-[#5B4B8A]/30 border border-transparent text-foreground rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-                          >Update Schedule</button>
-                        )}
-                      </td>
-                    </>
-                  )}
-                </tr>
-              );
-            })}
-            {payments.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-10 text-center text-muted-foreground text-xs uppercase tracking-[0.3em] font-bold">
-                  No Installments Defined
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Summary footer */}
-        {payments.length > 0 && (
-          <LedgerSummary payments={payments} currency={request.currency || "QAR"} />
-        )}
+                        {/* Actions */}
+                        <td className="px-8 py-6 text-right">
+                           {isLockedByStatus ? (
+                              <div className="flex items-center justify-end gap-2 text-muted-foreground">
+                                 <Lock className="w-3.5 h-3.5 opacity-40" />
+                                 <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Awaiting Sign-off</span>
+                              </div>
+                           ) : cfg.locked ? (
+                              <div className="flex items-center justify-end gap-2 text-[#2FB7B2]">
+                                 <CheckCircle2 className="w-3.5 h-3.5" />
+                                 <span className="text-[9px] font-black uppercase tracking-widest">Journal Locked</span>
+                              </div>
+                           ) : (
+                              <button 
+                                onClick={() => handleEditClick(p)}
+                                className="px-5 py-2 hover:bg-[#5B4B8A] hover:text-white border border-border text-foreground rounded-lg text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300"
+                              >
+                                Edit Journal
+                              </button>
+                           )}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

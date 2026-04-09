@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
+import { useAuth } from "@/context/AuthContext";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
   AreaChart, Area, CartesianGrid 
@@ -11,13 +12,16 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 export default function DepartmentAnalyticsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  
   const { data: analyticsGroups, isLoading } = useQuery({
     queryKey: ["admin_analytics"],
     queryFn: () => apiClient.admin.analytics.get(),
+    enabled: !!user && !isAuthLoading
   });
 
   const stats = (analyticsGroups as any)?.departmental || [];
-  const colors = ["#6F2AE6", "#15CDD8", "#F59E0B", "#EF4444", "#10B981", "#06b6d4"];
+  const colors = ["hsl(var(--brand-primary))", "hsl(var(--brand-secondary))", "#F59E0B", "#EF4444", "#10B981", "#06b6d4"];
 
   const maxCost = Math.max(...(stats.length ? stats.map((s: any) => s.totalCost) : [1]));
   const totalSpend = stats.reduce((acc: number, curr: any) => acc + curr.totalCost, 0);

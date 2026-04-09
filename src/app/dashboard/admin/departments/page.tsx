@@ -18,8 +18,10 @@ import {
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DepartmentsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +30,7 @@ export default function DepartmentsPage() {
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments"],
     queryFn: () => apiClient.admin.departments.list(),
+    enabled: !!user && !isAuthLoading
   });
 
   const createMutation = useMutation({

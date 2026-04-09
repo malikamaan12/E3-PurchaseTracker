@@ -26,16 +26,20 @@ import {
   Pie,
   Legend
 } from "recharts";
+import { useAuth } from "@/context/AuthContext";
 import ProjectUtilizationChart from "@/components/admin/ProjectUtilizationChart";
 
 export default function AdminOverviewPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  
   const { data: analytics, isLoading, error } = useQuery({
     queryKey: ["admin_analytics"],
     queryFn: async () => {
       const res = await fetch("/api/admin/analytics");
       if (!res.ok) throw new Error("Failed to fetch analytics");
       return res.json();
-    }
+    },
+    enabled: !!user && !isAuthLoading
   });
 
   if (isLoading) {

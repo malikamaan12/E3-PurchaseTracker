@@ -2,14 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
+import { useAuth } from "@/context/AuthContext";
 import { Activity, BugPlay, ShieldAlert, Cpu, DownloadCloud, ChevronRight, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 export default function DiagnosticsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["admin_audit_logs"],
     queryFn: () => apiClient.admin.auditLogs(),
+    enabled: !!user && !isAuthLoading
   });
 
   const handleExport = () => {

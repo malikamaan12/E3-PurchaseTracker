@@ -25,8 +25,8 @@ export default {
       },
       colors: {
         brand: {
-          primary: "#6F2AE6",    // E3 Premium Purple
-          secondary: "#15CDD8",  // E3 Vibrant Teal
+          primary: "hsl(var(--brand-primary))",    // E3 Premium Purple
+          secondary: "hsl(var(--brand-secondary))",  // E3 Vibrant Teal
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

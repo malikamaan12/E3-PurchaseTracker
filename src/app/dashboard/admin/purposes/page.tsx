@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 import { FolderTree, Plus, Trash2, Snowflake, Edit3, Check, X } from "lucide-react";
 
 export default function PurposeCategoriesPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
@@ -18,6 +20,7 @@ export default function PurposeCategoriesPage() {
       if (!res.ok) throw new Error("Failed to fetch categories");
       return res.json();
     },
+    enabled: !!user && !isAuthLoading
   });
 
   const createMutation = useMutation({

@@ -81,7 +81,7 @@ function SignupContent() {
         <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px] animate-fluid-drift [animation-delay:6s]" />
         
         {/* Fine grain overlay for premium texture */}
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
       </div>
 
       <motion.div 

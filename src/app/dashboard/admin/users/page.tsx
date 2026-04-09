@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MoreHorizontal, Users, ShieldAlert, CheckCircle2, XCircle, Plus, Key } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
 
 interface User {
   id: number;
@@ -132,12 +133,14 @@ function CreateUserModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 }
 
 export default function UserManagementPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
     queryFn: () => apiClient.admin.users.list(),
+    enabled: !!user && !isAuthLoading
   });
 
   const updateMutation = useMutation({

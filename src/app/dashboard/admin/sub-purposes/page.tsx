@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 import { 
   Projector, Plus, Trash2, Snowflake, 
   Calendar, DollarSign, Users, Briefcase,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 export default function ProjectManagementPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({
@@ -26,6 +28,7 @@ export default function ProjectManagementPage() {
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     queryKey: ["admin_projects"],
     queryFn: () => apiClient.admin.subPurposes.list(),
+    enabled: !!user && !isAuthLoading
   });
 
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
@@ -35,11 +38,13 @@ export default function ProjectManagementPage() {
       if (!res.ok) throw new Error("Failed to fetch categories");
       return res.json();
     },
+    enabled: !!user && !isAuthLoading
   });
 
   const { data: departments = [], isLoading: loadingDepts } = useQuery({
     queryKey: ["admin_departments"],
     queryFn: () => apiClient.admin.departments.list(),
+    enabled: !!user && !isAuthLoading
   });
 
   const createMutation = useMutation({
@@ -100,7 +105,7 @@ export default function ProjectManagementPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#6F2AE6]/10 text-[#6F2AE6] text-xs font-bold mb-2 uppercase tracking-wider border border-[#6F2AE6]/20">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-bold mb-2 uppercase tracking-wider border border-brand-primary/20">
             <Briefcase className="w-3 h-3" />
             Project Lifecycle
           </div>
@@ -110,7 +115,7 @@ export default function ProjectManagementPage() {
 
         <button 
           onClick={() => setIsAdding(true)}
-          className="bg-brand-primary hover:brightness-110 text-white px-8 py-3 rounded-2xl transition-all shadow-[0_10px_30px_rgb(111,42,230,0.3)] font-bold flex items-center gap-2 active:scale-95 group"
+          className="bg-brand-primary hover:brightness-110 text-white px-8 py-3 rounded-2xl transition-all shadow-[0_10px_30px_rgba(111,42,230,0.3)] font-bold flex items-center gap-2 active:scale-95 group"
         >
           <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" />
           Launch New Project

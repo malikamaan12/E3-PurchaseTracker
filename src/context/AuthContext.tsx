@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 export interface AuthUser {
@@ -16,6 +16,7 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
+  isRevalidating: boolean; // Exposed for subtle UI indicators if needed
   isAdmin: boolean;
   isApprover: boolean;
   refetch: () => void;
@@ -24,25 +25,66 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
+  isRevalidating: false,
   isAdmin: false,
   isApprover: false,
   refetch: () => {},
 });
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
+// TTL: 5 minutes in ms
+const AUTH_TTL_MS = 5 * 60 * 1000;
 
-  const fetchUser = useCallback(async () => {
+export function AuthProvider({ 
+  children, 
+  initialUser = null 
+}: { 
+  children: ReactNode;
+  initialUser?: AuthUser | null;
+}) {
+  const [user, setUser] = useState<AuthUser | null>(initialUser);
+  const [isLoading, setIsLoading] = useState(!initialUser);
+  const [isRevalidating, setIsRevalidating] = useState(false);
+  const lastVerifyTime = useRef<number>(initialUser ? Date.now() : 0);
+  
+  const router = useRouter();
+  const initialUserId = initialUser?.id;
+
+  // STABLE FETCH: Using primitive ID in dependencies to prevent object-reference loops
+  const fetchUser = useCallback(async (isSilent = false) => {
+    // Check TTL if silent re-verification
+    if (isSilent && Date.now() - lastVerifyTime.current < AUTH_TTL_MS) {
+      if (!isSilent) setIsLoading(false);
+      return;
+    }
+
+    if (!isSilent) setIsLoading(true);
+    else setIsRevalidating(true);
+
+    const safetyTimeout = setTimeout(() => {
+      setIsLoading(false);
+      setIsRevalidating(false);
+    }, 8000); // 8s safety guardrail
+
     try {
+      const currentPath = window.location.pathname;
+      const isAuthPage = currentPath.startsWith("/login") || currentPath.startsWith("/signup");
+
+      // BOOT GUARD: If we are on the login page and it's a silent check, don't interfere
+      if (isAuthPage && isSilent) {
+        setIsLoading(false);
+        setIsRevalidating(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/user", { credentials: "include" });
       if (!res.ok) {
         setUser(null);
         if (res.status === 401) {
-          const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/signup");
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath.startsWith("/login") || currentPath.startsWith("/signup");
+          
           if (!isAuthPage) {
+            // Only redirect if we don't have a valid session anymore.
             router.replace("/login?expired=true");
           }
         }
@@ -50,27 +92,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const data = await res.json();
       setUser(data);
-    } catch {
-      setUser(null);
+      lastVerifyTime.current = Date.now();
+    } catch (err) {
+      console.error("[Auth] Background synchronization failure:", err);
+      // Keep existing user on network error if it was hydrated
+      if (!initialUserId) setUser(null);
     } finally {
+      clearTimeout(safetyTimeout);
       setIsLoading(false);
+      setIsRevalidating(false);
     }
-  }, [router]);
+  }, [router, initialUserId]);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    // Runs on mount. Silent if SSR provided a user.
+    fetchUser(!!initialUser);
+  }, [fetchUser, !!initialUser]);
 
-  const isAdmin = user?.role?.toLowerCase() === "admin";
-  const isApprover = user?.role?.toLowerCase() === "approver" || user?.isApprover === true;
+  const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin", [user]);
+  const isApprover = useMemo(() => user?.role?.toLowerCase() === "approver" || user?.isApprover === true, [user]);
 
   const value = useMemo(() => ({
     user,
     isLoading,
+    isRevalidating,
     isAdmin,
     isApprover,
-    refetch: fetchUser,
-  }), [user, isLoading, isAdmin, isApprover, fetchUser]);
+    refetch: () => fetchUser(false),
+  }), [user, isLoading, isRevalidating, isAdmin, isApprover, fetchUser]);
 
   return (
     <AuthContext.Provider value={value}>

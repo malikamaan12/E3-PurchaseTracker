@@ -14,16 +14,17 @@ import { z } from "zod";
 
 type VendorFormValues = z.infer<typeof vendorFormSchema>;
 
-export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+interface VendorManagementModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vendor?: any; // Passed when editing
+}
+
+export function VendorManagementModal({ open, onOpenChange, vendor }: VendorManagementModalProps) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const step3EnteredAt = useRef(0);
-
-  useEffect(() => {
-    if (step === 3) {
-      step3EnteredAt.current = Date.now();
-    }
-  }, [step]);
+  const isEdit = !!vendor;
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
@@ -34,16 +35,54 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
     }
   });
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => apiClient.vendors.onboard(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      toast.success("Vendor onboarded successfully");
-      reset();
+  useEffect(() => {
+    if (open) {
+      if (vendor) {
+        reset({
+          companyName: vendor.companyName,
+          contactPerson: vendor.contactPerson,
+          email: vendor.email,
+          contactNumber: vendor.contactNumber,
+          address: vendor.address,
+          bankName: vendor.bankName,
+          branchName: vendor.branchName,
+          accountNumber: vendor.accountNumber,
+          ibanNumber: vendor.ibanNumber,
+          taxNumber: vendor.taxNumber || "",
+          registrationNumber: vendor.registrationNumber || "",
+          remarks: vendor.remarks || "",
+          rating: vendor.rating || 0,
+          status: vendor.status || "active",
+          category: vendor.category || "general",
+          payment_currency: vendor.payment_currency || "QAR"
+        });
+      } else {
+        reset({
+          status: "active",
+          category: "general",
+          payment_currency: "QAR"
+        });
+      }
       setStep(1);
+    }
+  }, [open, vendor, reset]);
+
+  useEffect(() => {
+    if (step === 3) {
+      step3EnteredAt.current = Date.now();
+    }
+  }, [step]);
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => 
+      isEdit ? apiClient.vendors.update(vendor.id, data) : apiClient.vendors.onboard(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_vendors"] });
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      toast.success(isEdit ? "Vendor details updated" : "Vendor onboarded successfully");
       onOpenChange(false);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to onboard vendor"),
+    onError: (err: any) => toast.error(err.message || `Failed to ${isEdit ? 'update' : 'onboard'} vendor`),
   });
 
   const onSubmit = (data: any) => {
@@ -71,8 +110,12 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
             <div className="flex justify-between items-start mb-10 relative">
               <div className="absolute top-0 left-0 w-32 h-32 bg-brand-primary/10 blur-3xl rounded-full -ml-16 -mt-16 pointer-events-none" />
               <div className="relative">
-                <Dialog.Title className="text-4xl font-serif font-black text-white tracking-tighter leading-none">Onboard Entity</Dialog.Title>
-                <Dialog.Description className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mt-3">Integrate a new supplier into the procurement matrix.</Dialog.Description>
+                <Dialog.Title className="text-4xl font-serif font-black text-white tracking-tighter leading-none">
+                  {isEdit ? "Modify Supplier" : "Onboard Entity"}
+                </Dialog.Title>
+                <Dialog.Description className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mt-3">
+                  {isEdit ? "Update existing supplier credentials and financial data." : "Integrate a new supplier into the procurement matrix."}
+                </Dialog.Description>
               </div>
               <Dialog.Close className="p-2.5 rounded-2xl hover:bg-white/10 text-zinc-500 hover:text-white transition-all border border-transparent hover:border-white/10 relative">
                 <X className="w-5 h-5" />
@@ -178,7 +221,7 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           <span>Syncing...</span>
                         </>
-                      ) : "Finalize Onboarding"}
+                      ) : isEdit ? "Update Details" : "Finalize Onboarding"}
                     </button>
                   )}
                 </div>
@@ -218,11 +261,5 @@ function FormField({ icon, label, name, register, error, placeholder }: any) {
       />
       {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-tight mt-1">{error.message}</p>}
     </div>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
   );
 }

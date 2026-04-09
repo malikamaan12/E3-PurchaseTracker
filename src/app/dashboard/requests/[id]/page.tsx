@@ -34,7 +34,7 @@ import { Edit3, Trash2 } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { FinanceLedger } from "@/components/requests/FinanceLedger";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { ExportButton } from "@/components/requests/ExportButton";
+import { ExportDropdown } from "@/components/requests/ExportDropdown";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -166,20 +166,9 @@ export default function RequestDetailPage() {
           </div>
           
           <div className="flex items-center gap-3">
-             <ExportButton 
+             <ExportDropdown 
               requestId={requestId} 
               requestNumber={request.requestNumber} 
-              variant="simple"
-            />
-            <ExportButton 
-              requestId={requestId} 
-              requestNumber={request.requestNumber} 
-              variant="full"
-            />
-            <ExportButton 
-              requestId={requestId} 
-              requestNumber={request.requestNumber} 
-              variant="bundle"
             />
 
             {/* EDIT & DELETE (Condition: Owner/Admin and No Approvals) */}

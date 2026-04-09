@@ -10,9 +10,11 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (isLoading) {
+  // OPTIMISTIC HYDRATION CHECK
+  // We only block the UI if we are loading AND we don't have a user payload from the server.
+  if (isLoading && !user) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <LoadingState message="Verifying Identity..." />

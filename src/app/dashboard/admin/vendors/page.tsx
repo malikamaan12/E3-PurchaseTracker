@@ -1,16 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
-import { Building, ShieldCheck, Lock, XCircle, Search } from "lucide-react";
+import { Building, ShieldCheck, Lock, XCircle, Search, Pencil } from "lucide-react";
+import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
+
+import { useAuth } from "@/context/AuthContext";
 
 export default function AdminVendorsPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["admin_vendors"],
     queryFn: () => apiClient.vendors.list(), // using the global vendors list route
+    enabled: !!user && !isAuthLoading
   });
 
   const updateStatusMutation = useMutation({
@@ -22,6 +30,11 @@ export default function AdminVendorsPage() {
     },
     onError: (error: any) => toast.error(error.message || "Failed to update vendor"),
   });
+
+  const handleEdit = (vendor: any) => {
+    setSelectedVendor(vendor);
+    setIsModalOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -57,7 +70,7 @@ export default function AdminVendorsPage() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {vendors.map((vendor: any) => (
-              <tr key={vendor.id} className="hover:bg-secondary/50 transition-colors">
+              <tr key={vendor.id} className="hover:bg-secondary/50 transition-colors group">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-foreground uppercase text-sm border border-border transition-colors">
@@ -91,28 +104,38 @@ export default function AdminVendorsPage() {
                       {vendor.status || 'active'}
                     </span>
                 </td>
-                <td className="p-4 text-right space-x-2">
-                   <button 
-                     onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "active" })}
-                     disabled={vendor.status === "active" || updateStatusMutation.isPending}
-                     className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-bold transition-colors disabled:opacity-30 border border-emerald-500/20"
-                   >
-                     Approve
-                   </button>
-                   <button 
-                     onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "frozen" })}
-                     disabled={vendor.status === "frozen" || updateStatusMutation.isPending}
-                     className="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-xs font-bold transition-colors disabled:opacity-30 border border-cyan-500/20"
-                   >
-                     Freeze
-                   </button>
-                   <button 
-                     onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "blocked" })}
-                     disabled={vendor.status === "blocked" || updateStatusMutation.isPending}
-                     className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold transition-colors disabled:opacity-30 border border-rose-500/20"
-                   >
-                     Block
-                   </button>
+                <td className="p-4 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button 
+                      onClick={() => handleEdit(vendor)}
+                      className="p-2 rounded-lg bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-brand-primary transition-all border border-border group-hover:border-brand-primary/30"
+                      title="Edit Details"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <div className="w-px h-6 bg-border mx-1" />
+                    <button 
+                      onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "active" })}
+                      disabled={vendor.status === "active" || updateStatusMutation.isPending}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-bold transition-colors disabled:opacity-30 border border-emerald-500/20"
+                    >
+                      Approve
+                    </button>
+                    <button 
+                      onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "frozen" })}
+                      disabled={vendor.status === "frozen" || updateStatusMutation.isPending}
+                      className="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-xs font-bold transition-colors disabled:opacity-30 border border-cyan-500/20"
+                    >
+                      Freeze
+                    </button>
+                    <button 
+                      onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "blocked" })}
+                      disabled={vendor.status === "blocked" || updateStatusMutation.isPending}
+                      className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold transition-colors disabled:opacity-30 border border-rose-500/20"
+                    >
+                      Block
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -124,6 +147,12 @@ export default function AdminVendorsPage() {
           </div>
         )}
       </div>
+
+      <VendorManagementModal 
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        vendor={selectedVendor}
+      />
     </div>
   );
 }

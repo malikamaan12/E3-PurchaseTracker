@@ -19,8 +19,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [isAdmin, isLoading, user]);
 
-  // Still loading auth state — show spinner
-  if (isLoading) {
+  // Still loading auth state AND no user payload — show spinner
+  // If we have a user from optimistic hydration, we skip this to prevent flicker
+  if (isLoading && !user) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] gap-4">
         <motion.div

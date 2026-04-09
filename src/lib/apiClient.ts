@@ -35,10 +35,6 @@ class ApiClient {
       if (isAuthPage && response.status === 401) {
         const errorData = await response.json().catch(() => ({}));
         errorMessage = errorData.message || errorData.error || "Invalid username or password";
-      } else {
-        if (typeof window !== "undefined" && !isAuthPage) {
-          window.location.href = "/login?expired=true";
-        }
       }
       
       throw new ApiError(response.status, errorMessage);
@@ -97,6 +93,10 @@ class ApiClient {
       this.request<any>("/ai/analyze-request", { method: "POST", body: JSON.stringify({ requestDetails }) }),
     recommendVendors: (requestDetails: any, vendorOptions: any[]) => 
       this.request<any>("/ai/recommend-vendors", { method: "POST", body: JSON.stringify({ requestDetails, vendorOptions }) }),
+    dashboardAnalytics: (params: Record<string, any> = {}) => {
+      const search = new URLSearchParams(params).toString();
+      return this.request<any>(`/analytics/dashboard?${search}`);
+    },
   };
 
   // Vendors Domain
@@ -106,6 +106,7 @@ class ApiClient {
     patchStatus: (id: number, status: "active" | "blocked" | "frozen") => 
       this.request<any>(`/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     rate: (id: number, rating: number) => 
       this.request<any>(`/vendors/${id}/rate`, { method: "PATCH", body: JSON.stringify({ rating }) }),
   };

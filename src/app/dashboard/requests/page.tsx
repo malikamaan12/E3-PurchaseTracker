@@ -227,7 +227,7 @@ function RequestsDashboardContent() {
                 />
               ))
             ) : (
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {requests?.map((req: any) => (
                   <RequestRow 
                     key={req.id} 

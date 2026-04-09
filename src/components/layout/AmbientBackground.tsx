@@ -27,7 +27,7 @@ export default function AmbientBackground() {
       />
       
       {/* Fine grain overlay for premium texture */}
-      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
     </div>
   );
 }

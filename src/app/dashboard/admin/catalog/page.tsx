@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/lib/apiClient";
 import PurposeModal from "@/components/admin/PurposeModal";
 import ProjectModal from "@/components/admin/ProjectModal";
+import { useAuth } from "@/context/AuthContext";
 
 /**
  * Admin Governance Catalog Page
@@ -32,6 +33,7 @@ import ProjectModal from "@/components/admin/ProjectModal";
  * Implements strict "Freeze" governance and date-bound validity.
  */
 export default function AdminCatalogPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<number[]>([]);
@@ -41,17 +43,19 @@ export default function AdminCatalogPage() {
   const [selectedPurposeId, setSelectedPurposeId] = useState<number | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-
+ 
   // 1. Fetch Hierarchical Catalog
   const { data: catalog = [], isLoading } = useQuery({
     queryKey: ["admin_catalog"],
-    queryFn: () => apiClient.admin.catalog.list()
+    queryFn: () => apiClient.admin.catalog.list(),
+    enabled: !!user && !isAuthLoading
   });
-
+ 
   // 2. Fetch Departments (needed for ProjectModal)
   const { data: departments = [] } = useQuery({
     queryKey: ["admin_departments"],
-    queryFn: () => apiClient.departments.list()
+    queryFn: () => apiClient.departments.list(),
+    enabled: !!user && !isAuthLoading
   });
 
   // 3. Mutations for Status Toggling

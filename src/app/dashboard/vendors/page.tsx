@@ -23,7 +23,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
-import { OnboardVendorModal } from "@/components/vendors/OnboardVendorModal";
+import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/shared/StarRating";
@@ -157,7 +157,7 @@ export default function VendorsDashboard() {
         </div>
       </section>
 
-      <OnboardVendorModal open={isOnboarding} onOpenChange={setIsOnboarding} />
+      <VendorManagementModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
       <AnimatePresence mode="wait">
         {viewMode === "grid" ? (
