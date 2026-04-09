@@ -353,5 +353,3 @@ export default function TopNav() {
   );
 }
 
-}
-
