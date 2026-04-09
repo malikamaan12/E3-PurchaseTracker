@@ -132,6 +132,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   totalEstimatedCost: integer("total_estimated_cost").notNull(),
   freightAmount: integer("freight_amount").notNull().default(0),
   revisedTotalCost: integer("revised_total_cost"), // Tracks budget variations [FORCE_REFRESH]
+  proposedRevisedCost: integer("proposed_revised_cost"), // Staging field for variations awaiting approval
   status: text("status").notNull().default("draft"),
   paymentStructure: text("payment_structure").notNull().default("POST_PROJECT"), // 'ADVANCE', 'IN_PARTS', 'POST_PROJECT'
   isLocked: boolean("is_locked").notNull().default(false),
@@ -252,6 +253,7 @@ export const paymentInstallments = pgTable("payment_installments", {
   amountValue: integer("amount_value").notNull(), // The actual % or $ value
   calculatedAmount: integer("calculated_amount").notNull(), // The exact QAR amount
   paidAmount: integer("paid_amount"), // The actual amount paid by Finance
+  savingsAmount: integer("savings_amount"), // The negotiated discount/savings on this installment
   currency: text("currency").notNull().default("QAR"),
   status: text("status").notNull().default("pending"), // 'pending', 'paid', 'partial', 'rescheduled'
   paidAt: timestamp("paid_at"),

@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { paymentInstallments } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { paymentInstallments, purchaseRequests } from "@db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * PATCH /api/requests/[id]/payments/[paymentId]
- * Finance ledger update. Supports:
- *   - PAID: marks installment paid at full amount.
- *   - PARTIAL: auto-creates a Remainder row for the delta.
- *   - RESCHEDULED: defers due date.
- *   - isFinalSettlement=true: marks paid at lower amount + auto-creates a
- *       SETTLED_SAVINGS row for the savings delta (Scenario A).
+ * Enterprise Refactor: High-Performance Ledger Update.
+ * Logic Goals:
+ *   1. Backend Gatekeeper: Forcefully prevent overpayment via real-time DB total check.
+ *   2. Two-Row Differential: Consolidate partials into the final row (Minimizes connection spam).
+ *   3. Inline Savings: Uses savingsAmount column instead of spawning rows.
  */
 export async function PATCH(
   req: NextRequest,
@@ -42,15 +41,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid IDs" }, { status: 400 });
     }
 
-    const [existing] = await db
+    // ── 1. Fetch Request & ALL Installments (Absolute Source of Truth) ───────
+    const [request] = await db
       .select()
-      .from(paymentInstallments)
-      .where(and(eq(paymentInstallments.id, paymentId), eq(paymentInstallments.requestId, requestId)))
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
       .limit(1);
 
-    if (!existing) {
-      return NextResponse.json({ error: "Payment installment not found" }, { status: 404 });
+    if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 });
+
+    // ── 1.5 Strict Compliance: Only editable if APPROVED ──────────────────────
+    if (request.status !== "approved") {
+      return NextResponse.json({ 
+        error: "FORBIDDEN", 
+        message: `Financial Disbursement Schedule is locked while status is '${request.status.replace(/_/g, ' ')}'. Modifications require Management Approval.` 
+      }, { status: 403 });
     }
+
+    const allInstallments = await db
+      .select()
+      .from(paymentInstallments)
+      .where(eq(paymentInstallments.requestId, requestId))
+      .orderBy(desc(paymentInstallments.dueDate), desc(paymentInstallments.id));
+
+    const existing = allInstallments.find(p => p.id === paymentId);
+    if (!existing) return NextResponse.json({ error: "Payment installment not found" }, { status: 404 });
 
     const body = await req.json();
     const {
@@ -61,141 +76,101 @@ export async function PATCH(
       actualPaymentDate,
       transactionReference,
       attachmentUrl,
-      isFinalSettlement, // boolean — Scenario A: saves remainder as SETTLED_SAVINGS
+      isFinalSettlement, // Staged inline via savingsAmount
     } = body;
 
-    // ── Validate Status ─────────────────────────────────────────────────────
-    const validStatuses = ["pending", "partial", "paid", "rescheduled", "pending_approval"];
-    if (status && !validStatuses.includes(status.toLowerCase())) {
-      return NextResponse.json({ error: "Invalid payment status." }, { status: 400 });
+    // ── 2. Backend Gatekeeper: Overpayment Protection ────────────────────────
+    const safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : (existing.paidAmount ?? 0);
+    const validBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
+    
+    // Calculate global total paid IF this update is applied
+    const otherPaymentsTotal = allInstallments
+      .filter(p => p.id !== paymentId)
+      .reduce((sum, p) => sum + (p.paidAmount ?? 0), 0);
+    
+    const newGlobalPaid = otherPaymentsTotal + safePaidAmount;
+
+    if (newGlobalPaid > validBudget) {
+      return NextResponse.json({ 
+        error: "BUDGET_EXCEEDED", 
+        message: `Payment of ${safePaidAmount.toLocaleString()} QAR exceeds the remaining approved budget.`,
+        remaining: validBudget - otherPaymentsTotal
+      }, { status: 400 });
     }
 
-    // PARTIAL requires rescheduledDate
-    if (status?.toLowerCase() === "partial" && !rescheduledDate) {
-      return NextResponse.json(
-        { error: "A rescheduled date is required for partial payments." },
-        { status: 400 }
-      );
-    }
+    // ── 3. Build update payload ───────────────────────────────────────────────
+    const updatePayload: any = { 
+      updatedAt: new Date(),
+      paidAmount: safePaidAmount,
+      status: status?.toLowerCase() || existing.status,
+      financeNotes: financeNotes !== undefined ? financeNotes : existing.financeNotes,
+      transactionReference: transactionReference !== undefined ? transactionReference : existing.transactionReference,
+      attachmentUrl: attachmentUrl !== undefined ? attachmentUrl : existing.attachmentUrl,
+      actualPaymentDate: actualPaymentDate ? new Date(actualPaymentDate) : (status?.toLowerCase() === 'paid' ? new Date() : existing.actualPaymentDate),
+      rescheduledDate: rescheduledDate ? new Date(rescheduledDate) : existing.rescheduledDate,
+    };
 
-    // ── Integer Safety ───────────────────────────────────────────────────────
-    const safePaidAmount =
-      paidAmount !== undefined && paidAmount !== null
-        ? Math.round(Number(paidAmount))
-        : undefined;
+    let responseMessage = "Payment ledger updated successfully.";
 
-    // ── Build update payload ─────────────────────────────────────────────────
-    const updatePayload: any = { updatedAt: new Date() };
-    if (safePaidAmount !== undefined)  updatePayload.paidAmount = safePaidAmount;
-    if (status)                        updatePayload.status = status.toLowerCase();
-    if (rescheduledDate !== undefined) updatePayload.rescheduledDate = rescheduledDate ? new Date(rescheduledDate) : null;
-    if (actualPaymentDate !== undefined) updatePayload.actualPaymentDate = actualPaymentDate ? new Date(actualPaymentDate) : null;
-    if (financeNotes !== undefined)    updatePayload.financeNotes = financeNotes;
-    if (transactionReference !== undefined) updatePayload.transactionReference = transactionReference;
-    if (attachmentUrl !== undefined)   updatePayload.attachmentUrl = attachmentUrl;
-
-    if (status?.toLowerCase() === "paid" && !updatePayload.actualPaymentDate) {
-      updatePayload.actualPaymentDate = new Date();
-    }
-
-    // ── Scenario A: Final Settlement ─────────────────────────────────────────
-    // If Finance pays less than expected on a finalised invoice, mark the
-    // current row PAID at the lower amount and auto-create a SETTLED_SAVINGS
-    // row for the difference — keeping the ledger balanced.
-    let settledSavingsInstallment = null;
-
-    if (isFinalSettlement === true && safePaidAmount !== undefined && safePaidAmount < existing.calculatedAmount) {
-      // Force the status to PAID regardless of what was submitted
+    // ── 4. Logic Scenarios (High Efficiency) ────────────────────────────────
+    
+    // A. Inline Savings (Neon Optimization)
+    if (isFinalSettlement === true && safePaidAmount < existing.calculatedAmount) {
       updatePayload.status = "paid";
-      if (!updatePayload.actualPaymentDate) updatePayload.actualPaymentDate = new Date();
+      updatePayload.savingsAmount = Math.round(existing.calculatedAmount - safePaidAmount);
+      responseMessage = `Final settlement logged. Inline savings of ${updatePayload.savingsAmount.toLocaleString()} QAR recorded.`;
+    }
 
-      const savingsDelta = Math.round(existing.calculatedAmount - safePaidAmount);
+    // B. Two-Row Differential
+    if (status?.toLowerCase() === "partial" && safePaidAmount < existing.calculatedAmount && !isFinalSettlement) {
+      const delta = Math.round(existing.calculatedAmount - safePaidAmount);
+      const finalInstallment = allInstallments[0]; // Chronologically latest
 
-      if (savingsDelta > 0) {
-        const [savingsRow] = await db
-          .insert(paymentInstallments)
-          .values({
-            requestId,
-            vendorId: existing.vendorId,
-            installmentName: `${existing.installmentName} (Savings Δ -${savingsDelta.toLocaleString()} ${existing.currency})`,
-            dueDate: new Date(), // Settled immediately
-            amount: savingsDelta,
-            valueType: "FIXED_AMOUNT",
-            amountValue: savingsDelta,
-            calculatedAmount: savingsDelta,
-            currency: existing.currency,
-            status: "settled_savings",
-            paidAmount: 0,          // Zero cost to the company
-            actualPaymentDate: new Date(),
-            financeNotes: `Final settlement saving. Original estimate: ${existing.calculatedAmount.toLocaleString()} ${existing.currency}. Paid: ${safePaidAmount.toLocaleString()} ${existing.currency}. Saved: ${savingsDelta.toLocaleString()} ${existing.currency}.`,
-            createdBy: user.id,
+      if (finalInstallment && finalInstallment.id !== paymentId) {
+        // CASE 1: Shift delta to the final row
+        await db.update(paymentInstallments)
+          .set({ 
+            calculatedAmount: (finalInstallment.calculatedAmount || 0) + delta,
+            updatedAt: new Date()
           })
-          .returning();
-
-        settledSavingsInstallment = savingsRow;
+          .where(eq(paymentInstallments.id, finalInstallment.id));
+        
+        responseMessage = `Partial payment logged. Remainder of ${delta.toLocaleString()} QAR shifted to final installment (${finalInstallment.installmentName}).`;
+      } else {
+        // CASE 2: Single-Row Edge Case (Auto-spawn)
+        await db.insert(paymentInstallments).values({
+          requestId,
+          vendorId: existing.vendorId,
+          installmentName: `${existing.installmentName} (Remainder)`,
+          dueDate: rescheduledDate ? new Date(rescheduledDate) : new Date(),
+          amount: delta,
+          valueType: "FIXED_AMOUNT",
+          amountValue: delta,
+          calculatedAmount: delta,
+          currency: existing.currency,
+          status: "pending",
+          financeNotes: `Auto-generated remainder from 1st-row partial payment of ${safePaidAmount.toLocaleString()} QAR.`,
+          createdBy: user.id,
+        });
+        responseMessage = `Partial payment logged. Remainder of ${delta.toLocaleString()} QAR auto-spawned (Single-Row Edge Case).`;
       }
     }
 
-    // ── 1. Update the target installment ────────────────────────────────────
+    // ── 5. Apply the update ──────────────────────────────────────────────────
     const [updatedPayment] = await db
       .update(paymentInstallments)
       .set(updatePayload)
       .where(and(eq(paymentInstallments.id, paymentId), eq(paymentInstallments.requestId, requestId)))
       .returning();
 
-    // ── 2. PARTIAL SPLIT: Auto-spawn remainder installment ──────────────────
-    let remainderInstallment = null;
-
-    if (
-      status?.toLowerCase() === "partial" &&
-      safePaidAmount !== undefined &&
-      safePaidAmount < existing.calculatedAmount &&
-      !isFinalSettlement
-    ) {
-      const remainingAmount = Math.round(existing.calculatedAmount - safePaidAmount);
-
-      if (remainingAmount > 0) {
-        const [newInstallment] = await db
-          .insert(paymentInstallments)
-          .values({
-            requestId,
-            vendorId: existing.vendorId,
-            installmentName: `${existing.installmentName} (Remainder)`,
-            dueDate: rescheduledDate ? new Date(rescheduledDate) : new Date(),
-            amount: remainingAmount,
-            valueType: "FIXED_AMOUNT",
-            amountValue: remainingAmount,
-            calculatedAmount: remainingAmount,
-            currency: existing.currency,
-            status: "pending",
-            rescheduledDate: rescheduledDate ? new Date(rescheduledDate) : null,
-            financeNotes: `Auto-generated remainder from partial payment of ${safePaidAmount.toLocaleString()} ${existing.currency}. Original installment ID: ${paymentId}.`,
-            createdBy: user.id,
-          })
-          .returning();
-
-        remainderInstallment = newInstallment;
-      }
-    }
-
-    // ── Build response message ───────────────────────────────────────────────
-    let message = "Payment ledger updated successfully.";
-    if (settledSavingsInstallment) {
-      message = `Final settlement logged. Savings of ${settledSavingsInstallment.calculatedAmount.toLocaleString()} ${existing.currency} recorded.`;
-    } else if (remainderInstallment) {
-      message = `Partial payment logged. Remainder of ${remainderInstallment.calculatedAmount.toLocaleString()} ${existing.currency} split into new installment.`;
-    }
-
     return NextResponse.json({
       success: true,
-      message,
-      payment: updatedPayment,
-      remainderInstallment,
-      settledSavingsInstallment,
+      message: responseMessage,
+      payment: updatedPayment
     });
 
   } catch (error: any) {
-    console.error("[Finance Ledger API] Error:", error);
+    console.error("[Finance Ledger API] Refactor Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

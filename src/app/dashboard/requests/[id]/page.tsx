@@ -33,6 +33,7 @@ import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
 import { Edit3, Trash2 } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { FinanceLedger } from "@/components/requests/FinanceLedger";
+import { LoadingState } from "@/components/shared/LoadingState";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -702,7 +703,7 @@ export default function RequestDetailPage() {
                             approval.status === 'changes_requested' ? `Changes requested by ${approval.approver?.username}` :
                             `Waiting for ${approval.department} approvers`
                           }
-                          time={approval.processedAt ? format(new Date(approval.processedAt), "hh:mm a • MMM dd") : undefined}
+                          time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy • hh:mm a") : undefined}
                           status={
                             isApproved ? 'completed' : 
                             isRejected ? 'error' : 
@@ -939,9 +940,15 @@ function LifecycleItem({ title, subtitle, time, status, icon, stakeholders = [],
         )}
 
         {comments && (
-          <div className="mt-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 relative">
-             <p className="text-[10px] text-zinc-400 italic leading-relaxed">"{comments}"</p>
-             <div className="absolute -left-1 w-2 h-2 bg-zinc-950 border-l border-t border-white/5 rotate-[-45deg] top-3" />
+          <div className="mt-3 p-3 rounded-xl bg-secondary/50 border border-border relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-1 opacity-5">
+                <MessageSquare className="w-8 h-8 rotate-12" />
+             </div>
+             <div className="flex items-center gap-1.5 mb-1.5 opacity-60">
+                <MessageSquare className="w-2.5 h-2.5 text-brand-primary" />
+                <span className="text-[8px] font-black uppercase tracking-[0.2em]">Sign-off Comment</span>
+             </div>
+             <p className="text-[11px] text-foreground font-medium italic leading-relaxed pl-1 border-l-2 border-brand-primary/20">"{comments}"</p>
           </div>
         )}
       </div>
@@ -949,25 +956,6 @@ function LifecycleItem({ title, subtitle, time, status, icon, stakeholders = [],
   );
 }
 
-function LoadingState() {
-  return (
-    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full h-[80vh] justify-center items-center">
-      <div className="w-24 h-24 relative">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="absolute inset-0 border-t-4 border-brand-secondary rounded-full"
-        />
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-          className="absolute inset-4 bg-brand-primary/20 rounded-full"
-        />
-      </div>
-      <p className="text-zinc-500 font-mono tracking-[0.4em] text-xs uppercase animate-pulse">Synchronizing Data...</p>
-    </div>
-  );
-}
 
 function ErrorState() {
   return (

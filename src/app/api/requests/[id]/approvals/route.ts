@@ -172,15 +172,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 4. Update Purchase Request Header
-    const [updatedRequest] = await db
+    let finalizedProposedCost = undefined;
+    if (nextRequestStatus === "approved" && updatedRequest.proposedRevisedCost) {
+      finalizedProposedCost = updatedRequest.proposedRevisedCost;
+    }
+
+    const [finalRequest] = await db
       .update(purchaseRequests)
       .set({
         status: nextRequestStatus as any,
         isLocked,
+        revisedTotalCost: finalizedProposedCost ?? updatedRequest.revisedTotalCost,
+        proposedRevisedCost: finalizedProposedCost ? null : updatedRequest.proposedRevisedCost, // Clear staging if approved
         updatedAt: new Date()
       })
       .where(eq(purchaseRequests.id, requestId))
       .returning();
+
+    // ── VARIATION MATERIALIZATION ───────────────────────────────────────────
+    // If a budget variation was just approved, generate the actual financial
+    // installment row for the delta.
+    if (finalizedProposedCost && nextRequestStatus === "approved") {
+      const previousValidBudget = updatedRequest.revisedTotalCost ?? updatedRequest.totalEstimatedCost;
+      const deltaAmount = Math.round(finalizedProposedCost - previousValidBudget);
+
+      if (deltaAmount > 0) {
+        const dueDatePlaceholder = new Date();
+        dueDatePlaceholder.setDate(dueDatePlaceholder.getDate() + 30);
+
+        await db.insert(paymentInstallments).values({
+          requestId,
+          vendorId: updatedRequest.vendorId,
+          installmentName: `Approved Variation Delta Δ +${deltaAmount.toLocaleString()} QAR`,
+          dueDate: dueDatePlaceholder,
+          amount: deltaAmount,
+          valueType: "FIXED_AMOUNT",
+          amountValue: deltaAmount,
+          calculatedAmount: deltaAmount,
+          currency: updatedRequest.currency ?? "QAR",
+          status: "pending", // Now officially part of the payment queue
+          financeNotes: `Materialized upon final sign-off of variation ${previousValidBudget.toLocaleString()} → ${finalizedProposedCost.toLocaleString()} QAR.`,
+          createdBy: user.id,
+        });
+      }
+    }
 
     // 5. SECONDARY ACTIONS (Fault-Tolerant)
 

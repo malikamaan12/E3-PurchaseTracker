@@ -1,11 +1,25 @@
+"use client";
+
 import TopNav from "@/components/layout/TopNav";
 import AmbientBackground from "@/components/layout/AmbientBackground";
+import { useAuth } from "@/context/AuthContext";
+import { LoadingState } from "@/components/shared/LoadingState";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <LoadingState message="Verifying Identity..." />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden transition-colors duration-300">
       {/* Top Navigation */}
