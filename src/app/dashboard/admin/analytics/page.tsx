@@ -16,7 +16,7 @@ export default function DepartmentAnalyticsPage() {
     queryFn: () => apiClient.admin.analytics.get(),
   });
 
-  const stats = analyticsGroups?.departmental || [];
+  const stats = (analyticsGroups as any)?.departmental || [];
   const colors = ["#6F2AE6", "#15CDD8", "#F59E0B", "#EF4444", "#10B981", "#06b6d4"];
 
   const maxCost = Math.max(...(stats.length ? stats.map((s: any) => s.totalCost) : [1]));
