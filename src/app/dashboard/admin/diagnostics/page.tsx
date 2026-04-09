@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
-import { Activity, BugPlay, ShieldAlert, Cpu } from "lucide-react";
+import { Activity, BugPlay, ShieldAlert, Cpu, DownloadCloud, ChevronRight, Zap } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export default function DiagnosticsPage() {
   const { data: logs = [], isLoading } = useQuery({
@@ -11,15 +12,41 @@ export default function DiagnosticsPage() {
     queryFn: () => apiClient.admin.auditLogs(),
   });
 
+  const handleExport = () => {
+    toast.promise(
+      new Promise((resolve) => {
+        window.open("/api/admin/diagnostics/export", "_blank");
+        setTimeout(resolve, 1000);
+      }),
+      {
+        loading: "Generating diagnostic report...",
+        success: "Audit report dispatched to browser",
+        error: "Failed to assemble report"
+      }
+    );
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">System Diagnostics</h1>
-          <p className="text-sm text-muted-foreground mt-1 font-medium italic">Audit logs, system events, and runtime diagnostics.</p>
+          <h1 className="text-4xl font-serif font-black text-foreground tracking-tight flex items-center gap-3">
+             <Zap className="w-8 h-8 text-brand-primary" />
+             System Diagnostics
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 font-medium">Audit logs, system events, and real-time runtime diagnostics.</p>
         </div>
-        <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors">
-          <BugPlay className="w-5 h-5 text-indigo-500" />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-brand-primary text-white font-black px-6 py-2.5 rounded-2xl hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all group"
+          >
+            <DownloadCloud className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            Export Diagnostics (CSV)
+          </button>
+          <div className="bg-secondary/50 p-2.5 rounded-2xl border border-border">
+            <BugPlay className="w-5 h-5 text-indigo-500" />
+          </div>
         </div>
       </div>
 
@@ -47,40 +74,89 @@ export default function DiagnosticsPage() {
           </div>
        </div>
 
-      <div className="bg-card rounded-3xl border border-border p-8 shadow-xl overflow-hidden">
-        <h2 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-brand-primary" />
-          Recent Audit Trail
-        </h2>
+      <div className="glass rounded-[2rem] border border-border/40 p-10 shadow-2xl relative overflow-hidden">
+        {/* Decorative background element */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-primary/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none" />
+
+        <div className="flex justify-between items-center mb-10 relative">
+          <h2 className="text-xl font-black text-foreground flex items-center gap-3">
+            <Activity className="w-6 h-6 text-brand-primary animate-pulse" />
+            Live Audit Stream
+          </h2>
+          <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-widest">
+            Syncing Live
+          </span>
+        </div>
+
         {isLoading ? (
-           <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+           <div className="flex flex-col items-center justify-center h-48 gap-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary"></div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Scanning audit trail...</p>
            </div>
         ) : (
-          <div className="space-y-4">
-            {logs.map((log: any) => (
-              <div key={log.id} className="flex gap-4 items-start p-4 bg-secondary/20 rounded-2xl border border-border hover:bg-secondary/40 transition-all">
-                 <div className="w-10 h-10 shrink-0 bg-secondary rounded-xl flex items-center justify-center font-bold text-foreground uppercase text-xs border border-border">
-                   {log.action.substring(0,2)}
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <p className="text-sm text-foreground font-medium">User <b className="text-brand-primary">{log.user?.username || 'System'}</b> performed <span className="text-amber-500 font-mono text-xs">{log.action}</span></p>
-                   <p className="text-xs text-muted-foreground mt-1 font-medium">Resource: <span className="opacity-70">{log.resourceType}</span> {log.resourceId ? `#${log.resourceId}` : ''}</p>
-                   {log.details && (
-                     <pre className="mt-3 text-[10px] text-muted-foreground font-mono bg-secondary/80 p-3 rounded-xl overflow-x-auto border border-border/50">
-                       {JSON.stringify(log.details, null, 2)}
-                     </pre>
-                   )}
-                 </div>
-                 <div className="shrink-0 text-right">
-                    <p className="text-xs font-mono text-muted-foreground opacity-70">{format(new Date(log.timestamp), 'HH:mm:ss')}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1 tracking-widest">{format(new Date(log.timestamp), 'MMM dd')}</p>
-                 </div>
-              </div>
-            ))}
+          <div className="space-y-4 relative">
+            {logs.map((log: any) => {
+              const actionType = log.action.toLowerCase();
+              const isDanger = actionType.includes('delete') || actionType.includes('rejected');
+              const isSuccess = actionType.includes('approve') || actionType.includes('create');
+              
+              return (
+                <div key={log.id} className="flex flex-col md:flex-row gap-4 items-start md:items-center p-5 bg-secondary/10 hover:bg-secondary/30 rounded-2xl border border-border/30 hover:border-brand-primary/30 transition-all group">
+                   <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center font-black uppercase text-xs border shadow-sm transition-transform group-hover:scale-105 ${
+                     isDanger ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                     isSuccess ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                     'bg-secondary/80 text-foreground border-border'
+                   }`}>
+                     {log.action.substring(0,2)}
+                   </div>
+                   
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-2">
+                       <span className="text-xs font-black text-brand-primary uppercase tracking-tighter">Event #{(log.id % 99999).toString().padStart(5, '0')}</span>
+                       <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                         {log.resourceType || "System"} Entity
+                       </p>
+                     </div>
+                     <p className="text-sm text-foreground font-bold mt-0.5">
+                       User <span className="text-brand-primary italic opacity-90">{log.user?.username || 'System Root'}</span> 
+                       &nbsp;performed <span className="text-foreground uppercase tracking-tight">{log.action}</span>
+                     </p>
+                     
+                     {log.details && (
+                       <details className="mt-3 cursor-pointer group/details">
+                         <summary className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 hover:text-brand-primary transition-colors">
+                           <ChevronRight className="w-3 h-3 group-open/details:rotate-90 transition-transform" />
+                           View Detailed Payload
+                         </summary>
+                         <pre className="mt-3 text-[10px] text-muted-foreground font-mono bg-black/20 backdrop-blur-md p-4 rounded-xl overflow-x-auto border border-white/5 scrollbar-hide select-all">
+                           {JSON.stringify(log.details, null, 2)}
+                         </pre>
+                       </details>
+                     )}
+                   </div>
+
+                   <div className="shrink-0 flex flex-col items-start md:items-end gap-1">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary/50 rounded-lg border border-border/50">
+                        <Activity className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-[10px] font-mono font-bold text-foreground">{format(new Date(log.timestamp), 'HH:mm:ss')}</span>
+                      </div>
+                      <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest pr-1">
+                        {format(new Date(log.timestamp), 'MMM dd, yyyy')}
+                      </span>
+                   </div>
+                </div>
+              );
+            })}
             {logs.length === 0 && (
-               <div className="text-center py-12 text-muted-foreground font-bold uppercase tracking-widest text-[10px] border border-dashed border-border rounded-2xl">
-                 No recent audit logs available.
+               <div className="text-center py-20 flex flex-col items-center gap-4">
+                 <div className="w-16 h-16 rounded-3xl bg-secondary/50 flex items-center justify-center border border-dashed border-border text-muted-foreground">
+                    <Activity className="w-8 h-8 opacity-20" />
+                 </div>
+                 <div>
+                   <p className="text-xs font-black text-foreground uppercase tracking-widest">Audit Vacuum</p>
+                   <p className="text-[10px] text-muted-foreground mt-1">No system events captured in the current synchronization window.</p>
+                 </div>
                </div>
             )}
           </div>

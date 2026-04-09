@@ -23,7 +23,12 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { toast } from "sonner";
-import { FileText, Users, PieChart, Settings, ShieldCheck, LogOut, FileSpreadsheet, Zap } from "lucide-react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { 
+  FileText, Users, PieChart, Settings, ShieldCheck, LogOut, FileSpreadsheet, Zap,
+  XCircle 
+} from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
 
 export default function TopNav() {
@@ -34,6 +39,10 @@ export default function TopNav() {
   const today = new Date();
   const pathname = usePathname();
   const { user, isAdmin, isApprover } = useAuth();
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => { setIsMounted(true); }, []);
 
   const handleLogout = async () => {
     try {
@@ -73,11 +82,64 @@ export default function TopNav() {
 
   const markAllReadMutation = useMutation({
     mutationFn: () => apiClient.notifications.markAllRead(),
-    onSuccess: () => {
+    onMutate: async () => {
+      // Optimistic Reset: Zero count immediately
+      await queryClient.cancelQueries({ queryKey: ["notifications-unread-count"] });
+      const previousStats = queryClient.getQueryData<any>(["notifications-unread-count"]);
+      queryClient.setQueryData(["notifications-unread-count"], { count: 0 });
+      return { previousStats };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousStats) {
+        queryClient.setQueryData(["notifications-unread-count"], context.previousStats);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
+  
+  const markReadMutation = useMutation({
+    mutationFn: (id: number) => apiClient.notifications.markRead(id),
+    onMutate: async (id) => {
+      // Optimistic Update: Decrement count immediately
+      await queryClient.cancelQueries({ queryKey: ["notifications-unread-count"] });
+      const previousStats = queryClient.getQueryData<any>(["notifications-unread-count"]);
+      if (previousStats) {
+        queryClient.setQueryData(["notifications-unread-count"], {
+          ...previousStats,
+          count: Math.max(0, previousStats.count - 1)
+        });
+      }
+      return { previousStats };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousStats) {
+        queryClient.setQueryData(["notifications-unread-count"], context.previousStats);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const handleNotificationClick = async (notif: any) => {
+    setIsNotifOpen(false);
+    // Mark as read immediately (Promise-based to ensure it starts)
+    if (!notif.read) {
+      try {
+        await markReadMutation.mutateAsync(notif.id);
+      } catch (err) {
+        console.error("Failed to mark notification as read", err);
+      }
+    }
+    // Navigate manually ensuring mutation has been triggered
+    if (notif.requestId) {
+      router.push(`/dashboard/requests/${notif.requestId}`);
+    }
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -92,7 +154,7 @@ export default function TopNav() {
 
   return (
     <>
-      <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl px-8 flex items-center sticky top-0 z-40 transition-colors duration-300">
+      <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl px-8 flex items-center sticky top-0 z-50 transition-colors duration-300">
         <div className="flex items-center gap-6 mr-8 min-w-[200px]">
           {/* Replaced pure typography with theme-aware images */}
           <Link href="/dashboard/requests" className="flex items-center">
@@ -138,88 +200,105 @@ export default function TopNav() {
           <div className="flex gap-2 relative" ref={notifRef}>
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className={`p-2.5 rounded-xl hover:bg-secondary transition-all relative ${isNotifOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`p-2.5 rounded-xl hover:bg-secondary transition-all relative group ${isNotifOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <Bell className="w-5 h-5" />
+              <div className="relative">
+                <Bell className={`w-5 h-5 transition-transform duration-500 ${isNotifOpen ? 'rotate-12' : 'group-hover:rotate-12'}`} />
+                {unreadStats && unreadStats.count > 0 && (
+                  <>
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-primary rounded-full animate-ping opacity-75" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-primary rounded-full border-2 border-background" />
+                  </>
+                )}
+              </div>
               {unreadStats && unreadStats.count > 0 && (
-                <span className="absolute top-2.5 right-2.5 w-4 h-4 bg-brand-primary text-[10px] font-bold text-white flex items-center justify-center rounded-full border-2 border-background">
+                <div className="absolute top-0 right-0 -mr-1 -mt-1 h-4 min-w-[16px] px-1 bg-brand-primary text-[9px] font-black text-white flex items-center justify-center rounded-full border-2 border-background shadow-lg shadow-brand-primary/20">
                   {unreadStats.count}
-                </span>
+                </div>
               )}
             </button>
 
-            {/* Notification Dropdown */}
-            <AnimatePresence>
-              {isNotifOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-full right-0 mt-4 w-[400px] bg-card border border-border rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden z-[1000]"
-                >
-                  <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
-                    <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Notifications</h3>
-                    <button 
-                      onClick={() => markAllReadMutation.mutate()}
-                      className="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 transition-colors uppercase tracking-tight flex items-center gap-1"
-                    >
-                      <CheckCheck className="w-3 h-3" /> Mark all read
-                    </button>
-                  </div>
+            {/* Notification Dropdown via Portal to avoid clipping */}
+            {isMounted && isNotifOpen && createPortal(
+              <div className="fixed inset-0 z-[99999] pointer-events-none">
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute pointer-events-auto bg-card border border-border rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden w-[400px]"
+                    style={{ 
+                      top: notifRef.current ? notifRef.current.getBoundingClientRect().bottom + 12 : '80px',
+                      right: notifRef.current ? window.innerWidth - notifRef.current.getBoundingClientRect().right : '32px'
+                    }}
+                  >
+                    <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
+                      <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">Notifications</h3>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); markAllReadMutation.mutate(); }}
+                        className="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 transition-colors uppercase tracking-tight flex items-center gap-1"
+                      >
+                        <CheckCheck className="w-3 h-3" /> Mark all read
+                      </button>
+                    </div>
 
-                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                    {isLoadingNotifs ? (
-                      <div className="p-12 flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="w-6 h-6 text-brand-primary animate-spin" />
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Loading alerts...</p>
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="p-12 flex flex-col items-center justify-center gap-4 text-center">
-                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center border border-border text-muted-foreground">
-                          <Bell className="w-6 h-6" />
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {isLoadingNotifs ? (
+                        <div className="p-12 flex flex-col items-center justify-center gap-3">
+                          <Loader2 className="w-6 h-6 text-brand-primary animate-spin" />
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase">Loading alerts...</p>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-muted-foreground">All caught up!</p>
-                          <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-widest">No new notifications</p>
+                      ) : notifications.length === 0 ? (
+                        <div className="p-12 flex flex-col items-center justify-center gap-4 text-center">
+                          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center border border-border text-muted-foreground">
+                            <Bell className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-muted-foreground">All caught up!</p>
+                            <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-widest">No new notifications</p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border">
-                        {notifications.map((notif: any) => (
-                          <Link 
-                            key={notif.id}
-                            href={notif.requestId ? `/dashboard/requests/${notif.requestId}` : '#'}
-                            onClick={() => setIsNotifOpen(false)}
-                            className="p-4 flex gap-4 hover:bg-secondary transition-colors group"
-                          >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                              notif.type === 'rejection' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
-                              notif.type === 'approval_required' ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' :
-                              'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-                            }`}>
-                              {notif.type === 'rejection' ? <XCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs font-bold text-foreground truncate">{notif.title}</p>
-                                <ExternalLink className="w-3 h-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      ) : (
+                        <div className="divide-y divide-border">
+                          {notifications.map((notif: any) => (
+                            <button 
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className="w-full text-left p-4 flex gap-4 hover:bg-secondary transition-colors group relative"
+                            >
+                              {!notif.read && (
+                                <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-primary rounded-r-md" />
+                              )}
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                                notif.type === 'rejection' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                                notif.type === 'approval_required' ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' :
+                                'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                              }`}>
+                                {notif.type === 'rejection' ? <XCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
                               </div>
-                              <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{notif.message}</p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Clock className="w-3 h-3 text-muted-foreground/30" />
-                                <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-tighter">
-                                  {formatDistanceToNow(new Date(notif.createdAt))} ago
-                                </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-xs font-bold text-foreground truncate">{notif.title}</p>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{notif.message}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="w-3 h-3 text-muted-foreground/30" />
+                                  <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-tighter">
+                                    {formatDistanceToNow(new Date(notif.createdAt))} ago
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>,
+              document.body
+            )}
             
             <button
               onClick={() => setHighPerformanceMode(!highPerformanceMode)}

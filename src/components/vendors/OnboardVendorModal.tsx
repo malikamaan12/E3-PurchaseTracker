@@ -68,18 +68,19 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
             className="glass-card p-8 border-white/20 shadow-2xl relative overflow-hidden"
           >
             {/* Header */}
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <Dialog.Title className="text-3xl font-serif text-white tracking-tight">Onboard New Vendor</Dialog.Title>
-                <Dialog.Description className="text-zinc-400 mt-2">Integrate a new supplier into the procurement ecosystem.</Dialog.Description>
+            <div className="flex justify-between items-start mb-10 relative">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-brand-primary/10 blur-3xl rounded-full -ml-16 -mt-16 pointer-events-none" />
+              <div className="relative">
+                <Dialog.Title className="text-4xl font-serif font-black text-white tracking-tighter leading-none">Onboard Entity</Dialog.Title>
+                <Dialog.Description className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mt-3">Integrate a new supplier into the procurement matrix.</Dialog.Description>
               </div>
-              <Dialog.Close className="p-2 rounded-full hover:bg-white/5 text-zinc-400 transition-colors">
+              <Dialog.Close className="p-2.5 rounded-2xl hover:bg-white/10 text-zinc-500 hover:text-white transition-all border border-transparent hover:border-white/10 relative">
                 <X className="w-5 h-5" />
               </Dialog.Close>
             </div>
 
             {/* Stepper Header */}
-            <div className="flex gap-4 mb-8">
+            <div className="flex gap-4 mb-10 bg-black/20 p-4 rounded-3xl border border-white/5 relative">
               <StepIndicator current={step} target={1} label="Identity" />
               <StepIndicator current={step} target={2} label="Finance" />
               <StepIndicator current={step} target={3} label="Compliance" />
@@ -132,16 +133,16 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                     <FormField icon={<FileCheck />} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
                     <FormField icon={<FileCheck />} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-2">
-                        Vendor Rating
+                      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
+                        Vendor Reputation Index
                       </label>
                       <input 
                         type="number"
                         min="0"
                         max="5"
                         {...register("rating", { valueAsNumber: true })}
-                        placeholder="0-5"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/50 transition-all"
+                        placeholder="Rating 0-5"
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-8 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20 transition-all"
                       />
                     </div>
                   </motion.div>
@@ -170,9 +171,14 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
                     <button 
                       type="submit"
                       disabled={mutation.isPending}
-                      className="bg-brand-secondary text-black font-bold px-8 py-2.5 rounded-full hover:scale-105 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                      className="bg-brand-primary text-white font-black px-10 py-3.5 rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
                     >
-                      {mutation.isPending ? "Onboarding..." : "Finalize Onboarding"}
+                      {mutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Syncing...</span>
+                        </>
+                      ) : "Finalize Onboarding"}
                     </button>
                   )}
                 </div>
@@ -188,12 +194,12 @@ export function OnboardVendorModal({ open, onOpenChange }: { open: boolean; onOp
 function StepIndicator({ current, target, label }: any) {
   const active = current >= target;
   return (
-    <div className="flex items-center gap-2">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-500 ${active ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'bg-white/5 text-zinc-600'}`}>
+    <div className="flex items-center gap-3">
+      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black transition-all duration-500 border ${active ? 'bg-brand-primary text-white border-brand-primary shadow-xl shadow-brand-primary/30' : 'bg-white/5 text-zinc-600 border-white/5'}`}>
         {target}
       </div>
-      <span className={`text-[10px] uppercase font-bold tracking-widest ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
-      {target < 3 && <div className="w-8 h-px bg-white/10 ml-2" />}
+      <span className={`text-[9px] uppercase font-black tracking-[0.2em] ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
+      {target < 3 && <div className="w-6 h-px bg-white/10 ml-1" />}
     </div>
   );
 }
@@ -201,16 +207,16 @@ function StepIndicator({ current, target, label }: any) {
 function FormField({ icon, label, name, register, error, placeholder }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-2">
-        <span className="text-zinc-600">{icon && <span className="w-3 h-3 block">{icon}</span>}</span>
+      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
+        <span className="text-zinc-600 group-focus-within:text-brand-primary transition-colors">{icon && <span className="w-3.5 h-3.5 block">{icon}</span>}</span>
         {label}
       </label>
       <input 
         {...register(name)}
         placeholder={placeholder}
-        className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 transition-all ${error ? 'border-rose-500/50 focus:ring-rose-500/20' : 'border-white/10 focus:ring-brand-primary/20 focus:border-brand-primary/50'}`}
+        className={`w-full bg-white/[0.03] border-2 rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-white/5 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20'}`}
       />
-      {error && <p className="text-[10px] text-rose-500 font-medium">{error.message}</p>}
+      {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-tight mt-1">{error.message}</p>}
     </div>
   );
 }

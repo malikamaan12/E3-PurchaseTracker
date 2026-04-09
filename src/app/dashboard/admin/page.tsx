@@ -40,11 +40,27 @@ export default function AdminOverviewPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] animate-pulse">Syncing Command Center...</p>
       </div>
     );
   }
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
 
   if (error) {
     return (
@@ -71,56 +87,67 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Top Level Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
         {[
           { 
             label: "Total Projects", 
             value: analytics?.projects?.length || 0, 
             sub: "Active Validated", 
-            icon: <BarChart3 className="w-5 h-5 text-primary" /> 
+            icon: <BarChart3 className="w-5 h-5 text-brand-primary" />,
+            trend: "+12%"
           },
           { 
             label: "Categories", 
             value: analytics?.categories?.length || 0, 
             sub: "CAPEX / OPEX Split", 
-            icon: <PieChartIcon className="w-5 h-5 text-emerald-500" /> 
+            icon: <PieChartIcon className="w-5 h-5 text-emerald-500" />,
+            trend: "Optimal"
           },
           { 
             label: "Departments", 
             value: analytics?.departmental?.length || 0, 
             sub: "Involved in Spend", 
-            icon: <Users className="w-5 h-5 text-blue-500" /> 
+            icon: <Users className="w-5 h-5 text-blue-500" />,
+            trend: "Global"
           },
           { 
             label: "System Health", 
             value: "100%", 
             sub: "Serverless Native", 
-            icon: <Globe className="w-5 h-5 text-cyan-500" /> 
+            icon: <Globe className="w-5 h-5 text-cyan-500" />,
+            trend: "Stable"
           },
         ].map((stat, i) => (
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            variants={item}
             key={i} 
-            className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all group"
+            className="glass p-6 rounded-3xl border border-border/40 shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden"
           >
-             <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+             <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-brand-primary/10 transition-colors" />
+             <div className="flex justify-between items-start relative">
+                <div className="w-12 h-12 rounded-2xl bg-secondary/50 flex items-center justify-center group-hover:bg-brand-primary/10 transition-colors border border-border/50">
                   {stat.icon}
                 </div>
-                <TrendingUp className="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">{stat.trend}</span>
+                  <TrendingUp className="w-4 h-4 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity" />
+                </div>
              </div>
-            <div className="mt-4">
-              <p className="text-3xl font-serif font-black text-foreground tracking-tight">{stat.value}</p>
-              <div className="flex justify-between items-end mt-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
-                <p className="text-[10px] text-emerald-500 font-bold uppercase">{stat.sub}</p>
+            <div className="mt-6">
+              <p className="text-4xl font-serif font-black text-foreground tracking-tight group-hover:translate-x-1 transition-transform">{stat.value}</p>
+              <div className="flex justify-between items-end mt-2">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                <p className="text-[9px] text-brand-primary font-black uppercase tracking-tighter opacity-70">{stat.sub}</p>
               </div>
             </div>
           </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Advanced Project Utilization Chart */}
@@ -191,33 +218,58 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Dept Spend Summary Table */}
-      <div className="bg-card p-6 rounded-3xl border border-border shadow-sm">
-         <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-serif font-bold">Departmental Breakdown</h3>
-            <TrendingUp className="w-5 h-5 text-emerald-500" />
+      <motion.div 
+        variants={item}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="glass p-10 rounded-[2.5rem] border border-border/40 shadow-2xl relative overflow-hidden"
+      >
+         <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[100px] rounded-full -mr-48 -mb-48" />
+         
+         <div className="flex justify-between items-center mb-10 relative">
+            <div>
+              <h3 className="text-2xl font-serif font-black text-foreground tracking-tight">Departmental Breakdown</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">Cross-Functional Capital Allocation</p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+               <TrendingUp className="w-6 h-6 text-emerald-500" />
+            </div>
          </div>
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
             {(analytics?.departmental || []).map((dept: any, i: number) => (
-               <div key={i} className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl border border-border/50">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                        {dept.department.charAt(0)}
-                     </div>
-                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest">{dept.department}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium">{dept.count} Requests</p>
-                     </div>
+               <div key={i} className="flex flex-col gap-4 p-6 bg-secondary/20 hover:bg-secondary/40 rounded-[2rem] border border-border/50 transition-all group cursor-default">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary font-black text-sm border border-brand-primary/20 group-hover:scale-110 transition-transform">
+                          {dept.department.charAt(0)}
+                       </div>
+                       <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-brand-primary transition-colors">{dept.department}</p>
+                          <p className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">{dept.count} Validated Requests</p>
+                       </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                     <p className="text-sm font-bold text-foreground">QAR {dept.totalCost.toLocaleString()}</p>
-                     <div className="w-16 h-1 bg-secondary rounded-full mt-1 overflow-hidden">
-                        <div className="h-full bg-emerald-500" style={{ width: '65%' }}></div>
+                  <div className="space-y-2 mt-2">
+                     <div className="flex justify-between items-end">
+                        <p className="text-xl font-serif font-black text-foreground">QAR {dept.totalCost.toLocaleString()}</p>
+                        <span className="text-[9px] font-black text-emerald-500 uppercase">Active</span>
+                     </div>
+                     <div className="h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          whileInView={{ width: '65%' }}
+                          transition={{ duration: 1, delay: i * 0.05 }}
+                          className="h-full bg-brand-primary rounded-full relative shadow-[0_0_10px_rgba(111,42,230,0.3)]"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent" />
+                        </motion.div>
                      </div>
                   </div>
                </div>
             ))}
          </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

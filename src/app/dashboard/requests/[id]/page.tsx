@@ -34,6 +34,7 @@ import { Edit3, Trash2 } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { FinanceLedger } from "@/components/requests/FinanceLedger";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { ExportButton } from "@/components/requests/ExportButton";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -165,19 +166,21 @@ export default function RequestDetailPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => apiClient.documents.downloadPdf(requestId)}
-              className="flex items-center gap-2 bg-secondary/50 border border-border text-foreground px-3 py-1.5 rounded-lg hover:bg-secondary transition-all font-semibold text-xs"
-            >
-              <Download className="w-4 h-4" /> Download PDF
-            </button>
-            <button 
-              onClick={() => apiClient.documents.downloadZip(requestId)}
-              className="flex items-center gap-2 bg-secondary/50 border border-border text-brand-primary px-3 py-1.5 rounded-lg hover:bg-brand-primary hover:text-white transition-all font-semibold text-xs border-brand-primary/20"
-              title="Download Request PDF and all supporting documents as a ZIP archive"
-            >
-              <Archive className="w-4 h-4" /> Export Bundle (ZIP)
-            </button>
+             <ExportButton 
+              requestId={requestId} 
+              requestNumber={request.requestNumber} 
+              variant="simple"
+            />
+            <ExportButton 
+              requestId={requestId} 
+              requestNumber={request.requestNumber} 
+              variant="full"
+            />
+            <ExportButton 
+              requestId={requestId} 
+              requestNumber={request.requestNumber} 
+              variant="bundle"
+            />
 
             {/* EDIT & DELETE (Condition: Owner/Admin and No Approvals) */}
             {(request.requesterId === user?.id || isAdmin) && 
