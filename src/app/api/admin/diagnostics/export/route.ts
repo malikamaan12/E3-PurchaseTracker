@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const headers = ["ID", "Timestamp", "User", "Action", "Resource Type", "Resource ID", "IP Address", "Details"];
     const rows = logs.map(log => [
       log.id,
-      new Date(log.timestamp).toISOString(),
+      log.timestamp ? new Date(log.timestamp).toISOString() : "N/A",
       log.user?.username || "System",
       log.action,
       log.resourceType || "N/A",
