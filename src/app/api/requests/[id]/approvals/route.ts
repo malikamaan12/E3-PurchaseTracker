@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { purchaseRequests, approvals, auditLogs } from "@db/schema";
+import { purchaseRequests, approvals, auditLogs, paymentInstallments } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { notificationService } from "@/lib/services/NotificationService";
@@ -172,6 +172,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 4. Update Purchase Request Header
+    const [updatedRequest] = await db
+      .select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!updatedRequest) throw new Error("Request data lost during lifecycle update.");
+
     let finalizedProposedCost = undefined;
     if (nextRequestStatus === "approved" && updatedRequest.proposedRevisedCost) {
       finalizedProposedCost = updatedRequest.proposedRevisedCost;
