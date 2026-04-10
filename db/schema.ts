@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { relations, type InferModel, sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -156,7 +156,7 @@ export const approvals = pgTable("approvals", {
 
 export const approvalAuditLogs = pgTable("approval_audit_logs", {
   id: serial("id").primaryKey(),
-  approvalId: integer("approval_id").notNull().references(() => approvals.id),
+  approvalId: integer("approval_id").notNull().references(() => approvals.id, { onDelete: 'cascade' }),
   userId: integer("user_id").notNull().references(() => users.id),
   action: text("action").notNull(),
   previousStatus: text("previous_status"),
@@ -208,6 +208,8 @@ export const vendors = pgTable("vendors", {
   category: text("category").default("general"),
   payment_currency: text("payment_currency").notNull().default("QAR"),
   rating: integer("rating").default(0),
+  complianceScore: integer("compliance_score").notNull().default(0),
+  complianceMetadata: jsonb("compliance_metadata").$type<Record<string, any>>().default({}),
   status: text("status").notNull().default("active"),
   remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -232,7 +234,7 @@ export const vendorToCategories = pgTable("vendor_to_categories", {
 export const vendorPerformance = pgTable("vendor_performance", {
   id: serial("id").primaryKey(),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),
-  requestId: integer("request_id").references(() => purchaseRequests.id),
+  requestId: integer("request_id").references(() => purchaseRequests.id, { onDelete: 'cascade' }),
   qualityScore: integer("quality_score").notNull(),
   deliveryScore: integer("delivery_score").notNull(),
   communicationScore: integer("communication_score").notNull(),
@@ -248,7 +250,6 @@ export const paymentInstallments = pgTable("payment_installments", {
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   installmentName: text("installment_name").notNull(), // "1st Advance", "Delivery Milestone"
   dueDate: timestamp("due_date").notNull(),
-  amount: integer("amount").notNull(), // Missing column found in diagnostic check
   valueType: text("value_type").notNull().default("FIXED_AMOUNT"), // 'PERCENTAGE', 'FIXED_AMOUNT'
   amountValue: integer("amount_value").notNull(), // The actual % or $ value
   calculatedAmount: integer("calculated_amount").notNull(), // The exact QAR amount
@@ -270,7 +271,7 @@ export const paymentInstallments = pgTable("payment_installments", {
 
 export const paymentVariations = pgTable("payment_variations", {
   id: serial("id").primaryKey(),
-  installmentId: integer("installment_id").notNull().references(() => paymentInstallments.id),
+  installmentId: integer("installment_id").notNull().references(() => paymentInstallments.id, { onDelete: 'cascade' }),
   variationType: text("variation_type").notNull(), // 'EXCEEDED', 'REDUCED'
   amountDifference: integer("amount_difference").notNull(),
   reason: text("reason").notNull(),
@@ -592,7 +593,7 @@ export const insertVendorSchema = createInsertSchema(vendors, {
     .regex(/^[\w\s\-\.\/]+$/, "Account number can only contain letters, numbers, spaces, hyphens, dots, and slashes"),
   ibanNumber: z.string()
     .min(10, "IBAN must be at least 10 characters") // Relaxed from 15
-    .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and hyphens"),
+    .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and slashes"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
@@ -813,6 +814,11 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress: text("ipaddress"),
   userAgent: text("useragent"),
   timestamp: timestamp("timestamp").defaultNow()
+}, (table) => {
+  return {
+    resourceIdIdx: index("audit_logs_resource_id_idx").on(table.resourceId),
+    timestampIdx: index("audit_logs_timestamp_idx").on(table.timestamp),
+  };
 });
 
 // Add pdfSettings table after the auditLogs table

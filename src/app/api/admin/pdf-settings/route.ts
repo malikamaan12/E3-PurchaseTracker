@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic';
 const DEFAULT_BRANDING = {
   headerTitle: "E3 ASSET MANAGEMENT",
   headerSubtitle: "ENTERPRISE PROCUREMENT SYSTEM",
-  headerColor: "#6F2AE6",
+  headerColor: "#5B4B8A",
   footerText: "CONFIDENTIAL",
-  footerColor: "#15CDD8",
+  footerColor: "#2FB7B2",
   watermarkText: "INTERNAL ONLY",
   watermarkOpacity: 10,
   fontSize: 11,

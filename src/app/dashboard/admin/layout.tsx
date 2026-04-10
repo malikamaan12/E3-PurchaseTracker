@@ -53,10 +53,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 min-h-[calc(100vh-120px)] w-full">
-      {/* Admin specific sidebar */}
-      <div className="w-full md:w-64 flex-shrink-0">
-        <AdminSidebar />
-      </div>
+      {/* Admin specific sidebar - Dynamic width enabled */}
+      <AdminSidebar />
 
       {/* Main admin content area */}
       <div className="flex-1 w-full bg-card p-8 rounded-3xl border border-border relative shadow-xl overflow-hidden transition-all duration-500">

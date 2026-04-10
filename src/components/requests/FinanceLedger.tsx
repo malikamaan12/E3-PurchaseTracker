@@ -397,7 +397,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
            </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto hidden lg:block">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-secondary/5 border-b border-border/10 uppercase font-black text-[9px] text-muted-foreground tracking-[0.25em]">
@@ -430,7 +430,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     setFormData({ ...formData, status: e.target.value }); 
                                     setIsFinalSettlement(false); 
                                   }}
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 >
                                   <option value="pending">Awaiting Action</option>
                                   <option value="partial">Partial Payment</option>
@@ -450,11 +450,11 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     type="number" 
                                     value={formData.paidAmount}
                                     onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm font-mono font-bold transition-all ${
+                                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm font-mono font-bold transition-all h-11 ${
                                       isOverpaid ? "border-rose-500 ring-4 ring-rose-500/10" : "border-border focus:border-[#2FB7B2]"
                                     }`}
                                   />
-                                  <div className="absolute right-3 top-3 flex gap-1 invisible group-hover:visible translate-y-[-2px] transition-all">
+                                  <div className="absolute right-3 top-2.5 flex gap-1 invisible group-hover:visible translate-y-[-2px] transition-all">
                                      <button onClick={() => setFormData({...formData, paidAmount: installmentTarget, status: 'paid'})} className="px-2 py-0.5 bg-secondary border border-border text-[8px] font-black rounded hover:bg-[#2FB7B2]/10 hover:text-[#2FB7B2] uppercase">Fix</button>
                                   </div>
                                 </div>
@@ -467,7 +467,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                   type="date" 
                                   value={formData.actualPaymentDate}
                                   onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 />
                               </div>
 
@@ -479,7 +479,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                   value={formData.transactionReference}
                                   onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
                                   placeholder="TRF-..."
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-[#2FB7B2] transition-all"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 />
                               </div>
                            </div>
@@ -502,7 +502,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            <div className="mt-8 flex justify-end gap-3 pt-8 border-t border-border/10">
                               <button 
                                 onClick={() => setEditingPayment(null)}
-                                className="px-6 py-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest"
+                                className="px-6 py-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest h-11"
                               >Abort</button>
                               <button 
                                 onClick={() => {
@@ -516,7 +516,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                   });
                                 }}
                                 disabled={updatePaymentMutation.isPending || isOverpaid}
-                                className={`px-10 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl transition-all disabled:opacity-50 ${
+                                className={`px-10 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl transition-all disabled:opacity-50 h-11 ${
                                   isOverpaid ? "bg-rose-500 text-white" : "bg-[#2FB7B2] text-black hover:brightness-110 active:scale-95"
                                 }`}
                               >
@@ -591,7 +591,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            ) : (
                               <button 
                                 onClick={() => handleEditClick(p)}
-                                className="px-5 py-2 hover:bg-[#5B4B8A] hover:text-white border border-border text-foreground rounded-lg text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300"
+                                className="px-5 py-2 hover:bg-[#5B4B8A] hover:text-white border border-border text-foreground rounded-lg text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300 h-11"
                               >
                                 Edit Journal
                               </button>
@@ -604,6 +604,117 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* MOBILE: Stacked Ledger Cards */}
+        <div className="lg:hidden divide-y divide-border/10">
+           {payments.map((p: any) => {
+             const cfg = getStatusCfg(p.status);
+             const isEditing = editingPayment === p.id;
+             
+             return (
+               <div key={p.id} className={cn("p-6 space-y-4", cfg.rowBg ?? "")}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${cfg.bg} ${cfg.border}`}>
+                        {cfg.icon || <Calendar className="w-5 h-5 opacity-40" />}
+                       </div>
+                       <div>
+                          <h4 className="text-sm font-black text-foreground">{p.installmentName}</h4>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Due: {new Date(p.dueDate).toLocaleDateString()}</span>
+                       </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                       {cfg.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 bg-secondary/20 p-4 rounded-xl border border-border/50">
+                     <div className="space-y-1">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Authorized</p>
+                        <p className="text-xs font-mono font-bold">{p.calculatedAmount.toLocaleString()} QAR</p>
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Disbursed</p>
+                        <p className={cn("text-xs font-mono font-bold", p.paidAmount ? "text-[#2FB7B2]" : "text-muted-foreground/40")}>
+                          {p.paidAmount ? `${p.paidAmount.toLocaleString()} ${request.currency}` : "—"}
+                        </p>
+                     </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                     {isLockedByStatus ? (
+                        <div className="flex items-center gap-2 text-muted-foreground opacity-40">
+                           <Lock className="w-3 h-3" />
+                           <span className="text-[8px] font-black uppercase tracking-widest">Sign-off Req.</span>
+                        </div>
+                     ) : cfg.locked ? (
+                        <div className="flex items-center gap-2 text-[#2FB7B2]">
+                           <CheckCircle2 className="w-3 h-3" />
+                           <span className="text-[8px] font-black uppercase tracking-widest">Journal Locked</span>
+                        </div>
+                     ) : (
+                        <button 
+                          onClick={() => handleEditClick(p)}
+                          className="w-full h-11 flex items-center justify-center bg-brand-primary/[0.08] hover:bg-brand-primary/20 border border-brand-primary/20 text-brand-primary rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all active-scale shadow-sm"
+                        >
+                          Refine Disbursement Journal
+                        </button>
+                     )}
+                  </div>
+
+                  {/* Mobile Edit Portal (Conditional) */}
+                  <AnimatePresence>
+                    {isEditing && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden pt-4"
+                      >
+                         <div className="space-y-4 p-4 rounded-2xl bg-secondary/30 border border-brand-primary/20">
+                            <div className="space-y-4">
+                               <div className="grid grid-cols-1 gap-4">
+                                  <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-brand-primary uppercase tracking-widest">Phase</label>
+                                    <select 
+                                      value={formData.status}
+                                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-xs font-bold"
+                                    >
+                                      <option value="pending">Awaiting Action</option>
+                                      <option value="partial">Partial</option>
+                                      <option value="paid">Paid</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[9px] font-black text-brand-primary uppercase tracking-widest">Amount (QAR)</label>
+                                    <input 
+                                      type="number" 
+                                      value={formData.paidAmount}
+                                      onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
+                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-xs font-mono font-bold"
+                                    />
+                                  </div>
+                               </div>
+                               <div className="flex gap-2">
+                                  <button onClick={() => setEditingPayment(null)} className="flex-1 h-11 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Abort</button>
+                                  <button 
+                                    onClick={() => updatePaymentMutation.mutate({ paymentId: p.id, data: formData })}
+                                    disabled={updatePaymentMutation.isPending || isOverpaid}
+                                    className="flex-[2] h-11 bg-brand-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-brand-primary/20"
+                                  >
+                                    {updatePaymentMutation.isPending ? "Journaling..." : "Finalize"}
+                                  </button>
+                               </div>
+                            </div>
+                         </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+               </div>
+             )
+           })}
         </div>
       </div>
     </div>

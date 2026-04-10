@@ -105,9 +105,9 @@ export function AuthProvider({
   }, [router, initialUserId]);
 
   useEffect(() => {
-    // Runs on mount. Silent if SSR provided a user.
-    fetchUser(!!initialUser);
-  }, [fetchUser, !!initialUser]);
+    // Runs on mount. Silent if SSR provided a user (initialUserId is truthy).
+    fetchUser(!!initialUserId);
+  }, [fetchUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin", [user]);
   const isApprover = useMemo(() => user?.role?.toLowerCase() === "approver" || user?.isApprover === true, [user]);

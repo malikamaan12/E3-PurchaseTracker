@@ -4,7 +4,7 @@ export const IS_PRODUCTION = process.env.NODE_ENV === "production";
 export const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: IS_PRODUCTION,
-  sameSite: "lax" as const,
+  sameSite: "strict" as const,
   path: "/",
   maxAge: 60 * 60 * 24 * 7, // 7 days
 };

@@ -23,7 +23,6 @@ import {
   Calendar,
   Archive
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -35,6 +34,8 @@ import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { FinanceLedger } from "@/components/requests/FinanceLedger";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ExportDropdown } from "@/components/requests/ExportDropdown";
+import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -55,9 +56,10 @@ export default function RequestDetailPage() {
     desc: string;
   } | null>(null);
 
-  const { data: request, isLoading } = useQuery({
+  const { data: request, isLoading, error: queryError } = useQuery({
     queryKey: ["request", requestId],
     queryFn: () => apiClient.requests.get(requestId),
+    retry: 1, // Minimize retry spam for 404/401/403
   });
 
   // The new approval state machine endpoint
@@ -67,6 +69,8 @@ export default function RequestDetailPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["request", requestId] });
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success(data.message || "Action submitted successfully");
       setApprovalComments("");
       setShowActionPanel(false);
@@ -85,7 +89,7 @@ export default function RequestDetailPage() {
   });
 
   if (isLoading) return <LoadingState />;
-  if (!request) return <ErrorState />;
+  if (queryError || !request) return <ErrorState error={queryError} />;
 
   // Check if the current user's dept has a pending approval record for this request
   const myDeptApproval = request.approvals?.find(
@@ -211,16 +215,12 @@ export default function RequestDetailPage() {
         </div>
 
         {/* Approver Action Panel — slides in below header */}
-        <AnimatePresence>
-          {showActionPanel && canAct && (
-            <motion.div
-              key="action-panel"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="max-w-[1600px] mx-auto mt-4 overflow-hidden"
-            >
-              <div className="bg-card/80 backdrop-blur-lg border border-border rounded-2xl p-5 flex flex-col gap-4">
+        {showActionPanel && canAct && (
+          <div
+            key="action-panel"
+            className="max-w-[1600px] mx-auto mt-4 overflow-hidden animate-fade-scale-in"
+          >
+            <div className="bg-card/80 backdrop-blur-lg border border-border rounded-2xl p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="w-4 h-4 text-brand-primary" />
                   <span className="text-sm font-bold text-foreground">Departmental Review</span>
@@ -241,7 +241,7 @@ export default function RequestDetailPage() {
                   <button
                     onClick={() => handleApprovalAction("changes_requested")}
                     disabled={approvalMutation.isPending}
-                    className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-lg hover:bg-amber-500/20 transition-all font-bold text-xs disabled:opacity-50"
+                    className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-lg hover:bg-amber-500/20 transition-all font-bold text-xs disabled:opacity-50 active-scale"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Request Changes
@@ -249,7 +249,7 @@ export default function RequestDetailPage() {
                   <button
                     onClick={() => handleApprovalAction("rejected")}
                     disabled={approvalMutation.isPending}
-                    className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-lg hover:bg-rose-500/20 transition-all font-bold text-xs disabled:opacity-50"
+                    className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-lg hover:bg-rose-500/20 transition-all font-bold text-xs disabled:opacity-50 active-scale"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     Reject
@@ -257,7 +257,7 @@ export default function RequestDetailPage() {
                   <button
                     onClick={() => handleApprovalAction("approved")}
                     disabled={approvalMutation.isPending}
-                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-all font-bold text-xs disabled:opacity-50"
+                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-all font-bold text-xs disabled:opacity-50 active-scale"
                   >
                     {approvalMutation.isPending ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -267,10 +267,9 @@ export default function RequestDetailPage() {
                     Approve
                   </button>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* "Changes Requested" or "Draft" Banner */}
@@ -318,11 +317,7 @@ export default function RequestDetailPage() {
         <div className="xl:col-span-3 space-y-6">
           
           {/* Main Header Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card overflow-hidden"
-          >
+          <div className="glass-card overflow-hidden animate-slide-up">
             <div className="p-1 px-4 bg-foreground/2 px-4 bg-secondary/30 border-b border-border flex justify-between items-center">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">General Information</span>
               <div className="flex gap-2">
@@ -352,15 +347,13 @@ export default function RequestDetailPage() {
                 <InfoItem icon={<Calendar className="w-4 h-4" />} label="Submission Date" value={format(new Date(request.createdAt), "MMM dd, yyyy")} />
               </div>
             </div>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {/* Vendor Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="glass-card md:col-span-2 overflow-hidden"
+            <div 
+              className="glass-card md:col-span-2 overflow-hidden animate-slide-up"
+              style={{ animationDelay: "0.1s" }}
             >
               <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
                 <div className="flex items-center gap-2">
@@ -405,14 +398,12 @@ export default function RequestDetailPage() {
                    </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Financial Summary */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="glass-card md:col-span-3 overflow-hidden"
+            <div 
+              className="glass-card md:col-span-3 overflow-hidden animate-slide-up"
+              style={{ animationDelay: "0.15s" }}
             >
               <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
                 <div className="flex items-center gap-2">
@@ -469,15 +460,13 @@ export default function RequestDetailPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Items Grid */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card overflow-hidden border-brand-primary/5 shadow-2xl shadow-brand-primary/5"
+          <div
+            className="glass-card overflow-hidden border-brand-primary/5 shadow-2xl shadow-brand-primary/5 animate-slide-up"
+            style={{ animationDelay: "0.2s" }}
           >
             <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/10">
               <div className="flex items-center gap-3">
@@ -554,15 +543,13 @@ export default function RequestDetailPage() {
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
 
           <div className="flex flex-col gap-6 pb-12">
             {/* Document Vault */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="glass-card overflow-hidden flex flex-col"
+            <div 
+              className="glass-card overflow-hidden flex flex-col animate-slide-up"
+              style={{ animationDelay: "0.25s" }}
             >
               <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
                 <div className="flex items-center gap-2">
@@ -596,14 +583,12 @@ export default function RequestDetailPage() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
 
             {/* Document Preview Snapshot */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="glass-card overflow-hidden flex flex-col"
+            <div
+              className="glass-card overflow-hidden flex flex-col animate-slide-up"
+              style={{ animationDelay: "0.3s" }}
             >
               <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
                  <div className="flex items-center gap-2">
@@ -627,18 +612,17 @@ export default function RequestDetailPage() {
                    </div>
                  )}
               </div>
-            </motion.div>
+            </div>
           </div>
           
           {/* Finance Ledger Section (RBAC Protected) */}
           {isFinanceOrAdmin && (
-             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
+             <div 
+              className="animate-slide-up"
+              style={{ animationDelay: "0.35s" }}
              >
                 <FinanceLedger request={request} />
-             </motion.div>
+             </div>
           )}
 
         </div>
@@ -647,11 +631,9 @@ export default function RequestDetailPage() {
         <aside className="space-y-6">
           
           {/* Unified Procurement Lifecycle Timeline */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.35 }}
-            className="glass-card p-0 overflow-hidden"
+          <div 
+            className="glass-card p-0 overflow-hidden animate-slide-up"
+            style={{ animationDelay: "0.35s" }}
           >
             <div className="px-6 py-5 border-b border-border bg-secondary/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -732,14 +714,12 @@ export default function RequestDetailPage() {
                  <History className="w-3 h-3" /> View Full Audit Trail
                </button>
             </div>
-          </motion.div>
+          </div>
 
           {/* Payment Cycle & Installments Sidebar Component */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card overflow-hidden"
+          <div 
+            className="glass-card overflow-hidden animate-slide-up"
+            style={{ animationDelay: "0.4s" }}
           >
             <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-secondary/10">
               <div className="flex items-center gap-2">
@@ -788,7 +768,7 @@ export default function RequestDetailPage() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
 
         </aside>
 
@@ -812,7 +792,6 @@ export default function RequestDetailPage() {
         requestNumber={request?.requestNumber}
       />
 
-      <AnimatePresence>
         {showAuditModal && (
           <AuditTrailModal 
             isOpen={showAuditModal} 
@@ -820,7 +799,6 @@ export default function RequestDetailPage() {
             auditLogs={request.auditLogs || []} 
           />
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -949,12 +927,41 @@ function LifecycleItem({ title, subtitle, time, status, icon, stakeholders = [],
 }
 
 
-function ErrorState() {
+function ErrorState({ error }: { error?: any }) {
+  const is404 = error?.status === 404 || !error;
+  const is403 = error?.status === 403;
+  const is401 = error?.status === 401;
+
+  const title = is403 ? "Access Denied" : is401 ? "Session Expired" : is404 ? "Record Not Found" : "System Synchronous Error";
+  const message = is403 ? "You do not have the institutional clearance required to view this procurement record." 
+                : is401 ? "Your administrative session has timed out. Please refresh to re-authenticate."
+                : is404 ? "The purchase request may have been removed or archived."
+                : (error?.data?.details || error?.message || "An unexpected error occurred within the procurement engine.");
+
   return (
-    <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center text-center">
-      <XCircle className="w-16 h-16 text-rose-500 opacity-20" />
-      <h2 className="text-xl font-bold text-white">Record Not Found</h2>
-      <p className="text-zinc-500 text-sm">The purchase request may have been removed or archived.</p>
+    <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[70vh] justify-center items-center text-center">
+      <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+        <XCircle className="w-10 h-10 text-rose-500" />
+      </div>
+      <h2 className="text-2xl font-serif font-bold text-foreground tracking-tight">{title}</h2>
+      <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">{message}</p>
+      
+      {!is401 && (
+        <div className="flex gap-4 mt-8">
+          <Link href="/dashboard/requests">
+            <Button variant="ghost" className="h-11 px-8 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5">
+              Return to Hub
+            </Button>
+          </Link>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+            className="h-11 px-8 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/5 border-white/10"
+          >
+            Refresh Interface
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -963,19 +970,13 @@ function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onCl
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+      <div
         onClick={onClose}
-        className="absolute inset-0 bg-background/90 backdrop-blur-md cursor-pointer"
+        className="absolute inset-0 bg-background/90 backdrop-blur-md cursor-pointer animate-fade-in"
       />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.98, y: 10 }}
-        className="relative w-full max-w-3xl bg-card border border-border rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-[201]"
+      <div
+        className="relative w-full max-w-3xl bg-card border border-border rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-[201] animate-fade-scale-in"
       >
         <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/30">
           <div className="flex items-center gap-3">
@@ -1031,7 +1032,7 @@ function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onCl
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

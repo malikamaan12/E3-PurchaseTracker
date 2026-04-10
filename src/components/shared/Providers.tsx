@@ -6,7 +6,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
-import PWAManager from "@/components/shared/PWAManager";
+import { PWAProvider } from "@/context/PWAContext";
 
 export default function Providers({ 
   children,
@@ -18,8 +18,13 @@ export default function Providers({
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,
+        staleTime: 60 * 1000,        // 1 min — data is fresh for 1 minute
+        gcTime: 5 * 60 * 1000,       // 5 min — unused cache entries are GC'd
         refetchOnWindowFocus: false,
+        retry: 1,                    // Only 1 retry — prevents 3x spam on 401/403
+      },
+      mutations: {
+        retry: false,                // Never retry mutations — prevents duplicate DB writes
       },
     },
   }));
@@ -29,8 +34,9 @@ export default function Providers({
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <PerformanceProvider>
           <AuthProvider initialUser={initialUser}>
-            <PWAManager />
-            {children}
+            <PWAProvider>
+              {children}
+            </PWAProvider>
             <Toaster 
               position="top-right" 
               richColors 

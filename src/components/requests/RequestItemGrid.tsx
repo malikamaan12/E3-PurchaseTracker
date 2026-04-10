@@ -12,6 +12,22 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Combobox } from "@/components/ui/Combobox";
+
+const ITEM_CATALOG = [
+  { value: "macbook_pro_14", label: "MacBook Pro 14-inch (M3)" },
+  { value: "macbook_pro_16", label: "MacBook Pro 16-inch (M3 Max)" },
+  { value: "dell_xps_15", label: "Dell XPS 15 Laptop" },
+  { value: "thinkpad_x1", label: "Lenovo ThinkPad X1 Carbon" },
+  { value: "ipad_pro", label: "iPad Pro 12.9-inch" },
+  { value: "monitor_4k", label: "Dell U2723QE 27-inch 4K Monitor" },
+  { value: "ergonomic_chair", label: "Herman Miller Aeron Chair" },
+  { value: "standing_desk", label: "Uplift V2 Standing Desk" },
+  { value: "aws_ec2_monthly", label: "AWS EC2 Compute (Monthly)" },
+  { value: "gcp_storage", label: "GCP Storage (TB/Month)" },
+  { value: "adobe_cc", label: "Adobe Creative Cloud License" },
+  { value: "office_365", label: "Microsoft 365 Enterprise" },
+];
 
 export interface RequestItem {
   name: string;
@@ -90,19 +106,19 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                 >
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
-                        <Input
-                          type="text"
+                        <Combobox
+                          options={ITEM_CATALOG}
                           value={item.name}
-                          onChange={(e) => updateItem(index, "name", e.target.value)}
-                          placeholder="Item name / specification..."
-                          className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-0 h-auto ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
+                          onChange={(val) => updateItem(index, "name", val)}
+                          placeholder="Search item catalog..."
+                          className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-ring focus:ring-2 min-h-[44px] ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
                         />
                         <Input
                           type="text"
                           value={item.description || ''}
                           onChange={(e) => updateItem(index, "description", e.target.value)}
                           placeholder="Additional details..."
-                          className="w-full bg-transparent border-none p-0 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/20 focus:ring-0 focus:text-foreground transition-colors h-auto"
+                          className="w-full bg-transparent border-none p-0 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/20 focus:ring-ring focus:ring-2 min-h-[44px] focus:text-foreground transition-colors"
                         />
                     </div>
                   </td>
@@ -114,7 +130,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                           value={item.quantity}
                           onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
                           onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                          className="w-12 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-0 h-8"
+                          className="w-16 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-ring focus:ring-2 min-h-[44px]"
                         />
                     </div>
                   </td>
@@ -127,7 +143,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                         value={item.estimatedCost}
                         onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0 h-auto"
+                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-ring focus:ring-2 min-h-[44px]"
                       />
                     </div>
                   </td>

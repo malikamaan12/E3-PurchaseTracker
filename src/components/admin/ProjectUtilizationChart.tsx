@@ -12,7 +12,6 @@ import {
   Legend
 } from "recharts";
 import { TrendingUp, Wallet, ArrowUpRight } from "lucide-react";
-import { motion } from "framer-motion";
 
 interface ProjectUtilizationChartProps {
   data: any[];
@@ -26,14 +25,10 @@ export default function ProjectUtilizationChart({ data }: ProjectUtilizationChar
     utilization: project.totalBudget > 0 ? (project.spent / project.totalBudget) * 100 : 0
   }));
 
-  const COLORS = ['#6F2AE6', '#15CDD8', '#F59E0B', '#EF4444', '#10B981'];
+  const COLORS = ['#5B4B8A', '#2FB7B2', '#F59E0B', '#EF4444', '#10B981'];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="bg-card p-8 rounded-[2.5rem] border border-border shadow-2xl"
-    >
+    <div className="animate-fade-scale-in bg-card p-8 rounded-[2.5rem] border border-border shadow-2xl">
       <div className="flex justify-between items-start mb-10">
         <div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 mb-3">
@@ -85,10 +80,10 @@ export default function ProjectUtilizationChart({ data }: ProjectUtilizationChar
               iconType="circle"
               wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', paddingTop: '20px' }}
             />
-            <Bar dataKey="allocated" name="Budget Ceiling" fill="rgba(111, 42, 230, 0.1)" radius={[0, 10, 10, 0]} barSize={24} />
+            <Bar dataKey="allocated" name="Budget Ceiling" fill="rgba(91, 75, 138, 0.1)" radius={[0, 10, 10, 0]} barSize={24} />
             <Bar dataKey="spent" name="Actual Spend" radius={[0, 10, 10, 0]} barSize={12}>
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.utilization > 90 ? '#EF4444' : (entry.utilization > 70 ? '#F59E0B' : '#6F2AE6')} />
+                <Cell key={`cell-${index}`} fill={entry.utilization > 90 ? '#EF4444' : (entry.utilization > 70 ? '#F59E0B' : '#5B4B8A')} />
               ))}
             </Bar>
           </BarChart>
@@ -108,6 +103,6 @@ export default function ProjectUtilizationChart({ data }: ProjectUtilizationChar
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

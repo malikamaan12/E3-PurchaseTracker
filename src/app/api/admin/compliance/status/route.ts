@@ -8,8 +8,7 @@ import { decodeJwtPayload } from "@/lib/utils/jwt";
 
 /**
  * Compliance Status API
- * Aggregates vendor document coverage by scanning multi-request attachments.
- * Heuristically categorizes documents into mandatory compliance slots.
+ * Aggregates vendor document coverage by pulling pre-calculated scores from the DB.
  */
 export async function GET() {
   try {
@@ -22,77 +21,26 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized access to compliance vault" }, { status: 403 });
     }
 
-    // 2. Fetch all active vendors
+    // 2. Fetch all active vendors with pre-calculated scores
     const allVendors = await db.select().from(vendors).orderBy(desc(vendors.createdAt));
 
-    // 3. Document Heuristics (Keywords to look for in filenames)
-    const CATEGORIES = {
-      registration: ["registration", "cr ", "commercial", "record"],
-      tax: ["tax", "vat ", "tin "],
-      establishment: ["computer card", "establishment", "municipality"],
-      contract: ["contract", "agreement", "mou", "terms"],
-    };
-
-    // 4. Build Compliance Matrix
-    // Note: We aggregate across all purchase requests because currently documents are only linked to requests.
-    const matrix = await Promise.all(allVendors.map(async (v) => {
-      // Find all requests for this vendor to fetch their attachments
-      const vendorRequests = await db.select({ id: purchaseRequests.id })
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.vendorId, v.id));
-      
-      const requestIds = vendorRequests.map(r => r.id);
-      
-      let attachments: any[] = [];
-      if (requestIds.length > 0) {
-        attachments = await db.select()
-          .from(fileAttachments)
-          .where(inArray(fileAttachments.requestId, requestIds))
-          .orderBy(desc(fileAttachments.uploadedAt));
-      }
-
-      // Categorize documents
-      const docs: Record<string, any> = {
+    // 3. Map to UI structure
+    const matrix = allVendors.map((v) => ({
+      id: v.id,
+      companyName: v.companyName,
+      registrationNumber: v.registrationNumber,
+      taxNumber: v.taxNumber,
+      status: v.status,
+      healthScore: v.complianceScore || 0,
+      docs: (v.complianceMetadata as any) || {
         registration: { status: "missing", file: null },
         tax: { status: "missing", file: null },
         establishment: { status: "missing", file: null },
         contract: { status: "missing", file: null },
-      };
-
-      attachments.forEach(file => {
-        const name = file.fileName.toLowerCase();
-        
-        Object.entries(CATEGORIES).forEach(([cat, keywords]) => {
-          if (docs[cat].status === "missing" && keywords.some(k => name.includes(k))) {
-            docs[cat] = {
-              status: "valid",
-              file: {
-                id: file.id,
-                name: file.fileName,
-                url: file.fileUrl,
-                date: file.uploadedAt
-              }
-            };
-          }
-        });
-      });
-
-      // Calculate health score
-      const validCount = Object.values(docs).filter((d: any) => d.status === "valid").length;
-      const healthScore = Math.round((validCount / Object.keys(docs).length) * 100);
-
-      return {
-        id: v.id,
-        companyName: v.companyName,
-        registrationNumber: v.registrationNumber,
-        taxNumber: v.taxNumber,
-        status: v.status,
-        healthScore,
-        docs
-      };
+      }
     }));
 
-    // 5. Global Stats
+    // 4. Global Stats
     const totalVendors = matrix.length;
     const fullyCompliant = matrix.filter(m => m.healthScore === 100).length;
     const highRisk = matrix.filter(m => m.healthScore < 50).length;
@@ -110,7 +58,7 @@ export async function GET() {
   } catch (error: any) {
     console.error("[COMPLIANCE_API] Internal Error:", error);
     return NextResponse.json({ 
-      error: "Failed to generate compliance matrix",
+      error: "Failed to load legal matrix",
       details: error.message 
     }, { status: 500 });
   }

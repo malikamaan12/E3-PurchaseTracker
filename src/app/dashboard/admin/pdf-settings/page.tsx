@@ -185,24 +185,24 @@ export default function PdfSettingsPage() {
               
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Primary Header (#6F2AE6)</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Primary Header (#5B4B8A)</span>
                   <div className="flex gap-2">
-                    <div className="w-10 h-10 rounded-xl border border-border shadow-inner mt-2 shrink-0" style={{ backgroundColor: settings.headerColor ?? "#6F2AE6" }} />
+                    <div className="w-10 h-10 rounded-xl border border-border shadow-inner mt-2 shrink-0" style={{ backgroundColor: settings.headerColor ?? "#5B4B8A" }} />
                     <input 
                       type="text" 
-                      value={settings.headerColor ?? "#6F2AE6"} 
+                      value={settings.headerColor ?? "#5B4B8A"} 
                       onChange={(e) => handleChange("headerColor", e.target.value)}
                       className="w-full bg-secondary border border-border text-foreground rounded-xl px-4 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-brand-primary/20 transition-all"
                     />
                   </div>
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Footer Brand (#15CDD8)</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Footer Brand (#2FB7B2)</span>
                    <div className="flex gap-2">
-                    <div className="w-10 h-10 rounded-xl border border-border shadow-inner mt-2 shrink-0" style={{ backgroundColor: settings.footerColor ?? "#15CDD8" }} />
+                    <div className="w-10 h-10 rounded-xl border border-border shadow-inner mt-2 shrink-0" style={{ backgroundColor: settings.footerColor ?? "#2FB7B2" }} />
                     <input 
                       type="text" 
-                      value={settings.footerColor ?? "#15CDD8"} 
+                      value={settings.footerColor ?? "#2FB7B2"} 
                       onChange={(e) => handleChange("footerColor", e.target.value)}
                       className="w-full bg-secondary border border-border text-foreground rounded-xl px-4 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-brand-primary/20 transition-all"
                     />

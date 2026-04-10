@@ -302,13 +302,23 @@ export class NotificationService {
     }
 
     try {
-      // Super simple query - minimal operations
+      // Construct filters
+      const filters = [eq(notifications.userId, userId)];
+      
+      if (options?.includeRead === false) {
+        filters.push(eq(notifications.isRead, false));
+      }
+
+      if (options?.type) {
+        filters.push(eq(notifications.type, options.type));
+      }
+
       const result = await db
         .select()
         .from(notifications)
-        .where(eq(notifications.userId, userId))
+        .where(and(...filters))
         .orderBy(desc(notifications.createdAt))
-        .limit(10); // Minimal limit for fastest response
+        .limit(20); 
 
       // Minimal filtering - just expired notifications
       const currentTime = new Date();

@@ -74,7 +74,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
     )}>
       {/* Timeframe Select - Compact & Elegant */}
       <div className="flex items-center gap-1 px-3 py-1.5 bg-white/5 dark:bg-white/[0.03] rounded-xl border border-white/5">
-        <div className="p-1 bgColor-brand-primary/10 rounded-md">
+        <div className="p-1 bg-brand-primary/10 rounded-md">
             <Filter className="w-3 h-3 text-brand-primary" />
         </div>
         <Select 

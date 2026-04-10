@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { initMagnetic, initGlow, pageLoad } from "@/lib/animations"
+import Link from "next/link"
 
 export default function AnalyticsDashboardPage() {
   const { highPerformanceMode } = usePerformance()
@@ -84,12 +85,19 @@ export default function AnalyticsDashboardPage() {
       </div>
 
       <div className="flex-1 space-y-12 p-8 pt-6 max-w-[1440px] mx-auto relative z-10">
-        <div className="dashboard-header flex items-center justify-between opacity-0">
-          <div className="space-y-1">
-            <h1 className="text-5xl font-serif tracking-tighter text-foreground selection:bg-brand-primary/30">
-              Executive <span className="bg-brand-gradient text-transparent bg-clip-text">Intelligence</span>
-            </h1>
-            <p className="text-muted-foreground text-sm font-medium tracking-wide opacity-60">
+        <div className="dashboard-header flex flex-col lg:flex-row lg:items-center justify-between gap-6 opacity-0">
+          <div className="space-y-2">
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="flex items-center group">
+                 <img src="/logo-color.png" alt="E3" className="h-10 w-auto dark:hidden transition-transform group-hover:scale-105" />
+                 <img src="/logo-white.png" alt="E3" className="h-10 w-auto hidden dark:block transition-transform group-hover:scale-105" />
+              </Link>
+              <div className="h-8 w-px bg-border/20 mx-2" />
+              <h1 className="text-3xl lg:text-4xl font-serif tracking-tighter text-foreground">
+                Intelligence <span className="text-brand-primary">Console</span>
+              </h1>
+            </div>
+            <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-[0.2em] opacity-60 pl-1">
               Global procurement velocity and liquidity forecast engine.
             </p>
           </div>
@@ -131,7 +139,7 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
           <div className={cn(
-            "col-span-4 glass-card p-8 border-white/10 opacity-0 relative overflow-hidden",
+            "col-span-full lg:col-span-4 glass-card p-8 border-white/10 opacity-0 relative overflow-hidden",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
@@ -144,7 +152,7 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "col-span-3 glass-card p-8 border-white/10 opacity-0",
+            "col-span-full lg:col-span-3 glass-card p-8 border-white/10 opacity-0",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
@@ -157,9 +165,9 @@ export default function AnalyticsDashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[500px]">
           <div className={cn(
-            "col-span-3 glass-card p-8 border-white/10 opacity-0",
+            "col-span-full lg:col-span-3 glass-card p-8 border-white/10 opacity-0 flex flex-col h-[400px] lg:h-full",
             highPerformanceMode && "backdrop-blur-none"
           )}>
              <div className="flex flex-col gap-1 mb-10">
@@ -172,7 +180,7 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "col-span-4 glass-card p-8 border-white/10 opacity-0 flex flex-wrap justify-around items-center gap-8",
+            "col-span-full lg:col-span-2 glass-card p-8 border-white/10 opacity-0 flex flex-col h-[400px] lg:h-full justify-around items-center gap-8",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex-1 min-w-[200px] h-[300px]">

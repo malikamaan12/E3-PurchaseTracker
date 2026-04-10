@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AppError } from "@/lib/utils/errors";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 import { JWT_SECRET, TOKEN_COOKIE_NAME } from "@/lib/utils/config";
 
 /**
@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload: decoded } = await jwtVerify(token, secret);
     console.log(`[Auth][Native][${traceId}] SUCCESS: ${decoded.username} | Role: ${decoded.role} | Dept: ${decoded.department}`);
     return NextResponse.json(decoded);
 

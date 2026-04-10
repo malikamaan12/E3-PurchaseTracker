@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as bcrypt from 'bcryptjs';
-import jwt from "jsonwebtoken";
+import { SignJWT } from "jose";
 import { db } from "@db";
 import { users, departments } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -56,15 +56,20 @@ export async function POST(req: NextRequest) {
       canManageVendors: user.canManageVendors // Inject the new permission
     };
 
-    const token = jwt.sign(sanitizedUser, JWT_SECRET, { expiresIn: '300h' });
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const token = await new SignJWT(sanitizedUser)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('300h')
+      .sign(secret);
     
-    // 4. Response with HTTP-Only Cookie
+    // 4. Response with Strict HTTP-Only Cookie
     const response = NextResponse.json({ user: sanitizedUser });
     response.cookies.set(TOKEN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
-      sameSite: 'lax',
-      maxAge: 300 * 60 * 60, // 300 hours (approximately 12.5 days)
+      sameSite: 'strict',
+      maxAge: 300 * 60 * 60, // 300 hours
       path: '/'
     });
 

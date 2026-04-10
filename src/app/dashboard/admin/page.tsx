@@ -9,10 +9,14 @@ import {
   PieChart as PieChartIcon,
   BarChart3,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Archive,
+  ArrowRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { 
   BarChart, 
   Bar, 
@@ -28,6 +32,8 @@ import {
 } from "recharts";
 import { useAuth } from "@/context/AuthContext";
 import ProjectUtilizationChart from "@/components/admin/ProjectUtilizationChart";
+import { PurgeRequestsModal } from "@/components/admin/PurgeRequestsModal";
+import { ShieldAlert } from "lucide-react";
 
 export default function AdminOverviewPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -75,7 +81,7 @@ export default function AdminOverviewPage() {
     );
   }
 
-  const COLORS = ['#6F2AE6', '#15CDD8', '#F59E0B', '#EF4444', '#10B981'];
+  const COLORS = ['#5B4B8A', '#2FB7B2', '#F59E0B', '#EF4444', '#10B981'];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -221,6 +227,68 @@ export default function AdminOverviewPage() {
         </motion.div>
       </div>
 
+      {/* System Tools & Quick Access */}
+      <motion.div 
+        variants={item}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
+        <div className="col-span-1 md:col-span-2 lg:col-span-4">
+           <h3 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground mb-4 pl-1">Institutional System Tools</h3>
+        </div>
+        
+        {[
+          { 
+            title: "Enterprise Backups", 
+            sub: "Cloud Vault & Orchestration", 
+            path: "/dashboard/admin/backups", 
+            icon: <Archive className="w-5 h-5" />, 
+            color: "brand-primary" 
+          },
+          { 
+            title: "Identity Controls", 
+            sub: "User Access & Permissions", 
+            path: "/dashboard/admin/users", 
+            icon: <Users className="w-5 h-5" />, 
+            color: "blue-500" 
+          },
+          { 
+            title: "Budget Taxonomy", 
+            sub: "Purpose & Category Matrix", 
+            path: "/dashboard/admin/purposes", 
+            icon: <BarChart3 className="w-5 h-5" />, 
+            color: "emerald-500" 
+          },
+          { 
+            title: "System Diagnostics", 
+            sub: "Heuristic & Audit Logs", 
+            path: "/dashboard/admin/diagnostics", 
+            icon: <AlertCircle className="w-5 h-5" />, 
+            color: "amber-500" 
+          }
+        ].map((tool, i) => (
+          <Link key={i} href={tool.path}>
+            <div className="glass-card p-6 border-white/5 hover:border-brand-primary/30 transition-all group flex flex-col gap-4">
+               <div className={cn(
+                 "w-12 h-12 rounded-2xl flex items-center justify-center border transition-colors group-hover:scale-110",
+                 `bg-${tool.color}/10 border-${tool.color}/20 text-${tool.color}`
+               )}>
+                  {tool.icon}
+               </div>
+               <div>
+                  <h4 className="text-sm font-black text-foreground group-hover:text-brand-primary transition-colors">{tool.title}</h4>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{tool.sub}</p>
+               </div>
+               <div className="flex items-center gap-2 mt-2 text-[9px] font-black text-brand-primary uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                  Access Protocol <ArrowRight className="w-3 h-3" />
+               </div>
+            </div>
+          </Link>
+        ))}
+      </motion.div>
+
       {/* Dept Spend Summary Table */}
       <motion.div 
         variants={item}
@@ -272,6 +340,36 @@ export default function AdminOverviewPage() {
                   </div>
                </div>
             ))}
+         </div>
+      </motion.div>
+
+      {/* Danger Zone: Institutional Purge */}
+      <motion.div 
+        variants={item}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="glass-card p-10 border-rose-500/20 bg-rose-500/5 shadow-2xl shadow-rose-500/5 relative overflow-hidden"
+      >
+         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full -mr-32 -mt-32" />
+         
+         <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative">
+            <div className="flex items-center gap-6">
+               <div className="w-16 h-16 rounded-[2rem] bg-rose-500/10 flex items-center justify-center border border-rose-500/20 text-rose-500 shadow-xl shadow-rose-500/10">
+                  <ShieldAlert className="w-8 h-8" />
+               </div>
+               <div>
+                  <h3 className="text-2xl font-serif font-black text-foreground tracking-tight uppercase">System Management & Danger Zone</h3>
+                  <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] mt-1">Institutional Reset & Test Data Purge</p>
+                  <p className="text-xs text-muted-foreground mt-3 max-w-md leading-relaxed">
+                    This section is reserved for high-risk administration. Use the "Purge" protocol only before a production launch to eliminate all test purchase requests and reset the procurement state.
+                  </p>
+               </div>
+            </div>
+            
+            <div className="shrink-0">
+               <PurgeRequestsModal />
+            </div>
          </div>
       </motion.div>
     </div>

@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id: paramId } = await params;
     const requestId = parseInt(paramId);
+    if (isNaN(requestId)) return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
 
     // 1. Auth & Context Validation
     user = await getAuthenticatedUser(req);

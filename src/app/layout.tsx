@@ -41,8 +41,12 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
         <meta name="theme-color" content="#5B4B8A" />
-        <link rel="apple-touch-icon" href="/icon-512.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="E3 Purchase" />
+        <link rel="apple-touch-icon" href="/logo-color.png" />
       </head>
       <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20`} suppressHydrationWarning>
         <Providers initialUser={initialUser}>

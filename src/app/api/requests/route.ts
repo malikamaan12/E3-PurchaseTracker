@@ -8,10 +8,12 @@ import {
   departments,
   approvals,
   auditLogs,
-  subPurposes
+  subPurposes,
+  vendors
 } from "@db/schema";
 import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { createRequestSchema } from "@/lib/validation";
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +105,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const requests = await db
+    let timeoutHandle: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error("Database synchronization timeout")),
+        8000
+      );
+    });
+
+    const listPromise = db
       .select({
         id: purchaseRequests.id,
         requestNumber: purchaseRequests.requestNumber,
@@ -139,8 +149,16 @@ export async function GET(req: NextRequest) {
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(purchaseRequests.createdAt));
 
+    // Race the query against the safety timeout
+    const requests = await Promise.race([listPromise, timeoutPromise]);
+    clearTimeout(timeoutHandle!); // Cancel the timer if query won
+
     return NextResponse.json(requests);
   } catch (error: any) {
+    if (error?.message === "Database synchronization timeout") {
+      console.warn("[Native API] GET Requests: Query timed out — returning empty list");
+      return NextResponse.json([], { status: 200 });
+    }
     console.error("[Native API] GET Requests Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
@@ -152,6 +170,16 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     const body = await req.json();
+    
+    // 1. Strict Payload Validation (Zod Hardening)
+    const validation = createRequestSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: "Validation Failed", 
+        details: validation.error.format() 
+      }, { status: 400 });
+    }
+
     const { 
       title, 
       description, 
@@ -166,17 +194,64 @@ export async function POST(req: NextRequest) {
       items,
       additionalApprovers,
       attachmentIds,
-      paymentStructure, // NEW: 'ADVANCE', 'IN_PARTS', 'POST_PROJECT'
-      installments    // NEW: Array of installment objects
-    } = body;
+      paymentStructure,
+      installments,
+      status: requestedStatus
+    } = validation.data;
 
-    const totalEstimatedCostNum = Math.round(Number(totalEstimatedCost) || 0);
-    const freightAmountNum = Math.round(Number(freightAmount) || 0);
-    const vendorIdNum = Number(vendorId);
-
-    if (isNaN(vendorIdNum)) return NextResponse.json({ error: "Invalid Vendor ID" }, { status: 400 });
-
+    const totalEstimatedCostNum = Math.round(totalEstimatedCost || 0);
+    const freightAmountNum = Math.round(freightAmount || 0);
+    const vendorIdNum = vendorId;
     const totalCost = totalEstimatedCostNum + freightAmountNum;
+
+    // --- COMPLIANCE HARD STOP (Backend Gatekeeper) ---
+    const vendorRecord = await db.select({ 
+      score: vendors.complianceScore,
+      name: vendors.companyName 
+    })
+    .from(vendors)
+    .where(eq(vendors.id, vendorIdNum))
+    .limit(1);
+
+    if (vendorRecord.length > 0 && vendorRecord[0].score < 50) {
+      console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${vendorRecord[0].name}" (ID: ${vendorIdNum}) has a critical compliance score of ${vendorRecord[0].score}%`);
+      return NextResponse.json({ 
+        error: "Access Denied: Compliance Violation", 
+        message: `The selected vendor (${vendorRecord[0].name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
+      }, { status: 403 });
+    }
+
+    // --- BUDGET HARD STOP (Backend Gatekeeper) ---
+    if (subPurposeId && requestedStatus === "pending") {
+      const [budgetInfo] = await db.select({
+        allocated: subPurposes.totalBudget,
+        name: subPurposes.name
+      })
+      .from(subPurposes)
+      .where(eq(subPurposes.id, subPurposeId))
+      .limit(1);
+
+      if (budgetInfo) {
+        // Calculate current utilization for this project
+        const [spent] = await db.select({
+          total: sql<number>`COALESCE(SUM(${purchaseRequests.totalEstimatedCost} + ${purchaseRequests.freightAmount}), 0)`
+        })
+        .from(purchaseRequests)
+        .where(and(
+          eq(purchaseRequests.subPurposeId, subPurposeId),
+          inArray(purchaseRequests.status, ["pending", "partially_approved", "approved"])
+        ));
+
+        const currentTotal = Number(spent.total);
+        if (currentTotal + totalCost > budgetInfo.allocated) {
+          console.warn(`[PR_GATEKEEPER] BLOCKED: Project "${budgetInfo.name}" budget exceeded by ${currentTotal + totalCost - budgetInfo.allocated} QAR`);
+          return NextResponse.json({
+            error: "Budget Capacity Exceeded",
+            message: `The current request (${totalCost.toLocaleString()} QAR) exceeds the remaining institutional allocation for "${budgetInfo.name}". (Limit: ${budgetInfo.allocated.toLocaleString()} QAR | Remaining: ${(budgetInfo.allocated - currentTotal).toLocaleString()} QAR).`
+          }, { status: 403 });
+        }
+      }
+    }
 
     // Generate unique request number (PR-2026-XXXX)
     const year = new Date().getFullYear();
@@ -205,8 +280,8 @@ export async function POST(req: NextRequest) {
         items: JSON.stringify(items || []) as any,
         additionalApprovers: JSON.stringify(additionalApprovers || []) as any,
         paymentStructure: paymentStructure || "POST_PROJECT",
-        status: body.status === "pending" ? "pending" : "draft",
-        isLocked: body.status === "pending",
+        status: requestedStatus === "pending" ? "pending" : "draft",
+        isLocked: requestedStatus === "pending",
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -235,9 +310,6 @@ export async function POST(req: NextRequest) {
         calculatedAmount: inst.valueType === "PERCENTAGE"
           ? Math.round((inst.amountValue / 100) * totalCost)
           : Math.round(Number(inst.amountValue) || 0),
-        amount: inst.valueType === "PERCENTAGE"
-          ? Math.round((inst.amountValue / 100) * totalCost)
-          : Math.round(Number(inst.amountValue) || 0),
         currency: currency || "QAR",
         createdBy: user.id,
       }));
@@ -250,7 +322,6 @@ export async function POST(req: NextRequest) {
         valueType: "PERCENTAGE",
         amountValue: 100,
         calculatedAmount: totalCost,
-        amount: totalCost,
         currency: currency || "QAR",
         createdBy: user.id,
       }];
@@ -263,7 +334,7 @@ export async function POST(req: NextRequest) {
     console.log("[POST /api/requests] Step 3 OK");
 
     // 4. Approval row seeding on direct submission to "pending"
-    if (body.status === "pending") {
+    if (requestedStatus === "pending") {
       // Always guarantee exactly the three mandatory gatekeeper departments
       const mandatoryDepts = ["Finance", "CEO Office", "Management"];
 

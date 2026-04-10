@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

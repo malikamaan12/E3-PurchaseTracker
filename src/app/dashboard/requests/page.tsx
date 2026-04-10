@@ -21,7 +21,6 @@ import {
   FileSpreadsheet,
   PlusCircle
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -227,7 +226,7 @@ function RequestsDashboardContent() {
                 />
               ))
             ) : (
-              <AnimatePresence>
+              <>
                 {requests?.map((req: any) => (
                   <RequestRow 
                     key={req.id} 
@@ -239,7 +238,7 @@ function RequestsDashboardContent() {
                     onDelete={() => setDeleteRequest(req)}
                   />
                 ))}
-              </AnimatePresence>
+              </>
             )}
           </tbody>
         </table>
@@ -420,15 +419,11 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (highPerformanceMode) return content;
 
   return (
-    <AnimatePresence>
-      <motion.div 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-      >
-        {content}
-      </motion.div>
-    </AnimatePresence>
+    <div 
+      className="animate-fade-scale-in"
+    >
+      {content}
+    </div>
   );
 }
 
@@ -533,11 +528,8 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
   }
 
   return (
-    <motion.tr 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -10 }}
-      className={rowClassName}
+    <tr 
+      className={`animate-slide-up ${rowClassName}`}
     >
       <td className="px-6 py-5">
         <input 
@@ -626,7 +618,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           </button>
         </div>
       </td>
-    </motion.tr>
+    </tr>
   );
 }
 
@@ -680,10 +672,8 @@ function FilterBar({ current, set }: { current: string; set: (v: string) => void
 function LoadingState() {
   return (
     <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center">
-      <motion.div 
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-        className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full"
+      <div 
+        className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"
       />
       <p className="text-muted-foreground animate-pulse font-mono tracking-widest text-[10px] font-bold uppercase transition-colors">Initializing Grid...</p>
     </div>

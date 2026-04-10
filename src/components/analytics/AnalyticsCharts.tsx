@@ -70,6 +70,9 @@ export function CashFlowChart({ data }: { data: any[] }) {
   
   return (
     <div className="h-full w-full">
+      {(!data || data.length === 0) ? (
+        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
+      ) : (
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
@@ -120,11 +123,12 @@ export function CashFlowChart({ data }: { data: any[] }) {
             fill="url(#premiumFlow)"
             isAnimationActive={!highPerformanceMode}
             animationDuration={1500}
-            dot={{ r: 4, fill: COLOR_PRIMARY, strokeWidth: 2, stroke: "#000", opacity: 0 }}
-            activeDot={{ r: 6, fill: "#fff", stroke: COLOR_PRIMARY, strokeWidth: 3 }}
+            dot={{ r: 4, fill: COLOR_PRIMARY, strokeWidth: 2, stroke: COLOR_FOREGROUND, opacity: 0 }}
+            activeDot={{ r: 6, fill: COLOR_FOREGROUND, stroke: COLOR_PRIMARY, strokeWidth: 3 }}
           />
         </AreaChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }
@@ -135,6 +139,9 @@ export function BudgetSavingsChart({ data }: { data: any[] }) {
 
   return (
     <div className="h-full w-full">
+      {(!data || data.length === 0) ? (
+        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
+      ) : (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: -20, right: 30 }} barGap={0}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
@@ -173,6 +180,7 @@ export function BudgetSavingsChart({ data }: { data: any[] }) {
           />
         </BarChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }
@@ -184,6 +192,9 @@ export function DistributionDonut({ data, name }: { data: any[], name: string })
   return (
     <div className="h-full w-full flex flex-col items-center justify-center">
       <p className="text-[10px] font-black tracking-[0.3em] uppercase opacity-40 mb-6">{name}</p>
+      {(!data || data.length === 0) ? (
+        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
+      ) : (
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -207,6 +218,7 @@ export function DistributionDonut({ data, name }: { data: any[], name: string })
           <Tooltip content={<GlassTooltip />} />
         </PieChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }
@@ -224,6 +236,9 @@ export function ComplianceRadar({ data }: { data: any }) {
 
   return (
     <div className="h-full w-full flex items-center justify-center">
+      {(!data || Object.keys(data).length === 0) ? (
+         <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
+      ) : (
       <ResponsiveContainer width="100%" height={300}>
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formattedData}>
           <PolarGrid stroke="rgba(255,255,255,0.05)" />
@@ -238,11 +253,12 @@ export function ComplianceRadar({ data }: { data: any }) {
             fill={COLOR_SECONDARY}
             fillOpacity={0.4}
             isAnimationActive={!highPerformanceMode}
-            dot={{ r: 4, fill: COLOR_SECONDARY, strokeWidth: 2, stroke: "#000" }}
+            dot={{ r: 4, fill: COLOR_SECONDARY, strokeWidth: 2, stroke: COLOR_FOREGROUND }}
           />
           <Tooltip content={<GlassTooltip />} />
         </RadarChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }

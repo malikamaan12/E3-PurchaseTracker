@@ -145,8 +145,8 @@ export default function ComplianceGatewayPage() {
         </div>
       </div>
 
-      {/* 3. Compliance Matrix */}
-      <div className="glass p-1 rounded-3xl border border-black/5 dark:border-white/10 mb-20 overflow-x-auto custom-scrollbar shadow-sm dark:shadow-none">
+      {/* 3. Compliance Matrix (DESKTOP) */}
+      <div className="hidden lg:block glass p-1 rounded-3xl border border-black/5 dark:border-white/10 mb-20 overflow-x-auto custom-scrollbar shadow-sm dark:shadow-none">
         <div className="bg-white/40 dark:bg-white/[0.02] rounded-[22px] overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
@@ -200,8 +200,8 @@ export default function ComplianceGatewayPage() {
                               animate={{ width: `${vendor.healthScore}%` }}
                               className={cn(
                                 "h-full rounded-full shrink-0",
-                                vendor.healthScore === 100 ? "bg-emerald-500" :
-                                vendor.healthScore > 50 ? "bg-brand-primary" : "bg-rose-500"
+                                vendor.healthScore === 100 ? "bg-brand-secondary shadow-[0_0_10px_rgba(47,183,178,0.3)]" :
+                                vendor.healthScore > 50 ? "bg-brand-primary shadow-[0_0_10px_rgba(91,75,138,0.3)]" : "bg-rose-500"
                               )}
                             />
                           </div>
@@ -217,6 +217,62 @@ export default function ComplianceGatewayPage() {
         </div>
       </div>
 
+      {/* 4. Compliance Cards (MOBILE) */}
+      <div className="lg:hidden space-y-4 mb-20">
+        <AnimatePresence mode="popLayout">
+          {isLoading ? (
+            Array(3).fill(0).map((_, i) => (
+              <div key={i} className="glass p-6 rounded-3xl animate-pulse h-40 flex items-center justify-center text-muted-foreground">
+                Hydrating Legal Cache...
+              </div>
+            ))
+          ) : filteredVendors.length === 0 ? (
+            <div className="glass p-12 rounded-3xl text-center text-muted-foreground">
+              No matching legal records found.
+            </div>
+          ) : (
+            filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
+              <motion.div 
+                key={vendor.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
+                className="glass p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm active-scale"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex flex-col">
+                    <span className="text-base font-bold text-foreground truncate max-w-[200px]">{vendor.companyName}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground mt-1 uppercase">ID: {vendor.id} • CR: {vendor.registrationNumber?.slice(0,8) || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-black/5">
+                    <span className="text-xs font-black tabular-nums">{vendor.healthScore}%</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <MobileDocCell label="CR" doc={vendor.docs.registration} />
+                  <MobileDocCell label="Tax" doc={vendor.docs.tax} />
+                  <MobileDocCell label="Card" doc={vendor.docs.establishment} />
+                  <MobileDocCell label="Contract" doc={vendor.docs.contract} />
+                </div>
+
+                <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${vendor.healthScore}%` }}
+                    className={cn(
+                      "h-full rounded-full",
+                      vendor.healthScore === 100 ? "bg-emerald-500" :
+                      vendor.healthScore > 50 ? "bg-brand-primary" : "bg-rose-500"
+                    )}
+                  />
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Persistent Background Textures */}
       <div className="fixed inset-0 pointer-events-none -z-10 bg-background transition-colors duration-700">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[160px] animate-fluid-drift" />
@@ -228,7 +284,7 @@ export default function ComplianceGatewayPage() {
 
 // ─── HELPER: COMPLIANCE CELL ──────────────────────────────────────────────
 function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
-  if (doc.status === "missing") {
+  if (!doc || doc.status === "missing") {
     return (
       <td className="p-6 text-center">
         <div className="flex justify-center group/icon">
@@ -248,16 +304,39 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
       <div className="flex justify-center group/icon">
         <button 
           onClick={() => doc.file && window.open(doc.file.url, "_blank")}
-          className="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 dark:border-emerald-500/10 flex items-center justify-center text-emerald-500/80 dark:text-emerald-500/40 group-hover/icon:bg-emerald-500/20 group-hover/icon:text-emerald-500 transition-all relative"
+          className="w-8 h-8 rounded-lg bg-brand-secondary/10 dark:bg-brand-secondary/5 border border-brand-secondary/20 dark:border-brand-secondary/10 flex items-center justify-center text-brand-secondary group-hover/icon:bg-brand-secondary/20 group-hover/icon:text-brand-secondary transition-all relative"
         >
           <CheckCircle2 className="w-4 h-4" />
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 glass p-2 rounded-lg opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none text-left border-white/10 z-50">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Authenticated</p>
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-secondary mb-1">Authenticated</p>
             <p className="text-[10px] font-bold text-white truncate max-w-full">{doc.file?.name}</p>
-            <p className="text-[8px] opacity-40 mt-1 uppercase font-bold">Uploaded {new Date(doc.file!.date).toLocaleDateString()}</p>
+            <p className="text-[8px] opacity-40 mt-1 uppercase font-bold">Uploaded {doc.file?.date ? new Date(doc.file.date).toLocaleDateString() : 'N/A'}</p>
           </div>
         </button>
       </div>
     </td>
+  )
+}
+
+function MobileDocCell({ label, doc }: { label: string, doc: ComplianceDoc }) {
+  const isMissing = !doc || doc.status === "missing";
+  return (
+    <div 
+      onClick={() => (!isMissing && doc?.file) ? window.open(doc.file.url, "_blank") : undefined}
+      className={cn(
+        "flex flex-col gap-2 p-3 rounded-2xl border transition-all",
+        isMissing 
+          ? "bg-rose-500/[0.03] border-rose-500/10 text-rose-500/60" 
+          : "bg-emerald-500/[0.03] border-emerald-500/10 text-emerald-500 active:bg-emerald-500/10 active:scale-[0.98]"
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[8px] font-black uppercase tracking-widest opacity-60">{label}</span>
+        {isMissing ? <AlertCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+      </div>
+      <span className="text-[10px] font-bold uppercase truncate">
+        {isMissing ? "Missing" : "View Proof"}
+      </span>
+    </div>
   )
 }

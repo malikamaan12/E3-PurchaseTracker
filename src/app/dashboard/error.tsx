@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, RotateCcw, Home, ShieldAlert } from "lucide-react";
-import { motion } from "framer-motion";
 
 export default function DashboardError({
   error,
@@ -16,13 +16,11 @@ export default function DashboardError({
     console.error("Critical Dashboard Failure:", error);
   }, [error]);
 
+  const router = useRouter();
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="glass-card max-w-xl w-full p-12 text-center border-rose-500/20 shadow-2xl shadow-rose-500/10 relative overflow-hidden"
-      >
+      <div className="animate-fade-scale-in glass-card max-w-xl w-full p-12 text-center border-rose-500/20 shadow-2xl shadow-rose-500/10 relative overflow-hidden">
         {/* Background Visualizer */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-[#5B4B8A] to-rose-500 opacity-30" />
         
@@ -49,7 +47,7 @@ export default function DashboardError({
           </button>
           
           <button
-            onClick={() => window.location.href = "/dashboard"}
+            onClick={() => router.push("/dashboard")}
             className="flex items-center gap-2 bg-secondary border border-border px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white/10 active:scale-95 transition-all"
           >
             <Home className="w-4 h-4" />
@@ -62,7 +60,7 @@ export default function DashboardError({
             Fault Signature: {error.digest || "SYSTEM_RUNTIME_ERR_001"}
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

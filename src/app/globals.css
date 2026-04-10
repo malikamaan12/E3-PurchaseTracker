@@ -9,17 +9,22 @@
 
 @layer base { 
   :root { 
-    --brand-primary: 255 80% 53%;
-    --brand-secondary: 183 82% 47%;
-    --brand-mid: 260 70% 60%;
+    /* ─── E3 BRAND TOKENS ─────────────────────────────────────────── */
+    /* #5B4B8A = hsl(255 30% 42%) — E3 Primary Purple                 */
+    /* #2FB7B2 = hsl(178 58% 45%) — E3 Secondary Teal                 */
+    --brand-primary:    255 30% 42%;
+    --brand-secondary:  178 58% 45%;
+    --brand-mid:        260 40% 52%;
 
+    /* ─── SEMANTIC TOKENS (Light Mode) ───────────────────────────── */
     --background: 0 0% 98%;
     --foreground: 240 25% 10%;
     --card: 0 0% 100%;
     --card-foreground: 240 25% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 25% 10%;
-    --primary: 255 80% 53%;
+    /* --primary maps strictly to E3 Primary Purple #5B4B8A */
+    --primary: 255 30% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 10% 96%;
     --secondary-foreground: 240 25% 10%;
@@ -27,24 +32,37 @@
     --muted-foreground: 240 10% 40%;
     --accent: 240 10% 96%;
     --accent-foreground: 240 25% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
     --border: 240 10% 90%;
     --input: 240 10% 90%;
-    --ring: 255 80% 53%;
+    /* --ring maps strictly to E3 Primary Purple for focus rings */
+    --ring: 255 30% 42%;
     --radius: 1.25rem;
     --brand-gradient: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(var(--brand-secondary)));
+
+    /* ─── CHART TOKENS ─────────────────────────────────────────────── */
+    --chart-1: 255 30% 42%;
+    --chart-2: 178 58% 45%;
+    --chart-3: 35 91% 65%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 142 71% 45%;
   }
   
   .dark { 
-    --brand-primary: 255 80% 65%;
-    --brand-secondary: 183 82% 55%;
-    --brand-mid: 260 60% 30%;
+    /* E3 brand elevated for dark mode legibility */
+    --brand-primary:    255 35% 58%;
+    --brand-secondary:  178 55% 52%;
+    --brand-mid:        260 35% 38%;
+
     --background: 240 10% 2%;
     --foreground: 0 0% 98%;
     --card: 240 10% 4%;
     --card-foreground: 0 0% 95%;
     --popover: 240 10% 2%;
     --popover-foreground: 0 0% 98%;
-    --primary: 255 80% 65%;
+    /* --primary and --ring must mirror brand-primary in dark */
+    --primary: 255 35% 58%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 10% 10%;
     --secondary-foreground: 0 0% 98%;
@@ -52,9 +70,18 @@
     --muted-foreground: 240 10% 60%;
     --accent: 240 10% 10%;
     --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
     --border: 240 10% 12%;
     --input: 240 10% 12%;
-    --ring: 255 80% 65%;
+    --ring: 255 35% 58%;
+
+    /* ─── CHART TOKENS (dark elevated) ─────────────────────────────── */
+    --chart-1: 255 35% 58%;
+    --chart-2: 178 55% 52%;
+    --chart-3: 35 91% 65%;
+    --chart-4: 0 72% 60%;
+    --chart-5: 142 65% 50%;
   }
 
   body { 
@@ -71,6 +98,9 @@
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.05),
       0 10px 30px rgba(0,0,0,0.05);
+    /* GPU compositor promotion at parse time — eliminates scroll jank */
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .glass::before {
@@ -90,16 +120,37 @@
     box-shadow:
       0 8px 24px rgba(0,0,0,0.08),
       0 2px 6px rgba(0,0,0,0.04);
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .dark .glass-card {
     background: color-mix(in srgb, hsl(var(--card)) 50%, transparent);
   }
 
-  .glass {
-    @apply backdrop-blur-xl relative overflow-hidden;
-    background: rgba(255, 255, 255, 0.45);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+  /* ─── REMOVED: duplicate .glass definition was here — now consolidated above ─── */
+
+  /* ─── MOBILE PERFORMANCE TIER ─────────────────────────────────────────────── */
+  /* Aggressively strip GPU-intensive filters on low-power / small viewports.   */
+  /* This resolves scroll lag, battery drain, and UI thread thrashing on mobile. */
+  @media (max-width: 639px) {
+    .glass,
+    .glass-card,
+    .glass-input,
+    .glass-select,
+    [class*="backdrop-blur"] {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      will-change: auto !important;
+      transform: none !important;
+    }
+    .glass {
+      background: hsl(var(--card) / 0.97);
+      border-color: hsl(var(--border) / 0.6);
+    }
+    .glass-card {
+      background: hsl(var(--card) / 0.98);
+    }
   }
 
   .dark .glass {
@@ -144,6 +195,56 @@
   .animate-fade-in-up {
     animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+
+  /* ─── HARDWARE-ACCELERATED CSS MICRO-ANIMATIONS ─────────────────────────── */
+  /* These replace framer-motion for simple component transitions.             */
+  /* All animate transform/opacity only — no layout reflow triggered.          */
+
+  .animate-fade-scale-in {
+    opacity: 0;
+    transform: scale(0.95);
+    animation: fade-scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-up {
+    opacity: 0;
+    transform: translateY(12px);
+    animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fade {
+    opacity: 0;
+    animation: fade 0.25s ease forwards;
+  }
+
+  /* CSS spinner — replaces framer-motion rotate: Infinity */
+  .spin-css {
+    animation: spin-smooth 1.5s linear infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+
+  /* CSS pulse ring — replaces framer-motion scale/opacity pulse */
+  .pulse-css {
+    animation: pulse-smooth 1.5s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  /* NATIVE SAFE AREAS */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .mt-safe { margin-top: env(safe-area-inset-top); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+
+  /* TACTILE FEEDBACK: Native-like active scaling for touch devices */
+  .active-scale {
+    transition: transform 0.1s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+  }
+  .active-scale:active {
+    transform: scale(0.96);
+  }
 }
 
 @keyframes fade-in-up {
@@ -156,6 +257,31 @@
   33% { transform: translate(3%, 5%) scale(1.1); }
   66% { transform: translate(-2%, 8%) scale(0.95); }
   100% { transform: translate(1%, -2%) scale(1.05); }
+}
+
+@keyframes fade-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin-smooth {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse-smooth {
+  0%, 100% { transform: scale(1);   opacity: 0.3; }
+  50%       { transform: scale(1.2); opacity: 0.6; }
 }
 
 /* --- INPUT OVERRIDES --- */

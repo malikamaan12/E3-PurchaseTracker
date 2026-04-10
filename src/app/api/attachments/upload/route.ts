@@ -1,3 +1,4 @@
+export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { r2Storage, isR2Configured } from "@/lib/services/R2StorageService";
@@ -67,3 +68,4 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+

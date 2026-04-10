@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 import { JWT_SECRET, TOKEN_COOKIE_NAME } from "./utils/config";
 
 export interface AuthenticatedUser {
@@ -11,10 +11,6 @@ export interface AuthenticatedUser {
   canManageVendors?: boolean; // New permission flag
 }
 
-/**
- * Extracts and verifies the authenticated user from the request cookies.
- * Returns the user object if valid, or null if unauthenticated.
- */
 export async function getAuthenticatedUser(req: NextRequest): Promise<AuthenticatedUser | null> {
   try {
     const cookieHeader = req.headers.get("cookie") || "";
@@ -28,7 +24,9 @@ export async function getAuthenticatedUser(req: NextRequest): Promise<Authentica
     const token = cookies[TOKEN_COOKIE_NAME];
     if (!token) return null;
 
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
+    const decoded = payload as unknown as AuthenticatedUser;
     
     // Basic validation of decoded token structure
     if (!decoded || !decoded.id || !decoded.role) {
@@ -37,7 +35,8 @@ export async function getAuthenticatedUser(req: NextRequest): Promise<Authentica
 
     return decoded;
   } catch (error) {
-    console.error("[Auth Helper] Token verification failed:", error);
+    // We swallow verification errors here to simply return null for unauthenticated users,
+    // which is the expected behavior for this helper.
     return null;
   }
 }

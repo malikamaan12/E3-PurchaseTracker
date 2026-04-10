@@ -4,6 +4,7 @@ import TopNav from "@/components/layout/TopNav";
 import AmbientBackground from "@/components/layout/AmbientBackground";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 export default function DashboardLayout({
   children,
@@ -12,8 +13,6 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading } = useAuth();
 
-  // OPTIMISTIC HYDRATION CHECK
-  // We only block the UI if we are loading AND we don't have a user payload from the server.
   if (isLoading && !user) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
@@ -23,20 +22,18 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden transition-colors duration-300">
-      {/* Top Navigation */}
+    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
+      {/* Global Top Nav - Now handles all primary navigation */}
       <TopNav />
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto bg-background px-12 py-10 custom-scrollbar relative">
-          <div className="max-w-[1600px] mx-auto w-full">
-            {children}
-          </div>
-          
-          <AmbientBackground />
-        </main>
-      </div>
+      
+      {/* Scrollable Page Content */}
+      <main className="flex-1 overflow-y-auto bg-background px-6 py-6 md:px-12 md:py-10 custom-scrollbar relative pb-safe">
+        <div className="max-w-[1600px] mx-auto w-full">
+          {children}
+        </div>
+        
+        <AmbientBackground />
+      </main>
     </div>
   );
 }

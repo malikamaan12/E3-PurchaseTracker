@@ -1,29 +1,81 @@
 const CACHE_NAME = 'purchase-tracker-v1';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/manifest.json',
+  '/logo-color.png',
+  '/logo-white.png',
+];
 
+// Install Event
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
   self.skipWaiting();
 });
 
+// Activate Event
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-// ─── NATIVE PUSH LISTENER ────────────────────────────────────────────────
-// Future-proofing for when VAPID keys are integrated into the backend
+// Fetch Event - Stale-while-revalidate for assets
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+
+  // --- SECURITY HARDENING: Bypass cache for API and AUTH routes ---
+  // This prevents sensitive financial JSON payloads and user identity data 
+  // from being stored in the browser's persistent cache.
+  if (url.pathname.startsWith('/api/') || url.pathname.includes('/auth/')) {
+    console.log(`[SW] Bypassing cache for secure route: ${url.pathname}`);
+    return; // Let the browser handle these normally (Network Only)
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      const networked = fetch(event.request)
+        .then((response) => {
+          if (url.protocol.startsWith('http')) {
+            const cacheCopy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, cacheCopy);
+            });
+          }
+          return response;
+        })
+        .catch(() => cached);
+
+      return cached || networked;
+    })
+  );
+});
+
+// PUSH EVENT: Native System Alerts
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { title: 'PurchaseTracker', message: 'New update available' };
-  
+  const data = event.data ? event.data.json() : { 
+    title: 'Intelligence Alert', 
+    body: 'New procurement update received.' 
+  };
+
   const options = {
-    body: data.message,
-    icon: '/logo-color.png',
+    body: data.body,
+    icon: '/icon-512.png',
     badge: '/logo-color.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/dashboard/requests'
-    },
-    actions: [
-      { action: 'open', title: 'View Request' }
-    ]
+    }
   };
 
   event.waitUntil(
@@ -31,30 +83,10 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// ─── NOTIFICATION INTERACTION ──────────────────────────────────────────
-// Seamless SPA navigation using clients.matchAll and focus()
+// Notification Click Event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
-
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // 1. Try to find an existing tab and focus it
-      for (const client of windowClients) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // 2. If no tab is open with that exact URL, find any dashboard tab and navigate it
-      for (const client of windowClients) {
-        if (client.url.includes('/dashboard') && 'navigate' in client) {
-          return client.navigate(urlToOpen).then(c => c?.focus());
-        }
-      }
-      // 3. Otherwise open a new window
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
-    })
+    clients.openWindow(event.notification.data.url)
   );
 });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,6 +14,7 @@ import {
   Truck,
   Layers,
   ShieldCheck,
+  ShieldAlert,
   ChevronRight,
   ClipboardList,
   Sparkles,
@@ -147,7 +149,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const paymentStructure = useWatch({ control, name: "paymentStructure" });
   const installments = useWatch({ control, name: "installments" }) || [];
   const totalEstimatedCost = useWatch({ control, name: "totalEstimatedCost" }) || 0;
+  const vendorId = watch("vendorId");
   const freightAmount = useWatch({ control, name: "freightAmount" }) || 0;
+
+  const selectedVendorCompliance = useMemo(() => {
+    if (!vendorId || vendors.length === 0) return null;
+    const v = vendors.find(vend => vend.id === Number(vendorId));
+    return v ? { score: v.complianceScore, name: v.companyName } : null;
+  }, [vendorId, vendors]);
+
+  const isNonCompliant = selectedVendorCompliance && selectedVendorCompliance.score < 50;
 
   const totals = useMemo(() => {
     return formItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 0);
@@ -437,20 +448,47 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Vendor Partnership</label>
+                          <div className="flex items-center justify-between pl-1">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ">Vendor Partnership</label>
+                            {selectedVendorCompliance && (
+                              <span className={cn(
+                                "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                isNonCompliant ? "bg-rose-500/10 text-rose-500" : "bg-brand-secondary/10 text-brand-secondary"
+                              )}>
+                                Compliance: {selectedVendorCompliance.score}%
+                              </span>
+                            )}
+                          </div>
                           <div className="relative group">
-                            <Truck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Truck className={cn(
+                              "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors z-10",
+                              isNonCompliant ? "text-rose-500" : "text-muted-foreground/30 group-focus-within:text-primary "
+                            )} />
                             <Controller
                               name="vendorId"
                               control={control}
                               render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value?.toString()}>
-                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                  <SelectTrigger className={cn(
+                                    "pl-14 py-4 h-14 font-semibold transition-all",
+                                    errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "",
+                                    isNonCompliant ? "border-rose-500/50 bg-rose-500/[0.02] text-rose-600" : ""
+                                  )}>
                                     <SelectValue placeholder="Select active vendor..." />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {vendors.map((v) => (
-                                      <SelectItem key={v.id} value={v.id.toString()}>{v.companyName}</SelectItem>
+                                      <SelectItem key={v.id} value={v.id.toString()}>
+                                        <div className="flex items-center justify-between w-full gap-4">
+                                          <span>{v.companyName}</span>
+                                          <span className={cn(
+                                            "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                                            v.complianceScore < 50 ? "bg-rose-500 text-white" : "bg-brand-secondary/20 text-brand-secondary"
+                                          )}>
+                                            {v.complianceScore}%
+                                          </span>
+                                        </div>
+                                      </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
@@ -458,6 +496,31 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             />
                             {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.vendorId.message}</p>}
                           </div>
+                          
+                          {/* Compliance Hard Stop Banner */}
+                          <AnimatePresence>
+                            {isNonCompliant && (
+                              <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 mt-2">
+                                  <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-[11px] font-black text-rose-500 uppercase tracking-widest">Regulatory Risk</p>
+                                    <p className="text-[10px] text-rose-600/80 mt-1 leading-relaxed font-medium">
+                                      {selectedVendorCompliance?.name} is in **Critical Non-Compliance**. 
+                                      Institutional policy blocks procurement until required legal documentation (CR, Tax, etc.) 
+
+                                      is updated in the Compliance Gateway.
+                                    </p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
 
                         <div className="space-y-3">
@@ -962,14 +1025,26 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                       <Button
                         form="request-form"
                         type="submit"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !!isNonCompliant}
                         size="lg"
-                        className={`flex items-center gap-4 px-12 rounded-[1.25rem] shadow-xl font-serif ${isOverBudget ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-brand-primary/30"}`}
+                        className={cn(
+                          "flex items-center gap-4 px-12 rounded-[1.25rem] shadow-xl font-serif transition-all",
+                          isNonCompliant 
+                            ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
+                            : isOverBudget 
+                              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" 
+                              : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-brand-primary/30"
+                        )}
                       >
                         {isSubmitting ? (
                           <>
                             <Loader2 className="w-5 h-5 animate-spin" />
                             Initializing...
+                          </>
+                        ) : isNonCompliant ? (
+                          <>
+                            Access Denied
+                            <ShieldAlert className="w-5 h-5" />
                           </>
                         ) : (
                           <>

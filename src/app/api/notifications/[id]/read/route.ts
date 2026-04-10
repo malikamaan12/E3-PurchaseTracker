@@ -6,7 +6,7 @@ import { notificationService } from "@/lib/services/NotificationService";
  * PATCH /api/notifications/[id]/read
  * Mark a specific notification as read for the authenticated user.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: paramId } = await params;
     const user = await getAuthenticatedUser(req);

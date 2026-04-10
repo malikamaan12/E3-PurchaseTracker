@@ -5,6 +5,9 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
 
 export const dynamic = 'force-dynamic';
+// Promote to Vercel Fluid Function — allows 60s execution for large PDF packages.
+// The default 10-15s serverless limit consistently causes 504s on heavy documents.
+export const maxDuration = 60;
 
 async function fetchBuffer(url: string | null): Promise<Uint8Array | null> {
   if (!url) return null;
@@ -53,13 +56,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const requestId = parseInt(paramId);
+    if (isNaN(requestId)) return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
+
     const requestData = await getFullRequestData(requestId) as any;
     if (!requestData) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const canView = user.role === "admin" || requestData.requesterId === user.id || requestData.approvals.some((a: any) => a.approverId === user.id);
     if (!canView) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-    const { PDFDocument } = await import("pdf-lib");
+    const { PDFDocument, rgb } = await import("pdf-lib");
+    // A4 dimensions in PDF points (72pts/inch)
+    const PAGE_WIDTH = 595.28;
+    const PAGE_HEIGHT = 841.89;
     
     const settingsResult = await db.select().from(pdfSettings).limit(1);
     const settings = settingsResult[0] || null;
@@ -81,33 +89,51 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const prPages = await finalDoc.copyPages(sourcePr, sourcePr.getPageIndices());
     prPages.forEach((p) => finalDoc.addPage(p));
 
-    // Support both PDFs and Images
     const attachments = (requestData.attachments || []);
     
-    for (const att of attachments) {
-      const isPdf = att.fileType.toLowerCase().includes('pdf') || att.fileName.toLowerCase().endsWith('.pdf');
-      const isImage = att.fileType.toLowerCase().includes('image/') || /\.(jpg|jpeg|png)$/i.test(att.fileName);
+    // --- PERFORMANCE OPTIMIZATION: Parallel Fetching ---
+    // We fetch all buffers in parallel to avoid sequential network delays
+    const attachmentBuffers = await Promise.all(
+      attachments.map(async (att: any) => {
+        const isPdf = att.fileType.toLowerCase().includes('pdf') || att.fileName.toLowerCase().endsWith('.pdf');
+        const isImage = att.fileType.toLowerCase().includes('image/') || /\.(jpg|jpeg|png)$/i.test(att.fileName);
+        if (!isPdf && !isImage) return null;
+        
+        const buffer = await fetchBuffer(att.fileUrl);
+        return buffer ? { ...att, buffer, isPdf, isImage } : null;
+      })
+    );
 
-      if (!isPdf && !isImage) continue;
+    const startTime = Date.now();
+    const TIMEOUT_LIMIT = 8000; // 8s safety limit for the generation phase
 
-      console.log(`[Full PDF Engine] Processing: ${att.fileName}`);
-      const buffer = await fetchBuffer(att.fileUrl);
-      if (!buffer || buffer.length === 0) continue;
+    for (const att of attachmentBuffers) {
+      if (!att) continue;
+
+      // --- SERVERLESS TIMEOUT PREVENTION ---
+      // If we approach the 8s mark, we stop merging to ensure the function returns
+      if (Date.now() - startTime > TIMEOUT_LIMIT) {
+        console.warn(`[Full PDF Engine] TIMEOUT PROTECTION TRIGGERED: Skipping remaining attachments for PR ${requestData.requestNumber}`);
+        const warningPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        warningPage.drawText("CAUTION: Document Package Partially Generated", { x: 50, y: 400, size: 18, color: rgb(1, 0, 0) });
+        warningPage.drawText("The procurement package was too large to process in a single serverless cycle.", { x: 50, y: 370, size: 10 });
+        warningPage.drawText("Please download individual attachments for full documentation.", { x: 50, y: 355, size: 10 });
+        break;
+      }
 
       try {
-        if (isPdf) {
-          const attPdf = await PDFDocument.load(buffer);
+        if (att.isPdf) {
+          const attPdf = await PDFDocument.load(att.buffer);
           const attPages = await finalDoc.copyPages(attPdf, attPdf.getPageIndices());
           attPages.forEach((p) => finalDoc.addPage(p));
-        } else if (isImage) {
+        } else if (att.isImage) {
           const image = att.fileName.toLowerCase().endsWith('.png') 
-            ? await finalDoc.embedPng(buffer)
-            : await finalDoc.embedJpg(buffer);
+            ? await finalDoc.embedPng(att.buffer)
+            : await finalDoc.embedJpg(att.buffer);
 
-          const page = finalDoc.addPage([595.28, 841.89]);
+          const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
           const { width, height } = page.getSize();
           
-          // Scaling Logic (Fit to A4 with 40pt margin)
           const maxWidth = width - 80;
           const maxHeight = height - 80;
           const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
