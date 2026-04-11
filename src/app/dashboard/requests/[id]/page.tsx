@@ -21,7 +21,6 @@ import {
   Loader2,
   ShieldCheck,
   Calendar,
-  Calendar,
   Archive,
   Lock
 } from "lucide-react";
