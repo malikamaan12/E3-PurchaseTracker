@@ -101,53 +101,70 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       requestAuditLogs
     ] = await Promise.race([dataFetchPromise, timeoutPromise]) as any;
 
-    // Fetch Potential Stakeholders for departments in approval chain
-    const depts: string[] = Array.from(new Set(requestApprovals.map((a: any) => a.department as string))) as string[];
-    const deptStakeholders = depts.length > 0 
-      ? await db
-          .select({
-            id: users.id,
-            username: users.username,
-            department: users.department,
-          })
-          .from(users)
-          .where(
-            and(
-              inArray(users.department, depts),
-              eq(users.role, 'approver')
+    // --- DATA ASSEMBLY & HARDENING ---
+    try {
+      const safeApprovals = Array.isArray(requestApprovals) ? requestApprovals : [];
+      const depts: string[] = Array.from(new Set(safeApprovals.map((a: any) => a.department as string).filter(Boolean))) as string[];
+      
+      const deptStakeholders = depts.length > 0 
+        ? await db
+            .select({
+              id: users.id,
+              username: users.username,
+              department: users.department,
+            })
+            .from(users)
+            .where(
+              and(
+                inArray(users.department, depts),
+                eq(users.role, 'approver')
+              )
             )
-          )
-      : [];
+        : [];
 
-    // Map stakeholders to each approval step
-    const approvalsWithStakeholders = requestApprovals.map((approval: any) => ({
-      ...approval,
-      stakeholders: deptStakeholders.filter((s: any) => s.department === approval.department)
-    }));
+      // Map stakeholders to each approval step
+      const approvalsWithStakeholders = safeApprovals.map((approval: any) => ({
+        ...approval,
+        stakeholders: deptStakeholders.filter((s: any) => s.department === approval.department)
+      }));
 
-    // Parse JSON fields
-    let parsedItems = request.items || [];
-    try {
-      if (typeof request.items === "string") parsedItems = JSON.parse(request.items);
-    } catch(e) {}
+      // Parse JSON fields (Items & Additional Approvers are text columns in DB)
+      const parseJsonArray = (data: any, label: string) => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data !== "string") return [];
+        try {
+          const parsed = JSON.parse(data);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.warn(`[API] Failed to parse ${label} for request ${requestId}:`, e.message);
+          return [];
+        }
+      };
 
-    let parsedApprovers = request.additionalApprovers || [];
-    try {
-      if (typeof request.additionalApprovers === "string") parsedApprovers = JSON.parse(request.additionalApprovers);
-    } catch(e) {}
+      const parsedItems = parseJsonArray(request.items, "items");
+      const parsedApprovers = parseJsonArray(request.additionalApprovers, "additionalApprovers");
 
-    return NextResponse.json({
-      ...request,
-      items: parsedItems,
-      additionalApprovers: parsedApprovers,
-      requester,
-      vendor,
-      subPurpose,
-      approvals: approvalsWithStakeholders,
-      attachments,
-      paymentInstallments: installments,
-      auditLogs: requestAuditLogs
-    });
+      return NextResponse.json({
+        ...request,
+        items: parsedItems,
+        additionalApprovers: parsedApprovers,
+        requester: requester || null,
+        vendor: vendor || null,
+        subPurpose: subPurpose || null,
+        approvals: approvalsWithStakeholders,
+        attachments: Array.isArray(attachments) ? attachments : [],
+        paymentInstallments: Array.isArray(installments) ? installments : [],
+        auditLogs: Array.isArray(requestAuditLogs) ? requestAuditLogs : []
+      });
+    } catch (assemblyError: any) {
+      console.error("[Native API] Data Assembly Failure:", {
+        message: assemblyError.message,
+        requestId,
+        userId: authenticatedUser?.id
+      });
+      throw assemblyError; // Re-throw to be caught by the outer catch block
+    }
   } catch (error: any) {
     console.error("[Native API] GET Request Detail Error:", {
       message: error.message,

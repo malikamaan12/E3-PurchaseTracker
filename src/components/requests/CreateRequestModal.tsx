@@ -175,7 +175,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         try {
           const reqData = await apiClient.requests.get(requestId);
           
-          setInitialFiles(reqData.attachments ? reqData.attachments.map((a: any) => ({
+          setInitialFiles(Array.isArray(reqData.attachments) ? reqData.attachments.map((a: any) => ({
             id: a.id,
             fileName: a.fileName,
             fileType: a.fileType,
@@ -194,16 +194,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             priority: reqData.priority || "medium",
             currency: reqData.currency || "QAR",
             freightAmount: reqData.freightAmount || 0,
-            items: reqData.items || [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
-            additionalApprovers: reqData.additionalApprovers || [],
-            attachmentIds: reqData.attachments?.map((a: any) => a.id) || [],
+            items: Array.isArray(reqData.items) ? reqData.items : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
+            additionalApprovers: Array.isArray(reqData.additionalApprovers) ? reqData.additionalApprovers : [],
+            attachmentIds: Array.isArray(reqData.attachments) ? reqData.attachments.map((a: any) => a.id) : [],
             paymentStructure: reqData.paymentStructure || "POST_PROJECT",
-            installments: reqData.paymentInstallments?.map((inst: any) => ({
+            installments: Array.isArray(reqData.paymentInstallments) ? reqData.paymentInstallments.map((inst: any) => ({
               ...inst,
               dueDate: typeof inst.dueDate === 'string' 
                 ? inst.dueDate.split('T')[0] 
                 : new Date(inst.dueDate).toISOString().split('T')[0]
-            })) || [],
+            })) : [],
           });
           if (reqData.subPurposeId) {
             const subs = await apiClient.requests.subPurposes.list();
@@ -329,7 +329,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
 
   // Mandatory depts — excluded from additional approvers list
   const MANDATORY_DEPTS = ["CEO Office", "Finance", "Management"];
-  const additionalDeptOptions = globalDepartments.filter((d: any) => !MANDATORY_DEPTS.includes(d.name));
+  const additionalDeptOptions = (Array.isArray(globalDepartments) ? globalDepartments : []).filter((d: any) => !MANDATORY_DEPTS.includes(d.name));
 
   return (
     <AnimatePresence mode="wait">

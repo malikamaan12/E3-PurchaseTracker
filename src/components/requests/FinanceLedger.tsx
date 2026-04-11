@@ -254,14 +254,16 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     });
   }
 
-  const payments: any[] = request.paymentInstallments || [];
+  const payments: any[] = Array.isArray(request.paymentInstallments) ? request.paymentInstallments : [];
   
   // ── Calculation Engine ──────────────────────────────────────────────────
   const globalTarget = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
-  const globalPaid = payments.reduce((sum: number, p: any) => sum + (p.paidAmount ?? 0), 0);
-  const installmentTarget = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
-  const currentEntryValue = Number(formData.paidAmount || 0);
+  const globalPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
+  const globalTotal = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmount) || 0), 0);
+  const globalPending = globalTotal - globalPaid;
+  const progressPercent = globalTotal > 0 ? Math.round((globalPaid / globalTotal) * 100) : 0;
   const currentItemPaid = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
+  const currentEntryValue = Number(formData.paidAmount || 0);
   const newGlobalPaid = globalPaid - currentItemPaid + currentEntryValue;
   const isOverpaid = newGlobalPaid > globalTarget;
 
@@ -409,7 +411,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/10">
-              {payments.map((p: any) => {
+              {Array.isArray(payments) && payments.map((p: any) => {
                 const cfg = getStatusCfg(p.status);
                 const isEditing = editingPayment === p.id;
                 
@@ -609,7 +611,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
 
         {/* MOBILE: Stacked Ledger Cards */}
         <div className="lg:hidden divide-y divide-border/10">
-           {payments.map((p: any) => {
+           {Array.isArray(payments) && payments.map((p: any) => {
              const cfg = getStatusCfg(p.status);
              const isEditing = editingPayment === p.id;
              

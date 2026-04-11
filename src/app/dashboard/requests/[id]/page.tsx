@@ -479,12 +479,15 @@ export default function RequestDetailPage() {
                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest bg-secondary px-3 py-1 rounded-full border border-border">
                    {request.items?.length || 0} Line Items
                  </span>
-                 <button 
+                <button 
                    onClick={() => {
-                     if (!request.items) return;
+                     if (!Array.isArray(request.items)) {
+                       toast.error("No item data available for export");
+                       return;
+                     }
                      const csvRows = ['Item Specification,Qty,Unit Price,Extended Total'];
                      request.items.forEach((i: any) => {
-                       csvRows.push(`"${i.name.replace(/"/g, '""')}","${i.quantity}","${i.estimatedCost}","${(i.quantity * i.estimatedCost)}"`);
+                       csvRows.push(`"${String(i.name || '').replace(/"/g, '""')}","${i.quantity || 0}","${i.estimatedCost || 0}","${((i.quantity || 0) * (i.estimatedCost || 0))}"`);
                      });
                      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
                      const url = window.URL.createObjectURL(blob);
@@ -513,34 +516,40 @@ export default function RequestDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {request.items?.map((item: any, idx: number) => (
-                    <tr key={idx} className="group hover:bg-secondary/30 transition-colors relative">
-                      <td className="px-8 py-6 text-muted-foreground font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
-                      <td className="px-6 py-6">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">{item.name}</p>
-                          {item.remarks && (
-                            <div className="flex items-center gap-1.5 opacity-60">
-                              <MessageSquare className="w-3 h-3 text-muted-foreground" />
-                              <p className="text-[11px] text-muted-foreground font-medium italic">{item.remarks}</p>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-6 text-center">
-                        <span className="bg-secondary border border-border px-2.5 py-1 rounded-md text-[11px] font-bold text-foreground">
-                          {item.quantity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-6 text-right text-muted-foreground font-medium tabular-nums font-serif">
-                        {Number(item.estimatedCost).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-8 py-6 text-right text-foreground font-bold tabular-nums font-serif text-base">
-                        {(item.quantity * item.estimatedCost).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                   {Array.isArray(request.items) ? request.items.map((item: any, idx: number) => (
+                     <tr key={idx} className="group hover:bg-secondary/30 transition-colors relative">
+                       <td className="px-8 py-6 text-muted-foreground font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
+                       <td className="px-6 py-6">
+                         <div className="flex flex-col gap-1">
+                           <p className="text-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">{item.name || "Unnamed Item"}</p>
+                           {item.remarks && (
+                             <div className="flex items-center gap-1.5 opacity-60">
+                               <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                               <p className="text-[11px] text-muted-foreground font-medium italic">{item.remarks}</p>
+                             </div>
+                           )}
+                         </div>
+                       </td>
+                       <td className="px-6 py-6 text-center">
+                         <span className="bg-secondary border border-border px-2.5 py-1 rounded-md text-[11px] font-bold text-foreground">
+                           {item.quantity || 0}
+                         </span>
+                       </td>
+                       <td className="px-6 py-6 text-right text-muted-foreground font-medium tabular-nums font-serif">
+                         {Number(item.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                       </td>
+                       <td className="px-8 py-6 text-right text-foreground font-bold tabular-nums font-serif text-base">
+                         {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                       </td>
+                     </tr>
+                   )) : (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-12 text-center text-muted-foreground italic text-xs uppercase tracking-widest">
+                        No line items parsed in document record
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                   )}
+                 </tbody>
               </table>
             </div>
           </div>
@@ -548,7 +557,6 @@ export default function RequestDetailPage() {
           <div className="flex flex-col gap-6 pb-12">
             {/* Document Vault */}
             <div 
-              className="glass-card overflow-hidden flex flex-col animate-slide-up"
               style={{ animationDelay: "0.25s" }}
             >
               <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
@@ -557,9 +565,12 @@ export default function RequestDetailPage() {
                   <h2 className="text-sm font-bold text-foreground tracking-tight">Support Documents</h2>
                 </div>
               </div>
-              <div className="p-4 grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
-                {request.attachments?.map((file: any) => (
-                  <button 
+              <div className="p-8 border-t border-border bg-secondary/10">
+              <h3 className="text-sm font-black text-foreground uppercase tracking-widest mb-4">Supporting Documentation</h3>
+              {Array.isArray(request.attachments) && request.attachments.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {request.attachments.map((file: any) => (
+                    <button 
                     key={file.id} 
                     onClick={() => setActiveAttachment(file)}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
@@ -577,7 +588,8 @@ export default function RequestDetailPage() {
                     </div>
                   </button>
                 ))}
-                {(!request.attachments || request.attachments.length === 0) && (
+                </div>
+                ) : (
                   <div className="col-span-full py-12 text-center">
                     <p className="text-[10px] text-zinc-700 font-bold uppercase tracking-[0.3em]">No Documents Available</p>
                   </div>
@@ -661,7 +673,8 @@ export default function RequestDetailPage() {
 
                   {/* Phase 2: Departmental Approvals (Unified) */}
                   <TimelineGroup label="Departmental Sign-offs">
-                    {request.approvals?.map((approval: any, idx: number) => {
+                  {Array.isArray(request.approvals) && request.approvals.length > 0 ? (
+                    request.approvals.map((approval: any, idx: number) => {
                       const isPending = approval.status === 'pending';
                       const isApproved = approval.status === 'approved';
                       const isRejected = approval.status === 'rejected';
@@ -690,7 +703,12 @@ export default function RequestDetailPage() {
                           icon={<ShieldCheck className="w-3 h-3" />}
                         />
                       );
-                    })}
+                    })
+                  ) : (
+                    <div className="p-4 rounded-xl bg-secondary/20 border border-dashed border-border text-center">
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">No approval records initialized</p>
+                    </div>
+                  )}
                   </TimelineGroup>
 
                   {/* Phase 3: Finalization */}
@@ -734,8 +752,8 @@ export default function RequestDetailPage() {
             </div>
             
             <div className="p-5">
-              {request.paymentStructure === 'IN_PARTS' && request.paymentInstallments?.length > 0 ? (
-                <div className="flex flex-col gap-3">
+              {request.paymentStructure === 'IN_PARTS' && Array.isArray(request.paymentInstallments) && request.paymentInstallments.length > 0 ? (
+                <div className="space-y-4">
                   {request.paymentInstallments.map((inst: any, idx: number) => (
                     <div key={idx} className="p-3 bg-secondary/30 border border-border rounded-lg">
                       <div className="flex justify-between items-start mb-2">
@@ -841,7 +859,7 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase border ${configs[status] || 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20'}`}>
-      {status?.replace(/_/g, ' ')}
+      {typeof status === 'string' ? status.replace(/_/g, ' ') : 'N/A'}
     </span>
   );
 }
@@ -895,16 +913,16 @@ function LifecycleItem({ title, subtitle, time, status, icon, stakeholders = [],
         {stakeholders.length > 0 && (
           <div className="mt-3 flex items-center gap-2">
              <div className="flex -space-x-1.5">
-                {stakeholders.map((s: any, i: number) => (
-                  <div 
-                    key={i} 
-                    title={s.username} 
-                    className="w-5 h-5 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-[8px] font-bold text-zinc-500 hover:text-white hover:border-brand-primary transition-all cursor-help"
-                  >
-                    {s.username.substring(0,1).toUpperCase()}
-                  </div>
-                ))}
-             </div>
+                 {Array.isArray(stakeholders) && stakeholders.map((s: any, i: number) => (
+                   <div 
+                     key={i} 
+                     title={s.username} 
+                     className="w-5 h-5 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-[8px] font-bold text-zinc-500 hover:text-white hover:border-brand-primary transition-all cursor-help"
+                   >
+                     {(s.username || "U").substring(0,1).toUpperCase()}
+                   </div>
+                 ))}
+              </div>
              <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Available Approvers</span>
           </div>
         )}
@@ -1002,7 +1020,7 @@ function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onCl
             <div className="relative">
               <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
               <div className="space-y-6">
-                {auditLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log, idx) => (
+                {[...(auditLogs || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log, idx) => (
                   <div key={idx} className="relative flex gap-4 pl-10">
                     <div className="absolute left-[-1.15rem] top-1">
                       <div className="w-8 h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-muted-foreground">
