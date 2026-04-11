@@ -28,6 +28,9 @@ interface ComboboxProps {
   options: ComboboxOption[]
   value?: string
   onChange: (value: string) => void
+  placeholder?: string
+  searchPlaceholder?: string
+  emptyMessage?: string
   allowCustomValue?: boolean
   className?: string
 }
