@@ -136,7 +136,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         try {
           const parsed = JSON.parse(data);
           return Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
+        } catch (e: any) {
           console.warn(`[API] Failed to parse ${label} for request ${requestId}:`, e.message);
           return [];
         }
@@ -300,7 +300,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         } else if (Array.isArray(updated.additionalApprovers)) {
           additionalDepts = updated.additionalApprovers;
         }
-      } catch (e) {}
+        } catch (e: any) {}
 
       // Additional approvers must not overlap with mandatory departments
       const filteredAdditional = additionalDepts.filter(d => !mandatoryDepts.includes(d));
