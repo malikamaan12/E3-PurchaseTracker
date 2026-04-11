@@ -139,12 +139,12 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<Building2 />} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
-                    <FormField icon={<User />} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
-                    <FormField icon={<Mail />} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
-                    <FormField icon={<Phone />} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
+                    <FormField icon={Building2} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
+                    <FormField icon={User} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
+                    <FormField icon={Mail} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
+                    <FormField icon={Phone} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
                     <div className="col-span-2">
-                       <FormField icon={<Globe />} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
+                       <FormField icon={Globe} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
                     </div>
                   </motion.div>
                 )}
@@ -157,10 +157,10 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<Landmark />} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
-                    <FormField icon={<Landmark />} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
-                    <FormField icon={<CreditCard />} label="Account Number*" name="accountNumber" register={register} error={errors.accountNumber} />
-                    <FormField icon={<CreditCard />} label="IBAN Number*" name="ibanNumber" register={register} error={errors.ibanNumber} />
+                    <FormField icon={Landmark} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
+                    <FormField icon={Landmark} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
+                    <FormField icon={CreditCard} label="Account Number*" name="accountNumber" register={register} error={errors.accountNumber} />
+                    <FormField icon={CreditCard} label="IBAN Number*" name="ibanNumber" register={register} error={errors.ibanNumber} />
                   </motion.div>
                 )}
 
@@ -172,9 +172,9 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     exit={{ opacity: 0, x: -20 }}
                     className="grid grid-cols-2 gap-6"
                   >
-                    <FormField icon={<FileCheck />} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
-                    <FormField icon={<FileCheck />} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
-                    <FormField icon={<FileCheck />} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
+                    <FormField icon={FileCheck} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
+                    <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
+                    <FormField icon={FileCheck} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
                         Vendor Reputation Index
@@ -241,23 +241,23 @@ function StepIndicator({ current, target, label }: any) {
       <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black transition-all duration-500 border ${active ? 'bg-brand-primary text-white border-brand-primary shadow-xl shadow-brand-primary/30' : 'bg-white/5 text-zinc-600 border-white/5'}`}>
         {target}
       </div>
-      <span className={`text-[9px] uppercase font-black tracking-[0.2em] ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
-      {target < 3 && <div className="w-6 h-px bg-white/10 ml-1" />}
+      <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
+      {target < 3 && <div className="w-8 h-px bg-white/10 ml-1" />}
     </div>
   );
 }
 
-function FormField({ icon, label, name, register, error, placeholder }: any) {
+function FormField({ icon: Icon, label, name, register, error, placeholder }: any) {
   return (
-    <div className="space-y-2">
-      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
-        <span className="text-zinc-600 group-focus-within:text-brand-primary transition-colors">{icon && <span className="w-3.5 h-3.5 block">{icon}</span>}</span>
+    <div className="space-y-2 group">
+      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
+        {Icon && <Icon className="w-3.5 h-3.5 text-zinc-600 group-focus-within:text-brand-primary transition-colors" strokeWidth={3} />}
         {label}
       </label>
       <input 
         {...register(name)}
         placeholder={placeholder}
-        className={`w-full bg-white/[0.03] border-2 rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-white/5 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20'}`}
+        className={`w-full bg-white/[0.03] border rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-white/5 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20'}`}
       />
       {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-tight mt-1">{error.message}</p>}
     </div>
