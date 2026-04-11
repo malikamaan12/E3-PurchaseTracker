@@ -108,7 +108,8 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
           >
             {/* Header */}
             <div className="flex justify-between items-start mb-10 relative">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-brand-primary/10 blur-3xl rounded-full -ml-16 -mt-16 pointer-events-none" />
+              <div className="absolute -top-16 -left-16 w-32 h-32 bg-brand-primary/20 blur-3xl rounded-full pointer-events-none" />
+              <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-brand-secondary/10 blur-[100px] rounded-full pointer-events-none" />
               <div className="relative">
                 <Dialog.Title className="text-4xl font-serif font-black text-white tracking-tighter leading-none">
                   {isEdit ? "Modify Supplier" : "Onboard Entity"}
@@ -242,7 +243,7 @@ function StepIndicator({ current, target, label }: any) {
         {target}
       </div>
       <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
-      {target < 3 && <div className="w-8 h-px bg-white/10 ml-1" />}
+      {target < 3 && <div className="w-12 h-px bg-white/10 ml-1" />}
     </div>
   );
 }
