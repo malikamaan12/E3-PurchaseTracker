@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
         valueType: "PERCENTAGE",
         amountValue: 100,
         calculatedAmount: 1000,
-        amount: 1000,
         currency: "QAR",
         createdBy: 1,
       }).returning();

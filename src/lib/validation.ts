@@ -32,9 +32,10 @@ export const createRequestSchema = z.object({
   purposeCategoryId: z.number().int().positive().nullable().optional(),
   items: z.array(itemSchema).min(1, "At least one item is required"),
   attachmentIds: z.array(z.number()).optional(),
+  additionalApprovers: z.array(z.string()).optional(),
   paymentStructure: z.enum(["ADVANCE", "IN_PARTS", "POST_PROJECT"]),
   installments: z.array(installmentSchema).optional(),
-  status: z.enum(["draft", "pending"]).default("draft"),
+  status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested", "canceled"]).default("draft"),
 });
 
 export const updateRequestSchema = createRequestSchema.partial().extend({

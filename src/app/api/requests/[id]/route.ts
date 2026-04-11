@@ -13,7 +13,7 @@ import {
   departments,
   paymentInstallments
 } from "@db/schema";
-import { eq, and, inArray, desc, count } from "drizzle-orm";
+import { eq, and, or, inArray, desc, count } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
@@ -22,12 +22,14 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/requests/[id]
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id: paramId } = await params;
-    const user = await getAuthenticatedUser(req);
-    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const { id: paramId } = await params;
+  const requestId = parseInt(paramId);
+  let authenticatedUser: any = null;
 
-    const requestId = parseInt(paramId);
+  try {
+    authenticatedUser = await getAuthenticatedUser(req);
+    if (!authenticatedUser) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     if (isNaN(requestId)) return NextResponse.json({ error: "Invalid request ID" }, { status: 400 });
 
     const [request] = await db
@@ -100,7 +102,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ] = await Promise.race([dataFetchPromise, timeoutPromise]) as any;
 
     // Fetch Potential Stakeholders for departments in approval chain
-    const depts = [...new Set(requestApprovals.map(a => a.department))];
+    const depts: string[] = Array.from(new Set(requestApprovals.map((a: any) => a.department as string))) as string[];
     const deptStakeholders = depts.length > 0 
       ? await db
           .select({
@@ -118,9 +120,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       : [];
 
     // Map stakeholders to each approval step
-    const approvalsWithStakeholders = requestApprovals.map(approval => ({
+    const approvalsWithStakeholders = requestApprovals.map((approval: any) => ({
       ...approval,
-      stakeholders: deptStakeholders.filter(s => s.department === approval.department)
+      stakeholders: deptStakeholders.filter((s: any) => s.department === approval.department)
     }));
 
     // Parse JSON fields
@@ -151,7 +153,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       message: error.message,
       stack: error.stack,
       requestId,
-      userId: user?.id
+      userId: authenticatedUser?.id
     });
     return NextResponse.json({ 
       error: "Internal Server Error", 
@@ -338,11 +340,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const adminUsers = await db.select().from(users).where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
 
       const targetUserIds = new Set<number>();
-      deptApprovers.forEach(a => targetUserIds.add(a.id));
-      adminUsers.forEach(a => targetUserIds.add(a.id));
+      deptApprovers.forEach((a: any) => targetUserIds.add(a.id));
+      adminUsers.forEach((a: any) => targetUserIds.add(a.id));
       targetUserIds.delete(user.id);
 
-      await Promise.all(Array.from(targetUserIds).map(userId => 
+      await Promise.all(Array.from(targetUserIds).map((userId: any) => 
         notificationService.createNotification({
           userId,
           title: "New Purchase Request Pending",

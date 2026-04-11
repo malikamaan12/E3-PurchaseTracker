@@ -170,7 +170,6 @@ async function seed() {
               valueType: 'PERCENTAGE',
               amountValue: 40,
               calculatedAmount: Math.round(totalBaseCost * 0.40),
-              amount: Math.round(totalBaseCost * 0.40),
               dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // In 1 week
               createdBy: requester.id,
               status: 'pending'
@@ -182,7 +181,6 @@ async function seed() {
               valueType: 'PERCENTAGE',
               amountValue: 60,
               calculatedAmount: Math.round(totalBaseCost * 0.60),
-              amount: Math.round(totalBaseCost * 0.60),
               dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // In 1 month
               createdBy: requester.id,
               status: 'pending'

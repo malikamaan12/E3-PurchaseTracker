@@ -3,12 +3,12 @@
     <title>E3 Logo Placeholder</title>
     <defs>
         <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="logoGradient">
-            <stop stop-color="#6F2AE6" offset="0%"></stop>
+            <stop stop-color="#5B4B8A" offset="0%"></stop>
             <stop stop-color="#15CDD8" offset="100%"></stop>
         </linearGradient>
     </defs>
     <g id="Logo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <rect stroke="#6F2AE6" stroke-width="2" fill="#FFFFFF" x="1" y="1" width="98" height="58" rx="8"></rect>
+        <rect stroke="#5B4B8A" stroke-width="2" fill="#FFFFFF" x="1" y="1" width="98" height="58" rx="8"></rect>
         <text font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="url(#logoGradient)" text-anchor="middle" x="50" y="32">E3</text>
         <text font-family="Arial, sans-serif" font-size="8" fill="#555555" text-anchor="middle" x="50" y="45">
             ENTERPRISES

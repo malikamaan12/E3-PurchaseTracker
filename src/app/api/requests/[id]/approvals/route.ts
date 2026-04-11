@@ -214,7 +214,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           vendorId: updatedRequest.vendorId,
           installmentName: `Approved Variation Delta Δ +${deltaAmount.toLocaleString()} QAR`,
           dueDate: dueDatePlaceholder,
-          amount: deltaAmount,
           valueType: "FIXED_AMOUNT",
           amountValue: deltaAmount,
           calculatedAmount: deltaAmount,

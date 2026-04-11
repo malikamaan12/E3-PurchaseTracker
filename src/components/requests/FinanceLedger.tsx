@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePerformance } from "@/context/PerformanceContext";
+import { cn } from "@/lib/utils";
 
 interface FinanceLedgerProps {
   request: any;

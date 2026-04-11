@@ -34,12 +34,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // --- SECURITY HARDENING: Bypass cache for API and AUTH routes ---
-  // This prevents sensitive financial JSON payloads and user identity data 
-  // from being stored in the browser's persistent cache.
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('/auth/')) {
-    console.log(`[SW] Bypassing cache for secure route: ${url.pathname}`);
-    return; // Let the browser handle these normally (Network Only)
+  // --- SECURITY & STABILITY HARDENING: Bypass cache for API, AUTH and Next.js internal chunks ---
+  // API/Auth: Prevents sensitive financial JSON and identity data from being cached.
+  // _next/static: Prevents ChunkLoadError by ensuring hashed assets are ALWAYS fresh.
+  if (
+    url.pathname.startsWith('/api/') || 
+    url.pathname.includes('/auth/') ||
+    url.pathname.includes('/_next/static/')
+  ) {
+    console.log(`[SW] Bypassing cache for internal/secure route: ${url.pathname}`);
+    return; // Network Only
   }
 
   event.respondWith(

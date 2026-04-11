@@ -143,7 +143,6 @@ export async function PATCH(
           vendorId: existing.vendorId,
           installmentName: `${existing.installmentName} (Remainder)`,
           dueDate: rescheduledDate ? new Date(rescheduledDate) : new Date(),
-          amount: delta,
           valueType: "FIXED_AMOUNT",
           amountValue: delta,
           calculatedAmount: delta,
