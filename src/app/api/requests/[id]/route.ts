@@ -272,7 +272,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const hasFinancialChange = 
       (cleanData.totalEstimatedCost !== undefined && cleanData.totalEstimatedCost !== existing.totalEstimatedCost) ||
       (cleanData.vendorId !== undefined && cleanData.vendorId !== existing.vendorId) ||
-      (itemsJson !== null && itemsJson !== existing.items);
+      (itemsJson !== null && itemsJson !== JSON.stringify(existing.items));
 
     const isWithdrawal = existing.status === "pending" && cleanData.status === "draft";
     const forceReset = isWithdrawal || hasFinancialChange || existing.status === "changes_requested";
