@@ -94,7 +94,6 @@ function SignupContent() {
             <img src="/logo-color.png" className="h-16 w-auto block dark:hidden" alt="PR System Logo" />
             <img src="/logo-white.png" className="h-16 w-auto hidden dark:block" alt="PR System Logo" />
           </div>
-          <h1 className="text-4xl font-serif tracking-tight mb-1 bg-brand-gradient text-transparent bg-clip-text">PR System</h1>
           <p className="text-brand-text dark:text-gray-300 text-sm tracking-widest uppercase font-bold">Events & Entertainment Enterprises</p>
         </div>
 
