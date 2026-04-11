@@ -21,7 +21,9 @@ import {
   Loader2,
   ShieldCheck,
   Calendar,
-  Archive
+  Calendar,
+  Archive,
+  Lock
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";

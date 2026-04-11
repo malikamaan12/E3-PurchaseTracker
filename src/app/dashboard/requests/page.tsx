@@ -19,7 +19,8 @@ import {
   Eye,
   Link as LinkIcon,
   FileSpreadsheet,
-  PlusCircle
+  PlusCircle,
+  Lock
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
