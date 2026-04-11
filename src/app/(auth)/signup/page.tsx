@@ -94,7 +94,7 @@ function SignupContent() {
             <img src="/logo-color.png" className="h-16 w-auto block dark:hidden" alt="PR System Logo" />
             <img src="/logo-white.png" className="h-16 w-auto hidden dark:block" alt="PR System Logo" />
           </div>
-          <p className="text-brand-text dark:text-gray-300 text-sm tracking-widest uppercase font-bold">Events & Entertainment Enterprises</p>
+          <p className="text-brand-text dark:text-gray-300 text-sm tracking-widest uppercase font-bold">Purchase Management System</p>
         </div>
 
         {/* Glassmorphism Hub Card */}

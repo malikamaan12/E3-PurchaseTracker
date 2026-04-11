@@ -223,7 +223,7 @@ export default function PdfSettingsPage() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Header Title (E3 ERP)</span>
                   <input 
                     type="text" 
-                    value={settings.headerTitle ?? "ENTERPRISE PROCUREMENT"} 
+                    value={settings.headerTitle ?? "PURCHASE MANAGEMENT SYSTEM"} 
                     onChange={(e) => handleChange("headerTitle", e.target.value)}
                     className="w-full bg-secondary border border-border text-foreground rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                   />
