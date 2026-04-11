@@ -85,7 +85,7 @@ function RequestsDashboardContent() {
   });
 
   useEffect(() => {
-    pageLoad(".glass-card, header, .glass");
+    pageLoad(".glass-card, .glass");
   }, []);
 
   const { data: requests, isLoading } = useQuery({

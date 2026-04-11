@@ -175,8 +175,14 @@ export default function TopNav() {
               <Link 
                 key={item.path} 
                 href={item.path}
+                onClick={(e) => {
+                  if (pathname === item.path) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale",
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale pointer-events-auto",
                   isActive 
                     ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-[0_4px_12px_-4px_rgba(var(--brand-primary),0.2)]" 
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -192,8 +198,14 @@ export default function TopNav() {
           {isAdmin && (
             <Link 
               href="/dashboard/admin"
+              onClick={(e) => {
+                if (pathname === "/dashboard/admin") {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale ml-4 border-l border-border/20 pl-6",
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale ml-4 border-l border-border/20 pl-6 pointer-events-auto",
                 pathname.startsWith("/dashboard/admin") 
                   ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-[0_4px_12px_-4px_rgba(var(--brand-primary),0.2)]" 
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
