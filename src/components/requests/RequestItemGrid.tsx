@@ -111,6 +111,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                           value={item.name}
                           onChange={(val) => updateItem(index, "name", val)}
                           placeholder="Search item catalog..."
+                          allowCustomValue={true}
                           className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-ring focus:ring-2 min-h-[44px] ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
                         />
                         <Input

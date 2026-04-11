@@ -6,15 +6,20 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/api/vendors/route": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/vendors/route.js"
+      "static/chunks/app/page.js"
     ],
     "/dashboard/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/layout.js"
+    ],
+    "/dashboard/error": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/error.js"
     ],
     "/dashboard/requests/page": [
       "static/chunks/webpack.js",
@@ -26,15 +31,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/notifications/unread-count/route.js"
     ],
-    "/api/departments/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/departments/route.js"
-    ],
     "/api/purposes/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/purposes/route.js"
+    ],
+    "/api/vendors/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/vendors/route.js"
+    ],
+    "/api/departments/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/departments/route.js"
     ],
     "/api/requests/sub-purposes/route": [
       "static/chunks/webpack.js",
@@ -51,65 +61,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/requests/analytics/route.js"
     ],
-    "/api/auth/user/route": [
+    "/dashboard/vendors/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/user/route.js"
-    ],
-    "/dashboard/requests/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/requests/[id]/page.js"
-    ],
-    "/api/requests/[id]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/requests/[id]/route.js"
-    ],
-    "/api/auth/logout/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/logout/route.js"
-    ],
-    "/(auth)/login/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(auth)/login/page.js"
-    ],
-    "/api/auth/login/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/login/route.js"
-    ],
-    "/api/requests/[id]/payments/[paymentId]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/requests/[id]/payments/[paymentId]/route.js"
-    ],
-    "/api/requests/[id]/approvals/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/requests/[id]/approvals/route.js"
-    ],
-    "/api/attachments/[id]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/attachments/[id]/route.js"
+      "static/chunks/app/dashboard/vendors/page.js"
     ],
     "/dashboard/analytics/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/analytics/page.js"
     ],
-    "/api/notifications/route": [
+    "/api/analytics/dashboard/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/notifications/route.js"
+      "static/chunks/app/api/analytics/dashboard/route.js"
     ],
-    "/dashboard/vendors/page": [
+    "/dashboard/compliance/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/vendors/page.js"
+      "static/chunks/app/dashboard/compliance/page.js"
+    ],
+    "/api/admin/compliance/status/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/admin/compliance/status/route.js"
     ],
     "/dashboard/admin/layout": [
       "static/chunks/webpack.js",
@@ -121,20 +96,70 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/admin/page.js"
     ],
+    "/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/page.js"
+    ],
+    "/api/auth/logout/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/auth/logout/route.js"
+    ],
+    "/(auth)/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(auth)/login/page.js"
+    ],
+    "/(auth)/signup/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(auth)/signup/page.js"
+    ],
+    "/api/auth/user/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/auth/user/route.js"
+    ],
+    "/api/auth/login/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/auth/login/route.js"
+    ],
     "/api/admin/analytics/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/admin/analytics/route.js"
     ],
-    "/dashboard/admin/users/page": [
+    "/dashboard/admin/vendors/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/admin/users/page.js"
+      "static/chunks/app/dashboard/admin/vendors/page.js"
     ],
-    "/api/admin/users/route": [
+    "/dashboard/admin/pdf-settings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/users/route.js"
+      "static/chunks/app/dashboard/admin/pdf-settings/page.js"
+    ],
+    "/api/admin/pdf-settings/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/admin/pdf-settings/route.js"
+    ],
+    "/api/requests/[id]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/requests/[id]/route.js"
+    ],
+    "/dashboard/requests/[id]/not-found": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/requests/[id]/not-found.js"
+    ],
+    "/dashboard/requests/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/requests/[id]/page.js"
     ]
   }
 }

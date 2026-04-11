@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Plus, Check, ChevronsUpDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
@@ -28,9 +28,7 @@ interface ComboboxProps {
   options: ComboboxOption[]
   value?: string
   onChange: (value: string) => void
-  placeholder?: string
-  searchPlaceholder?: string
-  emptyMessage?: string
+  allowCustomValue?: boolean
   className?: string
 }
 
@@ -41,9 +39,11 @@ export function Combobox({
   placeholder = "Select option...",
   searchPlaceholder = "Search...",
   emptyMessage = "No option found.",
+  allowCustomValue = false,
   className,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState("")
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,17 +58,52 @@ export function Combobox({
           )}
         >
           {value
-            ? options.find((option) => option.value === value)?.label
+            ? options.find((option) => option.value === value)?.label || value
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 z-[1100]">
+      <PopoverContent className="w-80 p-0 z-[1100]">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput
+            placeholder={searchPlaceholder}
+            onValueChange={setSearchValue}
+          />
           <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandEmpty>
+              {allowCustomValue && searchValue ? (
+                <div className="p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-primary"
+                    onClick={() => {
+                      onChange(searchValue)
+                      setOpen(false)
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Use "{searchValue}"
+                  </Button>
+                </div>
+              ) : (
+                emptyMessage
+              )}
+            </CommandEmpty>
             <CommandGroup>
+              {allowCustomValue && searchValue && !options.some(opt => opt.label.toLowerCase() === searchValue.toLowerCase()) && (
+                <CommandItem
+                  value={searchValue}
+                  onSelect={(val) => {
+                    onChange(val)
+                    setOpen(false)
+                  }}
+                  className="text-primary font-medium"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Use "{searchValue}"
+                </CommandItem>
+              )}
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
