@@ -311,17 +311,7 @@ export default function TopNav() {
           <ThemeToggle />
         </div>
 
-        <div className="hidden md:block h-8 w-px bg-border/20 mx-2" />
 
-        <button 
-          onClick={() => apiClient.documents.exportExcel()}
-          className="hidden md:flex items-center gap-2 bg-brand-primary/10 text-brand-primary px-4 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-primary/20 transition-all active-scale"
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          Export Intelligence
-        </button>
-
-        <div className="h-8 w-px bg-border/20 mx-2" />
 
         {/* PROFILE */}
         <div className="flex items-center gap-3">
