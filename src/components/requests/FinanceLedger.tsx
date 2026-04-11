@@ -262,6 +262,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const globalTotal = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmount) || 0), 0);
   const globalPending = globalTotal - globalPaid;
   const progressPercent = globalTotal > 0 ? Math.round((globalPaid / globalTotal) * 100) : 0;
+  const installmentTarget = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
   const currentItemPaid = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
   const currentEntryValue = Number(formData.paidAmount || 0);
   const newGlobalPaid = globalPaid - currentItemPaid + currentEntryValue;
