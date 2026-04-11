@@ -175,10 +175,13 @@ export default function RequestDetailPage() {
               requestNumber={request.requestNumber} 
             />
 
-            {/* EDIT & DELETE (Condition: Owner/Admin and No Approvals) */}
-            {(request.requesterId === user?.id || isAdmin) && 
-             (request.status === 'draft' || request.status === 'changes_requested' || 
-              (request.status === 'pending' && (request.approvals?.filter((a: any) => a.status === 'approved').length || 0) === 0)) && (
+            {/* EDIT & DELETE (Condition: Admin bypass or Owner early-stage) */}
+            {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
+             (request.requesterId === user?.id && (
+               request.status === 'draft' || 
+               request.status === 'changes_requested' || 
+               (request.status === 'pending' && (request.approvals?.filter((a: any) => a.status === 'approved').length || 0) === 0)
+             )) ? (
               <div className="flex gap-2">
                 <button 
                   onClick={() => setShowEditModal(true)}
@@ -194,6 +197,11 @@ export default function RequestDetailPage() {
                 >
                   <Trash2 className="w-4 h-4" /> Delete
                 </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-secondary/20 px-3 py-1.5 rounded-lg border border-border/50 opacity-60" title="Locked by Approvals">
+                <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Locked</span>
               </div>
             )}
 
@@ -272,8 +280,8 @@ export default function RequestDetailPage() {
         )}
       </header>
 
-      {/* "Changes Requested" or "Draft" Banner */}
-      {(request.status === "changes_requested" || request.status === "draft") && request.requesterId === user?.id && (
+      {/* "Changes Requested" or "Draft" Banner (Visible to Owner & Admins) */}
+      {(request.status === "changes_requested" || request.status === "draft") && (request.requesterId === user?.id || isAdmin) && (
         <div className={request.status === "draft" ? "bg-zinc-500/10 border-b border-zinc-500/20 px-6 py-4" : "bg-amber-500/10 border-b border-amber-500/20 px-6 py-4"}>
           <div className={`max-w-[1600px] mx-auto flex items-center justify-between gap-3 ${request.status === "draft" ? "text-zinc-400" : "text-amber-400"}`}>
             <div className="flex items-center gap-3">
@@ -798,7 +806,11 @@ export default function RequestDetailPage() {
         requestId={requestId}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+          queryClient.invalidateQueries({ queryKey: ["requests"] });
+          queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
           setShowEditModal(false);
+          toast.success("Request synchronized with global ledger.");
         }}
       />
 

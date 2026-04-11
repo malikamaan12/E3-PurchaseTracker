@@ -430,6 +430,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
 function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
   const router = useRouter();
   const { highPerformanceMode } = usePerformance();
+  const { user, isAdmin } = useAuth();
 
   const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
 
@@ -486,7 +487,12 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
               <Eye className="w-4 h-4" />
             </button>
 
-            {(request.status === 'draft' || request.status === 'changes_requested' || (request.status === 'pending' && Number(request.approvedCount || 0) === 0)) && (
+            {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
+             (request.requesterId === user?.id && (
+               request.status === 'draft' || 
+               request.status === 'changes_requested' || 
+               (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
+             )) ? (
               <>
                 <button 
                   onClick={onEdit}
@@ -504,6 +510,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
                   <Trash2 className="w-4 h-4" />
                 </button>
               </>
+            ) : (
+              <div className="p-2 opacity-20" title="Locked by Approval">
+                <Lock className="w-3.5 h-3.5" />
+              </div>
             )}
 
             <button 
@@ -580,8 +590,13 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             <Eye className="w-4 h-4" />
           </button>
 
-          {/* EDIT & DELETE ACTIONS (Condition: No approvals yet) */}
-          {(request.status === 'draft' || request.status === 'changes_requested' || (request.status === 'pending' && Number(request.approvedCount || 0) === 0)) && (
+          {/* EDIT & DELETE ACTIONS (Admin bypass or Owner early-stage) */}
+          {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
+           (request.requesterId === user?.id && (
+             request.status === 'draft' || 
+             request.status === 'changes_requested' || 
+             (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
+           )) ? (
             <>
               <button 
                 onClick={onEdit}
@@ -599,6 +614,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
                 <Trash2 className="w-4 h-4" />
               </button>
             </>
+          ) : (
+            <div className="p-2 opacity-20" title="Locked by Approval">
+              <Lock className="w-3.5 h-3.5" />
+            </div>
           )}
 
           <button 

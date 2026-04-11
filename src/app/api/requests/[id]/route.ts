@@ -210,63 +210,86 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const isFinance = user.department?.toLowerCase() === 'finance';
     const isOwner = existing.requesterId === user.id;
 
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    }
+
+    // Check for existing approvals to determine locking
+    const [approvedCountRecord] = await db
+      .select({ countValue: count() })
+      .from(approvals)
+      .where(and(eq(approvals.requestId, requestId), eq(approvals.status, "approved")));
+    const approvedCount = Number(approvedCountRecord?.countValue || 0);
+
+    // Lock Check: 
+    // - Admins can ALWAYS edit unless 'fully_paid' or 'archived' (future proofing)
+    // - Requesters can edit if status is 'draft', 'rejected', 'changes_requested'
+    // - Requesters can edit 'pending' ONLY if approvedCount is 0
+    const isLockedStatus = !["draft", "rejected", "changes_requested", "pending"].includes(existing.status);
+    const isLockedForRequester = existing.status === "pending" && approvedCount > 0;
+
+    if (!isAdmin && (isLockedStatus || isLockedForRequester)) {
+      return NextResponse.json({ 
+        error: "Request Locked", 
+        message: isLockedForRequester 
+          ? "This request has already received departmental approvals and is locked for editing. Please contact an Admin for force-updates."
+          : `This request is currently "${existing.status}" and cannot be modified.` 
+      }, { status: 403 });
+    }
+
     // ─── FINANCE VARIATION BYPASS ──────────────────────────────────────────────
     const isVariationOnly = updateData.revisedTotalCost !== undefined && Object.keys(updateData).length === 1;
 
     if ((isAdmin || isFinance) && isVariationOnly) {
       const newTotal = Math.round(Number(updateData.revisedTotalCost));
-      const currentValidBudget = existing.revisedTotalCost ?? existing.totalEstimatedCost;
-      // ... same variation logic as before, just using updateData ...
+      const [updated] = await db.update(purchaseRequests)
+        .set({ revisedTotalCost: newTotal, updatedAt: new Date() })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+      return NextResponse.json(updated);
     }
 
-    // ─── STANDARD REQUESTER / OWNER GATEKEEPING ──────────────────────────────
-    if (!isAdmin && !isOwner) {
-      return NextResponse.json({ error: "Access Denied: You do not own this request." }, { status: 403 });
-    }
-
-    // Lock Check: Only draft or rejected requests can be edited by owner
-    if (!isAdmin && !["draft", "rejected"].includes(existing.status)) {
-      return NextResponse.json({ 
-        error: "Request Locked", 
-        message: `This request is currently "${existing.status}" and cannot be modified. Please contact Finance for variations.` 
-      }, { status: 403 });
-    }
-
-    // Sanitize update data — strip relation passthrough fields not in the DB schema
+    // Sanitize update data
     const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, id: _id, revisedTotalCost: _rvc, ...cleanData } = rawBody;
 
-    // Financial Integer Safety (Phase 8 Directive)
+    // Financial Integer Safety
     if (cleanData.totalEstimatedCost) cleanData.totalEstimatedCost = Math.round(Number(cleanData.totalEstimatedCost));
     if (cleanData.freightAmount) cleanData.freightAmount = Math.round(Number(cleanData.freightAmount));
 
-    // Handle array primitives converting to DB text columns
-    if (cleanData.items && Array.isArray(cleanData.items)) {
-      cleanData.items = JSON.stringify(cleanData.items) as any;
-    }
-    if (cleanData.additionalApprovers && Array.isArray(cleanData.additionalApprovers)) {
-      cleanData.additionalApprovers = JSON.stringify(cleanData.additionalApprovers) as any;
-    }
+    // Handle array primitives converting to DB text columns for storage
+    const itemsJson = cleanData.items && Array.isArray(cleanData.items) ? JSON.stringify(cleanData.items) : null;
+    const approversJson = cleanData.additionalApprovers && Array.isArray(cleanData.additionalApprovers) ? JSON.stringify(cleanData.additionalApprovers) : null;
 
-    // Handle date strings
+    if (itemsJson) cleanData.items = itemsJson as any;
+    if (approversJson) cleanData.additionalApprovers = approversJson as any;
+
     if (cleanData.createdAt) cleanData.createdAt = new Date(cleanData.createdAt);
     if (cleanData.updatedAt) cleanData.updatedAt = new Date(cleanData.updatedAt);
 
-    // Approval Reset on Edit if previously changes_requested or pending
-    const isEditAfterChangesRequested =
-      existing.status === "changes_requested" &&
-      updateData.status !== "changes_requested" &&
-      existing.requesterId === user.id;
+    // ─── INTELLIGENT WORKFLOW RESET (Diffing) ──────────────────────────────────
+    // We reset the workflow IF line items, total cost, or vendor changes.
+    // Minor text changes (title, description, priority) preserve signatures.
+    const hasFinancialChange = 
+      (cleanData.totalEstimatedCost !== undefined && cleanData.totalEstimatedCost !== existing.totalEstimatedCost) ||
+      (cleanData.vendorId !== undefined && cleanData.vendorId !== existing.vendorId) ||
+      (itemsJson !== null && itemsJson !== existing.items);
 
-    const isEditWhilePending = 
-      existing.status === "pending" && 
-      updateData.status === "pending" && 
-      existing.requesterId === user.id;
+    const isWithdrawal = existing.status === "pending" && cleanData.status === "draft";
+    const forceReset = isWithdrawal || hasFinancialChange || existing.status === "changes_requested";
 
-    if (isEditAfterChangesRequested || isEditWhilePending) {
-      // Clear out existing approvals to start the workflow fresh
+    if (forceReset && approvedCount > 0) {
+      // Wipe approvals: The signatures are no longer valid for the new terms.
       await db.delete(approvals).where(eq(approvals.requestId, requestId));
-      cleanData.status = "draft";
-      cleanData.isLocked = false;
+      
+      // Log the reset
+      await db.insert(auditLogs).values({
+        resourceId: requestId,
+        resourceType: "purchase_request",
+        action: hasFinancialChange ? "MODIFIED_RESET" : "WITHDRAWN",
+        userId: user.id,
+        details: { reason: "Financial/Scope change detected. Signatures invalidated.", changedFields: hasFinancialChange ? "Financials" : "Manual Withdrawal" },
+        timestamp: new Date(),
+      });
     }
 
     const [updated] = await db
@@ -274,7 +297,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .set({ 
         ...cleanData, 
         updatedAt: new Date(),
-        isLocked: cleanData.status === "pending" || existing.status === "pending"
+        // Re-lock if it's still pending or being submitted
+        isLocked: cleanData.status === "pending" || (existing.status === "pending" && !forceReset)
       })
       .where(eq(purchaseRequests.id, requestId))
       .returning();
