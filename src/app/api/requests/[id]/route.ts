@@ -216,7 +216,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Sanitize update data — strip relation passthrough fields not in the DB schema
-    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, status: _st, id: _id, revisedTotalCost: _rvc, ...cleanData } = rawBody;
+    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, id: _id, revisedTotalCost: _rvc, ...cleanData } = rawBody;
 
     // Financial Integer Safety (Phase 8 Directive)
     if (cleanData.totalEstimatedCost) cleanData.totalEstimatedCost = Math.round(Number(cleanData.totalEstimatedCost));
@@ -254,7 +254,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const [updated] = await db
       .update(purchaseRequests)
-      .set({ ...cleanData, updatedAt: new Date() })
+      .set({ 
+        ...cleanData, 
+        updatedAt: new Date(),
+        isLocked: cleanData.status === "pending" || existing.status === "pending"
+      })
       .where(eq(purchaseRequests.id, requestId))
       .returning();
 

@@ -299,7 +299,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     return false;
   };
 
-  const onSubmit = async (data: RequestFormValues) => {
+  const handleAction = async (data: RequestFormValues, targetStatus: "draft" | "pending") => {
     setIsSubmitting(true);
     try {
       const finalizedData = { 
@@ -308,14 +308,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         purposeCategoryId: Number(data.purposeCategoryId),
         subPurposeId: Number(data.subPurposeId),
         purposeType: data.purposeType || "PROJECT",
-        status: "pending" // Explicitly mark as active to prevent auto-drafting
+        status: targetStatus
       };
       if (requestId) {
         await apiClient.requests.update(requestId, finalizedData);
-        toast.success("Purchase request updated successfully");
+        toast.success(targetStatus === "pending" ? "Purchase request submitted for approval" : "Draft updated successfully");
       } else {
         await apiClient.requests.create(finalizedData);
-        toast.success("Purchase request initialized successfully");
+        toast.success(targetStatus === "pending" ? "Workflow initialized successfully" : "Draft saved successfully");
       }
       reset();
       onSuccess();
@@ -420,7 +420,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     e.preventDefault();
                   }
                 }}
-                onSubmit={handleSubmit(onSubmit, (err) => {
+                onSubmit={handleSubmit((data) => handleAction(data, "pending"), (err) => {
                   if (Object.keys(err).length > 0) {
                     const firstError = Object.values(err)[0] as any;
                     toast.error(`Entry Error: ${firstError?.message || "Check all tabs for errors"}`);
@@ -1001,59 +1001,75 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                       size="lg"
                       type="button" 
                       onClick={onClose} 
-                      className="px-8"
+                      className="px-8 font-bold text-muted-foreground"
                     >
-                      Close Draft
+                      Discard
                     </Button>
 
-                    {activeTab !== "approvals" ? (
-                      <Button
-                        variant={isOverBudget ? "outline" : "secondary"}
-                        size="lg"
-                        type="button"
-                        onClick={() => {
-                          if (activeTab === "general") setActiveTab("items");
-                          else if (activeTab === "items") setActiveTab("payments");
-                          else if (activeTab === "payments") setActiveTab("approvals");
-                        }}
-                        className={`flex items-center gap-3 px-10 rounded-[1.25rem] font-serif ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : ""}`}
-                      >
-                        Next Section
-                        <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : "text-brand-primary"}`} />
-                      </Button>
-                    ) : (
-                      <Button
-                        form="request-form"
-                        type="submit"
-                        disabled={isSubmitting || !!isNonCompliant}
-                        size="lg"
-                        className={cn(
-                          "flex items-center gap-4 px-12 rounded-[1.25rem] shadow-xl font-serif transition-all",
-                          isNonCompliant 
-                            ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
-                            : isOverBudget 
-                              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" 
-                              : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-brand-primary/30"
-                        )}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Initializing...
-                          </>
-                        ) : isNonCompliant ? (
-                          <>
-                            Access Denied
-                            <ShieldAlert className="w-5 h-5" />
-                          </>
-                        ) : (
-                          <>
-                            {isOverBudget ? "Override & Initialize" : "Initialize Workflow"}
-                            <Sparkles className="w-5 h-5" />
-                          </>
-                        )}
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-3 h-full">
+                      {/* Save Draft Action - Visible on final tab or if editing existing */}
+                      {(activeTab === "approvals" || requestId) && (
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={handleSubmit((data) => handleAction(data, "draft"))}
+                          className="flex items-center gap-3 px-8 rounded-2xl font-bold bg-secondary/50 border border-border hover:bg-secondary transition-all"
+                        >
+                          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                          Save Draft
+                        </Button>
+                      )}
+
+                      {activeTab !== "approvals" ? (
+                        <Button
+                          variant={isOverBudget ? "outline" : "secondary"}
+                          size="lg"
+                          type="button"
+                          onClick={() => {
+                            if (activeTab === "general") setActiveTab("items");
+                            else if (activeTab === "items") setActiveTab("payments");
+                            else if (activeTab === "payments") setActiveTab("approvals");
+                          }}
+                          className={`flex items-center gap-3 px-10 rounded-2xl font-serif font-bold ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
+                        >
+                          Next Section
+                          <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : ""}`} />
+                        </Button>
+                      ) : (
+                        <Button
+                          disabled={isSubmitting || !!isNonCompliant}
+                          size="lg"
+                          onClick={handleSubmit((data) => handleAction(data, "pending"))}
+                          className={cn(
+                            "flex items-center gap-4 px-12 rounded-2xl shadow-xl font-serif font-bold transition-all",
+                            isNonCompliant 
+                              ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
+                              : isOverBudget 
+                                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" 
+                                : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30"
+                          )}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Processing...
+                            </>
+                          ) : isNonCompliant ? (
+                            <>
+                              Access Denied
+                              <ShieldAlert className="w-5 h-5" />
+                            </>
+                          ) : (
+                            <>
+                              {isOverBudget ? "Override & Submit" : "Submit Request"}
+                              <Sparkles className="w-5 h-5" />
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </form>
