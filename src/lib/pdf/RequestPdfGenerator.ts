@@ -79,7 +79,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   
   y -= 25;
   page.drawText(`STATUS: `, { x: 40, y, size: 9, font: fontBold, color: indigo });
-  page.drawText(`${requestData.status.toUpperCase().replace(/_/g, ' ')}`, { x: 85, y, size: 9, font: fontBold, color: black });
+  page.drawText(`${(requestData.status || "DRAFT").toUpperCase().replace(/_/g, ' ')}`, { x: 85, y, size: 9, font: fontBold, color: black });
 
   y -= 15;
   page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 1, color: borderGray });
@@ -89,7 +89,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   drawMeta(page, 40, y, "Requester", requestData.requester?.username || "N/A");
   drawMeta(page, PAGE_WIDTH / 2, y, "Department", requestData.requester?.department || "N/A");
   y -= 20;
-  drawMeta(page, 40, y, "Created Date", format(new Date(requestData.createdAt), "dd MMM yyyy"));
+  drawMeta(page, 40, y, "Created Date", requestData.createdAt ? format(new Date(requestData.createdAt), "dd MMM yyyy") : "N/A");
   drawMeta(page, PAGE_WIDTH / 2, y, "Priority", requestData.priority?.toUpperCase() || "MEDIUM");
   y -= 20;
   drawMeta(page, 40, y, "Vendor", requestData.vendor?.companyName || "N/A");
@@ -145,7 +145,8 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
 
   page.drawRectangle({ x: PAGE_WIDTH - 220, y: y - 35, width: 180, height: 40, color: white, borderColor: indigo, borderWidth: 1 });
   page.drawText("TOTAL ESTIMATED EXPENDITURE", { x: PAGE_WIDTH - 210, y: y - 12, size: 8, font: fontBold, color: indigo });
-  page.drawText(`${(requestData.totalEstimatedCost + (requestData.freightAmount || 0)).toLocaleString()} ${requestData.currency || "QAR"}`, { x: PAGE_WIDTH - 210, y: y - 28, size: 14, font: fontBold, color: black });
+  const totalCost = (Number(requestData.totalEstimatedCost) || 0) + (Number(requestData.freightAmount) || 0);
+  page.drawText(`${totalCost.toLocaleString()} ${requestData.currency || "QAR"}`, { x: PAGE_WIDTH - 210, y: y - 28, size: 14, font: fontBold, color: black });
 
   y -= 80;
 

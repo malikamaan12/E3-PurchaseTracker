@@ -42,8 +42,8 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
     try {
       const endpoints = {
         simple: `/api/requests/${requestId}/pdf`,
-        full: `/api/requests/${requestId}/export/full`,
-        bundle: `/api/requests/${requestId}/export/bundle`
+        full: `/api/export/full-pdf/${requestId}`,
+        bundle: `/api/export/bundle/${requestId}`
       };
 
       const filenames = {
