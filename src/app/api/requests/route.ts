@@ -205,20 +205,24 @@ export async function POST(req: NextRequest) {
     const totalCost = totalEstimatedCostNum + freightAmountNum;
 
     // --- COMPLIANCE HARD STOP (Backend Gatekeeper) ---
-    const vendorRecord = await db.select({ 
-      score: vendors.complianceScore,
-      name: vendors.companyName 
-    })
-    .from(vendors)
-    .where(eq(vendors.id, vendorIdNum))
-    .limit(1);
+    // Draft submissions bypass the compliance gateway — users can save
+    // incomplete requests and resolve vendor documentation later.
+    if (requestedStatus !== "draft") {
+      const vendorRecord = await db.select({ 
+        score: vendors.complianceScore,
+        name: vendors.companyName 
+      })
+      .from(vendors)
+      .where(eq(vendors.id, vendorIdNum))
+      .limit(1);
 
-    if (vendorRecord.length > 0 && vendorRecord[0].score < 50) {
-      console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${vendorRecord[0].name}" (ID: ${vendorIdNum}) has a critical compliance score of ${vendorRecord[0].score}%`);
-      return NextResponse.json({ 
-        error: "Access Denied: Compliance Violation", 
-        message: `The selected vendor (${vendorRecord[0].name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
-      }, { status: 403 });
+      if (vendorRecord.length > 0 && vendorRecord[0].score < 50) {
+        console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${vendorRecord[0].name}" (ID: ${vendorIdNum}) has a critical compliance score of ${vendorRecord[0].score}%`);
+        return NextResponse.json({ 
+          error: "Access Denied: Compliance Violation", 
+          message: `The selected vendor (${vendorRecord[0].name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
+        }, { status: 403 });
+      }
     }
 
     // --- BUDGET HARD STOP (Backend Gatekeeper) ---

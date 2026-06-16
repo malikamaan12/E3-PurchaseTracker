@@ -261,6 +261,8 @@ function RequestsDashboardContent() {
         requestId={editingId || undefined}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["requests"] });
+          queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
           setEditingId(null);
           setIsCreateModalOpen(false);
         }}

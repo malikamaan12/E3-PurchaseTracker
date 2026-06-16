@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 async function fetchImageBuffer(url: string | null): Promise<Uint8Array | null> {
   if (!url) return null;
