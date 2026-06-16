@@ -13,12 +13,16 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading } = useAuth();
 
-  if (isLoading && !user) {
+  if (isLoading) {
     return (
       <div className="h-screen bg-background flex items-center justify-center">
         <LoadingState message="Verifying Identity..." />
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (

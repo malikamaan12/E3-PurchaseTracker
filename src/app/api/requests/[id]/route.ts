@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AppError } from "@/lib/utils/errors";
 import { db } from "@db";
+import { safeParseItems } from "@/lib/utils/safe-parse";
 import { 
   purchaseRequests, 
   users, 
@@ -142,7 +143,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         }
       };
 
-      const parsedItems = parseJsonArray(request.items, "items");
+      const parsedItems = safeParseItems(request.items);
       const parsedApprovers = parseJsonArray(request.additionalApprovers, "additionalApprovers");
 
       return NextResponse.json({

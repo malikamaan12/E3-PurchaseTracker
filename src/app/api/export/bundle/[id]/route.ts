@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
 import { format } from "date-fns";
 import JSZip from "jszip";
+import { safeParseItems } from "@/lib/utils/safe-parse";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     // 2. Generate Executive CSV
-    const items = typeof requestData.items === 'string' ? JSON.parse(requestData.items) : (requestData.items || []);
+    const items = safeParseItems(requestData.items);
     const csvHeaders = [
       "PR Reference", "Title", "Requester", "Department", "Created At", 
       "Priority", "Vendor Name", "Vendor Contact", "Item Name", "Quantity", 

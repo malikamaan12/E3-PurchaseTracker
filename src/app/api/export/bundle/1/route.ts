@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { format } from "date-fns";
 import JSZip from "jszip";
+import { safeParseItems } from "@/lib/utils/safe-parse";
 
 export const dynamic = 'force-dynamic';
 
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     page.drawText("ITEMIZED FISCAL BREAKDOWN", { x: 50, y: y + 2, size: 8, font: fontBold, color: white });
     
     y -= 40;
-    const items = typeof requestData.items === 'string' ? JSON.parse(requestData.items) : (requestData.items || []);
+    const items = safeParseItems(requestData.items);
     for (const item of items) {
        page.drawText(item.name || "Unnamed Item", { x: 50, y, size: 8, font: fontRegular, color: indigo });
        page.drawText(`${item.quantity} x ${item.estimatedCost.toLocaleString()}`, { x: 300, y, size: 8, font: fontRegular, color: indigo });

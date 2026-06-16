@@ -1,3 +1,4 @@
+import { safeParseItems } from "@/lib/utils/safe-parse";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { format } from "date-fns";
 
@@ -116,7 +117,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
   y -= 15;
 
-  const items = typeof requestData.items === 'string' ? JSON.parse(requestData.items) : (requestData.items || []);
+  const items = safeParseItems(requestData.items);
   for (const item of items) {
     if (y < SAFE_ZONE_BOTTOM + 50) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
