@@ -1,6 +1,0 @@
-{
-  "message": "null value in column \"approver_id\" of relation \"approvals\" violates not-null constraint",
-  "detail": "Failing row contains (31, 68, null, Finance, pending, null, t, null, 2026-04-07 02:50:05.653, 2026-04-07 02:50:05.653).",
-  "code": "23502",
-  "name": "NeonDbError"
-}

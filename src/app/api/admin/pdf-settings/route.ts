@@ -58,6 +58,13 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
+    
+    // Strip system-controlled fields to prevent serialization date/type mismatches
+    delete body.id;
+    delete body.userId;
+    delete body.createdAt;
+    delete body.updatedAt;
+
     const validationResult = insertPdfSettingsSchema.partial().safeParse(body);
 
     if (!validationResult.success) {
