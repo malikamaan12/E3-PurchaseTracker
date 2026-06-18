@@ -58,6 +58,7 @@
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-color": "^3.0.13",
     "@types/react-image-gallery": "^1.2.4",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.4.3",
     "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.7.9",
