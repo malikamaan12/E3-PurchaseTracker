@@ -18,6 +18,8 @@ import { eq, and, or, inArray, desc, count } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
+import { evaluateCompliance } from "@/lib/core/compliance";
+import { seedInitialApprovals } from "@/lib/core/workflow";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +51,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const dataFetchPromise = Promise.all([
       db.select().from(users).where(eq(users.id, request.requesterId)).limit(1),
-      db.select().from(vendors).where(eq(vendors.id, request.vendorId)).limit(1),
+      request.vendorId
+        ? db.select().from(vendors).where(eq(vendors.id, request.vendorId)).limit(1)
+        : Promise.resolve([null]),
       request.subPurposeId 
         ? db.select().from(subPurposes).where(eq(subPurposes.id, request.subPurposeId)).limit(1)
         : Promise.resolve([null]),
@@ -291,6 +295,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         details: { reason: "Financial/Scope change detected. Signatures invalidated.", changedFields: hasFinancialChange ? "Financials" : "Manual Withdrawal" },
         timestamp: new Date(),
       });
+
+      if (!isWithdrawal) {
+        cleanData.status = "pending";
+        // Re-seed approvals by tricking the system into thinking it's transitioning to pending
+        updateData.status = "pending"; 
+      }
+    }
+
+    let isTransitioningToPending = updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested" || forceReset);
+
+    if (isTransitioningToPending) {
+      const targetVendorId = cleanData.vendorId ?? existing.vendorId;
+      if (targetVendorId) {
+        const { isBlocked, message } = await evaluateCompliance(targetVendorId);
+        if (isBlocked) {
+          return NextResponse.json({ 
+            error: "Access Denied: Compliance Violation", 
+            message 
+          }, { status: 403 });
+        }
+      }
     }
 
     const [updated] = await db
@@ -312,76 +337,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Transition to pending: Create approval records and send notifications
-    if (updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested")) {
-      // 1. Three mandatory departments are ALWAYS required, regardless of DB config or request value.
-      //    These are the non-negotiable gatekeeper sign-offs in the procurement workflow.
-      const mandatoryDepts = ["Finance", "CEO Office", "Management"];
+    if (isTransitioningToPending) {
+      await seedInitialApprovals(requestId, user.id, user.department, user.role, updated.additionalApprovers);
 
-      // 3. Combine with Additional Approvers (non-mandatory)
+      // 4. Notifications
+      const mandatoryDepts = ["Finance", "CEO Office", "Management"];
       let additionalDepts: string[] = [];
       try {
         if (typeof updated.additionalApprovers === 'string') {
           additionalDepts = JSON.parse(updated.additionalApprovers);
         } else if (Array.isArray(updated.additionalApprovers)) {
-          additionalDepts = updated.additionalApprovers;
+          additionalDepts = updated.additionalApprovers as string[];
         }
-        } catch (e: any) {}
-
-      // Additional approvers must not overlap with mandatory departments
-      const filteredAdditional = additionalDepts.filter(d => !mandatoryDepts.includes(d));
+      } catch (e: any) {}
+      const filteredAdditional = additionalDepts.filter((d: string) => !mandatoryDepts.includes(d));
       const allRequiredDepts = [...mandatoryDepts, ...filteredAdditional];
 
-      // 4. Create Approval Records
-      //    IMPORTANT: Mandatory gatekeeper rows (Finance, CEO Office, Directors) are
-      //    NEVER auto-approved, even if the requester is an admin. They must always
-      //    receive an explicit sign-off from a qualified person in that department.
-      for (const dept of allRequiredDepts) {
-        const [existingApproval] = await db
-          .select()
-          .from(approvals)
-          .where(and(eq(approvals.requestId, requestId), eq(approvals.department, dept)))
-          .limit(1);
-
-        if (!existingApproval) {
-          const isMandatory = mandatoryDepts.includes(dept);
-
-          // Auto-approval is ONLY allowed for non-mandatory (additional) approver steps
-          // where the requester has authority in that specific department.
-          const canAutoApprove =
-            !isMandatory &&
-            user.department === dept &&
-            (user.role === 'approver' || user.role === 'admin');
-
-          const [newApproval] = await db.insert(approvals).values({
-            requestId,
-            approverId: canAutoApprove ? user.id : null,
-            department: dept,
-            status: canAutoApprove ? "approved" : "pending",
-            isMandatory,
-            comments: canAutoApprove ? "Auto-approved: Request submitted by authorized department authority" : null,
-            processedAt: canAutoApprove ? new Date() : null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }).returning();
-
-          if (canAutoApprove) {
-            await db.insert(auditLogs).values({
-              resourceId: requestId,
-              resourceType: "purchase_request",
-              action: "approver_deduplicated",
-              userId: user.id,
-              details: {
-                department: dept,
-                reason: "Non-mandatory step: requester has authority for this stage",
-                approvalId: newApproval.id
-              },
-              timestamp: new Date(),
-            });
-          }
-        }
-      }
-
-      // 4. Notifications
       const deptApprovers = await db.select().from(users).where(and(inArray(users.department, allRequiredDepts), eq(users.isActive, true)));
       const adminUsers = await db.select().from(users).where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
 

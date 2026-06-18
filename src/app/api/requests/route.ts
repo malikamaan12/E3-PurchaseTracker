@@ -14,6 +14,8 @@ import {
 import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { createRequestSchema } from "@/lib/validation";
+import { evaluateCompliance } from "@/lib/core/compliance";
+import { seedInitialApprovals } from "@/lib/core/workflow";
 
 export const dynamic = 'force-dynamic';
 
@@ -207,20 +209,12 @@ export async function POST(req: NextRequest) {
     // --- COMPLIANCE HARD STOP (Backend Gatekeeper) ---
     // Draft submissions bypass the compliance gateway — users can save
     // incomplete requests and resolve vendor documentation later.
-    if (requestedStatus !== "draft") {
-      const vendorRecord = await db.select({ 
-        score: vendors.complianceScore,
-        name: vendors.companyName 
-      })
-      .from(vendors)
-      .where(eq(vendors.id, vendorIdNum))
-      .limit(1);
-
-      if (vendorRecord.length > 0 && vendorRecord[0].score < 50) {
-        console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${vendorRecord[0].name}" (ID: ${vendorIdNum}) has a critical compliance score of ${vendorRecord[0].score}%`);
+    if (requestedStatus !== "draft" && vendorIdNum) {
+      const { isBlocked, message } = await evaluateCompliance(vendorIdNum);
+      if (isBlocked) {
         return NextResponse.json({ 
           error: "Access Denied: Compliance Violation", 
-          message: `The selected vendor (${vendorRecord[0].name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
+          message 
         }, { status: 403 });
       }
     }
@@ -339,46 +333,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Approval row seeding on direct submission to "pending"
     if (requestedStatus === "pending") {
-      // Always guarantee exactly the three mandatory gatekeeper departments
-      const mandatoryDepts = ["Finance", "CEO Office", "Management"];
-
-      // Additional approvers must not overlap with mandatory
-      const filteredAdditional = (additionalApprovers || []).filter(
-        (d: string) => !mandatoryDepts.includes(d)
-      );
-      const allRequiredDepts = [...mandatoryDepts, ...filteredAdditional];
-
-      for (const dept of allRequiredDepts) {
-        const isMandatory = mandatoryDepts.includes(dept);
-        // Mandatory gatekeeper rows are NEVER auto-approved
-        const canAutoApprove =
-          !isMandatory &&
-          user.department === dept &&
-          (user.role === "approver" || user.role === "admin");
-
-        const [newApproval] = await db.insert(approvals).values({
-          requestId: newRequest.id,
-          approverId: canAutoApprove ? user.id : null,
-          department: dept,
-          status: canAutoApprove ? "approved" : "pending",
-          isMandatory,
-          comments: canAutoApprove ? "Auto-approved: Direct submission by authorized department authority" : null,
-          processedAt: canAutoApprove ? new Date() : null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }).returning();
-
-        if (canAutoApprove) {
-          await db.insert(auditLogs).values({
-            resourceId: newRequest.id,
-            resourceType: "purchase_request",
-            action: "approver_deduplicated",
-            userId: user.id,
-            details: { department: dept, reason: "Non-mandatory: direct submission by authority", approvalId: newApproval.id },
-            timestamp: new Date(),
-          });
-        }
-      }
+      await seedInitialApprovals(newRequest.id, user.id, user.department, user.role, additionalApprovers);
     }
 
     return NextResponse.json(newRequest, { status: 201 });

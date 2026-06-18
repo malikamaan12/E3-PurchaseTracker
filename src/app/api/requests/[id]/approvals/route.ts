@@ -202,7 +202,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // If a budget variation was just approved, generate the actual financial
     // installment row for the delta.
     if (finalizedProposedCost && nextRequestStatus === "approved") {
-      const previousValidBudget = updatedRequest.revisedTotalCost ?? updatedRequest.totalEstimatedCost;
+      const previousValidBudget = updatedRequest.revisedTotalCost ?? updatedRequest.totalEstimatedCost ?? 0;
       const deltaAmount = Math.round(finalizedProposedCost - previousValidBudget);
 
       if (deltaAmount > 0) {
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await db.insert(paymentInstallments).values({
           requestId,
-          vendorId: updatedRequest.vendorId,
+          vendorId: updatedRequest.vendorId as number,
           installmentName: `Approved Variation Delta Δ +${deltaAmount.toLocaleString()} QAR`,
           dueDate: dueDatePlaceholder,
           valueType: "FIXED_AMOUNT",

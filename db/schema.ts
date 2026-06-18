@@ -111,7 +111,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   id: serial("id").primaryKey(),
   requestNumber: text("request_number").unique().notNull(),
   requesterId: integer("requester_id").notNull().references(() => users.id),
-  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  vendorId: integer("vendor_id").references(() => vendors.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
   items: text("items").$type<Array<{
@@ -120,7 +120,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
     estimatedCost: number;
     description?: string;
   }>>().notNull(),
-  purposeType: text("purpose_type").notNull(),
+  purposeType: text("purpose_type"),
   purposeCategoryId: integer("purpose_category_id").references(() => purposeCategories.id),
   subPurposeId: integer("sub_purpose_id").references(() => subPurposes.id),
   priority: text("priority").notNull().default("medium"),
@@ -129,8 +129,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityRecommendations: text("priority_recommendations").$type<string[]>(),
   additionalApprovers: text("additional_approvers").$type<string[]>(), // Add additionalApprovers field
   currency: text("currency").notNull().default("QAR"),
-  totalEstimatedCost: integer("total_estimated_cost").notNull(),
-  freightAmount: integer("freight_amount").notNull().default(0),
+  totalEstimatedCost: integer("total_estimated_cost"),
+  freightAmount: integer("freight_amount").default(0),
   revisedTotalCost: integer("revised_total_cost"), // Tracks budget variations [FORCE_REFRESH]
   proposedRevisedCost: integer("proposed_revised_cost"), // Staging field for variations awaiting approval
   status: text("status").notNull().default("draft"),

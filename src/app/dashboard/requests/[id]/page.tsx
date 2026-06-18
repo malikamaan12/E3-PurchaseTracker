@@ -200,7 +200,7 @@ export default function RequestDetailPage() {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-secondary/20 px-3 py-1.5 rounded-lg border border-border/50 opacity-60" title="Locked by Approvals">
+              <div className="flex items-center gap-2 bg-secondary/20 px-3 py-1.5 rounded-lg border border-border/50 opacity-60 cursor-help" title="Approvals have already begun. To make changes, contact an Administrator.">
                 <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Locked</span>
               </div>

@@ -81,7 +81,7 @@ export async function PATCH(
 
     // ── 2. Backend Gatekeeper: Overpayment Protection ────────────────────────
     const safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : (existing.paidAmount ?? 0);
-    const validBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
+    const validBudget = request.revisedTotalCost ?? request.totalEstimatedCost ?? 0;
     
     // Calculate global total paid IF this update is applied
     const otherPaymentsTotal = allInstallments
