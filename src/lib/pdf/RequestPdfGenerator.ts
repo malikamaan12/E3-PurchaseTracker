@@ -118,12 +118,16 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   drawMeta(page, PAGE_WIDTH / 2, y, "Priority", requestData.priority?.toUpperCase() || "MEDIUM");
   y -= 15;
   drawMeta(page, 40, y, "Vendor", requestData.vendor?.companyName || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Currency", requestData.currency || "QAR");
+  drawMeta(page, PAGE_WIDTH / 2, y, "Vendor Contact", requestData.vendor?.contactPerson || "N/A");
   y -= 15;
-  drawMeta(page, 40, y, "Purpose Type", requestData.purposeType || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Sub-Purpose", requestData.subPurpose?.name || "N/A");
+  drawMeta(page, 40, y, "Currency", requestData.currency || "QAR");
+  drawMeta(page, PAGE_WIDTH / 2, y, "Purpose Type", requestData.purposeType || "N/A");
   y -= 15;
-  drawMeta(page, 40, y, "Payment Mode", requestData.paymentStructure?.replace(/_/g, ' ') || "POST PROJECT");
+  drawMeta(page, 40, y, "Sub-Purpose", requestData.subPurpose?.name || "N/A");
+  drawMeta(page, PAGE_WIDTH / 2, y, "Payment Mode", requestData.paymentStructure?.replace(/_/g, ' ') || "POST PROJECT");
+  y -= 15;
+  drawMeta(page, 40, y, "Priority Reason", (requestData.priorityReason || "None provided").substring(0, 40));
+  drawMeta(page, PAGE_WIDTH / 2, y, "System Lock", requestData.isLocked ? "YES (Approved/Processing)" : "NO");
 
   y -= 30;
   if (y < SAFE_ZONE_BOTTOM + 60) {
@@ -188,6 +192,11 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     page.drawText((item.estimatedCost || 0).toLocaleString(), { x: 420, y, size: 8, font: fontRegular, color: black });
     page.drawText(itemTotal.toLocaleString(), { x: 490, y, size: 8, font: fontBold, color: black });
     
+    if (item.description) {
+      y -= 10;
+      page.drawText(`Note: ${(item.description).substring(0, 80)}`, { x: 45, y, size: 6, font: fontRegular, color: darkGray });
+    }
+
     y -= 15;
     page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
     y -= 10;
@@ -206,7 +215,10 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   const grandTotal = subtotal + freightVal;
 
   const summaryX = PAGE_WIDTH - 220;
-  page.drawRectangle({ x: summaryX, y: y - 55, width: 180, height: 60, color: white, borderColor: indigo, borderWidth: 1 });
+  const hasRevisedCost = requestData.revisedTotalCost && requestData.revisedTotalCost !== grandTotal;
+  const boxHeight = hasRevisedCost ? 75 : 60;
+  
+  page.drawRectangle({ x: summaryX, y: y - (hasRevisedCost ? 70 : 55), width: 180, height: boxHeight, color: white, borderColor: indigo, borderWidth: 1 });
   
   page.drawText("FINANCIAL SUMMARY", { x: summaryX + 10, y: y - 2, size: 8, font: fontBold, color: indigo });
   page.drawText(`Subtotal:`, { x: summaryX + 10, y: y - 15, size: 7, font: fontRegular, color: darkGray });
@@ -217,8 +229,15 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   
   page.drawLine({ start: { x: summaryX + 10, y: y - 34 }, end: { x: summaryX + 170, y: y - 34 }, thickness: 0.5, color: borderGray });
   
-  page.drawText(`Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: indigo });
+  page.drawText(hasRevisedCost ? `Orig Total:` : `Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: indigo });
   page.drawText(`${grandTotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 46, size: 9, font: fontBold, color: black });
+
+  if (hasRevisedCost) {
+    page.drawLine({ start: { x: summaryX + 10, y: y - 53 }, end: { x: summaryX + 170, y: y - 53 }, thickness: 0.5, color: borderGray });
+    page.drawText(`Revised Total:`, { x: summaryX + 10, y: y - 65, size: 8, font: fontBold, color: rgb(0.8, 0.2, 0.2) });
+    page.drawText(`${requestData.revisedTotalCost.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 65, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) });
+    y -= 15;
+  }
 
   y -= 70;
 
@@ -267,6 +286,33 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       y -= 8;
     }
     y -= 15;
+  }
+
+  // Attachments List
+  const attachments = requestData.attachments || [];
+  if (attachments.length > 0) {
+    if (y < SAFE_ZONE_BOTTOM + 50) {
+      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      drawHeaderAndFooter(page);
+      y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+    }
+
+    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 15, color: indigo });
+    page.drawText("ATTACHED DOCUMENTS", { x: 45, y: y + 1, size: 8, font: fontBold, color: white });
+    y -= 20;
+
+    for (const file of attachments) {
+      if (y < SAFE_ZONE_BOTTOM + 15) {
+        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        drawHeaderAndFooter(page);
+        y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+      }
+      
+      const sizeStr = (file.fileSize / 1024).toFixed(1) + " KB";
+      page.drawText(`• ${file.fileName} (${sizeStr})`, { x: 45, y, size: 7, font: fontRegular, color: black });
+      y -= 12;
+    }
+    y -= 10;
   }
 
   // Signatures

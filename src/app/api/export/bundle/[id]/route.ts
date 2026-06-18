@@ -37,6 +37,7 @@ async function getFullRequestData(requestId: number) {
       vendor: true,
       subPurpose: true,
       attachments: true,
+      installments: true,
       approvals: {
         with: {
           approver: {
