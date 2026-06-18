@@ -174,8 +174,6 @@ function RequestsDashboardContent() {
 
   const { highPerformanceMode } = usePerformance();
 
-  if (isLoading) return <LoadingState />;
-
   return (
     <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
       <header className="flex justify-between items-end">
@@ -214,7 +212,15 @@ function RequestsDashboardContent() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {highPerformanceMode ? (
+            {isLoading ? (
+              <>
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+              </>
+            ) : highPerformanceMode ? (
               requests?.map((req: any) => (
                 <RequestRow 
                   key={req.id} 
@@ -688,6 +694,36 @@ function FilterBar({ current, set }: { current: string; set: (v: string) => void
         </button>
       ))}
     </div>
+  );
+}
+
+function TableRowSkeleton() {
+  return (
+    <tr className="animate-pulse">
+      <td className="px-6 py-5 w-12 text-center">
+        <div className="w-4 h-4 rounded bg-white/10 dark:bg-white/5 mx-auto" />
+      </td>
+      <td className="px-6 py-5">
+        <div className="h-4 w-16 bg-white/10 dark:bg-white/5 rounded" />
+      </td>
+      <td className="px-6 py-5">
+        <div className="h-4 w-48 bg-white/10 dark:bg-white/5 rounded mb-2" />
+        <div className="h-3 w-32 bg-white/10 dark:bg-white/5 rounded" />
+      </td>
+      <td className="px-6 py-5">
+        <div className="h-5 w-16 bg-white/10 dark:bg-white/5 rounded-full" />
+      </td>
+      <td className="px-6 py-5">
+        <div className="h-4 w-20 bg-white/10 dark:bg-white/5 rounded" />
+      </td>
+      <td className="px-6 py-5 text-right pr-10">
+        <div className="flex justify-end gap-1.5">
+          <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-white/5" />
+          <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-white/5" />
+          <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-white/5" />
+        </div>
+      </td>
+    </tr>
   );
 }
 

@@ -70,20 +70,7 @@ function LoginContent() {
     }
   };
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center relative overflow-hidden">
-        {/* Basic background while loading to prevent flash */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none opacity-20">
-          <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-brand-primary/20 rounded-full blur-[120px]" />
-        </div>
-        <div className="flex flex-col items-center gap-4 z-10">
-          <Loader2 className="w-10 h-10 text-brand-primary animate-spin" />
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Initializing Identity...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">

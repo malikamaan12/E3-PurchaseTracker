@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { TOKEN_COOKIE_NAME } from "@/lib/utils/config";
 import { decodeJwtPayload } from "@/lib/utils/jwt";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["700"], variable: "--font-serif" });
@@ -54,6 +55,7 @@ export default async function RootLayout({
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             {children}
             <SpeedInsights />
+            <Analytics />
           </div>
         </Providers>
       </body>

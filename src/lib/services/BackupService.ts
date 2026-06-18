@@ -5,7 +5,7 @@ import {
   paymentInstallments, 
   fileAttachments 
 } from "@db/schema";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { R2Storage } from "../storage/r2";
 import { GoogleDriveStorage } from "../storage/google-drive";
 
@@ -16,6 +16,7 @@ import { GoogleDriveStorage } from "../storage/google-drive";
 export class BackupService {
   /**
    * Generates a multi-sheet Excel workbook from core institutional entities.
+   * Migrated from xlsx (abandoned, critically vulnerable) to exceljs.
    */
   public static async generateExcelBackup(): Promise<Buffer> {
     console.log("[BackupService] Extracting institutional data...");
@@ -26,22 +27,28 @@ export class BackupService {
     const payments = await db.select().from(paymentInstallments);
     const attachments = await db.select().from(fileAttachments);
 
-    // 2. Transmute to Worksheets
-    const ws_requests = XLSX.utils.json_to_sheet(reqs);
-    const ws_vendors = XLSX.utils.json_to_sheet(vends);
-    const ws_payments = XLSX.utils.json_to_sheet(payments);
-    const ws_attachments = XLSX.utils.json_to_sheet(attachments);
+    // 2. Build Workbook
+    const wb = new ExcelJS.Workbook();
 
-    // 3. Assemble Workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws_requests, "Requests");
-    XLSX.utils.book_append_sheet(wb, ws_vendors, "Vendors");
-    XLSX.utils.book_append_sheet(wb, ws_payments, "Payment Installments");
-    XLSX.utils.book_append_sheet(wb, ws_attachments, "Compliance Assets");
+    const addSheet = (name: string, rows: Record<string, any>[]) => {
+      const ws = wb.addWorksheet(name);
+      if (rows.length === 0) return;
+      // Use first row keys as headers
+      const headers = Object.keys(rows[0]);
+      ws.addRow(headers);
+      for (const row of rows) {
+        ws.addRow(headers.map((h) => row[h] ?? ""));
+      }
+    };
 
-    // 4. Write to Buffer
-    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-    return buffer as Buffer;
+    addSheet("Requests", reqs as any[]);
+    addSheet("Vendors", vends as any[]);
+    addSheet("Payment Installments", payments as any[]);
+    addSheet("Compliance Assets", attachments as any[]);
+
+    // 3. Write to Buffer
+    const arrayBuffer = await wb.xlsx.writeBuffer();
+    return Buffer.from(arrayBuffer);
   }
 
   /**
@@ -70,7 +77,6 @@ export class BackupService {
       return { success: true, fileName };
     } catch (error) {
       console.error("[BackupService] CRITICAL FAILURE in backup pipeline:", error);
-      // In a production scenario, we would trigger an SMS/Email alert here.
       throw error;
     }
   }

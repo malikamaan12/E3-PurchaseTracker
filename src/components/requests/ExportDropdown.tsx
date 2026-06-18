@@ -48,7 +48,7 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
 
       const filenames = {
         simple: `PR-${requestNumber}.pdf`,
-        full: `PR-Package-${requestNumber}.zip`,
+        full: `PR-Package-${requestNumber}.pdf`,
         bundle: `PR-Audit-${requestNumber}.zip`
       };
 
@@ -88,8 +88,8 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
     { 
       id: "full", 
       label: "Full Procurement Package", 
-      sub: "PDF + All Vault Attachments (ZIP)",
-      icon: <Archive className="w-4 h-4 text-emerald-400" />,
+      sub: "Consolidated PDF with Attachments",
+      icon: <FileBadge className="w-4 h-4 text-emerald-400" />,
       color: "text-emerald-400"
     },
     { 
