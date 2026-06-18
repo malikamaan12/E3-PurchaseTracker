@@ -288,10 +288,11 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
     return (
       <td className="p-6 text-center">
         <div className="flex justify-center group/icon">
-          <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/10 flex items-center justify-center text-rose-500/60 dark:text-rose-500/30 group-hover/icon:bg-rose-500/20 group-hover/icon:text-rose-500 transition-all cursor-help relative">
+          <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/10 flex items-center justify-center text-rose-500/60 dark:text-rose-500/30 group-hover/icon:bg-rose-500/20 group-hover/icon:text-rose-500 transition-all duration-300 cursor-help relative hover:scale-110 shadow-sm">
             <AlertCircle className="w-4 h-4" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 glass p-2 rounded-lg opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none text-[8px] font-black uppercase tracking-widest text-white border-white/10 z-50">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-32 bg-gray-900 dark:bg-black p-2.5 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-[9px] font-black uppercase tracking-widest text-white border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
               Missing Documentation
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-white/10"></div>
             </div>
           </div>
         </div>
@@ -304,13 +305,14 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
       <div className="flex justify-center group/icon">
         <button 
           onClick={() => doc.file && window.open(doc.file.url, "_blank")}
-          className="w-8 h-8 rounded-lg bg-brand-secondary/10 dark:bg-brand-secondary/5 border border-brand-secondary/20 dark:border-brand-secondary/10 flex items-center justify-center text-brand-secondary group-hover/icon:bg-brand-secondary/20 group-hover/icon:text-brand-secondary transition-all relative"
+          className="w-8 h-8 rounded-lg bg-brand-secondary/10 dark:bg-brand-secondary/5 border border-brand-secondary/20 dark:border-brand-secondary/10 flex items-center justify-center text-brand-secondary group-hover/icon:bg-brand-secondary/20 group-hover/icon:text-brand-secondary transition-all duration-300 relative hover:scale-110 shadow-sm"
         >
           <CheckCircle2 className="w-4 h-4" />
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 glass p-2 rounded-lg opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none text-left border-white/10 z-50">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-secondary mb-1">Authenticated</p>
-            <p className="text-[10px] font-bold text-white truncate max-w-full">{doc.file?.name}</p>
-            <p className="text-[8px] opacity-40 mt-1 uppercase font-bold">Uploaded {doc.file?.date ? new Date(doc.file.date).toLocaleDateString() : 'N/A'}</p>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-gray-900 dark:bg-black p-3 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-left border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Authenticated</p>
+            <p className="text-xs font-bold text-white truncate max-w-full leading-tight">{doc.file?.name}</p>
+            <p className="text-[9px] text-white/50 mt-1.5 uppercase font-bold tracking-wider">Uploaded {doc.file?.date ? new Date(doc.file.date).toLocaleDateString() : 'N/A'}</p>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-white/10"></div>
           </div>
         </button>
       </div>
@@ -324,17 +326,17 @@ function MobileDocCell({ label, doc }: { label: string, doc: ComplianceDoc }) {
     <div 
       onClick={() => (!isMissing && doc?.file) ? window.open(doc.file.url, "_blank") : undefined}
       className={cn(
-        "flex flex-col gap-2 p-3 rounded-2xl border transition-all",
+        "flex flex-col gap-2 p-3.5 rounded-2xl border transition-all duration-300",
         isMissing 
-          ? "bg-rose-500/[0.03] border-rose-500/10 text-rose-500/60" 
-          : "bg-emerald-500/[0.03] border-emerald-500/10 text-emerald-500 active:bg-emerald-500/10 active:scale-[0.98]"
+          ? "bg-rose-500/5 border-rose-500/20 text-rose-500/80" 
+          : "bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 active:bg-emerald-500/10 active:scale-95 shadow-sm hover:shadow-md cursor-pointer hover:-translate-y-0.5"
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[8px] font-black uppercase tracking-widest opacity-60">{label}</span>
-        {isMissing ? <AlertCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+        <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{label}</span>
+        {isMissing ? <AlertCircle className="w-4 h-4 opacity-50" /> : <CheckCircle2 className="w-4 h-4" />}
       </div>
-      <span className="text-[10px] font-bold uppercase truncate">
+      <span className="text-xs font-bold uppercase truncate">
         {isMissing ? "Missing" : "View Proof"}
       </span>
     </div>
