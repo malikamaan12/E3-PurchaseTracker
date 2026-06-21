@@ -117,7 +117,7 @@ class ApiClient {
       window.open(`/api/requests/${id}/pdf`, "_blank");
     },
     downloadZip: (id: number) => {
-      window.open(`/api/requests/${id}/zip`, "_blank");
+      window.open(`/api/export/bundle/${id}`, "_blank");
     },
     exportExcel: (params: Record<string, any> = {}) => {
       const search = new URLSearchParams({ ...params, format: "excel" }).toString();
