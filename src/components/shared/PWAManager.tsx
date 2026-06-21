@@ -21,7 +21,7 @@ export default function PWAManager() {
 
   // 1. SERVICE WORKER REGISTRATION
   useEffect(() => {
-    if ("serviceWorker" in navigator && window.location.hostname !== "localhost") {
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {

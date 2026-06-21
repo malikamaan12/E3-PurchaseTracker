@@ -229,7 +229,9 @@ export default function TopNav() {
           >
             <Bell className="w-5 h-5" />
             {unreadStats && unreadStats.count > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-brand-primary rounded-full border-2 border-background" />
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-primary px-1 text-[9px] font-black text-white shadow-sm ring-2 ring-background">
+                {unreadStats.count > 99 ? '99+' : unreadStats.count}
+              </span>
             )}
           </button>
 

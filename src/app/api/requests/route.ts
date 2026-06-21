@@ -338,6 +338,24 @@ export async function POST(req: NextRequest) {
     // 4. Approval row seeding on direct submission to "pending"
     if (requestedStatus === "pending") {
       await seedInitialApprovals(newRequest.id, user.id, user.department, user.role, additionalApprovers);
+      
+      // 5. Dispatch Notifications
+      try {
+        const { notificationService } = await import("@/lib/services/NotificationService");
+        const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver']));
+        const adminIds = admins.map(a => a.id).filter(id => id !== user.id);
+        
+        if (adminIds.length > 0) {
+          await notificationService.createNewSubmissionNotification({
+            requestId: newRequest.id,
+            requestTitle: newRequest.title,
+            requesterName: user.username || 'System User',
+            adminIds
+          });
+        }
+      } catch (err) {
+        console.error("[Notification] Failed to dispatch push notifications:", err);
+      }
     }
 
     return NextResponse.json(newRequest, { status: 201 });
