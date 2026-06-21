@@ -3,10 +3,27 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider, useTheme } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { PWAProvider } from "@/context/PWAContext";
+
+function ThemeAwareToaster() {
+  const { theme, systemTheme } = useTheme();
+  
+  // Resolve system theme to actual theme if 'system' is selected
+  const currentTheme = theme === 'system' ? systemTheme : theme;
+  
+  return (
+    <Toaster 
+      position="top-right" 
+      richColors 
+      closeButton
+      expand={false}
+      theme={(currentTheme as "light" | "dark") || "dark"}
+    />
+  );
+}
 
 export default function Providers({ 
   children,
@@ -37,12 +54,7 @@ export default function Providers({
             <PWAProvider>
               {children}
             </PWAProvider>
-            <Toaster 
-              position="top-right" 
-              richColors 
-              closeButton
-              expand={false}
-            />
+            <ThemeAwareToaster />
           </AuthProvider>
         </PerformanceProvider>
       </ThemeProvider>
