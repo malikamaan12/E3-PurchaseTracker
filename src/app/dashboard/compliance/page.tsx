@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/apiClient"
 import { 
   ShieldCheck, 
@@ -63,6 +63,45 @@ const KpiDisk = ({ label, value, sub, color }: { label: string, value: string | 
 export default function ComplianceGatewayPage() {
   const { highPerformanceMode } = usePerformance()
   const [search, setSearch] = React.useState("")
+  const [isScanning, setIsScanning] = React.useState(false)
+  const queryClient = useQueryClient()
+
+  const handleScan = async () => {
+    setIsScanning(true);
+    try {
+      const res = await fetch("/api/admin/compliance/scan", { method: "POST" });
+      if (!res.ok) throw new Error("Scan failed");
+      await queryClient.invalidateQueries({ queryKey: ["compliance-status"] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsScanning(false);
+    }
+  }
+
+  const handleExport = () => {
+    if (!data?.vendors) return;
+    const csvContent = [
+      ["Vendor Entity", "Registration", "Tax", "Establishment", "Contract", "Health Score"],
+      ...data.vendors.map((v: ComplianceVendor) => [
+        `"${v.companyName}"`,
+        v.docs.registration?.status || "missing",
+        v.docs.tax?.status || "missing",
+        v.docs.establishment?.status || "missing",
+        v.docs.contract?.status || "missing",
+        `${v.healthScore}%`
+      ])
+    ].map(e => e.join(",")).join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `compliance_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-status"],
@@ -135,11 +174,16 @@ export default function ComplianceGatewayPage() {
           />
         </div>
         <div className="flex gap-2">
-          <button className="h-12 px-6 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+          <button onClick={handleExport} className="h-12 px-6 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
             <Download className="w-4 h-4" /> Export Audit
           </button>
-          <button className="h-12 px-6 bg-brand-primary text-white rounded-xl shadow-lg shadow-brand-primary/20 transition-all hover:scale-[1.02] flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-            <ShieldAlert className="w-4 h-4" /> Request Updates
+          <button 
+            onClick={handleScan}
+            disabled={isScanning}
+            className="h-12 px-6 bg-brand-primary text-white rounded-xl shadow-lg shadow-brand-primary/20 transition-all hover:scale-[1.02] flex items-center gap-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {isScanning ? <ShieldAlert className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} 
+            {isScanning ? "Scanning..." : "Request Updates"}
           </button>
         </div>
       </div>
