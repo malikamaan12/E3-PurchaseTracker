@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe, FileText } from "lucide-react";
 import { StarRating } from "@/components/shared/StarRating";
+import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 
 interface VendorListViewProps {
   vendors: any[];
@@ -27,7 +29,10 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
     show: { opacity: 1, x: 0 }
   };
 
+  const [selectedVendorForDocs, setSelectedVendorForDocs] = useState<any>(null);
+
   return (
+    <>
     <div className="glass rounded-[2rem] border border-border/40 shadow-2xl overflow-hidden relative">
       <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full -mr-48 -mt-48 pointer-events-none" />
       
@@ -39,6 +44,7 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
               <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden md:table-cell">Connection Identity</th>
               <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden lg:table-cell">Regulatory Metadata</th>
               <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden lg:table-cell">Capital Gateway</th>
+              <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden xl:table-cell">Compliance Status</th>
               <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] text-right">Administrative State</th>
             </tr>
           </thead>
@@ -109,6 +115,38 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
                   </div>
                 </td>
   
+                <td className="px-8 py-6 hidden xl:table-cell">
+                  {(() => {
+                    const docs = vendor.documents || [];
+                    let complianceStatus = { color: "text-zinc-500", bg: "bg-zinc-500/10", text: "No Documents", alert: false };
+                    if (docs.length > 0) {
+                      const now = new Date();
+                      let hasExpired = false;
+                      let hasExpiringSoon = false;
+                      docs.forEach((d: any) => {
+                        if (d.expiryDate) {
+                          const daysLeft = (new Date(d.expiryDate).getTime() - now.getTime()) / (1000 * 3600 * 24);
+                          if (daysLeft < 0) hasExpired = true;
+                          else if (daysLeft <= 30) hasExpiringSoon = true;
+                        }
+                      });
+                      if (hasExpired) complianceStatus = { color: "text-rose-500", bg: "bg-rose-500/10", text: "Expired", alert: true };
+                      else if (hasExpiringSoon) complianceStatus = { color: "text-amber-500", bg: "bg-amber-500/10", text: "Expiring Soon", alert: true };
+                      else complianceStatus = { color: "text-emerald-500", bg: "bg-emerald-500/10", text: `${docs.length} Docs Valid`, alert: false };
+                    }
+
+                    return (
+                      <button 
+                        onClick={() => setSelectedVendorForDocs(vendor)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent hover:border-brand-primary/20 transition-all ${complianceStatus.bg} group/btn`}
+                      >
+                         <FileText className={`w-3.5 h-3.5 ${complianceStatus.color} ${complianceStatus.alert ? 'animate-pulse' : ''}`} />
+                         <span className={`text-[10px] font-black uppercase tracking-widest ${complianceStatus.color}`}>{complianceStatus.text}</span>
+                      </button>
+                    );
+                  })()}
+                </td>
+
                 <td className="px-8 py-6 text-right">
                   <div className="flex items-center justify-end gap-4">
                     <div className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 shadow-sm ${
@@ -133,6 +171,13 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
         </table>
       </div>
     </div>
+    
+    <VendorDocumentsModal 
+      open={!!selectedVendorForDocs} 
+      onOpenChange={(isOpen: boolean) => !isOpen && setSelectedVendorForDocs(null)} 
+      vendor={selectedVendorForDocs} 
+    />
+    </>
   );
 }
 
