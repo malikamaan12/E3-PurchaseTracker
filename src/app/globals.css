@@ -163,16 +163,6 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .glass-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url('/noise.svg');
-    opacity: 0.1;
-    pointer-events: none;
-    z-index: -1;
-  }
-
   .glass-input {
     @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium outline-none;
     background: color-mix(in srgb, hsl(var(--secondary)) 40%, transparent);

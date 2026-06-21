@@ -81,7 +81,6 @@ export default function AnalyticsDashboardPage() {
       <div className="fixed inset-0 pointer-events-none -z-10 bg-background transition-colors duration-700">
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-primary/10 dark:bg-brand-primary/10 rounded-full blur-[120px] animate-fluid-drift" />
         <div className="absolute bottom-[20%] left-[-5%] w-[35%] h-[35%] bg-brand-secondary/10 dark:bg-brand-secondary/10 rounded-full blur-[100px] animate-fluid-drift [animation-delay:4s]" />
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" style={{ backgroundImage: "url('/noise.svg')" }} />
       </div>
 
       <div className="flex-1 space-y-12 p-8 pt-6 max-w-[1440px] mx-auto relative z-10">

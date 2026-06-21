@@ -25,9 +25,7 @@ export default function AmbientBackground() {
         className="absolute bottom-[20%] left-[30%] w-[30%] h-[30%] bg-[#A78BFA]/5 dark:bg-[#A78BFA]/10 rounded-full blur-[50px] animate-fluid-drift [animation-delay:7.5s]" 
         style={{ willChange: 'transform' }}
       />
-      
-      {/* Fine grain overlay for premium texture */}
-      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
     </div>
   );
 }

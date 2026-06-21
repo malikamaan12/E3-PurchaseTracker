@@ -80,8 +80,6 @@ function SignupContent() {
         <div className="absolute top-[20%] right-[10%] w-[35%] h-[35%] bg-brand-mid/15 dark:bg-brand-mid/25 rounded-full blur-[110px] animate-fluid-drift [animation-delay:4s]" />
         <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px] animate-fluid-drift [animation-delay:6s]" />
         
-        {/* Fine grain overlay for premium texture */}
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
       </div>
 
       <motion.div 
