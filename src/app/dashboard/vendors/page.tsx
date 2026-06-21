@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
+import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/shared/StarRating";
@@ -204,17 +205,41 @@ export default function VendorsDashboard() {
 }
 
 function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor: any; isAdmin: boolean; onStatusChange: (s: any) => void; onRate: (r: number) => void; index: number }) {
+  const [docModalOpen, setDocModalOpen] = useState(false);
   const statusColors: any = {
     active: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     blocked: "bg-rose-500/10 text-rose-500 border-rose-500/20",
     frozen: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   };
 
+  // Compliance calculations
+  const docs = vendor.documents || [];
+  let complianceStatus = { color: "text-zinc-500", bg: "bg-zinc-500/10", text: "No Documents", alert: false };
+  if (docs.length > 0) {
+    const now = new Date();
+    let hasExpired = false;
+    let hasExpiringSoon = false;
+    
+    docs.forEach((d: any) => {
+      if (d.expiryDate) {
+        const expiry = new Date(d.expiryDate);
+        const daysLeft = (expiry.getTime() - now.getTime()) / (1000 * 3600 * 24);
+        if (daysLeft < 0) hasExpired = true;
+        else if (daysLeft <= 30) hasExpiringSoon = true;
+      }
+    });
+
+    if (hasExpired) complianceStatus = { color: "text-rose-500", bg: "bg-rose-500/10", text: "Compliance Expired", alert: true };
+    else if (hasExpiringSoon) complianceStatus = { color: "text-amber-500", bg: "bg-amber-500/10", text: "Expiring Soon", alert: true };
+    else complianceStatus = { color: "text-emerald-500", bg: "bg-emerald-500/10", text: `${docs.length} Docs Valid`, alert: false };
+  }
+
   return (
     <div 
       className="glass-card flex flex-col gap-0 overflow-hidden group border-border/40 hover:border-brand-primary/50 transition-all shadow-2xl relative hover:-translate-y-2 duration-300 animate-slide-up"
       style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
+      <VendorDocumentsModal open={docModalOpen} onOpenChange={setDocModalOpen} vendor={vendor} />
       <div className="p-8 pb-6 relative">
         {/* Glow effect */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-brand-primary/10 transition-colors" />
@@ -274,10 +299,18 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
       </div>
 
       <div className="px-8 py-4 bg-secondary/30 flex justify-between items-center group/footer">
-        <div className="flex items-center gap-2 group-hover:translate-x-1 transition-transform">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest font-mono">Compliant Record Signed</span>
-        </div>
+        <button 
+          onClick={() => setDocModalOpen(true)}
+          className="flex items-center gap-2 group-hover:translate-x-1 transition-transform cursor-pointer"
+        >
+          <div className={`w-2 h-2 rounded-full ${complianceStatus.bg.split('/')[0]} ${complianceStatus.alert ? 'animate-pulse shadow-[0_0_8px_currentColor]' : ''}`} />
+          <span className={`text-[10px] font-black uppercase tracking-widest font-mono ${complianceStatus.color}`}>
+            {complianceStatus.text}
+          </span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest ml-2 hover:text-brand-primary transition-colors underline decoration-dotted">
+            Manage Docs
+          </span>
+        </button>
         <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border-2 shadow-sm ${statusColors[vendor.status]}`}>
           {vendor.status}
         </div>

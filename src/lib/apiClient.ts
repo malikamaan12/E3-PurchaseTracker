@@ -108,7 +108,13 @@ class ApiClient {
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     rate: (id: number, rating: number) => 
-      this.request<any>(`/vendors/${id}/rate`, { method: "PATCH", body: JSON.stringify({ rating }) }),
+      this.request<any>(`/vendors/${id}/rate`, { method: "POST", body: JSON.stringify({ rating }) }),
+    documents: {
+      list: (vendorId: number) => this.request<any[]>(`/vendors/${vendorId}/documents`),
+      upload: (vendorId: number, data: any) => this.request<any>(`/vendors/${vendorId}/documents`, { method: "POST", body: JSON.stringify(data) }),
+      update: (vendorId: number, docId: number, data: any) => this.request<any>(`/vendors/${vendorId}/documents/${docId}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (vendorId: number, docId: number) => this.request<any>(`/vendors/${vendorId}/documents/${docId}`, { method: "DELETE" }),
+    }
   };
 
   // Documents & Exports

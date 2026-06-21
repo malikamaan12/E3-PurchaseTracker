@@ -104,27 +104,27 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="glass-card p-8 border-white/20 shadow-2xl relative overflow-hidden"
+            className="bg-card p-8 border border-border shadow-2xl relative overflow-hidden rounded-[2.5rem]"
           >
             {/* Header */}
             <div className="flex justify-between items-start mb-10 relative">
               <div className="absolute -top-16 -left-16 w-32 h-32 bg-brand-primary/20 blur-3xl rounded-full pointer-events-none" />
               <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-brand-secondary/10 blur-[100px] rounded-full pointer-events-none" />
               <div className="relative">
-                <Dialog.Title className="text-4xl font-serif font-black text-white tracking-tighter leading-none">
+                <Dialog.Title className="text-4xl font-serif font-black text-foreground tracking-tighter leading-none">
                   {isEdit ? "Modify Supplier" : "Onboard Entity"}
                 </Dialog.Title>
-                <Dialog.Description className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mt-3">
+                <Dialog.Description className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mt-3">
                   {isEdit ? "Update existing supplier credentials and financial data." : "Integrate a new supplier into the procurement matrix."}
                 </Dialog.Description>
               </div>
-              <Dialog.Close className="p-2.5 rounded-2xl hover:bg-white/10 text-zinc-500 hover:text-white transition-all border border-transparent hover:border-white/10 relative">
+              <Dialog.Close className="p-2.5 rounded-2xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all border border-transparent hover:border-border relative">
                 <X className="w-5 h-5" />
               </Dialog.Close>
             </div>
 
             {/* Stepper Header */}
-            <div className="flex gap-4 mb-10 bg-black/20 p-4 rounded-3xl border border-white/5 relative">
+            <div className="flex gap-4 mb-10 bg-secondary/30 p-4 rounded-3xl border border-border relative">
               <StepIndicator current={step} target={1} label="Identity" />
               <StepIndicator current={step} target={2} label="Finance" />
               <StepIndicator current={step} target={3} label="Compliance" />
@@ -177,7 +177,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
                     <FormField icon={FileCheck} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2">
                         Vendor Reputation Index
                       </label>
                       <input 
@@ -186,7 +186,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                         max="5"
                         {...register("rating", { valueAsNumber: true })}
                         placeholder="Rating 0-5"
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-600 focus:outline-none focus:ring-8 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20 transition-all"
+                        className="w-full bg-secondary/30 border border-border rounded-2xl px-5 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-8 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-secondary/50 transition-all"
                       />
                     </div>
                   </motion.div>
@@ -194,11 +194,11 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
               </AnimatePresence>
 
               {/* Actions */}
-              <div className="flex justify-between items-center pt-8 border-t border-white/5">
+              <div className="flex justify-between items-center pt-8 border-t border-border">
                 <button 
                   type="button"
                   onClick={() => setStep(s => Math.max(1, s - 1))}
-                  className={`text-zinc-400 hover:text-white transition-colors font-semibold ${step === 1 ? 'invisible' : ''}`}
+                  className={`text-muted-foreground hover:text-foreground transition-colors font-semibold ${step === 1 ? 'invisible' : ''}`}
                 >
                   Previous Step
                 </button>
@@ -207,7 +207,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     <button 
                       type="button"
                       onClick={() => setStep(s => Math.min(3, s + 1))}
-                      className="bg-white/10 text-white font-bold px-6 py-2.5 rounded-full hover:bg-white/20 transition-all active:scale-95"
+                      className="bg-secondary text-foreground border border-border font-bold px-6 py-2.5 rounded-full hover:bg-secondary/80 transition-all active:scale-95"
                     >
                       Next: {step === 1 ? 'Financials' : 'Compliance'}
                     </button>
@@ -215,7 +215,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     <button 
                       type="submit"
                       disabled={mutation.isPending}
-                      className="bg-brand-primary text-white font-black px-10 py-3.5 rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                      className="bg-brand-primary text-primary-foreground font-black px-10 py-3.5 rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
                     >
                       {mutation.isPending ? (
                         <>
@@ -239,11 +239,11 @@ function StepIndicator({ current, target, label }: any) {
   const active = current >= target;
   return (
     <div className="flex items-center gap-3">
-      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black transition-all duration-500 border ${active ? 'bg-brand-primary text-white border-brand-primary shadow-xl shadow-brand-primary/30' : 'bg-white/5 text-zinc-600 border-white/5'}`}>
+      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black transition-all duration-500 border ${active ? 'bg-brand-primary text-primary-foreground border-brand-primary shadow-xl shadow-brand-primary/30' : 'bg-secondary text-muted-foreground border-border'}`}>
         {target}
       </div>
-      <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${active ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
-      {target < 3 && <div className="w-12 h-px bg-white/10 ml-1" />}
+      <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${active ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+      {target < 3 && <div className="w-12 h-px bg-border ml-1" />}
     </div>
   );
 }
@@ -251,14 +251,14 @@ function StepIndicator({ current, target, label }: any) {
 function FormField({ icon: Icon, label, name, register, error, placeholder }: any) {
   return (
     <div className="space-y-2 group">
-      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
-        {Icon && <Icon className="w-3.5 h-3.5 text-zinc-600 group-focus-within:text-brand-primary transition-colors" strokeWidth={3} />}
+      <label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
+        {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground group-focus-within:text-brand-primary transition-colors" strokeWidth={3} />}
         {label}
       </label>
       <input 
         {...register(name)}
         placeholder={placeholder}
-        className={`w-full bg-white/[0.03] border rounded-2xl px-5 py-4 text-sm font-bold text-white placeholder:text-zinc-700 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-white/5 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-black/20'}`}
+        className={`w-full bg-secondary/30 border rounded-2xl px-5 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-border focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-secondary/50'}`}
       />
       {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-tight mt-1">{error.message}</p>}
     </div>

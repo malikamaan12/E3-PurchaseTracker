@@ -233,6 +233,17 @@ export const vendorToCategories = pgTable("vendor_to_categories", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const vendorDocuments = pgTable("vendor_documents", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: 'cascade' }),
+  documentType: text("document_type").notNull(),
+  documentName: text("document_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  status: text("status").notNull().default("valid"),
+  expiryDate: timestamp("expiry_date"),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
 export const vendorPerformance = pgTable("vendor_performance", {
   id: serial("id").primaryKey(),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),

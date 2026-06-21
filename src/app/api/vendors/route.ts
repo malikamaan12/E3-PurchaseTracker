@@ -21,7 +21,24 @@ export async function GET(req: NextRequest) {
       .from(vendors)
       .orderBy(desc(vendors.createdAt));
 
-    return NextResponse.json(allVendors);
+    // Fetch documents
+    const { vendorDocuments } = await import("@db/schema");
+    const { inArray } = await import("drizzle-orm");
+    
+    let allDocs: any[] = [];
+    if (allVendors.length > 0) {
+      allDocs = await db
+        .select()
+        .from(vendorDocuments)
+        .where(inArray(vendorDocuments.vendorId, allVendors.map(v => v.id)));
+    }
+
+    const vendorsWithDocs = allVendors.map(v => ({
+      ...v,
+      documents: allDocs.filter(d => d.vendorId === v.id)
+    }));
+
+    return NextResponse.json(vendorsWithDocs);
   } catch (error: any) {
     console.error("[Native API] Vendors GET Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
