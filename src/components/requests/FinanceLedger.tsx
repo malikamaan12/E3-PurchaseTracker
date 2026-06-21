@@ -256,17 +256,22 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
 
   const payments: any[] = Array.isArray(request.paymentInstallments) ? request.paymentInstallments : [];
   
-  // ── Calculation Engine ──────────────────────────────────────────────────
-  const globalTarget = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
-  const globalPaid = payments.reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
-  const globalTotal = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmount) || 0), 0);
-  const globalPending = globalTotal - globalPaid;
-  const progressPercent = globalTotal > 0 ? Math.round((globalPaid / globalTotal) * 100) : 0;
-  const installmentTarget = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
-  const currentItemPaid = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
-  const currentEntryValue = Number(formData.paidAmount || 0);
-  const newGlobalPaid = globalPaid - currentItemPaid + currentEntryValue;
-  const isOverpaid = newGlobalPaid > globalTarget;
+  // ── Calculation Engine (Strictly QAR) ───────────────────────────────────
+  const activeExchangeRate = Number(request.exchangeRate || 1.0);
+  const globalTargetRaw = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
+  const globalTargetQar = request.baseAmountQar ?? Math.round(globalTargetRaw * activeExchangeRate);
+  
+  const globalPaidQar = payments.reduce((sum: number, p: any) => sum + Math.round((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
+  const globalTotalQar = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmountQar) || Math.round((Number(p.calculatedAmount) || 0) * activeExchangeRate)), 0);
+  const globalPendingQar = globalTotalQar - globalPaidQar;
+  const progressPercent = globalTotalQar > 0 ? Math.round((globalPaidQar / globalTotalQar) * 100) : 0;
+  
+  const installmentTargetRaw = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
+  const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
+  const currentEntryValueRaw = Number(formData.paidAmount || 0);
+  
+  const newGlobalPaidQar = globalPaidQar - Math.round(currentItemPaidRaw * activeExchangeRate) + Math.round(currentEntryValueRaw * activeExchangeRate);
+  const isOverpaid = newGlobalPaidQar > globalTargetQar;
 
   const glassClass = highPerformanceMode ? "bg-secondary border border-border" : "glass-card";
 
@@ -275,9 +280,9 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
 
       {/* ── Financial Health Dashboard ────────────────────────────────────── */}
       <FinancialHealthSummary 
-        totalBudget={globalTarget} 
-        totalPaid={globalPaid} 
-        currency={request.currency || "QAR"} 
+        totalBudget={globalTargetQar} 
+        totalPaid={globalPaidQar} 
+        currency={"QAR"} 
         highPerformanceMode={highPerformanceMode}
       />
 
@@ -325,10 +330,10 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                 <h3 className="text-foreground font-black text-xl uppercase tracking-tighter">Budget Variation Protocol</h3>
               </div>
               <p className="text-muted-foreground text-xs font-semibold mt-1">
-                Authorized Baseline: <span className="font-mono font-bold text-[#5B4B8A]">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
+                Authorized Baseline: <span className="font-mono font-bold text-[#5B4B8A]">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span> <span className="opacity-60">({Math.round((request.totalEstimatedCost || 0) * activeExchangeRate).toLocaleString()} QAR)</span>
                 {request.revisedTotalCost && (
                   <span className="ml-4 text-[#2FB7B2] font-mono font-bold bg-[#2FB7B2]/10 px-2 py-0.5 rounded">
-                    → Revised Total: {request.revisedTotalCost.toLocaleString()} {request.currency}
+                    → Revised Total: {request.revisedTotalCost.toLocaleString()} {request.currency} <span className="opacity-60">({globalTargetQar.toLocaleString()} QAR)</span>
                   </span>
                 )}
               </p>
@@ -339,7 +344,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
             {!showVariationConfirm ? (
               <button 
                 onClick={() => {
-                  if (isOverpaid) setVariationAmount(newGlobalPaid.toString());
+                  if (isOverpaid) setVariationAmount(Math.round(newGlobalPaidQar / activeExchangeRate).toString());
                   setShowVariationConfirm(true);
                 }}
                 disabled={isLockedByStatus}
@@ -459,7 +464,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     }`}
                                   />
                                   <div className="absolute right-3 top-2.5 flex gap-1 invisible group-hover:visible translate-y-[-2px] transition-all">
-                                     <button onClick={() => setFormData({...formData, paidAmount: installmentTarget, status: 'paid'})} className="px-2 py-0.5 bg-secondary border border-border text-[8px] font-black rounded hover:bg-[#2FB7B2]/10 hover:text-[#2FB7B2] uppercase">Fix</button>
+                                     <button onClick={() => setFormData({...formData, paidAmount: installmentTargetRaw, status: 'paid'})} className="px-2 py-0.5 bg-secondary border border-border text-[8px] font-black rounded hover:bg-[#2FB7B2]/10 hover:text-[#2FB7B2] uppercase">Fix</button>
                                   </div>
                                 </div>
                               </div>
@@ -489,14 +494,14 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            </div>
 
                            {/* Savings Checkbox */}
-                           {formData.status === 'paid' && Number(formData.paidAmount) < installmentTarget && (
+                           {formData.status === 'paid' && Number(formData.paidAmount) < installmentTargetRaw && (
                               <div className="mt-8 p-4 rounded-2xl bg-[#2FB7B2]/5 border border-[#2FB7B2]/20 flex items-center gap-4 cursor-pointer"
                                    onClick={() => setIsFinalSettlement(!isFinalSettlement)}>
                                  <input type="checkbox" checked={isFinalSettlement} readOnly className="w-5 h-5 accent-[#2FB7B2]" />
                                  <div className="flex-1">
                                     <h4 className="text-sm font-black text-[#2FB7B2] uppercase tracking-tighter">Contractual Savings Protocol</h4>
                                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
-                                      Flag this delta of ({(installmentTarget - Number(formData.paidAmount)).toLocaleString()} QAR) as realized savings for the organization.
+                                      Flag this delta of ({(installmentTargetRaw - Number(formData.paidAmount)).toLocaleString()} {request.currency}) as realized savings for the organization.
                                     </p>
                                  </div>
                                  <Sparkles className="w-6 h-6 text-[#2FB7B2] animate-pulse" />
@@ -563,7 +568,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                         {/* Value Analysis */}
                         <td className="px-8 py-6">
                            <div className="space-y-1">
-                              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Authorized: {p.calculatedAmount.toLocaleString()} QAR</p>
+                              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Authorized: {p.calculatedAmount.toLocaleString()} {request.currency}</p>
                               {p.paidAmount !== null && (
                                 <p className={`text-sm font-mono font-bold ${
                                   p.savingsAmount > 0 ? "text-emerald-400" :
@@ -574,7 +579,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                               )}
                               {p.savingsAmount > 0 && (
                                  <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tighter flex items-center gap-1">
-                                    <TrendingDown className="w-2.5 h-2.5" /> organization savings: {p.savingsAmount.toLocaleString()} QAR
+                                    <TrendingDown className="w-2.5 h-2.5" /> org savings: {Math.round(p.savingsAmount * activeExchangeRate).toLocaleString()} QAR
                                  </p>
                               )}
                            </div>

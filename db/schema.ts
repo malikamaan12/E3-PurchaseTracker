@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb, index, numeric } from "drizzle-orm/pg-core";
 import { relations, type InferModel, sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -129,6 +129,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityRecommendations: text("priority_recommendations").$type<string[]>(),
   additionalApprovers: text("additional_approvers").$type<string[]>(), // Add additionalApprovers field
   currency: text("currency").notNull().default("QAR"),
+  exchangeRate: numeric("exchange_rate"), 
+  baseAmountQar: integer("base_amount_qar"), 
   totalEstimatedCost: integer("total_estimated_cost"),
   freightAmount: integer("freight_amount").default(0),
   revisedTotalCost: integer("revised_total_cost"), // Tracks budget variations [FORCE_REFRESH]
@@ -256,6 +258,8 @@ export const paymentInstallments = pgTable("payment_installments", {
   paidAmount: integer("paid_amount"), // The actual amount paid by Finance
   savingsAmount: integer("savings_amount"), // The negotiated discount/savings on this installment
   currency: text("currency").notNull().default("QAR"),
+  exchangeRate: numeric("exchange_rate"),
+  calculatedAmountQar: integer("calculated_amount_qar"), // The unified QAR equivalent
   status: text("status").notNull().default("pending"), // 'pending', 'paid', 'partial', 'rescheduled'
   paidAt: timestamp("paid_at"),
   actualPaymentDate: timestamp("actual_payment_date"),

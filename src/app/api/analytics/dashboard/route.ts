@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     // Aggregate pending installments to forecast liquidity needs
     const cashFlow = await db.select({
       bucket: sql`DATE_TRUNC(${sql.raw(timeframe === 'weekly' ? "'week'" : "'month'")}, ${paymentInstallments.dueDate})`,
-      amount: sql`SUM(COALESCE(${paymentInstallments.calculatedAmount}, 0))`,
+      amount: sql`SUM(COALESCE(${paymentInstallments.calculatedAmountQar}, COALESCE(${paymentInstallments.calculatedAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0)))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
     // ─── AGGREGATION 2: BUDGET VS SAVINGS (HISTORICAL) ────────────────────────
     const savingsAndSpend = await db.select({
       department: users.department,
-      totalPaid: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0))`,
-      totalSavings: sql`SUM(COALESCE(${paymentInstallments.savingsAmount}, 0))`,
+      totalPaid: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
+      totalSavings: sql`SUM(COALESCE(${paymentInstallments.savingsAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     // Calculate burn rate velocity based on timeframe
     const ruiData = await db.select({
       department: users.department,
-      totalSpent: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0))`,
+      totalSpent: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
     // ─── AGGREGATION 6: DISTRIBUTION ────────────────────────────────────────
     const vendorDist = await db.select({
       name: vendors.companyName,
-      value: sql`SUM(COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)))`
+      value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
     .innerJoin(vendors, eq(purchaseRequests.vendorId, vendors.id))
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
 
     const purposeDist = await db.select({
       name: purchaseRequests.purposeType,
-      value: sql`SUM(COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)))`
+      value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
     .innerJoin(users, eq(purchaseRequests.requesterId, users.id))

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       .select({
         department: users.department,
         count: sql`count(${purchaseRequests.id})`.mapWith(Number),
-        totalCost: sql`sum(${purchaseRequests.totalEstimatedCost})`.mapWith(Number)
+        totalCost: sql`sum(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`.mapWith(Number)
       })
       .from(purchaseRequests)
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         projectId: subPurposes.id,
         projectName: subPurposes.name,
         totalBudget: subPurposes.totalBudget,
-        spent: sql`COALESCE(sum(${purchaseRequests.totalEstimatedCost}), 0)`.mapWith(Number),
+        spent: sql`COALESCE(sum(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0))), 0)`.mapWith(Number),
         count: sql`count(${purchaseRequests.id})`.mapWith(Number)
       })
       .from(subPurposes)
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         inArray(purchaseRequests.status, ['approved', 'pending', 'paid', 'completed'])
       ))
       .groupBy(subPurposes.id, subPurposes.name, subPurposes.totalBudget)
-      .orderBy(sql`COALESCE(sum(${purchaseRequests.totalEstimatedCost}), 0) DESC`)
+      .orderBy(sql`COALESCE(sum(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0))), 0) DESC`)
       .limit(10);
 
     // 3. Purpose Category Distribution
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       .select({
         categoryId: purposeCategories.id,
         categoryName: purposeCategories.name,
-        spent: sql`COALESCE(sum(${purchaseRequests.totalEstimatedCost}), 0)`.mapWith(Number),
+        spent: sql`COALESCE(sum(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0))), 0)`.mapWith(Number),
         count: sql`count(${purchaseRequests.id})`.mapWith(Number)
       })
       .from(purposeCategories)

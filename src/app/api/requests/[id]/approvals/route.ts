@@ -4,6 +4,7 @@ import { purchaseRequests, approvals, auditLogs, paymentInstallments } from "@db
 import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { notificationService } from "@/lib/services/NotificationService";
+import { getExchangeRateToQAR } from "@/lib/utils/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       finalizedProposedCost = updatedRequest.proposedRevisedCost;
     }
 
+    // NEW: Currency Lock-in at Approval
+    let exchangeRate = updatedRequest.exchangeRate;
+    let baseAmountQar = updatedRequest.baseAmountQar;
+    
+    if (nextRequestStatus === "approved") {
+      const activeRate = await getExchangeRateToQAR(updatedRequest.currency || "QAR");
+      exchangeRate = activeRate.toString();
+      const activeCost = finalizedProposedCost ?? updatedRequest.revisedTotalCost ?? updatedRequest.totalEstimatedCost ?? 0;
+      baseAmountQar = Math.round(activeCost * activeRate);
+    }
+
     const [finalRequest] = await db
       .update(purchaseRequests)
       .set({
@@ -193,6 +205,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         isLocked,
         revisedTotalCost: finalizedProposedCost ?? updatedRequest.revisedTotalCost,
         proposedRevisedCost: finalizedProposedCost ? null : updatedRequest.proposedRevisedCost, // Clear staging if approved
+        exchangeRate,
+        baseAmountQar,
         updatedAt: new Date()
       })
       .where(eq(purchaseRequests.id, requestId))
@@ -217,6 +231,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           valueType: "FIXED_AMOUNT",
           amountValue: deltaAmount,
           calculatedAmount: deltaAmount,
+          calculatedAmountQar: Math.round(deltaAmount * Number(exchangeRate || 1.0)),
+          exchangeRate: exchangeRate,
           currency: updatedRequest.currency ?? "QAR",
           status: "pending", // Now officially part of the payment queue
           financeNotes: `Materialized upon final sign-off of variation ${previousValidBudget.toLocaleString()} → ${finalizedProposedCost.toLocaleString()} QAR.`,
