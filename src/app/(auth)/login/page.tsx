@@ -15,6 +15,7 @@ import {
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import Link from "next/link";
+import Image from "next/image";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 function LoginContent() {
@@ -81,10 +82,10 @@ function LoginContent() {
 
       {/* Premium Ambient Background (Fluid Blobs) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-brand-primary/20 dark:bg-brand-primary/30 rounded-full blur-[120px] animate-fluid-drift" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-brand-secondary/20 dark:bg-brand-secondary/30 rounded-full blur-[120px] animate-fluid-drift [animation-delay:2s]" />
-        <div className="absolute top-[20%] right-[10%] w-[35%] h-[35%] bg-brand-mid/15 dark:bg-brand-mid/25 rounded-full blur-[110px] animate-fluid-drift [animation-delay:4s]" />
-        <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px] animate-fluid-drift [animation-delay:6s]" />
+        <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-brand-primary/20 dark:bg-brand-primary/30 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-brand-secondary/20 dark:bg-brand-secondary/30 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] right-[10%] w-[35%] h-[35%] bg-brand-mid/15 dark:bg-brand-mid/25 rounded-full blur-[110px]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px]" />
         
         {/* Fine grain overlay for premium texture */}
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none brightness-100 contrast-150" style={{ backgroundImage: "url('/noise.svg')" }} />
@@ -96,9 +97,9 @@ function LoginContent() {
       >
         {/* Logo Section */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="mb-6 relative">
-            <img src="/logo-color.png" className="h-16 w-auto block dark:hidden" alt="PR System Logo" />
-            <img src="/logo-white.png" className="h-16 w-auto hidden dark:block" alt="PR System Logo" />
+          <div className="mb-6 relative flex justify-center h-16 w-full">
+            <Image priority src="/logo-color.png" width={200} height={64} className="h-16 w-auto object-contain block dark:hidden" alt="PR System Logo" />
+            <Image priority src="/logo-white.png" width={200} height={64} className="h-16 w-auto object-contain hidden dark:block" alt="PR System Logo" />
           </div>
           <p className="text-brand-text dark:text-gray-300 text-sm tracking-widest uppercase font-bold">Purchase Management System</p>
         </div>
