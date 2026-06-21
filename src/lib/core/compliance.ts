@@ -1,6 +1,7 @@
 import { db } from "@db";
-import { vendors } from "@db/schema";
+import { vendors, vendorDocuments } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { differenceInDays } from "date-fns";
 
 /**
  * PROPRIETARY INTELLECTUAL PROPERTY
@@ -23,12 +24,30 @@ export async function evaluateCompliance(vendorId: number): Promise<{ isBlocked:
   .where(eq(vendors.id, vendorId))
   .limit(1);
 
-  if (vendorRecord.length > 0 && vendorRecord[0].score < 50) {
-    console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${vendorRecord[0].name}" (ID: ${vendorId}) has a critical compliance score of ${vendorRecord[0].score}%`);
+  if (vendorRecord.length === 0) return { isBlocked: false };
+  const v = vendorRecord[0];
+
+  if (v.score < 50) {
+    console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${v.name}" (ID: ${vendorId}) has a critical compliance score of ${v.score}%`);
     return { 
       isBlocked: true, 
-      message: `The selected vendor (${vendorRecord[0].name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
+      message: `The selected vendor (${v.name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
     };
+  }
+
+  const docs = await db.select().from(vendorDocuments).where(eq(vendorDocuments.vendorId, vendorId));
+  const now = new Date();
+  
+  for (const doc of docs) {
+    if (doc.expiryDate) {
+      const daysSinceExpiry = differenceInDays(now, new Date(doc.expiryDate));
+      if (daysSinceExpiry > 30) {
+         return {
+            isBlocked: true,
+            message: `Vendor ${v.name} is blocked because their ${doc.documentType} (${doc.documentName}) expired ${daysSinceExpiry} days ago, exceeding the 30-day grace period.`
+         };
+      }
+    }
   }
 
   return { isBlocked: false };
