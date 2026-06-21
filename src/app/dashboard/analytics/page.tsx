@@ -165,7 +165,7 @@ export default function AnalyticsDashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[500px]">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[600px]">
           <div className={cn(
             "col-span-full lg:col-span-3 glass-card p-8 border-white/10 opacity-0 flex flex-col h-[400px] lg:h-full",
             highPerformanceMode && "backdrop-blur-none"
@@ -174,19 +174,19 @@ export default function AnalyticsDashboardPage() {
               <h3 className="text-2xl font-serif tracking-tight">Department Yield</h3>
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-60">Spent vs Savings Recovery</p>
             </div>
-            <div className="chart-container h-[300px]">
+            <div className="chart-container flex-1 min-h-[300px]">
               <BudgetSavingsChart data={budgetVsSavings} />
             </div>
           </div>
 
           <div className={cn(
-            "col-span-full lg:col-span-2 glass-card p-8 border-white/10 opacity-0 flex flex-col h-[400px] lg:h-full justify-around items-center gap-8",
+            "col-span-full lg:col-span-2 glass-card p-8 border-white/10 opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8",
             highPerformanceMode && "backdrop-blur-none"
           )}>
-            <div className="flex-1 min-w-[200px] h-[300px]">
+            <div className="w-full flex-1 min-h-[250px]">
               <DistributionDonut data={distribution.vendor} name="Vendor Concentration" />
             </div>
-            <div className="flex-1 min-w-[200px] h-[300px]">
+            <div className="w-full flex-1 min-h-[250px]">
               <DistributionDonut data={distribution.purpose} name="Purpose Allocation" />
             </div>
           </div>

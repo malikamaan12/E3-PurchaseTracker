@@ -199,8 +199,8 @@ export function DistributionDonut({ data, name }: { data: any[], name: string })
         <PieChart>
           <Pie
             data={data}
-            innerRadius={75}
-            outerRadius={100}
+            innerRadius="60%"
+            outerRadius="80%"
             paddingAngle={8}
             dataKey="value"
             isAnimationActive={!highPerformanceMode}
