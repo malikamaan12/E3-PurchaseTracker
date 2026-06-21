@@ -8,6 +8,7 @@ import { X, FileText, Upload, Calendar, AlertCircle, CheckCircle2, Trash2, Clock
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { format, differenceInDays } from "date-fns";
+import DocumentUploadZone from "@/components/shared/DocumentUploadZone";
 
 export function VendorDocumentsModal({ open, onOpenChange, vendor }: any) {
   const queryClient = useQueryClient();
@@ -122,15 +123,14 @@ export function VendorDocumentsModal({ open, onOpenChange, vendor }: any) {
                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-brand-primary/20 outline-none"
                    />
                 </div>
-                <div className="space-y-2">
-                   <label className="text-[10px] uppercase font-bold text-muted-foreground">File URL (Simulation)</label>
-                   <input 
-                     type="url" 
-                     value={fileUrl}
-                     onChange={(e) => setFileUrl(e.target.value)}
-                     placeholder="https://storage.example.com/doc.pdf"
-                     className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                <div className="space-y-2 col-span-2">
+                   <DocumentUploadZone 
+                     onUploadComplete={(files) => {
+                       if (files.length > 0) setFileUrl(files[0].fileUrl);
+                       else setFileUrl("");
+                     }}
                    />
+                   {fileUrl && <p className="text-[10px] text-emerald-500 font-bold uppercase mt-2">File ready to attach</p>}
                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Expiry Date (Optional)</label>
