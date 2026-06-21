@@ -18,8 +18,8 @@ export default function Providers({
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,        // 1 min — data is fresh for 1 minute
-        gcTime: 5 * 60 * 1000,       // 5 min — unused cache entries are GC'd
+        staleTime: 2 * 60 * 1000,    // 2 min — lookup data (depts, vendors) rarely changes mid-session
+        gcTime: 10 * 60 * 1000,      // 10 min — keep unused cache entries longer to speed up back-navigation
         refetchOnWindowFocus: false,
         retry: 1,                    // Only 1 retry — prevents 3x spam on 401/403
       },

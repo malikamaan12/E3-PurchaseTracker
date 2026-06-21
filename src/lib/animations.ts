@@ -15,7 +15,12 @@ export const initMagnetic = (el: HTMLElement) => {
   el.style.transition = "transform 0.4s cubic-bezier(0.23, 1, 0.32, 1)";
   el.style.willChange = "transform";
 
+  let ticking = false;
+
   const onMove = (e: MouseEvent) => {
+    if (ticking) return;
+    ticking = true;
+
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -33,6 +38,7 @@ export const initMagnetic = (el: HTMLElement) => {
         rotateX(${deltaY * -6}deg)
         rotateY(${deltaX * 6}deg)
       `;
+      ticking = false;
     });
   };
 
@@ -62,7 +68,12 @@ export const initGlow = (el: HTMLElement, glowEl: HTMLElement) => {
   glowEl.style.willChange = "transform, opacity";
   glowEl.style.pointerEvents = "none";
 
+  let ticking = false;
+
   const onMove = (e: MouseEvent) => {
+    if (ticking) return;
+    ticking = true;
+
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -70,6 +81,7 @@ export const initGlow = (el: HTMLElement, glowEl: HTMLElement) => {
     window.requestAnimationFrame(() => {
       glowEl.style.transform = `translate3d(${x}px, ${y}px, 0) translate3d(-50%, -50%, 0)`;
       glowEl.style.opacity = "1";
+      ticking = false;
     });
   };
 

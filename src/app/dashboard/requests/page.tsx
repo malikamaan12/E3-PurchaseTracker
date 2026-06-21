@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
-import { useState } from "react";
+import { useState, lazy } from "react";
 import { 
   FileText, 
   Download, 
@@ -26,14 +26,15 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { initMagnetic, initGlow, pageLoad } from "@/lib/animations";
 import { RequestFilters } from "@/components/requests/RequestFilters";
-import CreateRequestModal from "@/components/requests/CreateRequestModal";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
 import { Edit2, Trash2, Zap } from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
-import { Suspense } from "react";
+
+// Lazy-load the heavy 62KB modal — only downloaded when user clicks "New Request"
+const CreateRequestModal = lazy(() => import("@/components/requests/CreateRequestModal"));
 
 function RequestsDashboardContent() {
   const queryClient = useQueryClient();
@@ -59,10 +60,13 @@ function RequestsDashboardContent() {
 
   // Sink URL search param 'q' into filter state
   useEffect(() => {
-    if (q !== null && q !== filters.search) {
-      setFilters(prev => ({ ...prev, search: q }));
-    }
-  }, [q]);
+    setFilters(prev => {
+      if (q !== null && q !== prev.search) {
+        return { ...prev, search: q };
+      }
+      return prev;
+    });
+  }, [q, setFilters]);
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
@@ -78,11 +82,6 @@ function RequestsDashboardContent() {
   const { data: purposes = [] } = useQuery({
     queryKey: ["purposes"],
     queryFn: () => apiClient.purposes.list(),
-  });
-
-  const { data: subPurposes = [] } = useQuery({
-    queryKey: ["subPurposes"],
-    queryFn: () => apiClient.requests.subPurposes.list(),
   });
 
   useEffect(() => {
@@ -258,21 +257,25 @@ function RequestsDashboardContent() {
         isProcessing={bulkApproveMutation.isPending}
       />
 
-      <CreateRequestModal 
-        isOpen={!!editingId || isCreateModalOpen}
-        onClose={() => {
-          setEditingId(null);
-          setIsCreateModalOpen(false);
-        }}
-        requestId={editingId || undefined}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["requests"] });
-          queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
-          queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
-          setEditingId(null);
-          setIsCreateModalOpen(false);
-        }}
-      />
+      {(!!editingId || isCreateModalOpen) && (
+        <Suspense fallback={null}>
+          <CreateRequestModal 
+            isOpen={!!editingId || isCreateModalOpen}
+            onClose={() => {
+              setEditingId(null);
+              setIsCreateModalOpen(false);
+            }}
+            requestId={editingId || undefined}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["requests"] });
+              queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+              setEditingId(null);
+              setIsCreateModalOpen(false);
+            }}
+          />
+        </Suspense>
+      )}
 
       <DeleteRequestDialog 
         isOpen={!!deleteRequest}

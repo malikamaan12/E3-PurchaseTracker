@@ -17,7 +17,6 @@ import {
   XCircle,
   AlertCircle
 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { usePerformance } from "@/context/PerformanceContext"
 
@@ -160,7 +159,6 @@ export default function ComplianceGatewayPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              <AnimatePresence mode="popLayout">
                 {isLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <tr key={i} className="animate-pulse">
@@ -171,12 +169,10 @@ export default function ComplianceGatewayPage() {
                   <tr><td colSpan={6} className="p-20 text-center text-muted-foreground">No records found matching your query.</td></tr>
                 ) : (
                   filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
-                    <motion.tr 
+                    <tr 
                       key={vendor.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      className="group hover:bg-white/[0.02] transition-colors"
+                      className="group hover:bg-white/[0.02] transition-colors animate-slide-up"
+                      style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
                     >
                       <td className="p-6">
                         <div className="flex flex-col">
@@ -195,23 +191,21 @@ export default function ComplianceGatewayPage() {
                       <td className="p-6 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <div className="w-24 h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${vendor.healthScore}%` }}
+                            <div 
                               className={cn(
-                                "h-full rounded-full shrink-0",
+                                "h-full rounded-full shrink-0 transition-all duration-700",
                                 vendor.healthScore === 100 ? "bg-brand-secondary shadow-[0_0_10px_rgba(47,183,178,0.3)]" :
                                 vendor.healthScore > 50 ? "bg-brand-primary shadow-[0_0_10px_rgba(91,75,138,0.3)]" : "bg-rose-500"
                               )}
+                              style={{ width: `${vendor.healthScore}%` }}
                             />
                           </div>
                           <span className="text-xs font-black tabular-nums opacity-80">{vendor.healthScore}%</span>
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))
                 )}
-              </AnimatePresence>
             </tbody>
           </table>
         </div>
@@ -219,7 +213,6 @@ export default function ComplianceGatewayPage() {
 
       {/* 4. Compliance Cards (MOBILE) */}
       <div className="lg:hidden space-y-4 mb-20">
-        <AnimatePresence mode="popLayout">
           {isLoading ? (
             Array(3).fill(0).map((_, i) => (
               <div key={i} className="glass p-6 rounded-3xl animate-pulse h-40 flex items-center justify-center text-muted-foreground">
@@ -232,12 +225,10 @@ export default function ComplianceGatewayPage() {
             </div>
           ) : (
             filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
-              <motion.div 
+              <div 
                 key={vendor.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.03 }}
-                className="glass p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm active-scale"
+                className="glass p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm active-scale animate-slide-up"
+                style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
               >
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex flex-col">
@@ -257,20 +248,18 @@ export default function ComplianceGatewayPage() {
                 </div>
 
                 <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${vendor.healthScore}%` }}
+                  <div 
                     className={cn(
-                      "h-full rounded-full",
+                      "h-full rounded-full transition-all duration-700",
                       vendor.healthScore === 100 ? "bg-emerald-500" :
                       vendor.healthScore > 50 ? "bg-brand-primary" : "bg-rose-500"
                     )}
+                    style={{ width: `${vendor.healthScore}%` }}
                   />
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
-        </AnimatePresence>
       </div>
 
       {/* Persistent Background Textures */}

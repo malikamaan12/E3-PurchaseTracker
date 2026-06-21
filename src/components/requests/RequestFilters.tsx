@@ -68,12 +68,15 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
   // Debounce main search board
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (localSearch !== filters.search) {
-        setFilters({ ...filters, search: localSearch });
-      }
+      setFilters((prev: any) => {
+        if (localSearch !== prev.search) {
+          return { ...prev, search: localSearch };
+        }
+        return prev;
+      });
     }, 800);
     return () => clearTimeout(timer);
-  }, [localSearch]);
+  }, [localSearch, setFilters]);
 
   // Sync pending when panel opens or when parent filters change (e.g. clear)
   useEffect(() => {

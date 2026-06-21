@@ -20,7 +20,6 @@ import {
   ChevronRight, 
   Globe 
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
@@ -159,48 +158,31 @@ export default function VendorsDashboard() {
 
       <VendorManagementModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
-      <AnimatePresence mode="wait">
-        {viewMode === "grid" ? (
-          <motion.div 
-            key="grid"
-            initial="hidden"
-            animate="show"
-            exit="hidden"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: {
-                  staggerChildren: 0.1
-                }
-              }
-            }}
+      {viewMode === "grid" ? (
+          <div 
             className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-8"
           >
-            {filteredVendors.map((vendor: any) => (
+            {filteredVendors.map((vendor: any, idx: number) => (
               <VendorCard 
                 key={vendor.id} 
-                vendor={vendor} 
+                vendor={vendor}
+                index={idx}
                 isAdmin={isAdmin}
                 onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
                 onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
               />
             ))}
-          </motion.div>
+          </div>
         ) : (
-          <motion.div 
-            key="list"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          >
+          <div>
             <VendorListView 
               vendors={filteredVendors} 
               isAdmin={isAdmin}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
               onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
 
       <section className="mt-12 space-y-6">
         <div className="flex items-center gap-3">
@@ -221,7 +203,7 @@ export default function VendorsDashboard() {
   );
 }
 
-function VendorCard({ vendor, isAdmin, onStatusChange, onRate }: { vendor: any; isAdmin: boolean; onStatusChange: (s: any) => void; onRate: (r: number) => void }) {
+function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor: any; isAdmin: boolean; onStatusChange: (s: any) => void; onRate: (r: number) => void; index: number }) {
   const statusColors: any = {
     active: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     blocked: "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -229,13 +211,9 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate }: { vendor: any; 
   };
 
   return (
-    <motion.div 
-      variants={{
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
-      }}
-      whileHover={{ y: -8, transition: { duration: 0.2 } }}
-      className="glass-card flex flex-col gap-0 overflow-hidden group border-border/40 hover:border-brand-primary/50 transition-colors shadow-2xl relative"
+    <div 
+      className="glass-card flex flex-col gap-0 overflow-hidden group border-border/40 hover:border-brand-primary/50 transition-all shadow-2xl relative hover:-translate-y-2 duration-300 animate-slide-up"
+      style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
       <div className="p-8 pb-6 relative">
         {/* Glow effect */}
@@ -304,7 +282,7 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate }: { vendor: any; 
           {vendor.status}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -352,13 +330,11 @@ function StatusToggle({ current, onChange }: { current: string; onChange: (s: an
 function LoadingState() {
   return (
     <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center">
-      <motion.div 
-        animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-        className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30 flex items-center justify-center shadow-lg"
+      <div 
+        className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30 flex items-center justify-center shadow-lg spin-css"
       >
          <Building2 className="w-8 h-8 text-brand-secondary" />
-      </motion.div>
+      </div>
       <p className="text-muted-foreground font-mono tracking-widest text-[10px] font-bold uppercase pt-4 animate-pulse">Syncing Entity Matrix...</p>
     </div>
   );

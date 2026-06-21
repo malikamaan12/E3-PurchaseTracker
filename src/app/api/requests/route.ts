@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(
         () => reject(new Error("Database synchronization timeout")),
-        8000
+        5000
       );
     });
 
@@ -155,7 +155,11 @@ export async function GET(req: NextRequest) {
     const requests = await Promise.race([listPromise, timeoutPromise]);
     clearTimeout(timeoutHandle!); // Cancel the timer if query won
 
-    return NextResponse.json(requests);
+    return NextResponse.json(requests, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=10, stale-while-revalidate=30',
+      },
+    });
   } catch (error: any) {
     if (error?.message === "Database synchronization timeout") {
       console.warn("[Native API] GET Requests: Query timed out — returning empty list");
