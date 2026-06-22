@@ -36,7 +36,7 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
     <div className="glass rounded-[2rem] border border-border/40 shadow-2xl overflow-hidden relative">
       <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[120px] rounded-full -mr-48 -mt-48 pointer-events-none" />
       
-      <div className="overflow-x-auto relative">
+      <div className="overflow-x-auto scrollbar-thin relative">
         <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead className="bg-secondary/20 border-b border-border/50">
             <tr>

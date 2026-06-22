@@ -3,10 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
-  AreaChart, Area, CartesianGrid 
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const EntityUtilizationChart = dynamic(() => import("@/components/admin/EntityUtilizationChart"), {
+  ssr: false,
+  loading: () => <div className="h-80 flex items-center justify-center text-muted-foreground text-xs font-black uppercase tracking-[0.2em] animate-pulse">Loading Chart...</div>
+});
 import { PieChart as PieChartIcon, TrendingUp, Building2, DownloadCloud, Printer, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -118,39 +120,7 @@ export default function DepartmentAnalyticsPage() {
              </div>
            ) : stats.length > 0 ? (
              <div className="h-80 relative">
-               <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={stats} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={1} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.6} />
-                      </linearGradient>
-                    </defs>
-                   <XAxis dataKey="department" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={10} />
-                   <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                   <Tooltip 
-                     contentStyle={{ 
-                       backgroundColor: 'rgba(var(--card), 0.8)', 
-                       backdropFilter: 'blur(12px)',
-                       borderColor: 'var(--border)', 
-                       borderRadius: '16px', 
-                       fontSize: '11px', 
-                       padding: '12px',
-                       boxShadow: '0 20px 40px -10px rgba(0,0,0,0.5)' 
-                     }}
-                     cursor={{fill: 'var(--secondary)', opacity: 0.3}}
-                   />
-                   <Bar dataKey="count" radius={[12, 12, 0, 0]} barSize={40}>
-                     {stats.map((entry: any, index: number) => (
-                       <Cell 
-                         key={`cell-${index}`} 
-                         fill={colors[index % colors.length]} 
-                         fillOpacity={0.8}
-                       />
-                     ))}
-                   </Bar>
-                 </BarChart>
-               </ResponsiveContainer>
+               <EntityUtilizationChart stats={stats} />
              </div>
            ) : (
               <div className="h-80 flex items-center justify-center text-muted-foreground text-xs font-black uppercase tracking-[0.2em] border border-dashed border-border rounded-3xl">Data Reservoir Empty</div>

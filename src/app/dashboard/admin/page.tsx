@@ -17,21 +17,18 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell,
-  PieChart,
-  Pie,
-  Legend
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/context/AuthContext";
-import ProjectUtilizationChart from "@/components/admin/ProjectUtilizationChart";
+
+const ProjectUtilizationChart = dynamic(() => import("@/components/admin/ProjectUtilizationChart"), {
+  ssr: false,
+  loading: () => <div className="h-[400px] flex items-center justify-center text-muted-foreground text-xs uppercase tracking-widest animate-pulse border border-dashed border-border rounded-3xl">Loading Chart...</div>
+});
+
+const CategorySpendChart = dynamic(() => import("@/components/admin/CategorySpendChart"), {
+  ssr: false,
+  loading: () => <div className="h-[250px] flex items-center justify-center text-muted-foreground text-xs uppercase tracking-widest animate-pulse">Loading Chart...</div>
+});
 import { PurgeRequestsModal } from "@/components/admin/PurgeRequestsModal";
 import { ShieldAlert } from "lucide-react";
 
@@ -180,32 +177,7 @@ export default function AdminOverviewPage() {
             <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest leading-none">Hierarchical Classification</p>
           </div>
           <div className="h-[250px] flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={analytics?.categories || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="spent"
-                  nameKey="categoryName"
-                >
-                  {(analytics?.categories || []).map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    borderColor: 'hsl(var(--border))', 
-                    borderRadius: '12px',
-                    fontSize: '11px'
-                  }} 
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <CategorySpendChart data={analytics?.categories || []} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Spent</span>
                 <span className="text-lg font-serif font-bold text-foreground">
