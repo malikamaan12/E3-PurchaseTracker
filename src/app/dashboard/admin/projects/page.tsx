@@ -147,7 +147,7 @@ export default function AdminProjectsPage() {
             }`}
           >
             <div className="p-8">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="space-y-1">
                    <div className="flex items-center gap-3">
                       <h3 className="text-2xl font-serif font-black tracking-tight">{project.name}</h3>

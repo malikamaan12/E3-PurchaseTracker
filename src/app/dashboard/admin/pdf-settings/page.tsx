@@ -146,7 +146,7 @@ export default function PdfSettingsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto pb-20">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">PDF Document Settings</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium italic">Configure global appearance for generated Transport Manifests and Purchase Orders.</p>

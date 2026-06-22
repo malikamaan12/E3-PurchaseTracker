@@ -85,7 +85,7 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Financial Command Center</h1>
           <p className="text-sm text-muted-foreground mt-2 font-medium">Real-time budget utilization and cross-departmental spend analysis.</p>

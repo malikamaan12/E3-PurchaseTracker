@@ -46,7 +46,7 @@ export default function AdminVendorsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Vendor Enforcement</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium italic">High-level supplier compliance tracking and RBAC status overrides.</p>

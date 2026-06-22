@@ -90,7 +90,7 @@ export default function PurposeCategoriesPage() {
 
       {isAdding && (
         <div className="bg-card p-6 rounded-3xl border border-brand-primary/30 shadow-2xl animate-in zoom-in-95 duration-200">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 mb-6">
             <h3 className="text-lg font-bold">New Category Definition</h3>
             <button onClick={() => setIsAdding(false)} className="text-muted-foreground hover:text-foreground p-1 transition-colors">
               <X className="w-5 h-5" />

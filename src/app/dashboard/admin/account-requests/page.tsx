@@ -46,7 +46,7 @@ export default function AccountRequestsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Account Requests</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium italic">Review and approve new user registrations pending access.</p>
@@ -62,7 +62,7 @@ export default function AccountRequestsPage() {
           <div key={req.id} className="bg-card p-6 rounded-3xl border border-border flex flex-col justify-between hover:border-brand-primary/20 transition-all shadow-xl group">
             
             <div className="space-y-4">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary font-bold text-lg uppercase border border-brand-primary/20">
                   {req.username.substring(0,2)}
                 </div>

@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <AdminSidebar />
 
       {/* Main admin content area */}
-      <div className="flex-1 w-full bg-card p-8 rounded-3xl border border-border relative shadow-xl overflow-hidden transition-all duration-500">
+      <div className="flex-1 w-full bg-card p-4 sm:p-8 rounded-3xl border border-border relative shadow-xl overflow-hidden transition-all duration-500">
         <div className="absolute inset-0 bg-background mix-blend-saturation pointer-events-none opacity-20" />
         <div className="relative z-10">
           {children}
