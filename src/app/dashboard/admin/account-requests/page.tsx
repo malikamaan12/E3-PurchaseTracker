@@ -59,7 +59,7 @@ export default function AccountRequestsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {requests.map((req: any) => (
-          <div key={req.id} className="bg-card p-6 rounded-3xl border border-border flex flex-col justify-between hover:border-brand-primary/20 transition-all shadow-xl group">
+          <div key={req.id} className="bg-card p-6 rounded-3xl border border-border flex flex-col justify-between hover:border-brand-primary/20 transition-all shadow-xl group min-w-0">
             
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
@@ -71,9 +71,9 @@ export default function AccountRequestsPage() {
                 </div>
               </div>
               
-              <div>
-                <h3 className="text-xl font-bold text-foreground tracking-tight group-hover:text-brand-primary transition-colors">{req.username}</h3>
-                <p className="text-sm text-muted-foreground">{req.email}</p>
+              <div className="min-w-0">
+                <h3 className="text-xl font-bold text-foreground tracking-tight group-hover:text-brand-primary transition-colors truncate" title={req.username}>{req.username}</h3>
+                <p className="text-sm text-muted-foreground truncate" title={req.email}>{req.email}</p>
                 <div className="flex gap-4 mt-3">
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><CopyPlus className="w-3 h-3"/>{req.contact_number}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><Building2 className="w-3 h-3"/>{req.department}</p>
