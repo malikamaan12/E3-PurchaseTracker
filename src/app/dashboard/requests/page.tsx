@@ -174,8 +174,8 @@ function RequestsDashboardContent() {
   const { highPerformanceMode } = usePerformance();
 
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
-      <header className="flex justify-between items-end">
+    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <h1 className="text-4xl font-serif tracking-tight text-foreground">Purchase Requests</h1>
           <p className="text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
@@ -403,7 +403,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (selectedCount === 0) return null;
 
   const content = (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-card px-8 py-5 rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-50 flex items-center gap-8">
+    <div className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 glass-card px-4 md:px-8 py-3 md:py-5 rounded-2xl md:rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-[110] flex items-center gap-4 md:gap-8 w-[95vw] md:w-auto overflow-x-auto custom-scrollbar">
       <div className="flex flex-col">
         <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
         <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>

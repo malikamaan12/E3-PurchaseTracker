@@ -83,7 +83,7 @@ export default function AnalyticsDashboardPage() {
         <div className="absolute bottom-[20%] left-[-5%] w-[35%] h-[35%] bg-brand-secondary/10 dark:bg-brand-secondary/10 rounded-full blur-[100px] animate-fluid-drift [animation-delay:4s]" />
       </div>
 
-      <div className="flex-1 space-y-12 p-8 pt-6 max-w-[1440px] mx-auto relative z-10">
+      <div className="flex-1 space-y-8 md:space-y-12 p-4 md:p-8 pt-6 max-w-[1440px] mx-auto relative z-10">
         <div className="dashboard-header flex flex-col lg:flex-row lg:items-center justify-between gap-6 opacity-0">
           <div className="space-y-2">
             <div className="flex items-center gap-4">

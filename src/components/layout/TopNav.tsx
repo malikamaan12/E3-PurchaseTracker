@@ -145,13 +145,13 @@ export default function TopNav() {
   if (!isMounted) return null;
 
   return (
-    <header className="h-[72px] border-b border-border/10 bg-background/80 backdrop-blur-xl flex items-center justify-between px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe">
+    <header className="h-[72px] border-b border-border/10 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe">
       <div className="flex items-center gap-10">
         {/* MOBILE TRIGGER */}
         <div className="lg:hidden">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
-              <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all active-scale">
+              <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all active-scale">
                 <Menu className="w-5 h-5" />
               </button>
             </SheetTrigger>
@@ -223,7 +223,7 @@ export default function TopNav() {
           <button 
             onClick={() => setIsNotifOpen(!isNotifOpen)}
             className={cn(
-              "p-2.5 rounded-xl transition-all relative group active-scale",
+              "p-3 rounded-xl transition-all relative group active-scale",
               isNotifOpen ? "bg-brand-primary/10 text-brand-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
@@ -301,7 +301,7 @@ export default function TopNav() {
           <button
             onClick={() => setHighPerformanceMode(!highPerformanceMode)}
             className={cn(
-               "p-2.5 rounded-xl transition-all active-scale",
+               "p-3 rounded-xl transition-all active-scale",
                highPerformanceMode ? "bg-amber-500/10 text-amber-500" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
             title="Performance Mode"
@@ -328,7 +328,7 @@ export default function TopNav() {
           </div>
           <button 
             onClick={handleLogout}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all active-scale"
+            className="p-3 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all active-scale"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />

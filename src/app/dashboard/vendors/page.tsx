@@ -90,7 +90,7 @@ export default function VendorsDashboard() {
   if (isLoading) return <LoadingState />;
 
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 max-w-7xl mx-auto w-full">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
         <div className="space-y-2">
           <h1 className="text-5xl font-serif font-black tracking-tighter text-foreground leading-none">Vendor Ecosystem</h1>

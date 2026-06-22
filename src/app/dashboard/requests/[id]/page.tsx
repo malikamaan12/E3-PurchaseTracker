@@ -153,7 +153,7 @@ export default function RequestDetailPage() {
 
       {/* Sticky Action Bar */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4">
-        <div className="max-w-[1600px] mx-auto flex justify-between items-center">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-6">
             <button 
               onClick={() => router.back()}
@@ -165,7 +165,7 @@ export default function RequestDetailPage() {
               <span className="text-xs font-mono font-bold text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-md border border-brand-primary/20">
                 {request.requestNumber}
               </span>
-              <h1 className="text-xl font-serif text-foreground truncate max-w-md">{request.title}</h1>
+              <h1 className="text-xl font-serif text-foreground truncate max-w-[200px] md:max-w-md">{request.title}</h1>
               <StatusBadge status={request.status} />
             </div>
           </div>
@@ -424,12 +424,12 @@ export default function RequestDetailPage() {
                 </div>
               </div>
               <div className="p-6 space-y-6">
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="space-y-1 border-r border-border pr-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                  <div className="space-y-1 sm:border-r border-border sm:pr-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Net Item Subtotal</p>
                     <p className="text-xl font-serif text-foreground tracking-tighter">{(request.totalEstimatedCost || 0).toLocaleString()}</p>
                   </div>
-                  <div className="space-y-1 border-r border-border px-4">
+                  <div className="space-y-1 sm:border-r border-border sm:px-4">
                      <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Payment Cycle</p>
                      <div className="flex flex-col gap-1 mt-1">
                        <p className="text-base font-serif text-foreground capitalize leading-none pt-1">
@@ -442,7 +442,7 @@ export default function RequestDetailPage() {
                        )}
                      </div>
                   </div>
-                  <div className="space-y-1 pl-4">
+                  <div className="space-y-1 sm:pl-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Freight & Logistics</p>
                     <p className="text-xl font-serif text-muted-foreground tracking-tighter">{(request.freightAmount || 0).toLocaleString()}</p>
                   </div>

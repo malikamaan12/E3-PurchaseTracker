@@ -357,10 +357,10 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                 {isOverpaid ? "Initiate Variation for Overpayment" : "Request Manual Overrun"}
               </button>
             ) : (
-              <div className="flex items-center gap-2 bg-background p-2 rounded-xl border border-border shadow-2xl">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background p-2 rounded-xl border border-border shadow-2xl">
                 <input type="number" placeholder="Enter New Total Cost" value={variationAmount}
                   onChange={(e) => setVariationAmount(e.target.value)}
-                  className="px-4 py-2 text-sm rounded-lg bg-secondary border-none outline-none focus:ring-2 focus:ring-[#5B4B8A]/30 font-mono w-56 text-foreground"
+                  className="px-4 py-2 text-[16px] md:text-sm rounded-lg bg-secondary border-none outline-none focus:ring-2 focus:ring-[#5B4B8A]/30 font-mono w-full sm:w-56 text-foreground"
                 />
                 <button onClick={() => {
                    const num = Math.round(Number(variationAmount));
@@ -439,7 +439,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     setFormData({ ...formData, status: e.target.value }); 
                                     setIsFinalSettlement(false); 
                                   }}
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-[16px] md:text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 >
                                   <option value="pending">Awaiting Action</option>
                                   <option value="partial">Partial Payment</option>
@@ -459,7 +459,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     type="number" 
                                     value={formData.paidAmount}
                                     onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm font-mono font-bold transition-all h-11 ${
+                                    className={`w-full bg-background border rounded-xl px-4 py-3 text-[16px] md:text-sm font-mono font-bold transition-all h-11 ${
                                       isOverpaid ? "border-rose-500 ring-4 ring-rose-500/10" : "border-border focus:border-[#2FB7B2]"
                                     }`}
                                   />
@@ -476,7 +476,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                   type="date" 
                                   value={formData.actualPaymentDate}
                                   onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-[16px] md:text-sm font-bold text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 />
                               </div>
 
@@ -488,7 +488,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                   value={formData.transactionReference}
                                   onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })}
                                   placeholder="TRF-..."
-                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
+                                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-[16px] md:text-sm font-mono text-foreground outline-none focus:border-[#2FB7B2] transition-all h-11"
                                 />
                               </div>
                            </div>
@@ -689,7 +689,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                     <select 
                                       value={formData.status}
                                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-xs font-bold"
+                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-[16px] md:text-xs font-bold"
                                     >
                                       <option value="pending">Awaiting Action</option>
                                       <option value="partial">Partial</option>
@@ -702,7 +702,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                                       type="number" 
                                       value={formData.paidAmount}
                                       onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-xs font-mono font-bold"
+                                      className="w-full h-11 bg-background border border-border rounded-lg px-4 text-[16px] md:text-xs font-mono font-bold"
                                     />
                                   </div>
                                </div>

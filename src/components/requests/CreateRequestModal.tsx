@@ -433,8 +433,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
 
                     {/* ── Tab 1: General Details ── */}
                     {activeTab === "general" && (
-                      <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-2 gap-8">
-                        <div className="col-span-2 space-y-3">
+                      <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="md:col-span-2 space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Request Title</label>
                           <div className="relative group">
                             <Layout className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
@@ -637,7 +637,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         </div>
 
-                        <div className="col-span-2 space-y-3">
+                        <div className="md:col-span-2 space-y-3">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Requirement Overview</label>
                           <div className="relative group">
                             <AlignLeft className="absolute left-5 top-5 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
@@ -687,7 +687,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             control={control}
                             name="paymentStructure"
                             render={({ field }) => (
-                              <div className="grid grid-cols-3 gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {[
                                   { value: "ADVANCE", label: "Full Advance", sub: "100% upfront upon approval", icon: <Zap className="w-5 h-5" /> },
                                   { value: "IN_PARTS", label: "In Milestones", sub: "Split into payment stages", icon: <Calculator className="w-5 h-5" /> },
@@ -777,7 +777,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                         <X className="w-4 h-4" />
                                       </button>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                       <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Due Date</label>
                                         <input

@@ -118,7 +118,7 @@ export default function ComplianceGatewayPage() {
   )
 
   return (
-    <div className="relative min-h-screen p-8 max-w-[1440px] mx-auto overflow-hidden">
+    <div className="relative min-h-screen p-4 sm:p-8 max-w-[1440px] mx-auto overflow-hidden">
       {/* 1. Header & Global Analytics */}
       <header className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12 relative z-10">
         <div className="max-w-xl">
@@ -139,7 +139,7 @@ export default function ComplianceGatewayPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full lg:w-auto min-w-[600px]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto min-w-[300px] sm:min-w-[600px]">
           <KpiDisk 
             label="System Health" 
             value={data?.summary.systemHealth || 0} 
@@ -162,7 +162,7 @@ export default function ComplianceGatewayPage() {
       </header>
 
       {/* 2. Controls */}
-      <div className="flex items-center gap-4 mb-8 sticky top-20 z-40 bg-background/50 backdrop-blur-md p-2 rounded-2xl border border-white/5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 sticky top-20 z-40 bg-background/50 backdrop-blur-md p-2 rounded-2xl border border-white/5">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input 
@@ -173,7 +173,7 @@ export default function ComplianceGatewayPage() {
             className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-brand-primary/20 transition-all outline-none"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
           <button onClick={handleExport} className="h-12 px-6 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
             <Download className="w-4 h-4" /> Export Audit
           </button>

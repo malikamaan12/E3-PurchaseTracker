@@ -31,7 +31,7 @@ export default function DashboardLayout({
       <TopNav />
       
       {/* Scrollable Page Content */}
-      <main className="flex-1 overflow-y-auto bg-background px-6 py-6 md:px-12 md:py-10 custom-scrollbar relative pb-safe">
+      <main className="flex-1 overflow-y-auto bg-background px-4 sm:px-6 py-6 md:px-12 md:py-10 custom-scrollbar relative pb-safe">
         <div className="max-w-[1600px] mx-auto w-full">
           {children}
         </div>

@@ -124,7 +124,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
             </div>
 
             {/* Stepper Header */}
-            <div className="flex gap-4 mb-10 bg-secondary/30 p-4 rounded-3xl border border-border relative">
+            <div className="flex gap-2 sm:gap-4 mb-10 bg-secondary/30 p-4 rounded-3xl border border-border relative flex-wrap sm:flex-nowrap">
               <StepIndicator current={step} target={1} label="Identity" />
               <StepIndicator current={step} target={2} label="Finance" />
               <StepIndicator current={step} target={3} label="Compliance" />
@@ -138,13 +138,13 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-2 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
                   >
                     <FormField icon={Building2} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
                     <FormField icon={User} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
                     <FormField icon={Mail} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
                     <FormField icon={Phone} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                        <FormField icon={Globe} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
                     </div>
                   </motion.div>
@@ -156,7 +156,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-2 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
                   >
                     <FormField icon={Landmark} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
                     <FormField icon={Landmark} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
@@ -171,7 +171,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-2 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
                   >
                     <FormField icon={FileCheck} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
                     <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />

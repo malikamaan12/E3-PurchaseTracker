@@ -102,7 +102,7 @@ function LoginContent() {
         </div>
 
         {/* Glassmorphism Hub Card */}
-        <div className="glass-card p-10 relative overflow-hidden group">
+        <div className="glass-card p-6 sm:p-10 relative overflow-hidden group">
           {/* Internal card sheen */}
           <div className="absolute -top-[150%] -left-[150%] w-[400%] h-[400%] bg-white/5 dark:bg-white/[0.02] transform rotate-12 pointer-events-none group-hover:duration-1000 transition-transform duration-500" />
           
