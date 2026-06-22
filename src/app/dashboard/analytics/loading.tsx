@@ -1,6 +1,6 @@
 export default function AnalyticsLoading() {
   return (
-    <div className="flex-1 space-y-12 p-8 pt-6 max-w-[1440px] mx-auto animate-pulse">
+    <div className="flex-1 space-y-12 p-8 pt-6 w-full animate-pulse">
       {/* Header skeleton */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-3">

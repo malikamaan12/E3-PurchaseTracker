@@ -118,7 +118,7 @@ export default function ComplianceGatewayPage() {
   )
 
   return (
-    <div className="relative min-h-screen p-4 sm:p-8 max-w-[1440px] mx-auto overflow-hidden">
+    <div className="relative min-h-screen p-4 sm:p-8 w-full overflow-hidden">
       {/* 1. Header & Global Analytics */}
       <header className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12 relative z-10">
         <div className="max-w-xl">

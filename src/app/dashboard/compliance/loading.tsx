@@ -1,6 +1,6 @@
 export default function ComplianceLoading() {
   return (
-    <div className="relative min-h-screen p-8 max-w-[1440px] mx-auto animate-pulse">
+    <div className="relative min-h-screen p-8 w-full animate-pulse">
       {/* Header skeleton */}
       <header className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12">
         <div className="max-w-xl space-y-4">
