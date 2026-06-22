@@ -146,9 +146,9 @@ export default function TopNav() {
 
   return (
     <header className="h-[72px] border-b border-border/10 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe">
-      <div className="flex items-center gap-10">
+      <div className="flex items-center gap-4 lg:gap-10 shrink-0 min-w-0">
         {/* MOBILE TRIGGER */}
-        <div className="lg:hidden">
+        <div className="lg:hidden shrink-0">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
               <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all active-scale">
@@ -162,9 +162,9 @@ export default function TopNav() {
         </div>
 
         {/* E3 BRANDING LOGO */}
-        <Link href="/dashboard" className="flex items-center group">
-          <img src="/logo-color.png" alt="E3" className="h-8 w-auto dark:hidden transition-transform group-hover:scale-105" />
-          <img src="/logo-white.png" alt="E3" className="h-8 w-auto hidden dark:block transition-transform group-hover:scale-105" />
+        <Link href="/dashboard" className="flex items-center group shrink-0">
+          <img src="/logo-color.png" alt="E3" className="h-8 w-auto object-contain dark:hidden transition-transform group-hover:scale-105" />
+          <img src="/logo-white.png" alt="E3" className="h-8 w-auto object-contain hidden dark:block transition-transform group-hover:scale-105" />
         </Link>
         
         {/* MAIN NAVIGATION (DESKTOP) */}

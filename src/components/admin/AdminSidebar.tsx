@@ -54,11 +54,13 @@ export default function AdminSidebar() {
   if (!isMounted) return null;
 
   return (
-    <motion.div 
-      initial={false}
-      animate={{ width: isCollapsed ? 80 : 260 }}
-      className="flex flex-col gap-2 relative h-full"
-    >
+    <>
+      {/* DESKTOP SIDEBAR */}
+      <motion.div 
+        initial={false}
+        animate={{ width: isCollapsed ? 80 : 260 }}
+        className="hidden md:flex flex-col gap-2 relative h-full shrink-0"
+      >
       <div className={cn(
         "mb-6 flex items-center justify-between",
         isCollapsed ? "flex-col gap-4" : "flex-row"
@@ -135,6 +137,27 @@ export default function AdminSidebar() {
           );
         })}
       </div>
-    </motion.div>
+      </motion.div>
+
+      {/* MOBILE BUBBLE SLIDER */}
+      <div className="md:hidden flex overflow-x-auto gap-2 pb-2 custom-scrollbar w-full shrink-0 snap-x">
+        {adminNavItems.map((item) => {
+          const isActive = pathname === item.path;
+          return (
+            <Link key={item.path} href={item.path} className="shrink-0 snap-start">
+              <div className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold transition-all shadow-sm border",
+                isActive 
+                  ? "bg-brand-primary text-white border-brand-primary/50 shadow-brand-primary/20" 
+                  : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+              )}>
+                <item.icon className="w-4 h-4" />
+                {item.name}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }

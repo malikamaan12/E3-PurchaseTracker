@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-8 min-h-[calc(100vh-120px)] w-full">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-8 min-h-[calc(100vh-120px)] w-full">
       {/* Admin specific sidebar - Dynamic width enabled */}
       <AdminSidebar />
 
