@@ -46,7 +46,7 @@ function CreateUserModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300 custom-scrollbar">
         <div className="p-6 border-b border-white/5 bg-white/5">
           <h2 className="text-xl font-bold text-white font-serif">Create New User</h2>
           <p className="text-xs text-zinc-400 mt-1">Onboard a new system user with specific role and department.</p>
@@ -263,7 +263,7 @@ export default function UserManagementPage() {
                   <td className="p-4 text-right">
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger asChild>
-                        <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white">
+                        <button className="w-11 h-11 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white">
                           <MoreHorizontal className="w-5 h-5" />
                         </button>
                       </DropdownMenu.Trigger>

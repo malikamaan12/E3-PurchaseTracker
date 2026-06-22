@@ -146,7 +146,7 @@ export default function ProjectManagementPage() {
       </div>
 
       {/* Project Table */}
-      <div className="bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-2xl relative">
+      <div className="bg-card rounded-[2.5rem] border border-border overflow-x-auto custom-scrollbar shadow-2xl relative">
         <div className="absolute inset-x-0 h-1 top-0 bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary opacity-50" />
         <table className="w-full text-left border-collapse">
           <thead>
@@ -191,13 +191,13 @@ export default function ProjectManagementPage() {
                 <td className="p-6 text-right space-x-1">
                    <button 
                       onClick={() => updateStatusMutation.mutate({ id: proj.id, data: { status: proj.status === 'active' ? 'frozen' : 'active' }})}
-                      className="p-3 hover:bg-white rounded-2xl text-muted-foreground hover:text-brand-primary transition-all shadow-none hover:shadow-xl active:scale-95"
+                      className="w-11 h-11 flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-brand-primary transition-all shadow-none hover:shadow-xl active:scale-95"
                       title="Toggle Freeze Status"
                     >
                       <Snowflake className={`w-5 h-5 ${proj.status === 'frozen' ? 'fill-brand-primary/20' : ''}`} />
                     </button>
                     <button 
-                      className="p-3 hover:bg-white rounded-2xl text-muted-foreground hover:text-rose-500 transition-all shadow-none hover:shadow-xl active:scale-95"
+                      className="w-11 h-11 flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-rose-500 transition-all shadow-none hover:shadow-xl active:scale-95"
                       title="Archive Project"
                     >
                       <Trash2 className="w-5 h-5" />

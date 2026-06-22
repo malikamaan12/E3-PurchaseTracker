@@ -4,12 +4,24 @@ import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AnalyticsFilterBar, AnalyticsFilters } from "@/components/analytics/AnalyticsFilterBar"
 import { apiClient } from "@/lib/apiClient"
-import { 
-  CashFlowChart, 
-  BudgetSavingsChart, 
-  DistributionDonut, 
-  ComplianceRadar 
-} from "@/components/analytics/AnalyticsCharts"
+import dynamic from "next/dynamic"
+
+const CashFlowChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.CashFlowChart), { 
+  ssr: false, 
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+})
+const BudgetSavingsChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.BudgetSavingsChart), { 
+  ssr: false, 
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+})
+const DistributionDonut = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.DistributionDonut), { 
+  ssr: false, 
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+})
+const ComplianceRadar = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.ComplianceRadar), { 
+  ssr: false, 
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+})
 import { usePerformance } from "@/context/PerformanceContext"
 import { cn } from "@/lib/utils"
 import { 

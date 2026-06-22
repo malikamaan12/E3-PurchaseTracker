@@ -108,10 +108,10 @@ export default function AdminVendorsPage() {
                   <div className="flex items-center justify-end gap-2">
                     <button 
                       onClick={() => handleEdit(vendor)}
-                      className="p-2 rounded-lg bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-brand-primary transition-all border border-border group-hover:border-brand-primary/30"
+                      className="w-11 h-11 flex items-center justify-center rounded-lg bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-brand-primary transition-all border border-border group-hover:border-brand-primary/30"
                       title="Edit Details"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-5 h-5" />
                     </button>
                     <div className="w-px h-6 bg-border mx-1" />
                     <button 

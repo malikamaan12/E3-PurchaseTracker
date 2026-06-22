@@ -100,11 +100,11 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-[101] focus:outline-none">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] md:max-w-2xl z-[101] focus:outline-none">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-card p-8 border border-border shadow-2xl relative overflow-hidden rounded-[2.5rem]"
+            className="bg-card p-8 border border-border shadow-2xl relative overflow-y-auto max-h-[85vh] rounded-[2.5rem] custom-scrollbar"
           >
             {/* Header */}
             <div className="flex justify-between items-start mb-10 relative">

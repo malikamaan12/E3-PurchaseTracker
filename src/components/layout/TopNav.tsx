@@ -162,9 +162,9 @@ export default function TopNav() {
         </div>
 
         {/* E3 BRANDING LOGO */}
-        <Link href="/dashboard" className="flex items-center group shrink-0">
-          <img src="/logo-color.png" alt="E3" className="h-8 w-auto object-contain dark:hidden transition-transform group-hover:scale-105" />
-          <img src="/logo-white.png" alt="E3" className="h-8 w-auto object-contain hidden dark:block transition-transform group-hover:scale-105" />
+        <Link href="/dashboard" className="flex items-center shrink-0">
+          <img src="/logo-color.png" alt="E3" className="h-8 max-w-[120px] object-contain dark:hidden transition-transform hover:scale-105" />
+          <img src="/logo-white.png" alt="E3" className="h-8 max-w-[120px] object-contain hidden dark:block transition-transform hover:scale-105" />
         </Link>
         
         {/* MAIN NAVIGATION (DESKTOP) */}

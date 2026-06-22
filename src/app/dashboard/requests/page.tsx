@@ -191,7 +191,7 @@ function RequestsDashboardContent() {
         metadata={{ departments, vendors, purposes }} 
       />
 
-      <main className="glass-card overflow-x-auto custom-scrollbar relative">
+      <main className="glass-card overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
           <thead className="bg-white/5 dark:bg-white/[0.02] border-b border-white/10 dark:border-white/5 uppercase text-[10px] tracking-widest text-muted-foreground font-bold font-sans">
             <tr>
@@ -484,19 +484,19 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             {request.status === "pending" && (
               <button 
                 onClick={onApprove}
-                className="p-2 rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all active:scale-90"
+                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all active:scale-90"
                 title="Quick Approve"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-5 h-5" />
               </button>
             )}
             
             <button 
               onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-              className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
               title="View Details"
             >
-              <Eye className="w-4 h-4" />
+              <Eye className="w-5 h-5" />
             </button>
 
             {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
@@ -530,18 +530,18 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
             <button 
               onClick={() => apiClient.documents.downloadPdf(request.id)}
-              className="p-2 rounded-xl hover:bg-brand-primary/10 text-zinc-400 hover:text-brand-primary transition-all active:scale-90"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-brand-primary/10 text-zinc-400 hover:text-brand-primary transition-all active:scale-90"
               title="Download PDF"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-5 h-5" />
             </button>
 
             <button 
               onClick={() => apiClient.documents.downloadZip(request.id)}
-              className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
               title="Download All (ZIP)"
             >
-              <Archive className="w-4 h-4" />
+              <Archive className="w-5 h-5" />
             </button>
           </div>
         </td>
@@ -612,18 +612,18 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             <>
               <button 
                 onClick={onEdit}
-                className="p-2 rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
+                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
                 title="Edit Request"
               >
-                <Edit2 className="w-4 h-4" />
+                <Edit2 className="w-5 h-5" />
               </button>
               
               <button 
                 onClick={onDelete}
-                className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
+                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
                 title="Delete Request"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-5 h-5" />
               </button>
             </>
           ) : (

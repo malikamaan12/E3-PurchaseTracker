@@ -347,7 +347,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-full max-w-5xl bg-card border rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.2)]" : "border-border"}`}
+            className={`relative w-[95vw] md:max-w-5xl bg-card border rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.2)]" : "border-border"}`}
           >
             {/* Header */}
             <div className={`p-10 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-gradient-to-br from-primary/10 via-card to-card"}`}>
