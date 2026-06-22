@@ -32,10 +32,10 @@ export default function DashboardError({
           Institutional Service Interruption
         </h1>
         
-        <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-          An unexpected error occurred within the procurement engine. This may be due to a temporary synchronization failure or an unauthorized state transition. 
-          The security layer has intercepted the fault to prevent data corruption.
-        </p>
+        <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl text-left overflow-auto text-xs font-mono text-rose-500 mb-8 max-h-[300px]">
+          <p className="font-bold mb-2">{error.message || "Unknown Runtime Error"}</p>
+          <pre className="whitespace-pre-wrap opacity-80">{error.stack}</pre>
+        </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
