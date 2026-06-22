@@ -219,12 +219,12 @@ export default function UserManagementPage() {
               {users.map((user: User) => (
                 <tr key={user.id} className="hover:bg-secondary/50 transition-colors group">
                   <td className="p-4">
-                    <div className="max-w-[150px] sm:max-w-[250px]">
-                      <p className="text-sm font-bold text-foreground transition-colors truncate" title={user.username}>{user.username}</p>
-                      <p className="text-xs text-muted-foreground truncate" title={user.email}>{user.email}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground transition-colors truncate whitespace-nowrap" title={user.username}>{user.username}</p>
+                      <p className="text-xs text-muted-foreground truncate whitespace-nowrap" title={user.email}>{user.email}</p>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-muted-foreground">{user.contact_number}</td>
+                  <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{user.contact_number}</td>
                   <td className="p-4">
                     <span className="px-2 py-1 bg-secondary rounded text-xs font-medium text-foreground transition-colors">
                       {user.department}

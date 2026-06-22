@@ -32,7 +32,7 @@ export default function DashboardLayout({
       
       {/* Scrollable Page Content */}
       <main className="flex-1 overflow-y-auto bg-background custom-scrollbar relative pb-safe">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 w-full">
           {children}
         </div>
         

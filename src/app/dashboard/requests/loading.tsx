@@ -1,6 +1,6 @@
 export default function RequestsLoading() {
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full animate-pulse">
+    <div className="flex flex-col gap-8 p-8 w-full animate-pulse">
       {/* Header skeleton */}
       <header className="flex justify-between items-end">
         <div className="space-y-3">

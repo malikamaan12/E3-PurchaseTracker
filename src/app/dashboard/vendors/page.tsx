@@ -90,7 +90,7 @@ export default function VendorsDashboard() {
   if (isLoading) return <LoadingState />;
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 mx-auto w-full">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
         <div className="space-y-2">
           <h1 className="text-5xl font-serif font-black tracking-tighter text-foreground leading-none">Vendor Ecosystem</h1>
@@ -284,7 +284,7 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
             </div>
             <div className="min-w-0">
                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Base of Operations</p>
-               <p className="text-sm text-zinc-300 truncate w-full font-medium">{vendor.address}</p>
+               <p className="text-sm text-zinc-300 w-full font-medium">{vendor.address}</p>
             </div>
          </div>
          <div className="flex items-center gap-4">
@@ -293,7 +293,7 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
             </div>
             <div className="min-w-0">
                <p className="text-[10px] font-black text-emerald-500/40 uppercase tracking-widest">Banking Pipeline</p>
-               <p className="text-sm text-zinc-300 truncate font-medium">{vendor.bankName} — <span className="font-mono text-zinc-500 text-[10px] tracking-widest">{vendor.ibanNumber?.substring(0, 10)}...</span></p>
+               <p className="text-sm text-zinc-300 font-medium">{vendor.bankName} — <span className="font-mono text-zinc-500 text-[10px] tracking-widest">{vendor.ibanNumber}</span></p>
             </div>
          </div>
       </div>
@@ -331,7 +331,7 @@ function ContactItem({ icon, label, value, theme }: { icon: any; label: string; 
         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">{label}</p>
         <div className={`${themes[theme]} p-1 rounded-md border`}>{icon}</div>
       </div>
-      <p className="text-[11px] text-foreground font-black truncate leading-none pt-1">{value}</p>
+      <p className="text-[11px] text-foreground font-black break-all leading-tight pt-1">{value}</p>
     </div>
   );
 }
@@ -362,7 +362,7 @@ function StatusToggle({ current, onChange }: { current: string; onChange: (s: an
 
 function LoadingState() {
   return (
-    <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center">
+    <div className="flex flex-col gap-4 p-8 w-full h-[60vh] justify-center items-center">
       <div 
         className="w-16 h-16 rounded-3xl bg-brand-secondary/20 border border-brand-secondary/30 flex items-center justify-center shadow-lg spin-css"
       >

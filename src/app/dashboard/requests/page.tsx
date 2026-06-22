@@ -174,7 +174,7 @@ function RequestsDashboardContent() {
   const { highPerformanceMode } = usePerformance();
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 w-full">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <h1 className="text-4xl font-serif tracking-tight text-foreground">Purchase Requests</h1>
@@ -732,7 +732,7 @@ function TableRowSkeleton() {
 
 function LoadingState() {
   return (
-    <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[60vh] justify-center items-center">
+    <div className="flex flex-col gap-4 p-8 w-full h-[60vh] justify-center items-center">
       <div 
         className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"
       />

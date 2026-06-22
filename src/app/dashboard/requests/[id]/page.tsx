@@ -970,7 +970,7 @@ function ErrorState({ error }: { error?: any }) {
                 : (error?.data?.details || error?.message || "An unexpected error occurred within the procurement engine.");
 
   return (
-    <div className="flex flex-col gap-4 p-8 max-w-7xl mx-auto w-full h-[70vh] justify-center items-center text-center">
+    <div className="flex flex-col gap-4 p-8 w-full h-[70vh] justify-center items-center text-center">
       <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
         <XCircle className="w-10 h-10 text-rose-500" />
       </div>

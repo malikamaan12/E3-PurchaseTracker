@@ -1,6 +1,6 @@
 export default function VendorsLoading() {
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto w-full animate-pulse">
+    <div className="flex flex-col gap-8 p-8 w-full animate-pulse">
       {/* Header skeleton */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
         <div className="space-y-3">

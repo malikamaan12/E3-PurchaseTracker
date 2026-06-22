@@ -51,7 +51,7 @@ export default function AuditTimelinePage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-8 w-full">
       <header className="flex justify-between items-end border-b border-white/5 pb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
