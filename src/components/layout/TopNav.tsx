@@ -145,7 +145,7 @@ export default function TopNav() {
   if (!isMounted) return null;
 
   return (
-    <header className="h-[72px] border-b border-border/10 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe">
+    <header className="h-[72px] border-b border-border/20 bg-card/70 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe ease-spring">
       <div className="flex items-center gap-4 lg:gap-10 shrink-0 min-w-0">
         {/* MOBILE TRIGGER */}
         <div className="lg:hidden shrink-0">

@@ -55,26 +55,26 @@
     --brand-secondary:  178 55% 52%;
     --brand-mid:        260 35% 38%;
 
-    --background: 240 10% 2%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 4%;
+    --background: 240 20% 1%; /* #020203 */
+    --foreground: 0 0% 95%; /* #EDEDEF */
+    --card: 240 9% 4%; /* #0a0a0c */
     --card-foreground: 0 0% 95%;
-    --popover: 240 10% 2%;
-    --popover-foreground: 0 0% 98%;
-    /* --primary and --ring must mirror brand-primary in dark */
-    --primary: 255 35% 58%;
+    --popover: 240 9% 4%;
+    --popover-foreground: 0 0% 95%;
+    /* Accent #5E6AD2 for cinematic feel */
+    --primary: 233 60% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 10% 10%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 10% 10%;
-    --muted-foreground: 240 10% 60%;
-    --accent: 240 10% 10%;
-    --accent-foreground: 0 0% 98%;
+    --secondary: 240 9% 8%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 9% 8%;
+    --muted-foreground: 220 10% 55%; /* #8A8F98 */
+    --accent: 233 60% 60%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     --border: 240 10% 12%;
     --input: 240 10% 12%;
-    --ring: 255 35% 58%;
+    --ring: 233 60% 60%;
 
     /* ─── CHART TOKENS (dark elevated) ─────────────────────────────── */
     --chart-1: 255 35% 58%;
@@ -101,8 +101,8 @@
   }
 
   .dark .glass {
-    background: color-mix(in srgb, hsl(var(--card)) 40%, transparent);
-    border: 1px solid color-mix(in srgb, hsl(var(--border)) 20%, transparent);
+    background: color-mix(in srgb, hsl(var(--card)) 65%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.2);
   }
 
@@ -124,8 +124,8 @@
   .dark .glass-card {
     background: linear-gradient(
       135deg, 
-      color-mix(in srgb, hsl(var(--card)) 65%, transparent),
-      color-mix(in srgb, hsl(var(--brand-primary)) 10%, transparent)
+      color-mix(in srgb, hsl(var(--card)) 75%, transparent),
+      color-mix(in srgb, hsl(var(--primary)) 8%, transparent)
     );
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow:
@@ -235,10 +235,10 @@
 
   /* TACTILE FEEDBACK: Native-like active scaling for touch devices */
   .active-scale {
-    transition: transform 0.1s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .active-scale:active {
-    transform: scale(0.96);
+    transform: scale(0.97);
   }
 }
 

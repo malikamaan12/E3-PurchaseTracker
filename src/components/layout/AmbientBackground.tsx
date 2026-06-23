@@ -10,19 +10,19 @@ export default function AmbientBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none select-none -z-10">
       <div 
-        className="absolute top-[-10%] left-[20%] w-[40%] h-[40%] bg-brand-primary/15 dark:bg-brand-primary/25 rounded-full blur-[60px] animate-fluid-drift" 
+        className="absolute top-[-10%] left-[20%] w-[40%] h-[40%] bg-brand-primary/15 dark:bg-brand-primary/10 rounded-full blur-[80px] animate-fluid-drift" 
         style={{ willChange: 'transform' }}
       />
       <div 
-        className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-brand-secondary/15 dark:bg-brand-secondary/25 rounded-full blur-[60px] animate-fluid-drift [animation-delay:2.5s]" 
+        className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-brand-secondary/15 dark:bg-brand-secondary/10 rounded-full blur-[80px] animate-fluid-drift [animation-delay:2.5s]" 
         style={{ willChange: 'transform' }}
       />
       <div 
-        className="absolute top-[30%] right-[5%] w-[35%] h-[35%] bg-brand-mid/10 dark:bg-brand-mid/20 rounded-full blur-[55px] animate-fluid-drift [animation-delay:5s]" 
+        className="absolute top-[30%] right-[5%] w-[35%] h-[35%] bg-brand-mid/10 dark:bg-brand-mid/5 rounded-full blur-[70px] animate-fluid-drift [animation-delay:5s]" 
         style={{ willChange: 'transform' }}
       />
       <div 
-        className="absolute bottom-[20%] left-[30%] w-[30%] h-[30%] bg-[#A78BFA]/5 dark:bg-[#A78BFA]/10 rounded-full blur-[50px] animate-fluid-drift [animation-delay:7.5s]" 
+        className="absolute bottom-[20%] left-[30%] w-[30%] h-[30%] bg-[#A78BFA]/5 dark:bg-[#A78BFA]/5 rounded-full blur-[70px] animate-fluid-drift [animation-delay:7.5s]" 
         style={{ willChange: 'transform' }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
