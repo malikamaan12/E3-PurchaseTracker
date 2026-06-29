@@ -50,7 +50,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="E3 Purchase" />
         <link rel="apple-touch-icon" href="/logo-color.png" />
       </head>
-      <body className={`${inter.variable} ${outfit.variable} font-sans selection:bg-brand-primary/20`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased selection:bg-brand-primary/20`} suppressHydrationWarning>
         <Providers initialUser={initialUser}>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             {children}

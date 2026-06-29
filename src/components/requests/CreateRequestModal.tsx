@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { getExchangeRateToQAR } from "@/lib/utils/currency";
 import RequestItemGrid, { RequestItem } from "./RequestItemGrid";
 import DocumentUploadZone from "../shared/DocumentUploadZone";
 import { Input } from "@/components/ui/Input";
@@ -112,6 +113,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "items" | "payments" | "approvals">("general");
   const [initialFiles, setInitialFiles] = useState<any[]>([]);
+  const [exchangeRate, setExchangeRate] = useState(1);
 
   const {
     register,
@@ -151,6 +153,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const totalEstimatedCost = useWatch({ control, name: "totalEstimatedCost" }) || 0;
   const vendorId = watch("vendorId");
   const freightAmount = useWatch({ control, name: "freightAmount" }) || 0;
+  const formCurrency = useWatch({ control, name: "currency" }) || "QAR";
+
+  useEffect(() => {
+    let isMounted = true;
+    getExchangeRateToQAR(formCurrency).then((rate) => {
+      if (isMounted) setExchangeRate(rate);
+    });
+    return () => { isMounted = false; };
+  }, [formCurrency]);
 
   const selectedVendorCompliance = useMemo(() => {
     if (!vendorId || vendors.length === 0) return null;
@@ -287,7 +298,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     }
   };
 
-  const isOverBudget = selectedBudget !== null && totals > selectedBudget;
+  const isOverBudget = selectedBudget !== null && (totals * exchangeRate) > selectedBudget;
 
   const isTabInvalid = (tab: "general" | "items" | "payments" | "approvals") => {
     if (Object.keys(errors).length === 0) return false;
@@ -302,13 +313,29 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const handleAction = async (data: RequestFormValues, targetStatus: "draft" | "pending") => {
     setIsSubmitting(true);
     try {
+      const convertedItems = data.items.map(item => ({
+        ...item,
+        estimatedCost: item.estimatedCost * exchangeRate
+      }));
+      
+      const convertedInstallments = data.installments.map(inst => ({
+        ...inst,
+        amountValue: inst.valueType === "FIXED_AMOUNT" ? inst.amountValue * exchangeRate : inst.amountValue,
+        calculatedAmount: inst.calculatedAmount * exchangeRate
+      }));
+
       const finalizedData = { 
         ...data, 
         vendorId: Number(data.vendorId),
         purposeCategoryId: Number(data.purposeCategoryId),
         subPurposeId: Number(data.subPurposeId),
         purposeType: data.purposeType || "PROJECT",
-        status: targetStatus
+        status: targetStatus,
+        currency: "QAR",
+        freightAmount: data.freightAmount * exchangeRate,
+        totalEstimatedCost: data.totalEstimatedCost * exchangeRate,
+        items: convertedItems,
+        installments: convertedInstallments
       };
       if (requestId) {
         await apiClient.requests.update(requestId, finalizedData);
@@ -347,7 +374,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-[95vw] md:max-w-5xl bg-card border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-lg shadow-rose-500/10" : "border-border"}`}
+            className={`relative w-[95vw] md:w-full md:max-w-5xl bg-card border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-lg shadow-rose-500/10" : "border-border"}`}
           >
             {/* Header */}
             <div className={`p-6 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-card"}`}>
@@ -666,6 +693,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               errors={errors.items}
                               onChange={field.onChange}
                               currency={watch("currency")}
+                              exchangeRate={exchangeRate}
                               freightAmount={watch("freightAmount")}
                               onFreightChange={(val) => setValue("freightAmount", val)}
                             />
@@ -970,7 +998,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     <div className="flex flex-col">
                       <span className="text-sm text-muted-foreground font-medium">Total Estimated Exposure</span>
                       <span className={`text-lg font-semibold transition-colors ${isOverBudget ? "text-rose-500" : "text-foreground"}`}>
-                        {watch("currency")} {(watch("totalEstimatedCost") + watch("freightAmount")).toLocaleString()}
+                        QAR {((watch("totalEstimatedCost") + watch("freightAmount")) * exchangeRate).toLocaleString()}
                       </span>
                     </div>
 
@@ -983,7 +1011,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           <span className="text-xs text-muted-foreground font-medium block">Dept Allocation</span>
                           <div className="flex items-center gap-2">
                             <span className={`text-sm font-semibold ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
-                              {watch("currency")} {selectedBudget.toLocaleString()}
+                              QAR {selectedBudget.toLocaleString()}
                             </span>
                             {isOverBudget && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500 text-white text-[8px] font-black uppercase tracking-tighter">

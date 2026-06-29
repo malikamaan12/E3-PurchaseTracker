@@ -3,6 +3,7 @@ import { db } from "@db";
 import { vendorDocuments, vendors } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { complianceService } from "@/lib/services/ComplianceService";
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       expiryDate: expiryDate ? new Date(expiryDate) : null,
       status: "valid"
     }).returning();
+
+    // Trigger compliance scan immediately
+    complianceService.triggerAsyncScan(vendorId).catch(console.error);
 
     return NextResponse.json(newDoc, { status: 201 });
   } catch (error: any) {

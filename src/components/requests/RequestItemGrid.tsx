@@ -41,11 +41,12 @@ interface RequestItemGridProps {
   errors?: any;
   onChange: (items: RequestItem[]) => void;
   currency: string;
+  exchangeRate: number;
   freightAmount: number;
   onFreightChange: (amount: number) => void;
 }
 
-export default function RequestItemGrid({ items, errors, onChange, currency, freightAmount, onFreightChange }: RequestItemGridProps) {
+export default function RequestItemGrid({ items, errors, onChange, currency, exchangeRate, freightAmount, onFreightChange }: RequestItemGridProps) {
   const addItem = () => {
     onChange([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
   };
@@ -86,13 +87,13 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
       </div>
 
       <div className="relative overflow-x-auto custom-scrollbar rounded-xl border border-border bg-card shadow-sm transition-colors">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-secondary/50 text-xs font-medium text-muted-foreground uppercase leading-none">
               <th className="px-6 py-4">Item Details</th>
               <th className="px-6 py-4 w-32 text-center">Qty</th>
-              <th className="px-6 py-4 w-40">Unit Price (QAR)</th>
-              <th className="px-6 py-4 w-40 text-right">Subtotal</th>
+              <th className="px-6 py-4 w-40">Unit Price ({currency})</th>
+              <th className="px-6 py-4 w-40 text-right">Subtotal (QAR)</th>
               <th className="px-6 py-4 w-16"></th>
             </tr>
           </thead>
@@ -105,21 +106,21 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                   className={`group transition-colors ${rowError ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}
                 >
                   <td className="px-6 py-4">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                         <Combobox
                           options={ITEM_CATALOG}
                           value={item.name}
                           onChange={(val) => updateItem(index, "name", val)}
                           placeholder="Search item catalog..."
                           allowCustomValue={true}
-                          className={`w-full bg-transparent border-none p-0 text-sm font-semibold placeholder:text-muted-foreground/30 focus:ring-ring focus:ring-2 min-h-[44px] ${rowError?.name ? 'text-rose-500' : 'text-foreground'}`}
+                          className={`w-full bg-background border border-input shadow-sm rounded-md px-3 h-10 text-sm font-semibold placeholder:text-muted-foreground/50 focus:ring-ring focus:ring-2 ${rowError?.name ? 'border-rose-500' : ''}`}
                         />
                         <Input
                           type="text"
                           value={item.description || ''}
                           onChange={(e) => updateItem(index, "description", e.target.value)}
                           placeholder="Additional details..."
-                          className="w-full bg-transparent border-none p-0 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/20 focus:ring-ring focus:ring-2 min-h-[44px] focus:text-foreground transition-colors"
+                          className="w-full bg-background border border-input shadow-sm rounded-md px-3 h-9 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/40 focus:ring-ring focus:ring-2 focus:text-foreground transition-colors"
                         />
                     </div>
                   </td>
@@ -150,7 +151,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                   </td>
                   <td className="px-6 py-4 text-right align-top pt-5">
                     <span className="text-sm font-bold text-foreground tracking-tight">
-                      {(item.quantity * item.estimatedCost).toLocaleString()}
+                      {(item.quantity * item.estimatedCost * exchangeRate).toLocaleString()}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right align-top pt-5">
@@ -182,8 +183,8 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
 
         {/* Items Subtotal & Freight */}
         <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Line Items Subtotal</span>
-          <span className="text-sm font-bold text-foreground transition-colors">{itemsTotal.toLocaleString()}</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Line Items Subtotal (QAR)</span>
+          <span className="text-sm font-bold text-foreground transition-colors">{(itemsTotal * exchangeRate).toLocaleString()}</span>
         </div>
         <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between relative group">
           <div className="flex items-center gap-2">

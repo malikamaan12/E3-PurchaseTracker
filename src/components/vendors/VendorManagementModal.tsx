@@ -104,7 +104,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-card p-8 border border-border shadow-2xl relative overflow-y-auto max-h-[85vh] rounded-[2.5rem] custom-scrollbar"
+            className="bg-card p-6 md:p-8 border border-border shadow-2xl relative overflow-y-auto max-h-[95dvh] md:max-h-[85vh] rounded-3xl md:rounded-[2.5rem] custom-scrollbar"
           >
             {/* Header */}
             <div className="flex justify-between items-start mb-10 relative">

@@ -43,11 +43,33 @@ export class ComplianceService {
       
       let attachments: any[] = [];
       if (requestIds.length > 0) {
-        attachments = await db.select()
+        const prAttachments = await db.select()
           .from(fileAttachments)
           .where(inArray(fileAttachments.requestId, requestIds))
           .orderBy(desc(fileAttachments.uploadedAt));
+          
+        attachments.push(...prAttachments.map(f => ({
+          id: f.id,
+          fileName: f.fileName,
+          fileUrl: f.fileUrl,
+          uploadedAt: f.uploadedAt
+        })));
       }
+
+      // Fetch from vendorDocuments as well
+      const { vendorDocuments } = await import("@db/schema");
+      const vDocs = await db.select()
+        .from(vendorDocuments)
+        .where(eq(vendorDocuments.vendorId, vendorId));
+
+      vDocs.forEach(d => {
+        attachments.push({
+          id: d.id,
+          fileName: `${d.documentType} - ${d.documentName}`,
+          fileUrl: d.fileUrl,
+          uploadedAt: d.uploadedAt
+        });
+      });
 
       // 2. Initialize Matrix
       const docs: Record<string, any> = {

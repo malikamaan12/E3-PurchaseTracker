@@ -3,6 +3,7 @@ import { db } from "@db";
 import { vendorDocuments } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { complianceService } from "@/lib/services/ComplianceService";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (isNaN(vendorId) || isNaN(docId)) return NextResponse.json({ error: "Invalid IDs" }, { status: 400 });
 
     await db.delete(vendorDocuments).where(and(eq(vendorDocuments.id, docId), eq(vendorDocuments.vendorId, vendorId)));
+
+    // Trigger compliance scan immediately
+    complianceService.triggerAsyncScan(vendorId).catch(console.error);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -45,6 +49,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .set(updateData)
       .where(and(eq(vendorDocuments.id, docId), eq(vendorDocuments.vendorId, vendorId)))
       .returning();
+
+    // Trigger compliance scan immediately
+    complianceService.triggerAsyncScan(vendorId).catch(console.error);
 
     return NextResponse.json(updatedDoc);
   } catch (error: any) {
