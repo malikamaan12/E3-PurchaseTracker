@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 import { TOKEN_COOKIE_NAME } from "@/lib/utils/config";
 import { decodeJwtPayload } from "@/lib/utils/jwt";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Compliance Status API
  * Aggregates vendor document coverage by pulling pre-calculated scores from the DB.

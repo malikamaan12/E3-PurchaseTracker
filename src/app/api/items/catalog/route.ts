@@ -3,6 +3,8 @@ import { db } from "@db";
 import { itemCatalog } from "@db/schema";
 import { desc } from "drizzle-orm";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const items = await db

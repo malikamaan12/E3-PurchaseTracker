@@ -66,6 +66,7 @@ export class R2StorageService {
       const command = new GetObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: objectKey,
+        ResponseContentDisposition: "inline"
       });
 
       const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });

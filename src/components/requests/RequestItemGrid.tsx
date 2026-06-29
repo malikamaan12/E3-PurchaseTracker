@@ -144,27 +144,27 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
-                    <div className="flex items-center justify-center gap-2 bg-secondary/50 rounded-lg border border-border p-0.5">
+                    <div className="flex items-center justify-center bg-background border border-input shadow-sm rounded-md px-1 h-10 focus-within:ring-1 focus-within:ring-ring">
                         <Input
                           type="number"
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
                           onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                          className="w-16 bg-transparent border-none p-0 text-center text-sm font-medium text-foreground focus:ring-1 focus:ring-ring min-h-[36px]"
+                          className="w-14 bg-transparent border-none p-0 text-center text-sm font-medium text-foreground focus-visible:ring-0 shadow-none h-full"
                         />
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top pt-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground font-bold text-xs">{currency}</span>
+                    <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-md px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
+                      <span className="text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
                       <Input
                         type="number"
                         min="0"
-                        value={item.estimatedCost}
+                        value={item.estimatedCost || ''}
                         onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        className="w-full bg-transparent border-none p-0 text-sm font-medium text-foreground focus:ring-1 focus:ring-ring min-h-[36px]"
+                        className="w-full bg-transparent border-none p-0 text-sm font-medium text-foreground focus-visible:ring-0 shadow-none h-full"
                       />
                     </div>
                   </td>
@@ -210,15 +210,15 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
             <Truck className="w-4 h-4 text-brand-primary" />
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest group-focus-within:text-brand-primary transition-colors">Freight Amount</span>
           </div>
-          <div className="flex items-center gap-3">
-             <span className="text-muted-foreground font-bold text-xs">{currency}</span>
+          <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-md px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
+             <span className="text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
              <Input
                type="number"
                min="0"
-               value={freightAmount}
+               value={freightAmount || ''}
                onChange={(e) => onFreightChange(parseFloat(e.target.value) || 0)}
                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-               className="w-32 h-9 text-right font-semibold text-sm"
+               className="w-24 bg-transparent border-none p-0 text-right text-sm font-semibold text-foreground focus-visible:ring-0 shadow-none h-full"
              />
           </div>
         </div>

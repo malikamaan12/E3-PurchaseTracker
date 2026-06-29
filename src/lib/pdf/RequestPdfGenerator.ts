@@ -21,14 +21,30 @@ function wrapText(text: string, maxWidth: number, font: any, fontSize: number): 
   const lines: string[] = [];
   let currentLine = "";
 
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+    
     if (testWidth > maxWidth) {
       if (currentLine) {
         lines.push(currentLine);
+        currentLine = "";
+        i--; // Re-process this word
+      } else {
+        let splitStr = "";
+        let remaining = word;
+        for (let j = 0; j < remaining.length; j++) {
+          const testCharLine = splitStr + remaining[j];
+          if (font.widthOfTextAtSize(testCharLine, fontSize) > maxWidth) {
+             if (splitStr) lines.push(splitStr);
+             splitStr = remaining[j];
+          } else {
+             splitStr = testCharLine;
+          }
+        }
+        currentLine = splitStr;
       }
-      currentLine = word;
     } else {
       currentLine = testLine;
     }
@@ -147,7 +163,17 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   }
   page.drawText("REQUIREMENT OVERVIEW", { x: 40, y, size: 9, font: fontBold, color: indigo });
   y -= 15;
-  page.drawText(requestData.title || "Untitled", { x: 40, y, size: 12, font: fontBold, color: black });
+  const titleLines = wrapText(requestData.title || "Untitled", PAGE_WIDTH - 80, fontBold, 12);
+  for (const line of titleLines) {
+    if (y < SAFE_ZONE_BOTTOM + 15) {
+      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      drawHeaderAndFooter(page);
+      y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+    }
+    page.drawText(line, { x: 40, y, size: 12, font: fontBold, color: black });
+    y -= 15;
+  }
+  y += 15; // Revert extra jump
   
   // Description
   if (requestData.description) {
@@ -197,14 +223,36 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     const itemTotal = (item.quantity || 0) * (item.estimatedCost || 0);
     subtotal += itemTotal;
 
-    page.drawText((item.name || "").substring(0, 50), { x: 45, y, size: 8, font: fontRegular, color: black });
+    const nameLines = wrapText(item.name || "", 290, fontRegular, 8); // x is 45, QTY is 350
+    const firstLineName = nameLines.length > 0 ? nameLines[0] : "";
+    
+    page.drawText(firstLineName, { x: 45, y, size: 8, font: fontRegular, color: black });
     page.drawText((item.quantity || 0).toString(), { x: 350, y, size: 8, font: fontRegular, color: black });
     page.drawText((item.estimatedCost || 0).toLocaleString(), { x: 420, y, size: 8, font: fontRegular, color: black });
     page.drawText(itemTotal.toLocaleString(), { x: 490, y, size: 8, font: fontBold, color: black });
     
+    for (let i = 1; i < nameLines.length; i++) {
+        y -= 10;
+        if (y < SAFE_ZONE_BOTTOM + 10) {
+            page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+            drawHeaderAndFooter(page);
+            y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+        }
+        page.drawText(nameLines[i], { x: 45, y, size: 8, font: fontRegular, color: black });
+    }
+
     if (item.description) {
       y -= 10;
-      page.drawText(`Note: ${(item.description).substring(0, 80)}`, { x: 45, y, size: 6, font: fontRegular, color: darkGray });
+      const itemDescLines = wrapText(`Note: ${item.description}`, PAGE_WIDTH - 80, fontRegular, 6);
+      for (const line of itemDescLines) {
+         if (y < SAFE_ZONE_BOTTOM + 10) {
+             page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+             drawHeaderAndFooter(page);
+             y = PAGE_HEIGHT - SAFE_ZONE_TOP;
+         }
+         page.drawText(line, { x: 45, y, size: 6, font: fontRegular, color: darkGray });
+         y -= 10;
+      }
     }
 
     y -= 15;
