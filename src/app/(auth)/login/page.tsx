@@ -207,7 +207,7 @@ function AuthInput({ label, icon, ...props }: any) {
         )}
         <input 
           {...props}
-          className={`glass-input shadow-inner ${icon ? 'pl-11' : 'px-4'}`}
+          className={`glass-input shadow-inner ${icon ? '!pl-11' : 'px-4'}`}
           placeholder={`Enter ${label.toLowerCase()}...`}
         />
       </div>
