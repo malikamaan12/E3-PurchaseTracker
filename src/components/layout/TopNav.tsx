@@ -109,7 +109,11 @@ export default function TopNav() {
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
       }
       setIsNotifOpen(false);
-      const link = notif.link || `/dashboard/requests/${notif.requestId || ''}`;
+      let link = notif.link || `/dashboard/requests/${notif.requestId || ''}`;
+      // Fix old notifications missing the /dashboard prefix
+      if (link.startsWith('/') && !link.startsWith('/dashboard')) {
+        link = `/dashboard${link}`;
+      }
       router.push(link);
     } catch (error) {
       console.error("Failed to process notification:", error);

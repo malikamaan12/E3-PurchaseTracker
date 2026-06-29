@@ -31,34 +31,34 @@ export type NotificationActionType =
  */
 export const NOTIFICATION_ROUTES = {
   // Purchase request related notifications
-  purchase_request_submitted: '/requests/{id}',
-  purchase_request_approved: '/requests/{id}',
-  purchase_request_rejected: '/requests/{id}',
-  purchase_request_changes_requested: '/requests/{id}',
-  purchase_request_updated: '/requests/{id}',
-  purchase_request_canceled: '/requests/{id}',
-  purchase_request_completed: '/requests/{id}',
+  purchase_request_submitted: '/dashboard/requests/{id}',
+  purchase_request_approved: '/dashboard/requests/{id}',
+  purchase_request_rejected: '/dashboard/requests/{id}',
+  purchase_request_changes_requested: '/dashboard/requests/{id}',
+  purchase_request_updated: '/dashboard/requests/{id}',
+  purchase_request_canceled: '/dashboard/requests/{id}',
+  purchase_request_completed: '/dashboard/requests/{id}',
   
   // Approval related notifications
-  approval_required: '/requests/{id}',
-  approval_reminder: '/requests/{id}',
-  approval_delegated: '/requests/{id}',
-  approval_overridden: '/requests/{id}',
+  approval_required: '/dashboard/requests/{id}',
+  approval_reminder: '/dashboard/requests/{id}',
+  approval_delegated: '/dashboard/requests/{id}',
+  approval_overridden: '/dashboard/requests/{id}',
   
   // Vendor related notifications
-  vendor_created: '/vendors/{id}',
-  vendor_updated: '/vendors/{id}',
-  vendor_deactivated: '/vendors/{id}',
+  vendor_created: '/dashboard/vendors/{id}',
+  vendor_updated: '/dashboard/vendors/{id}',
+  vendor_deactivated: '/dashboard/vendors/{id}',
   
   // Account related notifications
-  account_created: '/user-profile',
-  account_updated: '/user-profile',
-  password_reset: '/auth/reset-password',
+  account_created: '/dashboard/user-profile',
+  account_updated: '/dashboard/user-profile',
+  password_reset: '/login', // Typically outside dashboard
   
   // System notifications
-  system_maintenance: '/notifications',
-  system_update: '/notifications',
-  system_error: '/error-dashboard'
+  system_maintenance: '/dashboard/notifications',
+  system_update: '/dashboard/notifications',
+  system_error: '/dashboard/error-dashboard'
 };
 
 /**
