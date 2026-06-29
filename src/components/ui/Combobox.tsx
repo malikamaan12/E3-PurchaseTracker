@@ -56,7 +56,7 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-12 w-full justify-between rounded-xl border-black/5 dark:border-white/10 bg-secondary/40 dark:bg-white/5 font-normal",
+            "h-9 w-full justify-between font-normal shadow-sm",
             className
           )}
         >

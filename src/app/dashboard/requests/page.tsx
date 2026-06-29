@@ -177,8 +177,8 @@ function RequestsDashboardContent() {
     <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 w-full">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
-          <h1 className="text-4xl font-serif tracking-tight text-foreground">Purchase Requests</h1>
-          <p className="text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Purchase Requests</h1>
+          <p className="text-sm text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
         </div>
         <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
       </header>
@@ -191,9 +191,9 @@ function RequestsDashboardContent() {
         metadata={{ departments, vendors, purposes }} 
       />
 
-      <main className="glass-card overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-white/5 dark:bg-white/[0.02] border-b border-white/10 dark:border-white/5 uppercase text-xs tracking-widest text-muted-foreground font-bold font-sans">
+      <main className="bg-card border border-border overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
+        <table className="w-full text-left border-collapse text-sm">
+          <thead className="bg-secondary/50 border-b border-border text-xs font-medium text-muted-foreground">
             <tr>
               <th className="px-6 py-5 w-12 text-center">
                 <input 
@@ -298,7 +298,7 @@ export default function RequestsDashboard() {
 
 function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) {
   const { highPerformanceMode } = usePerformance();
-  if (isLoading) return <div className="h-32 glass animate-pulse rounded-2xl" />;
+  if (isLoading) return <div className="h-32 bg-card border border-border animate-pulse rounded-lg" />;
 
   // The API returns kpis: { byStatus: [], totalPaid: number }
   const kpis = data?.kpis?.byStatus || [];
@@ -367,29 +367,22 @@ function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gl
 
   return (
     <div 
-      ref={cardRef}
-      className="glass-card p-8 relative overflow-hidden group cursor-default"
+      className="bg-card border border-border p-6 rounded-lg relative overflow-hidden"
     >
-      {/* Sublte Cursor-following Glow */}
-      <div 
-        ref={glowRef}
-        className={`absolute w-48 h-48 rounded-full blur-3xl opacity-0 pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0 ${glowClass.replace('bg-', 'bg-')}/10`}
-      />
-      
-      <div className="relative z-10 flex justify-between items-center">
+      <div className="relative z-10 flex justify-between items-start">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-bold mb-1 opacity-60">{label}</p>
-          <h3 className="text-3xl font-bold text-foreground tracking-tighter flex items-baseline gap-2">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <h3 className="text-2xl font-semibold text-foreground tracking-tight flex items-baseline gap-2 mt-1">
             {value.toLocaleString()} 
-            {suffix && <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{suffix}</span>}
+            {suffix && <span className="text-sm text-muted-foreground font-normal">{suffix}</span>}
           </h3>
           {subValue !== undefined && (
-            <p className="text-xs text-muted-foreground/60 font-bold uppercase tracking-widest">
+            <p className="text-sm text-muted-foreground mt-1">
               {subValue.toLocaleString()} {subLabel}
             </p>
           )}
         </div>
-        <div className="w-14 h-14 rounded-xl bg-white/5 dark:bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner">
+        <div className="w-10 h-10 rounded-md bg-secondary border border-border flex items-center justify-center shadow-sm">
           {icon}
         </div>
       </div>
@@ -403,24 +396,24 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (selectedCount === 0) return null;
 
   const content = (
-    <div className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 glass-card px-4 md:px-8 py-3 md:py-5 rounded-2xl md:rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-[110] flex items-center gap-4 md:gap-8 w-[95vw] md:w-auto overflow-x-auto custom-scrollbar">
+    <div className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 bg-card border border-border px-4 py-3 rounded-lg shadow-lg z-[110] flex items-center gap-6 w-[95vw] md:w-auto">
       <div className="flex flex-col">
-        <span className="text-xs uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
-        <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>
+        <span className="text-xs font-medium text-muted-foreground">Bulk Actions</span>
+        <span className="text-sm font-semibold">{selectedCount} Selected</span>
       </div>
-      <div className="h-10 w-px bg-white/10" />
-      <div className="flex gap-3">
+      <div className="h-8 w-px bg-border" />
+      <div className="flex gap-2">
         <button 
           onClick={onApprove}
           disabled={isProcessing}
-          className="bg-brand-gradient text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2"
+          className="bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {isProcessing ? "Processing..." : "Approve Now"}
           <CheckCircle className="w-4 h-4" />
         </button>
         <button 
           onClick={onClear}
-          className="bg-white/5 dark:bg-white/[0.03] text-muted-foreground hover:text-foreground text-xs font-bold px-6 py-3 rounded-xl hover:bg-white/10 transition-all border border-white/10"
+          className="bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary text-sm font-medium px-4 py-2 rounded-md transition-colors"
         >
           Deselect
         </button>
@@ -460,13 +453,13 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
         {request.requestNumber}
       </td>
       <td className="px-6 py-5">
-        <div className="font-semibold text-foreground tracking-tight transition-colors">{request.title}</div>
-        <div className="text-xs uppercase tracking-wider font-bold text-muted-foreground mt-1">
+        <div className="font-medium text-foreground transition-colors">{request.title}</div>
+        <div className="text-xs text-muted-foreground mt-1">
           {request.requester?.username} • {request.requester?.department}
           {request.subPurpose?.name && (
             <>
               <span className="mx-1.5 opacity-30">|</span>
-              <span className="text-brand-primary">{request.subPurpose.name}</span>
+              <span className="text-foreground">{request.subPurpose.name}</span>
             </>
           )}
         </div>
@@ -482,7 +475,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           {request.status === "pending" && (
             <button 
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-all text-xs font-bold border border-emerald-500/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-xs font-medium"
               title="Quick Approve"
             >
               <CheckCircle className="w-3.5 h-3.5" /> Approve
@@ -491,16 +484,16 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           
           <button 
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-foreground transition-all text-xs font-bold border border-white/10"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border"
           >
             <Eye className="w-3.5 h-3.5" /> View
           </button>
 
           <div className="relative group/menu">
-            <button className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors border border-transparent group-hover/menu:border-white/10 group-hover/menu:bg-white/5">
+            <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary text-muted-foreground transition-colors">
               <MoreHorizontal className="w-4 h-4" />
             </button>
-            <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
+            <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-md opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
               {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
                (request.requesterId === user?.id && (
                  request.status === 'draft' || 
@@ -508,19 +501,19 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
                  (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
                ))) && (
                 <>
-                  <button onClick={onEdit} className="w-full text-left px-4 py-2 text-xs font-medium text-brand-primary/80 hover:text-brand-primary hover:bg-white/5 flex items-center gap-2">
+                  <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
                     <Edit2 className="w-3.5 h-3.5" /> Edit Request
                   </button>
-                  <button onClick={onDelete} className="w-full text-left px-4 py-2 text-xs font-medium text-rose-500/80 hover:text-rose-500 hover:bg-white/5 flex items-center gap-2">
+                  <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2">
                     <Trash2 className="w-3.5 h-3.5" /> Delete Request
                   </button>
                 </>
               )}
-              <div className="h-px bg-white/10 my-1 mx-2" />
-              <button onClick={() => apiClient.documents.downloadPdf(request.id)} className="w-full text-left px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 flex items-center gap-2">
+              <div className="h-px bg-border my-1 mx-2" />
+              <button onClick={() => apiClient.documents.downloadPdf(request.id)} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5" /> Download PDF
               </button>
-              <button onClick={() => apiClient.documents.downloadZip(request.id)} className="w-full text-left px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 flex items-center gap-2">
+              <button onClick={() => apiClient.documents.downloadZip(request.id)} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
                 <Archive className="w-3.5 h-3.5" /> Download ZIP
               </button>
             </div>
@@ -548,20 +541,20 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-bold tracking-wider uppercase border ${configs[status] || configs.draft}`}>
-      {status?.replace(/_/g, ' ')}
+    <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${configs[status] || configs.draft}`}>
+      {status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
     </span>
   );
 }
 
 function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-2">
       <button 
         onClick={onNewRequest}
-        className="flex items-center gap-2 bg-brand-gradient text-white font-bold px-6 py-3 rounded-xl hover:shadow-[0_0_20px_rgba(var(--brand-primary),0.4)] transition-all shadow-lg hover:scale-105 active:scale-95 text-sm"
+        className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 transition-colors"
       >
-        <PlusCircle className="w-4.5 h-4.5" /> New Request
+        <PlusCircle className="w-4 h-4" /> New Request
       </button>
     </div>
   );

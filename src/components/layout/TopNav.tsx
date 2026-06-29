@@ -145,8 +145,8 @@ export default function TopNav() {
   if (!isMounted) return null;
 
   return (
-    <header className="h-[72px] border-b border-border/20 bg-card/70 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 lg:px-12 sticky top-0 z-[100] transition-all pt-safe ease-spring">
-      <div className="flex items-center gap-4 lg:gap-10 shrink-0 min-w-0">
+    <header className="h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-[100] transition-all pt-safe ease-spring">
+      <div className="flex items-center gap-4 lg:gap-8 shrink-0 min-w-0">
         {/* MOBILE TRIGGER */}
         <div className="lg:hidden shrink-0">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -182,10 +182,10 @@ export default function TopNav() {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale pointer-events-auto",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors pointer-events-auto",
                   isActive 
-                    ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-[0_4px_12px_-4px_rgba(var(--brand-primary),0.2)]" 
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-secondary text-foreground font-semibold" 
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 {item.icon}
@@ -205,10 +205,10 @@ export default function TopNav() {
                 }
               }}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active-scale ml-4 border-l border-border/20 pl-6 pointer-events-auto",
+                "flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ml-2 border-l border-border pl-4 pointer-events-auto",
                 pathname.startsWith("/dashboard/admin") 
-                  ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-[0_4px_12px_-4px_rgba(var(--brand-primary),0.2)]" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-secondary text-foreground font-semibold" 
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
               )}
             >
               <ShieldCheck className="w-4 h-4" />
@@ -223,13 +223,13 @@ export default function TopNav() {
           <button 
             onClick={() => setIsNotifOpen(!isNotifOpen)}
             className={cn(
-              "p-3 rounded-xl transition-all relative group active-scale",
-              isNotifOpen ? "bg-brand-primary/10 text-brand-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              "p-2 rounded-md transition-all relative group hover:bg-secondary/50",
+              isNotifOpen ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
             {unreadStats && unreadStats.count > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-primary px-1 text-[9px] font-black text-white shadow-sm ring-2 ring-background">
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-sm ring-2 ring-background">
                 {unreadStats.count > 99 ? '99+' : unreadStats.count}
               </span>
             )}
@@ -301,12 +301,12 @@ export default function TopNav() {
           <button
             onClick={() => setHighPerformanceMode(!highPerformanceMode)}
             className={cn(
-               "p-3 rounded-xl transition-all active-scale",
-               highPerformanceMode ? "bg-amber-500/10 text-amber-500" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+               "p-2 rounded-md transition-all hover:bg-secondary/50",
+               highPerformanceMode ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
             )}
             title="Performance Mode"
           >
-            <Zap className={cn("w-5 h-5", highPerformanceMode && "fill-current")} />
+            <Zap className={cn("w-4 h-4", highPerformanceMode && "fill-current")} />
           </button>
           
           <PWASettings />
@@ -315,20 +315,19 @@ export default function TopNav() {
 
 
 
-        {/* PROFILE */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary active-scale">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground shrink-0">
             {getDepartmentIcon(user?.department)}
           </div>
-          <div className="hidden xl:block">
-             <p className="text-xs font-black text-foreground">{user?.username || "Guest Operator"}</p>
+          <div className="hidden xl:block ml-1">
+             <p className="text-[13px] font-medium text-foreground leading-tight">{user?.username || "Guest Operator"}</p>
              <div className="flex items-center gap-1 opacity-60">
-                <span className="text-[9px] font-black uppercase tracking-widest">{user?.department || "Unassigned Entity"}</span>
+                <span className="text-[11px] font-medium tracking-tight text-muted-foreground">{user?.department || "Unassigned Entity"}</span>
              </div>
           </div>
           <button 
             onClick={handleLogout}
-            className="p-3 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all active-scale"
+            className="p-2 ml-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />

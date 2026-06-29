@@ -1,7 +1,6 @@
 "use client";
 
 import TopNav from "@/components/layout/TopNav";
-import AmbientBackground from "@/components/layout/AmbientBackground";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -35,8 +34,6 @@ export default function DashboardLayout({
         <div className="max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 w-full">
           {children}
         </div>
-        
-        <AmbientBackground />
       </main>
     </div>
   );
