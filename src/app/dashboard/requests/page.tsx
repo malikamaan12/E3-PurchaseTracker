@@ -489,7 +489,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             <Eye className="w-3.5 h-3.5" /> View
           </button>
 
-          <div className="relative group/menu">
+          <div className="relative group/menu z-10 hover:z-50">
             <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary text-muted-foreground transition-colors">
               <MoreHorizontal className="w-4 h-4" />
             </button>
