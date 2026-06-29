@@ -53,7 +53,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   const PAGE_HEIGHT = 841.89;
   const PAGE_WIDTH = 595.28;
   const SAFE_ZONE_TOP = 80;
-  const SAFE_ZONE_BOTTOM = 80;
+  const SAFE_ZONE_BOTTOM = 100;
   
   const black = rgb(COLOR_BLACK.r, COLOR_BLACK.g, COLOR_BLACK.b);
   const indigo = rgb(COLOR_INDIGO.r, COLOR_INDIGO.g, COLOR_INDIGO.b);
@@ -85,12 +85,22 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     }
 
     const timestamp = format(new Date(), "dd MMM yyyy, hh:mm a");
-    page.drawText(`Generated on: ${timestamp}`, { x: PAGE_WIDTH - 150, y: 25, size: 6, font: fontRegular, color: darkGray });
+    if (footerImg) {
+      // Draw above the footer image to avoid overlapping text inside the image
+      page.drawText(`Generated on: ${timestamp}`, { x: PAGE_WIDTH - 150, y: 85, size: 6, font: fontRegular, color: darkGray });
+    } else {
+      page.drawText(`Generated on: ${timestamp}`, { x: PAGE_WIDTH - 150, y: 25, size: 6, font: fontRegular, color: darkGray });
+    }
   };
 
   const drawMeta = (p: any, xVal: number, yVal: number, key: string, val: string) => {
     p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: indigo });
-    p.drawText(val || "N/A", { x: xVal + 75, y: yVal, size: 8, font: fontRegular, color: black });
+    
+    // Truncate text if it's too long to prevent overlapping the next column
+    const safeVal = val || "N/A";
+    const truncatedVal = safeVal.length > 40 ? safeVal.substring(0, 37) + "..." : safeVal;
+    
+    p.drawText(truncatedVal, { x: xVal + 75, y: yVal, size: 8, font: fontRegular, color: black });
   };
 
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
