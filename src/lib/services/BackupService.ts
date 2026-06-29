@@ -21,11 +21,24 @@ export class BackupService {
   public static async generateExcelBackup(): Promise<Buffer> {
     console.log("[BackupService] Extracting institutional data...");
 
-    // 1. Fetch Data
-    const reqs = await db.select().from(purchaseRequests);
-    const vends = await db.select().from(vendors);
-    const payments = await db.select().from(paymentInstallments);
-    const attachments = await db.select().from(fileAttachments);
+    const fetchInChunks = async (tableDef: any) => {
+      let offset = 0;
+      const limit = 5000;
+      const allRows: any[] = [];
+      while (true) {
+        const rows = await db.select().from(tableDef).limit(limit).offset(offset);
+        if (rows.length === 0) break;
+        allRows.push(...rows);
+        offset += limit;
+      }
+      return allRows;
+    };
+
+    // 1. Fetch Data in chunks to prevent Drizzle ORM OOM
+    const reqs = await fetchInChunks(purchaseRequests);
+    const vends = await fetchInChunks(vendors);
+    const payments = await fetchInChunks(paymentInstallments);
+    const attachments = await fetchInChunks(fileAttachments);
 
     // 2. Build Workbook
     const wb = new ExcelJS.Workbook();
@@ -66,14 +79,30 @@ export class BackupService {
       const buffer = await this.generateExcelBackup();
 
       // Step B: R2 Persistence (Primary Vault)
-      console.log("[BackupService] Uploading to Cloudflare R2...");
-      await R2Storage.uploadBackup(buffer, fileName);
+      let r2Success = false;
+      try {
+        console.log("[BackupService] Uploading to Cloudflare R2...");
+        await R2Storage.uploadBackup(buffer, fileName);
+        r2Success = true;
+      } catch (err) {
+        console.error("[BackupService] R2 Upload Failed:", err);
+      }
 
       // Step C: Google Drive Synchronization (Double Redundancy)
-      console.log("[BackupService] Synchronizing with Google Drive (Dual Folders)...");
-      await GoogleDriveStorage.uploadRedundant(buffer, fileName);
+      let gdriveSuccess = false;
+      try {
+        console.log("[BackupService] Synchronizing with Google Drive (Dual Folders)...");
+        await GoogleDriveStorage.uploadRedundant(buffer, fileName);
+        gdriveSuccess = true;
+      } catch (err) {
+        console.error("[BackupService] Google Drive Upload Failed:", err);
+      }
 
-      console.log(`[BackupService] Backup ${fileName} SUCCESSFULLY DEPLOYED across all institutional vaults.`);
+      if (!r2Success && !gdriveSuccess) {
+        throw new Error("All backup destinations failed.");
+      }
+
+      console.log(`[BackupService] Backup ${fileName} FINISHED. R2: ${r2Success}, Drive: ${gdriveSuccess}`);
       return { success: true, fileName };
     } catch (error) {
       console.error("[BackupService] CRITICAL FAILURE in backup pipeline:", error);

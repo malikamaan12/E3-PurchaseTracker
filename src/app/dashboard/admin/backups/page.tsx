@@ -45,13 +45,16 @@ export default function BackupsPage() {
   const fetchBackups = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/admin/backups/manual");
+      const response = await fetch("/api/admin/backups/history");
       if (!response.ok) throw new Error("Failed to fetch history");
       const data = await response.json();
       setBackups(data);
     } catch (error) {
       console.error("Backup history error:", error);
-      toast.error("Institutional Vault Retrieval Failed");
+      toast.error("Institutional Vault Retrieval Failed", {
+        description: "Cloudflare R2 is temporarily unreachable or misconfigured. Retrying later."
+      });
+      setBackups([]);
     } finally {
       setIsLoading(false);
     }

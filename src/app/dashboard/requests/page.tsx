@@ -193,7 +193,7 @@ function RequestsDashboardContent() {
 
       <main className="glass-card overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-white/5 dark:bg-white/[0.02] border-b border-white/10 dark:border-white/5 uppercase text-[10px] tracking-widest text-muted-foreground font-bold font-sans">
+          <thead className="bg-white/5 dark:bg-white/[0.02] border-b border-white/10 dark:border-white/5 uppercase text-xs tracking-widest text-muted-foreground font-bold font-sans">
             <tr>
               <th className="px-6 py-5 w-12 text-center">
                 <input 
@@ -378,13 +378,13 @@ function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gl
       
       <div className="relative z-10 flex justify-between items-center">
         <div className="space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold mb-1 opacity-60">{label}</p>
+          <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-bold mb-1 opacity-60">{label}</p>
           <h3 className="text-3xl font-bold text-foreground tracking-tighter flex items-baseline gap-2">
             {value.toLocaleString()} 
-            {suffix && <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{suffix}</span>}
+            {suffix && <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">{suffix}</span>}
           </h3>
           {subValue !== undefined && (
-            <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">
+            <p className="text-xs text-muted-foreground/60 font-bold uppercase tracking-widest">
               {subValue.toLocaleString()} {subLabel}
             </p>
           )}
@@ -405,7 +405,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   const content = (
     <div className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 glass-card px-4 md:px-8 py-3 md:py-5 rounded-2xl md:rounded-full border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-[110] flex items-center gap-4 md:gap-8 w-[95vw] md:w-auto overflow-x-auto custom-scrollbar">
       <div className="flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
+        <span className="text-xs uppercase font-bold text-muted-foreground tracking-widest opacity-70">Bulk Actions</span>
         <span className="text-foreground font-bold text-lg tracking-tight">{selectedCount} Selected</span>
       </div>
       <div className="h-10 w-px bg-white/10" />
@@ -446,113 +446,8 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
   const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
 
-  if (highPerformanceMode) {
-    return (
-      <tr className={rowClassName}>
-        {/* Cells content */}
-        <td className="px-6 py-5">
-          <input 
-            type="checkbox"
-            className="rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer transition-colors"
-            checked={isSelected}
-            onChange={(e) => onSelect(e.target.checked)}
-          />
-        </td>
-        <td className="px-6 py-5 font-mono text-xs text-brand-secondary">
-          {request.requestNumber}
-        </td>
-        <td className="px-6 py-5">
-          <div className="font-semibold text-foreground tracking-tight transition-colors">{request.title}</div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1">
-            {request.requester?.username} • {request.requester?.department}
-            {request.subPurpose?.name && (
-              <>
-                <span className="mx-1.5 opacity-30">|</span>
-                <span className="text-brand-primary">{request.subPurpose.name}</span>
-              </>
-            )}
-          </div>
-        </td>
-        <td className="px-6 py-5">
-          <StatusBadge status={request.status} />
-        </td>
-        <td className="px-6 py-5 font-semibold text-foreground">
-          {request.totalEstimatedCost?.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">QAR</span>
-        </td>
-        <td className="px-6 py-5 text-right">
-          <div className="flex justify-end gap-1.5">
-            {request.status === "pending" && (
-              <button 
-                onClick={onApprove}
-                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all active:scale-90"
-                title="Quick Approve"
-              >
-                <CheckCircle className="w-5 h-5" />
-              </button>
-            )}
-            
-            <button 
-              onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
-              title="View Details"
-            >
-              <Eye className="w-5 h-5" />
-            </button>
-
-            {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
-             (request.requesterId === user?.id && (
-               request.status === 'draft' || 
-               request.status === 'changes_requested' || 
-               (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
-             )) ? (
-              <>
-                <button 
-                  onClick={onEdit}
-                  className="p-2 rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
-                  title="Edit Request"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                
-                <button 
-                  onClick={onDelete}
-                  className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
-                  title="Delete Request"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            ) : (
-              <div className="p-2 opacity-20" title="Locked by Approval">
-                <Lock className="w-3.5 h-3.5" />
-              </div>
-            )}
-
-            <button 
-              onClick={() => apiClient.documents.downloadPdf(request.id)}
-              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-brand-primary/10 text-zinc-400 hover:text-brand-primary transition-all active:scale-90"
-              title="Download PDF"
-            >
-              <FileText className="w-5 h-5" />
-            </button>
-
-            <button 
-              onClick={() => apiClient.documents.downloadZip(request.id)}
-              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
-              title="Download All (ZIP)"
-            >
-              <Archive className="w-5 h-5" />
-            </button>
-          </div>
-        </td>
-      </tr>
-    );
-  }
-
-  return (
-    <tr 
-      className={`animate-slide-up ${rowClassName}`}
-    >
+  const renderCells = () => (
+    <>
       <td className="px-6 py-5">
         <input 
           type="checkbox"
@@ -566,7 +461,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
       </td>
       <td className="px-6 py-5">
         <div className="font-semibold text-foreground tracking-tight transition-colors">{request.title}</div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mt-1">
+        <div className="text-xs uppercase tracking-wider font-bold text-muted-foreground mt-1">
           {request.requester?.username} • {request.requester?.department}
           {request.subPurpose?.name && (
             <>
@@ -580,77 +475,66 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
         <StatusBadge status={request.status} />
       </td>
       <td className="px-6 py-5 font-semibold text-foreground">
-        {request.totalEstimatedCost?.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">QAR</span>
+        {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">QAR</span>
       </td>
-      <td className="px-6 py-5 text-right">
-        <div className="flex justify-end gap-1.5">
+      <td className="px-6 py-5 text-right overflow-visible">
+        <div className="flex justify-end gap-2 items-center">
           {request.status === "pending" && (
             <button 
               onClick={onApprove}
-              className="p-2 rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all active:scale-90"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-all text-xs font-bold border border-emerald-500/20"
               title="Quick Approve"
             >
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircle className="w-3.5 h-3.5" /> Approve
             </button>
           )}
           
           <button 
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-            className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
-            title="View Details"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-foreground transition-all text-xs font-bold border border-white/10"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" /> View
           </button>
 
-          {/* EDIT & DELETE ACTIONS (Admin bypass or Owner early-stage) */}
-          {(isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
-           (request.requesterId === user?.id && (
-             request.status === 'draft' || 
-             request.status === 'changes_requested' || 
-             (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
-           )) ? (
-            <>
-              <button 
-                onClick={onEdit}
-                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-brand-primary/10 text-brand-primary/60 hover:text-brand-primary transition-all active:scale-90"
-                title="Edit Request"
-              >
-                <Edit2 className="w-5 h-5" />
+          <div className="relative group/menu">
+            <button className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/5 text-muted-foreground transition-colors border border-transparent group-hover/menu:border-white/10 group-hover/menu:bg-white/5">
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
+              {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
+               (request.requesterId === user?.id && (
+                 request.status === 'draft' || 
+                 request.status === 'changes_requested' || 
+                 (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
+               ))) && (
+                <>
+                  <button onClick={onEdit} className="w-full text-left px-4 py-2 text-xs font-medium text-brand-primary/80 hover:text-brand-primary hover:bg-white/5 flex items-center gap-2">
+                    <Edit2 className="w-3.5 h-3.5" /> Edit Request
+                  </button>
+                  <button onClick={onDelete} className="w-full text-left px-4 py-2 text-xs font-medium text-rose-500/80 hover:text-rose-500 hover:bg-white/5 flex items-center gap-2">
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Request
+                  </button>
+                </>
+              )}
+              <div className="h-px bg-white/10 my-1 mx-2" />
+              <button onClick={() => apiClient.documents.downloadPdf(request.id)} className="w-full text-left px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5" /> Download PDF
               </button>
-              
-              <button 
-                onClick={onDelete}
-                className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-rose-500/10 text-rose-500/60 hover:text-rose-500 transition-all active:scale-90"
-                title="Delete Request"
-              >
-                <Trash2 className="w-5 h-5" />
+              <button onClick={() => apiClient.documents.downloadZip(request.id)} className="w-full text-left px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 flex items-center gap-2">
+                <Archive className="w-3.5 h-3.5" /> Download ZIP
               </button>
-            </>
-          ) : (
-            <div className="p-2 opacity-20" title="Locked by Approval">
-              <Lock className="w-3.5 h-3.5" />
             </div>
-          )}
-
-          <button 
-            onClick={() => apiClient.documents.downloadPdf(request.id)}
-            className="p-2 rounded-xl hover:bg-brand-primary/10 text-zinc-400 hover:text-brand-primary transition-all active:scale-90"
-            title="Download PDF"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-
-          <button 
-            onClick={() => apiClient.documents.downloadZip(request.id)}
-            className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 border border-transparent hover:border-border"
-            title="Download All (ZIP)"
-          >
-            <Archive className="w-4 h-4" />
-          </button>
+          </div>
         </div>
       </td>
-    </tr>
+    </>
   );
+
+  if (highPerformanceMode) {
+    return <tr className={rowClassName}>{renderCells()}</tr>;
+  }
+
+  return <tr className={`animate-slide-up ${rowClassName}`}>{renderCells()}</tr>;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -660,11 +544,11 @@ function StatusBadge({ status }: { status: string }) {
     rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20",
     draft: "bg-secondary text-muted-foreground border-border",
     changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
-    VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20 animate-pulse",
+    VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   };
 
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${configs[status] || configs.draft}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-bold tracking-wider uppercase border ${configs[status] || configs.draft}`}>
       {status?.replace(/_/g, ' ')}
     </span>
   );
@@ -675,9 +559,9 @@ function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
     <div className="flex gap-3">
       <button 
         onClick={onNewRequest}
-        className="flex items-center gap-2 bg-brand-primary text-white font-semibold px-4 py-2 rounded-md hover:bg-brand-primary/90 transition-all shadow-lg active:scale-95"
+        className="flex items-center gap-2 bg-brand-gradient text-white font-bold px-6 py-3 rounded-xl hover:shadow-[0_0_20px_rgba(var(--brand-primary),0.4)] transition-all shadow-lg hover:scale-105 active:scale-95 text-sm"
       >
-        <PlusCircle className="w-4 h-4" /> New Request
+        <PlusCircle className="w-4.5 h-4.5" /> New Request
       </button>
     </div>
   );
@@ -736,7 +620,7 @@ function LoadingState() {
       <div 
         className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"
       />
-      <p className="text-muted-foreground animate-pulse font-mono tracking-widest text-[10px] font-bold uppercase transition-colors">Initializing Grid...</p>
+      <p className="text-muted-foreground animate-pulse font-mono tracking-widest text-xs font-bold uppercase transition-colors">Loading Grid...</p>
     </div>
   );
 }

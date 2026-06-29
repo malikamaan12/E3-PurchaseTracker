@@ -28,7 +28,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Stale-while-revalidate for assets
+// Fetch Event
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -36,16 +36,33 @@ self.addEventListener('fetch', (event) => {
 
   // --- SECURITY & STABILITY HARDENING: Bypass cache for API, AUTH and Next.js internal chunks ---
   // API/Auth: Prevents sensitive financial JSON and identity data from being cached.
-  // _next/static: Prevents ChunkLoadError by ensuring hashed assets are ALWAYS fresh.
+  // _next: Prevents ChunkLoadError and stale RSC payloads by ensuring Next.js assets are ALWAYS fresh.
   if (
     url.pathname.startsWith('/api/') || 
     url.pathname.includes('/auth/') ||
-    url.pathname.includes('/_next/static/')
+    url.pathname.startsWith('/_next/') ||
+    event.request.headers.get('RSC') === '1'
   ) {
-    console.log(`[SW] Bypassing cache for internal/secure route: ${url.pathname}`);
-    return; // Network Only
+    return; // Network Only (let Next.js handle its own caching)
   }
 
+  // Network First strategy for page navigations (HTML)
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const cacheCopy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, cacheCopy));
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for other static assets (images, icons)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networked = fetch(event.request)
