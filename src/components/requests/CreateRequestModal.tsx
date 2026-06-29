@@ -347,22 +347,22 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-[95vw] md:max-w-5xl bg-card border rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-[0_0_50px_rgba(244,63,94,0.2)]" : "border-border"}`}
+            className={`relative w-[95vw] md:max-w-5xl bg-card border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-lg shadow-rose-500/10" : "border-border"}`}
           >
             {/* Header */}
-            <div className={`p-10 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-gradient-to-br from-primary/10 via-card to-card"}`}>
+            <div className={`p-6 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-card"}`}>
               <div className="flex items-center gap-6">
-                <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-2xl transition-all ${isOverBudget ? "bg-rose-500/20 shadow-rose-500/20" : "bg-primary/20 shadow-primary/20"}`}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-2xl transition-all ${isOverBudget ? "bg-rose-500/20 shadow-rose-500/20" : "bg-primary/20 shadow-primary/20"}`}>
                   {isOverBudget ? <AlertCircle className="text-rose-500 w-8 h-8" /> : <Plus className="text-primary w-8 h-8" />}
                 </div>
                 <div>
-                  <h2 className="text-3xl font-serif font-bold text-foreground tracking-tight transition-colors">
+                  <h2 className="text-xl font-semibold text-foreground tracking-tight transition-colors">
                     {isOverBudget ? "Budget Variance Detected" : "Create Purchase Request"}
                   </h2>
                   <div className="flex items-center gap-3 mt-1.5">
-                    <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">Internal Procurement Engine</p>
+                    <p className="text-xs text-muted-foreground">Internal Procurement Engine</p>
                     <div className={`w-1.5 h-1.5 rounded-full ${isOverBudget ? "bg-rose-500 animate-pulse" : "bg-primary/40"}`} />
-                    <p className={`text-[10px] font-bold tracking-widest uppercase ${isOverBudget ? "text-rose-500" : "text-primary"}`}>
+                    <p className={`text-xs font-medium ${isOverBudget ? "text-rose-500" : "text-primary"}`}>
                       {isOverBudget ? "Finance Review Required" : "Draft Mode"}
                     </p>
                   </div>
@@ -377,7 +377,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex px-10 gap-8 border-b border-border bg-secondary/20 transition-colors shrink-0">
+            <div className="flex px-6 gap-6 border-b border-border bg-card transition-colors shrink-0">
               {(["general", "items", "payments", "approvals"] as const).map((tabId) => {
                 const tabMeta = {
                   general: { label: "Details", icon: <Layout className="w-4 h-4" /> },
@@ -391,7 +391,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     key={tabId}
                     type="button"
                     onClick={() => setActiveTab(tabId)}
-                    className={`py-6 text-xs font-bold uppercase tracking-widest flex items-center gap-3 transition-all relative ${
+                    className={`py-4 text-sm font-medium flex items-center gap-3 transition-all relative ${
                       activeTab === tabId
                         ? isInvalid ? "text-rose-500" : "text-primary"
                         : isInvalid ? "text-rose-400/80" : "text-muted-foreground hover:text-foreground"
@@ -428,31 +428,31 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 })}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-10">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
                   <AnimatePresence mode="wait">
 
                     {/* ── Tab 1: General Details ── */}
                     {activeTab === "general" && (
                       <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="md:col-span-2 space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Request Title</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Request Title</label>
                           <div className="relative group">
-                            <Layout className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             <Input
                               {...register("title")}
-                              className={`pl-14 py-4 h-14 font-semibold ${errors.title ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
+                              className={`pl-9 h-10 text-sm ${errors.title ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
                               placeholder="e.g. Q3 Logistics Support & Fleet Hub..."
                             />
-                            {errors.title && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.title.message}</p>}
+                            {errors.title && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.title.message}</p>}
                           </div>
                         </div>
 
                         <div className="space-y-3">
                           <div className="flex items-center justify-between pl-1">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ">Vendor Partnership</label>
+                            <label className="text-xs font-medium text-foreground mb-1 block ">Vendor Partnership</label>
                             {selectedVendorCompliance && (
                               <span className={cn(
-                                "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                "text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md",
                                 isNonCompliant ? "bg-rose-500/10 text-rose-500" : "bg-brand-secondary/10 text-brand-secondary"
                               )}>
                                 Compliance: {selectedVendorCompliance.score}%
@@ -461,7 +461,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                           <div className="relative group">
                             <Truck className={cn(
-                              "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors z-10",
+                              "absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors z-10",
                               isNonCompliant ? "text-rose-500" : "text-muted-foreground/30 group-focus-within:text-primary "
                             )} />
                             <Controller
@@ -470,7 +470,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value?.toString()}>
                                   <SelectTrigger className={cn(
-                                    "pl-14 py-4 h-14 font-semibold transition-all",
+                                    "pl-9 h-10 text-sm transition-all",
                                     errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "",
                                     isNonCompliant ? "border-rose-500/50 bg-rose-500/[0.02] text-rose-600" : ""
                                   )}>
@@ -494,7 +494,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                            {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.vendorId.message}</p>}
+                            {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.vendorId.message}</p>}
                           </div>
                           
                           {/* Compliance Hard Stop Banner */}
@@ -509,8 +509,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 mt-2">
                                   <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                                   <div>
-                                    <p className="text-[11px] font-black text-rose-500 uppercase tracking-widest">Regulatory Risk</p>
-                                    <p className="text-[10px] text-rose-600/80 mt-1 leading-relaxed font-medium">
+                                    <p className="text-sm font-semibold text-rose-600">Regulatory Risk</p>
+                                    <p className="text-xs text-rose-600/90 mt-1 leading-relaxed font-medium">
                                       {selectedVendorCompliance?.name} is in **Critical Non-Compliance**. 
                                       Institutional policy blocks procurement until required legal documentation (CR, Tax, etc.) 
 
@@ -524,15 +524,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Purpose Category</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Purpose Category</label>
                           <div className="relative group">
-                            <FolderTree className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <FolderTree className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
                             <Controller
                               name="purposeCategoryId"
                               control={control}
                               render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value?.toString()}>
-                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.purposeCategoryId ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                  <SelectTrigger className={`pl-9 h-10 text-sm ${errors.purposeCategoryId ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
                                     <SelectValue placeholder="Select category..." />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -543,14 +543,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                             {errors.purposeCategoryId?.message && typeof errors.purposeCategoryId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.purposeCategoryId.message}</p>}
+                             {errors.purposeCategoryId?.message && typeof errors.purposeCategoryId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.purposeCategoryId.message}</p>}
                           </div>
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Project/Asset Selection</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Project/Asset Selection</label>
                           <div className="relative group">
-                            <Layers className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             {isLoadingSubPurposes && (
                               <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin z-10" />
                             )}
@@ -563,7 +563,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                   value={field.value?.toString()}
                                   disabled={isLoadingSubPurposes || !formCategoryId}
                                 >
-                                  <SelectTrigger className={`pl-14 py-4 h-14 font-bold ${errors.subPurposeId ? "border-rose-500 ring-1 ring-rose-500/20" : isOverBudget ? "border-rose-500/50 text-rose-500" : ""}`}>
+                                  <SelectTrigger className={`pl-9 h-10 text-sm font-medium ${errors.subPurposeId ? "border-rose-500 ring-1 ring-rose-500/20" : isOverBudget ? "border-rose-500/50 text-rose-500" : ""}`}>
                                     <SelectValue placeholder={!formCategoryId ? "Select a category first..." : isLoadingSubPurposes ? "Loading projects..." : subPurposes.length === 0 ? "No active projects found" : "Select Project Lifecycle..."} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -580,7 +580,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 </Select>
                               )}
                             />
-                            {errors.subPurposeId?.message && typeof errors.subPurposeId.message === 'string' && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.subPurposeId.message}</p>}
+                            {errors.subPurposeId?.message && typeof errors.subPurposeId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.subPurposeId.message}</p>}
                           </div>
                           {selectedBudget !== null && (
                             <p className={`text-[10px] font-black uppercase tracking-widest pl-1 mt-1 ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
@@ -590,15 +590,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Priority</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Priority</label>
                           <div className="relative group">
-                            <AlertCircle className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <AlertCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             <Controller
                               name="priority"
                               control={control}
                               render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger className={`pl-14 py-4 h-14 font-semibold ${errors.priority ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
+                                  <SelectTrigger className={`pl-9 h-10 text-sm ${errors.priority ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}>
                                     <SelectValue placeholder="Priority" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -614,15 +614,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         <div className="space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Currency</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Currency</label>
                           <div className="relative group">
-                            <DollarSign className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             <Controller
                               name="currency"
                               control={control}
                               render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger className="pl-14 py-4 h-14 font-semibold">
+                                  <SelectTrigger className="pl-9 h-10 text-sm">
                                     <SelectValue placeholder="Currency" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -638,16 +638,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </div>
 
                         <div className="md:col-span-2 space-y-3">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Requirement Overview</label>
+                          <label className="text-xs font-medium text-foreground mb-1 block">Requirement Overview</label>
                           <div className="relative group">
-                            <AlignLeft className="absolute left-5 top-5 w-5 h-5 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
+                            <AlignLeft className="absolute left-3 top-5 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             <Textarea
                               {...register("description")}
                               rows={4}
-                              className={`pl-14 py-5 font-medium leading-relaxed ${errors.description ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
+                              className={`pl-9 py-2.5 text-sm leading-relaxed ${errors.description ? "border-rose-500 ring-1 ring-rose-500/20" : ""}`}
                               placeholder="Detail the scope of work and reason for purchase..."
                             />
-                            {errors.description && <p className="text-[10px] text-rose-500 mt-2 font-bold uppercase tracking-wider pl-1">{errors.description.message}</p>}
+                            {errors.description && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.description.message}</p>}
                           </div>
                         </div>
                       </motion.div>
@@ -681,7 +681,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-4">
                           <div>
                             <h3 className="text-sm font-bold text-foreground">Payment Structure</h3>
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">How will this vendor be paid?</p>
+                            <p className="text-sm text-muted-foreground font-medium mt-0.5">How will this vendor be paid?</p>
                           </div>
                           <Controller
                             control={control}
@@ -699,7 +699,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                       key={opt.value}
                                       type="button"
                                       onClick={() => field.onChange(opt.value)}
-                                      className={`p-5 rounded-2xl border text-left transition-all flex flex-col gap-3 ${isActive ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-secondary/40 border-border hover:border-primary/20 hover:bg-secondary/60"}`}
+                                      className={`p-4 rounded-xl border text-left transition-all flex flex-col gap-3 ${isActive ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-secondary/40 border-border hover:border-primary/20 hover:bg-secondary/60"}`}
                                     >
                                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>
                                         {opt.icon}
@@ -722,7 +722,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             <div className="flex items-center justify-between">
                               <div>
                                 <h3 className="text-sm font-bold text-foreground">Payment Milestones</h3>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Define each payment stage</p>
+                                <p className="text-sm text-muted-foreground font-medium mt-0.5">Define each payment stage</p>
                               </div>
                               <button
                                 type="button"
@@ -760,11 +760,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                   <motion.div key={idx} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 space-y-4">
                                     <div className="flex items-center gap-3">
                                       <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                                        <span className="text-[10px] font-black text-primary">{idx + 1}</span>
+                                        <span className="text-xs font-semibold text-primary">{idx + 1}</span>
                                       </div>
                                       <input
                                         {...register(`installments.${idx}.installmentName`)}
-                                        className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all placeholder:text-muted-foreground/30"
+                                        className="flex-1 bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all placeholder:text-muted-foreground/30"
                                         placeholder="e.g. Initial Mobilization Payment"
                                       />
                                       <button
@@ -814,8 +814,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                       </div>
                                     </div>
                                     <div className="flex items-center justify-between px-1">
-                                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Calculated Amount</span>
-                                      <span className="text-sm font-black text-primary font-mono">QAR {calcAmt.toLocaleString()}</span>
+                                      <span className="text-xs text-muted-foreground font-medium mb-1 block">Calculated Amount</span>
+                                      <span className="text-sm font-semibold text-primary">QAR {calcAmt.toLocaleString()}</span>
                                     </div>
                                   </motion.div>
                                 );
@@ -828,7 +828,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               const isBalanced = totalPct === 100;
                               const isOver = totalPct > 100;
                               return (
-                                <div className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${
+                                <div className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
                                   isBalanced ? "bg-emerald-500/10 border-emerald-500/30" : 
                                   isOver ? "bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]" : 
                                   "bg-secondary/50 border-border"
@@ -861,8 +861,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         ) : (
                           /* Info card for ADVANCE / POST_PROJECT */
-                          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="p-8 rounded-2xl bg-secondary/40 border border-border flex flex-col items-center text-center gap-4">
-                            <div className="w-16 h-16 rounded-2xl bg-card flex items-center justify-center border border-border shadow-md">
+                          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="p-6 rounded-xl bg-card border-border border border-border flex flex-col items-center text-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-card flex items-center justify-center border border-border shadow-md">
                               <ShieldCheck className="w-8 h-8 text-primary" />
                             </div>
                             <div className="max-w-sm space-y-1">
@@ -877,7 +877,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             </div>
                             <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 rounded-full border border-primary/20">
                               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Finance-Verified Structure</span>
+                              <span className="text-xs font-medium text-primary">Finance-Verified Structure</span>
                             </div>
                           </motion.div>
                         )}
@@ -901,7 +901,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               <ShieldCheck className="w-4 h-4 text-primary" />
                               Mandatory Approvers
                             </h3>
-                            <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">System-Assigned Executives</p>
+                            <p className="text-xs text-muted-foreground mt-1">System-Assigned Executives</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                               {MANDATORY_DEPTS.map((dept) => (
                                 <div key={dept} className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/30 text-primary text-xs font-bold text-center opacity-80 cursor-not-allowed">
@@ -918,7 +918,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                 <ShieldCheck className="w-4 h-4 text-primary" />
                                 Additional Approvals
                               </h3>
-                              <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">Select departments required for secondary sign-off</p>
+                              <p className="text-xs text-muted-foreground mt-1">Select departments required for secondary sign-off</p>
                             </div>
                             {additionalDeptOptions.length === 0 ? (
                               <p className="text-xs text-muted-foreground italic">No additional departments available.</p>
@@ -964,11 +964,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 </div>
 
                 {/* Footer */}
-                <div className={`p-10 border-t transition-colors flex items-center justify-between ${isOverBudget ? "bg-rose-500/10 border-rose-500/20" : "bg-secondary/30 border-border"}`}>
+                <div className={`p-6 border-t transition-colors flex items-center justify-between ${isOverBudget ? "bg-rose-500/10 border-rose-500/20" : "bg-secondary/30 border-border"}`}>
                   <div className="flex items-center gap-8">
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Total Estimated Exposure</span>
-                      <span className={`text-2xl font-serif font-black transition-colors ${isOverBudget ? "text-rose-500" : "text-foreground"}`}>
+                      <span className="text-sm text-muted-foreground font-medium">Total Estimated Exposure</span>
+                      <span className={`text-lg font-semibold transition-colors ${isOverBudget ? "text-rose-500" : "text-foreground"}`}>
                         {watch("currency")} {(watch("totalEstimatedCost") + watch("freightAmount")).toLocaleString()}
                       </span>
                     </div>
@@ -979,9 +979,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           {isOverBudget ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                         </div>
                         <div>
-                          <span className="text-[10px] font-black uppercase tracking-widest block opacity-50">Dept Allocation</span>
+                          <span className="text-xs text-muted-foreground font-medium block">Dept Allocation</span>
                           <div className="flex items-center gap-2">
-                            <span className={`text-base font-black font-serif ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
+                            <span className={`text-sm font-semibold ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
                               {watch("currency")} {selectedBudget.toLocaleString()}
                             </span>
                             {isOverBudget && (
@@ -1015,7 +1015,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           type="button"
                           disabled={isSubmitting}
                           onClick={handleSubmit((data) => handleAction(data, "draft"))}
-                          className="flex items-center gap-3 px-8 rounded-2xl font-bold bg-secondary/50 border border-border hover:bg-secondary transition-all"
+                          className="flex items-center gap-3 px-6 rounded-lg font-bold bg-secondary/50 border border-border hover:bg-secondary transition-all"
                         >
                           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                           Save Draft
@@ -1032,7 +1032,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             else if (activeTab === "items") setActiveTab("payments");
                             else if (activeTab === "payments") setActiveTab("approvals");
                           }}
-                          className={`flex items-center gap-3 px-10 rounded-2xl font-serif font-bold ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
+                          className={`flex items-center gap-3 px-10 rounded-lg font-medium ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
                         >
                           Next Section
                           <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : ""}`} />
@@ -1043,7 +1043,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           size="lg"
                           onClick={handleSubmit((data) => handleAction(data, "pending"))}
                           className={cn(
-                            "flex items-center gap-4 px-12 rounded-2xl shadow-xl font-serif font-bold transition-all",
+                            "flex items-center gap-4 px-8 rounded-lg shadow-sm font-serif font-bold transition-all",
                             isNonCompliant 
                               ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
                               : isOverBudget 

@@ -71,7 +71,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
             <Package className="w-4 h-4 text-brand-primary" />
             Purchase Items
           </h3>
-          <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mt-1">Itemized Budget Breakdown</p>
+          <p className="text-xs text-muted-foreground mt-1">Itemized Budget Breakdown</p>
         </div>
         <Button
           variant="secondary"
@@ -85,10 +85,10 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
         </Button>
       </div>
 
-      <div className="relative overflow-x-auto custom-scrollbar rounded-2xl border border-border bg-card shadow-sm transition-colors">
+      <div className="relative overflow-x-auto custom-scrollbar rounded-xl border border-border bg-card shadow-sm transition-colors">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-secondary/50 text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
+            <tr className="bg-secondary/50 text-xs font-medium text-muted-foreground uppercase leading-none">
               <th className="px-6 py-4">Item Details</th>
               <th className="px-6 py-4 w-32 text-center">Qty</th>
               <th className="px-6 py-4 w-40">Unit Price (QAR)</th>
@@ -131,7 +131,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                           value={item.quantity}
                           onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
                           onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                          className="w-16 bg-transparent border-none p-0 text-center text-sm font-bold text-primary focus:ring-ring focus:ring-2 min-h-[44px]"
+                          className="w-16 bg-transparent border-none p-0 text-center text-sm font-medium text-foreground focus:ring-1 focus:ring-ring min-h-[36px]"
                         />
                     </div>
                   </td>
@@ -144,7 +144,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                         value={item.estimatedCost}
                         onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-ring focus:ring-2 min-h-[44px]"
+                        className="w-full bg-transparent border-none p-0 text-sm font-medium text-foreground focus:ring-1 focus:ring-ring min-h-[36px]"
                       />
                     </div>
                   </td>
@@ -181,11 +181,11 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
         </table>
 
         {/* Items Subtotal & Freight */}
-        <div className="bg-secondary/30 px-8 py-5 border-t border-border flex items-center justify-between">
+        <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Line Items Subtotal</span>
           <span className="text-sm font-bold text-foreground transition-colors">{itemsTotal.toLocaleString()}</span>
         </div>
-        <div className="bg-secondary/30 px-8 py-5 border-t border-border flex items-center justify-between relative group">
+        <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between relative group">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-brand-primary" />
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest group-focus-within:text-brand-primary transition-colors">Freight Amount</span>
@@ -198,25 +198,25 @@ export default function RequestItemGrid({ items, errors, onChange, currency, fre
                value={freightAmount}
                onChange={(e) => onFreightChange(parseFloat(e.target.value) || 0)}
                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-               className="w-32 h-10 text-right font-extrabold"
+               className="w-32 h-9 text-right font-semibold text-sm"
              />
           </div>
         </div>
 
         {/* Footer / Grand Total */}
-        <div className="bg-gradient-to-r from-primary/10 via-card to-transparent px-8 py-6 flex items-center justify-between border-t border-primary/20">
+        <div className="bg-card px-6 py-5 flex items-center justify-between border-t border-primary/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/30">
               <Calculator className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">Cumulative Budget</p>
+              <p className="text-xs text-muted-foreground">Cumulative Budget</p>
               <p className="text-sm font-bold text-foreground transition-colors">Grand Total Estimate</p>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] block mb-1">Total ({currency})</span>
-            <span className="text-3xl font-serif font-bold text-foreground tracking-tighter transition-colors">
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Total ({currency})</span>
+            <span className="text-lg font-semibold text-foreground transition-colors">
               {grandTotal.toLocaleString()}
             </span>
           </div>
