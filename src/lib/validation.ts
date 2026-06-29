@@ -26,7 +26,7 @@ export const createRequestSchema = z.object({
   vendorId: z.number().int().positive(),
   purposeType: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
-  currency: z.string().default("QAR"),
+  currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   freightAmount: z.number().min(0).optional(),
   subPurposeId: z.number().int().positive().nullable().optional(),
   purposeCategoryId: z.number().int().positive().nullable().optional(),

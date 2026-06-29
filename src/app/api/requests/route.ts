@@ -16,6 +16,7 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 import { createRequestSchema } from "@/lib/validation";
 import { evaluateCompliance } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
+import { getExchangeRateToQAR } from "@/lib/utils/currency";
 
 export const dynamic = 'force-dynamic';
 
@@ -205,10 +206,17 @@ export async function POST(req: NextRequest) {
       status: requestedStatus
     } = validation.data;
 
-    const totalEstimatedCostNum = Math.round(totalEstimatedCost || 0);
+    // --- SECURITY PATCH: Trust No Client Payload ---
+    // Recalculate actual sum from items to prevent client-side manipulation of budget.
+    const calculatedItemsTotal = items.reduce((sum, item) => sum + (item.quantity * item.estimatedCost), 0);
+    const totalEstimatedCostNum = Math.round(calculatedItemsTotal);
     const freightAmountNum = Math.round(freightAmount || 0);
     const vendorIdNum = vendorId;
     const totalCost = totalEstimatedCostNum + freightAmountNum;
+    
+    // --- Currency Conversion Lock-In ---
+    const activeRate = await getExchangeRateToQAR(currency || "QAR");
+    const baseAmountQar = Math.round(totalCost * activeRate);
 
     // --- COMPLIANCE HARD STOP (Backend Gatekeeper) ---
     // Draft submissions bypass the compliance gateway — users can save
@@ -277,6 +285,8 @@ export async function POST(req: NextRequest) {
         subPurposeId: subPurposeId ? Number(subPurposeId) : null,
         priority: priority || "medium",
         currency: currency || "QAR",
+        exchangeRate: activeRate.toString(),
+        baseAmountQar: baseAmountQar,
         freightAmount: freightAmountNum,
         requesterId: user.id,
         items: JSON.stringify(items || []) as any,
@@ -313,6 +323,12 @@ export async function POST(req: NextRequest) {
           ? Math.round((inst.amountValue / 100) * totalCost)
           : Math.round(Number(inst.amountValue) || 0),
         currency: currency || "QAR",
+        exchangeRate: activeRate.toString(),
+        calculatedAmountQar: Math.round(
+          (inst.valueType === "PERCENTAGE"
+            ? Math.round((inst.amountValue / 100) * totalCost)
+            : Math.round(Number(inst.amountValue) || 0)) * activeRate
+        ),
         createdBy: user.id,
       }));
     } else {
@@ -325,6 +341,8 @@ export async function POST(req: NextRequest) {
         amountValue: 100,
         calculatedAmount: totalCost,
         currency: currency || "QAR",
+        exchangeRate: activeRate.toString(),
+        calculatedAmountQar: baseAmountQar,
         createdBy: user.id,
       }];
     }

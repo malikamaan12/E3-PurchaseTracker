@@ -187,15 +187,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       finalizedProposedCost = updatedRequest.proposedRevisedCost;
     }
 
-    // NEW: Currency Lock-in at Approval
-    let exchangeRate = updatedRequest.exchangeRate;
+    // Maintain Creation-Time Currency Lock-In
+    const exchangeRate = updatedRequest.exchangeRate;
     let baseAmountQar = updatedRequest.baseAmountQar;
     
     if (nextRequestStatus === "approved") {
-      const activeRate = await getExchangeRateToQAR(updatedRequest.currency || "QAR");
-      exchangeRate = activeRate.toString();
       const activeCost = finalizedProposedCost ?? updatedRequest.revisedTotalCost ?? updatedRequest.totalEstimatedCost ?? 0;
-      baseAmountQar = Math.round(activeCost * activeRate);
+      baseAmountQar = Math.round(activeCost * Number(exchangeRate || 1.0));
     }
 
     const [finalRequest] = await db

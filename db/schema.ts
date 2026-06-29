@@ -548,7 +548,7 @@ export const insertPurchaseRequestSchema = createInsertSchema(purchaseRequests, 
   // Make subPurposeId conditionally required only for PROJECT type
   subPurposeId: z.number().optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
-  currency: z.enum(["QAR", "USD", "CNY"]).optional(),
+  currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).optional(),
   totalEstimatedCost: z.number()
     .multipleOf(0.01, "Total cost can have up to 2 decimal places")
     .min(0, "Total cost cannot be negative")
@@ -611,7 +611,7 @@ export const insertVendorSchema = createInsertSchema(vendors, {
     .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and slashes"),
   branchName: z.string().min(2, "Branch name must be at least 2 characters"),
   category: z.string().default("general"),
-  payment_currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   remarks: z.string().optional().nullable(),
   status: z.enum(["active", "blocked", "frozen"]).default("active"),
 });
@@ -637,7 +637,7 @@ export const insertPaymentInstallmentSchema = createInsertSchema(paymentInstallm
   valueType: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]),
   amountValue: z.number().min(0),
   calculatedAmount: z.number().min(0),
-  currency: z.enum(["QAR", "USD", "CNY"]).default("QAR"),
+  currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   status: z.enum(["pending", "paid", "cancelled"]).default("pending"),
   dueDate: z.coerce.date(),
   transactionReference: z.string().optional(),

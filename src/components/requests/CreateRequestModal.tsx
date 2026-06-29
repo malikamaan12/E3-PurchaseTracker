@@ -51,7 +51,7 @@ const requestSchema = z.object({
   purposeType: z.string().min(1, "Purpose Type missing"),
   subPurposeId: z.any().refine(val => val !== "" && Number(val) > 0, "Select Project"),
   priority: z.enum(["low", "medium", "high", "urgent"]),
-  currency: z.enum(["QAR", "USD", "EUR", "AED"]).default("QAR"),
+  currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   freightAmount: z.coerce.number().min(0).default(0),
   items: z.array(z.object({
     name: z.string().min(1, "Item name required"),
@@ -630,6 +630,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                     <SelectItem value="USD">USD - US Dollar</SelectItem>
                                     <SelectItem value="EUR">EUR - Euro</SelectItem>
                                     <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+                                    <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
                                   </SelectContent>
                                 </Select>
                               )}
