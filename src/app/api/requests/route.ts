@@ -9,7 +9,8 @@ import {
   approvals,
   auditLogs,
   subPurposes,
-  vendors
+  vendors,
+  itemCatalog
 } from "@db/schema";
 import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
@@ -299,6 +300,23 @@ export async function POST(req: NextRequest) {
       })
       .returning();
     console.log("[POST /api/requests] Step 1 OK: request id", newRequest.id);
+
+    // 1.5 Learn Items for Catalog
+    if (items && Array.isArray(items) && items.length > 0) {
+      try {
+        const uniqueItems = Array.from(new Map(items.map((i: any) => [i.name, i])).values()) as any[];
+        const catalogItems = uniqueItems.map((item: any) => ({
+          name: item.name,
+          defaultCost: Math.round(item.estimatedCost),
+          category: purposeType || "General",
+        }));
+        await db.insert(itemCatalog)
+          .values(catalogItems)
+          .onConflictDoNothing({ target: itemCatalog.name });
+      } catch (e) {
+        console.error("Failed to learn items for catalog", e);
+      }
+    }
 
     // 2. Link attachments if provided
     console.log("[POST /api/requests] Step 2: Linking attachments", attachmentIds);

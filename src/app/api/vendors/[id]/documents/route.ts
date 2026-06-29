@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }).returning();
 
     // Trigger compliance scan immediately
-    complianceService.triggerAsyncScan(vendorId).catch(console.error);
+    await complianceService.scanVendorDocuments(vendorId);
 
     return NextResponse.json(newDoc, { status: 201 });
   } catch (error: any) {

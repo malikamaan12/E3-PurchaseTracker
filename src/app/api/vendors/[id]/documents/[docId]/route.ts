@@ -20,7 +20,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await db.delete(vendorDocuments).where(and(eq(vendorDocuments.id, docId), eq(vendorDocuments.vendorId, vendorId)));
 
     // Trigger compliance scan immediately
-    complianceService.triggerAsyncScan(vendorId).catch(console.error);
+    await complianceService.scanVendorDocuments(vendorId);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .returning();
 
     // Trigger compliance scan immediately
-    complianceService.triggerAsyncScan(vendorId).catch(console.error);
+    await complianceService.scanVendorDocuments(vendorId);
 
     return NextResponse.json(updatedDoc);
   } catch (error: any) {

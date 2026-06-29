@@ -947,3 +947,14 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings);
 export const selectSystemSettingSchema = createSelectSchema(systemSettings);
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = typeof systemSettings.$inferInsert;
+
+export const itemCatalog = pgTable("item_catalog", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  defaultCost: integer("default_cost").notNull().default(0),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ItemCatalog = typeof itemCatalog.$inferSelect;

@@ -67,7 +67,9 @@ export class ComplianceService {
           id: d.id,
           fileName: `${d.documentType} - ${d.documentName}`,
           fileUrl: d.fileUrl,
-          uploadedAt: d.uploadedAt
+          uploadedAt: d.uploadedAt,
+          documentType: d.documentType,
+          expiryDate: d.expiryDate
         });
       });
 
@@ -83,10 +85,24 @@ export class ComplianceService {
       attachments.forEach(file => {
         const name = file.fileName.toLowerCase();
         
-        Object.entries(this.CATEGORIES).forEach(([cat, keywords]) => {
-          if (docs[cat].status === "missing" && keywords.some(k => name.includes(k))) {
+        let status = "valid";
+        if (file.expiryDate && new Date(file.expiryDate) < new Date()) {
+          status = "expired";
+        }
+
+        let matchedCat: string | null = null;
+        if (file.documentType) {
+           const typeStr = file.documentType.toLowerCase();
+           if (typeStr.includes("registration")) matchedCat = "registration";
+           else if (typeStr.includes("tax")) matchedCat = "tax";
+           else if (typeStr.includes("nda") || typeStr.includes("contract")) matchedCat = "contract";
+           else if (typeStr.includes("iso") || typeStr.includes("establishment")) matchedCat = "establishment";
+        }
+
+        const assignDoc = (cat: string) => {
+          if (docs[cat].status !== "valid") {
             docs[cat] = {
-              status: "valid",
+              status: status,
               file: {
                 id: file.id,
                 name: file.fileName,
@@ -95,7 +111,17 @@ export class ComplianceService {
               }
             };
           }
-        });
+        };
+
+        if (matchedCat) {
+          assignDoc(matchedCat);
+        } else {
+          Object.entries(this.CATEGORIES).forEach(([cat, keywords]) => {
+            if (keywords.some(k => name.includes(k))) {
+              assignDoc(cat);
+            }
+          });
+        }
       });
 
       // 4. Calculate health score

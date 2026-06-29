@@ -21,8 +21,18 @@ export async function getExchangeRateToQAR(currency: string): Promise<number> {
   };
 
   try {
-    // In the future, we can integrate a live Forex API here if needed.
-    // For now, stable locked rates are preferred for financial predictability.
+    const res = await fetch(`https://open.er-api.com/v6/latest/${code}`, { 
+      next: { revalidate: 3600 } // Cache for 1 hour to prevent rate limiting
+    });
+    if (!res.ok) throw new Error("Failed to fetch exchange rate");
+    const data = await res.json();
+    
+    // open.er-api returns the rates relative to the base currency
+    // So data.rates["QAR"] will give us how many QAR is 1 unit of `code`
+    if (data && data.rates && data.rates["QAR"]) {
+      return data.rates["QAR"];
+    }
+    
     return fallbacks[code] || 1.0;
   } catch (error) {
     console.warn(`[Currency] Failed to fetch live rate for ${code}, using fallback`);

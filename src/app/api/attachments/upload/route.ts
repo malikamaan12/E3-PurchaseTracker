@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       );
 
       // 2. Generate Public URL (Expiring for security)
+      // We don't store this in the DB, we generate it on the fly when requested.
       const fileUrl = await r2Storage.getReadPresignedUrl(objectKey, 604800); // 7 days
 
       // 3. Persist Metadata to Database (requestId is now optional)
@@ -53,10 +54,11 @@ export async function POST(req: NextRequest) {
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
-        fileUrl: fileUrl,
+        fileUrl: objectKey, // Storing objectKey so we can generate fresh URLs later
       }).returning();
-
-      uploadedRecords.push(record);
+      
+      // But return the presigned url so the frontend can preview it immediately if it wants
+      uploadedRecords.push({ ...record, fileUrl });
     }
 
     return NextResponse.json(uploadedRecords);

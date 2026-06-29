@@ -14,19 +14,13 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Combobox } from "@/components/ui/Combobox";
 
-const ITEM_CATALOG = [
-  { value: "macbook_pro_14", label: "MacBook Pro 14-inch (M3)" },
-  { value: "macbook_pro_16", label: "MacBook Pro 16-inch (M3 Max)" },
-  { value: "dell_xps_15", label: "Dell XPS 15 Laptop" },
-  { value: "thinkpad_x1", label: "Lenovo ThinkPad X1 Carbon" },
-  { value: "ipad_pro", label: "iPad Pro 12.9-inch" },
-  { value: "monitor_4k", label: "Dell U2723QE 27-inch 4K Monitor" },
-  { value: "ergonomic_chair", label: "Herman Miller Aeron Chair" },
-  { value: "standing_desk", label: "Uplift V2 Standing Desk" },
-  { value: "aws_ec2_monthly", label: "AWS EC2 Compute (Monthly)" },
-  { value: "gcp_storage", label: "GCP Storage (TB/Month)" },
-  { value: "adobe_cc", label: "Adobe Creative Cloud License" },
-  { value: "office_365", label: "Microsoft 365 Enterprise" },
+import { useState, useEffect } from "react";
+
+// Initial fallback catalog items
+const FALLBACK_CATALOG = [
+  { value: "MacBook Pro 14-inch (M3)", label: "MacBook Pro 14-inch (M3)", defaultCost: 7500 },
+  { value: "Dell XPS 15 Laptop", label: "Dell XPS 15 Laptop", defaultCost: 6500 },
+  { value: "Lenovo ThinkPad X1 Carbon", label: "Lenovo ThinkPad X1 Carbon", defaultCost: 5500 },
 ];
 
 export interface RequestItem {
@@ -55,9 +49,34 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
     onChange(items.filter((_, i) => i !== index));
   };
 
+  const [catalogItems, setCatalogItems] = useState(FALLBACK_CATALOG);
+
+  useEffect(() => {
+    fetch('/api/items/catalog')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCatalogItems(data.map((d: any) => ({
+            value: d.name,
+            label: d.name,
+            defaultCost: d.defaultCost || 0
+          })));
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const updateItem = (index: number, field: keyof RequestItem, value: any) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
+    
+    if (field === "name") {
+      const found = catalogItems.find(c => c.value === value);
+      if (found && (!newItems[index].estimatedCost || newItems[index].estimatedCost === 0)) {
+        newItems[index].estimatedCost = found.defaultCost;
+      }
+    }
+    
     onChange(newItems);
   };
 
@@ -108,7 +127,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-3">
                         <Combobox
-                          options={ITEM_CATALOG}
+                          options={catalogItems}
                           value={item.name}
                           onChange={(val) => updateItem(index, "name", val)}
                           placeholder="Search item catalog..."
