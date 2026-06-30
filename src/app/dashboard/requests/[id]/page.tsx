@@ -94,7 +94,11 @@ export default function RequestDetailPage() {
 
   // Check if the current user's dept has a pending approval record for this request
   const myDeptApproval = request.approvals?.find(
-    (a: any) => a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim()
+    (a: any) => {
+      const aDept = a.department?.toLowerCase().trim() || "";
+      const uDept = user?.department?.toLowerCase().trim() || "";
+      return aDept === uDept || aDept.includes(uDept) || uDept.includes(aDept);
+    }
   );
   const canAct =
     (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
@@ -867,6 +871,7 @@ function StatusBadge({ status }: { status: string }) {
     rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]",
     draft: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
     changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
+    partially_approved: "bg-teal-500/10 text-teal-500 border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.1)] animate-pulse",
     VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)] animate-pulse",
   };
 

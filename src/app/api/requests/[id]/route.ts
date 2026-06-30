@@ -14,7 +14,7 @@ import {
   departments,
   paymentInstallments
 } from "@db/schema";
-import { eq, and, or, inArray, desc, count } from "drizzle-orm";
+import { eq, and, or, inArray, desc, count, asc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
@@ -63,6 +63,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         comments: approvals.comments,
         department: approvals.department,
         createdAt: approvals.createdAt,
+        processedAt: approvals.processedAt,
+        isMandatory: approvals.isMandatory,
         approver: {
           id: users.id,
           username: users.username,
@@ -70,7 +72,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       })
       .from(approvals)
       .leftJoin(users, eq(users.id, approvals.approverId))
-      .where(eq(approvals.requestId, requestId)),
+      .where(eq(approvals.requestId, requestId))
+      .orderBy(asc(approvals.id)),
       db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId)),
       db.select().from(paymentInstallments).where(eq(paymentInstallments.requestId, requestId)),
       db.select({
@@ -111,26 +114,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const safeApprovals = Array.isArray(requestApprovals) ? requestApprovals : [];
       const depts: string[] = Array.from(new Set(safeApprovals.map((a: any) => a.department as string).filter(Boolean))) as string[];
       
-      const deptStakeholders = depts.length > 0 
-        ? await db
-            .select({
-              id: users.id,
-              username: users.username,
-              department: users.department,
-            })
-            .from(users)
-            .where(
-              and(
-                inArray(users.department, depts),
-                eq(users.role, 'approver')
-              )
-            )
-        : [];
+      const deptStakeholders = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          department: users.department,
+        })
+        .from(users)
+        .where(eq(users.role, 'approver'));
 
       // Map stakeholders to each approval step
       const approvalsWithStakeholders = safeApprovals.map((approval: any) => ({
         ...approval,
-        stakeholders: deptStakeholders.filter((s: any) => s.department === approval.department)
+        stakeholders: deptStakeholders.filter((s: any) => {
+          if (!s.department || !approval.department) return false;
+          const sDept = s.department.toLowerCase();
+          const aDept = approval.department.toLowerCase();
+          return sDept === aDept || sDept.includes(aDept) || aDept.includes(sDept);
+        })
       }));
 
       // Parse JSON fields (Items & Additional Approvers are text columns in DB)

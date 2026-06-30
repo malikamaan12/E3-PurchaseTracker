@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 2. Resolve target approval record for this user's department
-    const [targetApproval] = await db
+    let [targetApproval] = await db
       .select()
       .from(approvals)
       .where(
@@ -59,6 +59,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         )
       )
       .limit(1);
+
+    if (!targetApproval) {
+      // Fuzzy match or fallback for Admins
+      const allApprovalsForReq = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, requestId))
+        .orderBy(approvals.id);
+
+      targetApproval = allApprovalsForReq.find(a => 
+        (user.department && a.department.toLowerCase().includes(user.department.toLowerCase())) ||
+        (user.department && user.department.toLowerCase().includes(a.department.toLowerCase()))
+      );
+
+      // If still not found, and user is an admin acting as an approver, default to the FIRST pending approval
+      if (!targetApproval && user.role === 'admin') {
+        targetApproval = allApprovalsForReq.find(a => a.status === 'pending');
+      }
+    }
 
     if (!targetApproval && user.role !== 'admin') {
       return NextResponse.json({ error: "No pending approval for your department." }, { status: 403 });

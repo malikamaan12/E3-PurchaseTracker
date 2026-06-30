@@ -537,6 +537,7 @@ function StatusBadge({ status }: { status: string }) {
     rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20",
     draft: "bg-secondary text-muted-foreground border-border",
     changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
+    partially_approved: "bg-teal-500/10 text-teal-500 border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.1)] animate-pulse",
     VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   };
 
