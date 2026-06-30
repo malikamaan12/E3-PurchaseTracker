@@ -338,7 +338,7 @@ export default function RequestDetailPage() {
               </div>
             </div>
             
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
                   <h2 className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-1">Description</h2>
@@ -353,7 +353,7 @@ export default function RequestDetailPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-4">
                 <InfoItem icon={<User className="w-4 h-4" />} label="Requester" value={request.requester?.username} />
                 <InfoItem icon={<Building2 className="w-4 h-4" />} label="Department" value={request.requester?.department} />
                 <InfoItem icon={<Clock className="w-4 h-4" />} label="Sub-Purpose" value={request.subPurpose?.name} />
@@ -374,7 +374,7 @@ export default function RequestDetailPage() {
                   <h2 className="text-sm font-bold text-foreground tracking-tight">Vendor Details</h2>
                 </div>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center shrink-0">
                     <Building2 className="w-5 h-5 text-brand-primary" />
@@ -392,7 +392,7 @@ export default function RequestDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="grid grid-cols-2 gap-3 pt-2">
                    <div className="space-y-1">
                      <p className="text-[9px] font-bold text-zinc-600 uppercase">Primary Contact</p>
                      <p className="text-xs text-zinc-300 font-medium">{request.vendor?.contactPerson || "N/A"}</p>
@@ -427,8 +427,8 @@ export default function RequestDetailPage() {
                   <span className="text-[9px] bg-brand-secondary/10 text-brand-secondary px-2 py-0.5 rounded-md border border-brand-secondary/20 font-bold uppercase tracking-widest">{request.currency || "QAR"}</span>
                 </div>
               </div>
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1 sm:border-r border-border sm:pr-4">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase italic leading-none">Net Item Subtotal</p>
                     <p className="text-xl font-serif text-foreground tracking-tighter">{(request.totalEstimatedCost || 0).toLocaleString()}</p>
@@ -521,18 +521,18 @@ export default function RequestDetailPage() {
               <table className="w-full text-left">
                 <thead className="bg-background/80 border-b border-border text-[10px] uppercase font-black text-muted-foreground tracking-[0.2em] sticky top-0 backdrop-blur-md">
                   <tr>
-                    <th className="px-8 py-5">#</th>
-                    <th className="px-6 py-5">Item Specification</th>
-                    <th className="px-6 py-5 text-center">Qty</th>
-                    <th className="px-6 py-5 text-right font-serif">Unit Price</th>
-                    <th className="px-8 py-5 text-right font-serif">Ext. Total</th>
+                    <th className="px-5 py-3">#</th>
+                    <th className="px-4 py-3">Item Specification</th>
+                    <th className="px-4 py-3 text-center">Qty</th>
+                    <th className="px-4 py-3 text-right font-serif">Unit Price</th>
+                    <th className="px-5 py-3 text-right font-serif">Ext. Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                    {Array.isArray(request.items) ? request.items.map((item: any, idx: number) => (
                      <tr key={idx} className="group hover:bg-secondary/30 transition-colors relative">
-                       <td className="px-8 py-6 text-muted-foreground font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
-                       <td className="px-6 py-6">
+                       <td className="px-5 py-4 text-muted-foreground font-mono text-[10px]">{String(idx + 1).padStart(2, '0')}</td>
+                       <td className="px-4 py-4">
                          <div className="flex flex-col gap-1">
                            <p className="text-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">{item.name || "Unnamed Item"}</p>
                            {item.remarks && (
@@ -543,15 +543,15 @@ export default function RequestDetailPage() {
                            )}
                          </div>
                        </td>
-                       <td className="px-6 py-6 text-center">
+                       <td className="px-4 py-4 text-center">
                          <span className="bg-secondary border border-border px-2.5 py-1 rounded-md text-[11px] font-bold text-foreground">
                            {item.quantity || 0}
                          </span>
                        </td>
-                       <td className="px-6 py-6 text-right text-muted-foreground font-medium tabular-nums font-serif">
+                       <td className="px-4 py-4 text-right text-muted-foreground font-medium tabular-nums font-serif">
                          {Number(item.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                        </td>
-                       <td className="px-8 py-6 text-right text-foreground font-bold tabular-nums font-serif text-base">
+                       <td className="px-5 py-4 text-right text-foreground font-bold tabular-nums font-serif text-base">
                          {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                        </td>
                      </tr>
@@ -578,7 +578,7 @@ export default function RequestDetailPage() {
                   <h2 className="text-sm font-bold text-foreground tracking-tight">Support Documents</h2>
                 </div>
               </div>
-              <div className="p-8 border-t border-border bg-secondary/10">
+              <div className="p-5 border-t border-border bg-secondary/10">
               <h3 className="text-sm font-black text-foreground uppercase tracking-widest mb-4">Supporting Documentation</h3>
               {Array.isArray(request.attachments) && request.attachments.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
