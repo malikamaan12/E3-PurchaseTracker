@@ -783,65 +783,55 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                   ? ((inst.amountValue / 100) * totalCostBase)
                                   : (Number(inst.amountValue) || 0);
                                 return (
-                                  <motion.div key={idx} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                  <motion.div key={idx} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="group bg-card border border-border rounded-xl p-3 flex flex-col md:flex-row gap-3 items-start md:items-center hover:border-primary/20 transition-all">
+                                    <div className="flex items-center gap-2 w-full md:flex-1">
+                                      <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center shrink-0">
                                         <span className="text-xs font-semibold text-primary">{idx + 1}</span>
                                       </div>
                                       <input
                                         {...register(`installments.${idx}.installmentName`)}
-                                        className="flex-1 bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all placeholder:text-muted-foreground/30"
+                                        className="flex-1 bg-transparent border-b border-border/50 hover:border-border focus:border-primary px-2 py-1 text-xs font-medium focus:outline-none transition-all placeholder:text-muted-foreground/30 h-8"
                                         placeholder="e.g. Initial Mobilization Payment"
                                       />
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                      <input
+                                        type="date"
+                                        {...register(`installments.${idx}.dueDate`)}
+                                        className="w-[120px] bg-secondary/50 border border-border rounded-lg px-2 py-1.5 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all h-8"
+                                      />
+                                      <select
+                                        {...register(`installments.${idx}.valueType`)}
+                                        className="w-[100px] bg-secondary/50 border border-border rounded-lg px-2 py-1.5 text-[11px] font-medium appearance-none focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer h-8"
+                                      >
+                                        <option value="PERCENTAGE">% Percentage</option>
+                                        <option value="FIXED_AMOUNT">QAR Fixed</option>
+                                      </select>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={inst.valueType === "PERCENTAGE" ? 100 : undefined}
+                                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                                        {...register(`installments.${idx}.amountValue`, { 
+                                          valueAsNumber: true,
+                                          max: inst.valueType === "PERCENTAGE" ? 100 : undefined
+                                        })}
+                                        className="w-[80px] bg-secondary/50 border border-border rounded-lg px-2 py-1.5 text-[11px] font-bold text-right focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all h-8"
+                                      />
+                                      <div className="min-w-[90px] text-right flex flex-col justify-center h-8 px-2 bg-primary/5 rounded-lg border border-primary/10">
+                                        <span className="text-[10px] text-muted-foreground leading-none mb-0.5 hidden md:block">Amount</span>
+                                        <span className="text-[11px] font-bold text-primary leading-none">QAR {calcAmt.toLocaleString()}</span>
+                                      </div>
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setValue("installments", watch("installments").filter((_, i) => i !== idx));
                                         }}
-                                        className="p-2 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                                        className="p-1.5 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 opacity-50 group-hover:opacity-100 transition-all shrink-0 ml-1"
                                       >
-                                        <X className="w-4 h-4" />
+                                        <X className="w-3.5 h-3.5" />
                                       </button>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                      <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Due Date</label>
-                                        <input
-                                          type="date"
-                                          {...register(`installments.${idx}.dueDate`)}
-                                          className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all"
-                                        />
-                                      </div>
-                                      <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Type</label>
-                                        <select
-                                          {...register(`installments.${idx}.valueType`)}
-                                          className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2.5 text-xs font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all cursor-pointer"
-                                        >
-                                          <option value="PERCENTAGE">% Percentage</option>
-                                          <option value="FIXED_AMOUNT">QAR Fixed</option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
-                                          {inst.valueType === "PERCENTAGE" ? "Percentage (%)" : "Amount (QAR)"}
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={inst.valueType === "PERCENTAGE" ? 100 : undefined}
-                                          onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                                          {...register(`installments.${idx}.amountValue`, { 
-                                            valueAsNumber: true,
-                                            max: inst.valueType === "PERCENTAGE" ? 100 : undefined
-                                          })}
-                                          className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2.5 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center justify-between px-1">
-                                      <span className="text-xs text-muted-foreground font-medium mb-1 block">Calculated Amount</span>
-                                      <span className="text-sm font-semibold text-primary">QAR {calcAmt.toLocaleString()}</span>
                                     </div>
                                   </motion.div>
                                 );
