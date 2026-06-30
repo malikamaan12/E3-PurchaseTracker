@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 2. Resolve target approval record for this user's department
-    let [targetApproval] = await db
+    let targetApproval = (await db
       .select()
       .from(approvals)
       .where(
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           eq(approvals.department, user.department || '')
         )
       )
-      .limit(1);
+      .limit(1))[0];
 
     if (!targetApproval) {
       // Fuzzy match or fallback for Admins
@@ -71,11 +71,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       targetApproval = allApprovalsForReq.find(a => 
         (user.department && a.department.toLowerCase().includes(user.department.toLowerCase())) ||
         (user.department && user.department.toLowerCase().includes(a.department.toLowerCase()))
-      );
+      ) as typeof targetApproval;
 
       // If still not found, and user is an admin acting as an approver, default to the FIRST pending approval
       if (!targetApproval && user.role === 'admin') {
-        targetApproval = allApprovalsForReq.find(a => a.status === 'pending');
+        targetApproval = allApprovalsForReq.find(a => a.status === 'pending') as typeof targetApproval;
       }
     }
 

@@ -1,0 +1,86 @@
+{
+  "version": "2.0.0",
+  "date": "2026-06-30T03:44:00Z",
+  "mode": "comprehensive",
+  "scope": "full",
+  "diff_mode": false,
+  "phases_run": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+  "attack_surface": {
+    "code": { "public_endpoints": 2, "authenticated": 12, "admin": 8, "api": 15, "uploads": 1, "integrations": 0, "background_jobs": 0, "websockets": 0 },
+    "infrastructure": { "ci_workflows": 0, "webhook_receivers": 0, "container_configs": 0, "iac_configs": 0, "deploy_targets": 1, "secret_management": "env vars" }
+  },
+  "findings": [{
+    "id": 1,
+    "severity": "CRITICAL",
+    "confidence": 10,
+    "status": "VERIFIED",
+    "phase": 2,
+    "phase_name": "Secrets Archaeology",
+    "category": "Secrets",
+    "fingerprint": "sha256-env-file-tracked",
+    "title": ".env file tracked in git with live production credentials",
+    "file": ".env",
+    "line": 1,
+    "commit": "current",
+    "description": "The .env file is tracked in git and contains live credentials including Neon DB URL, Cloudflare R2 Access Keys, and JWT Secrets.",
+    "exploit_scenario": "An attacker with read access to the repository can extract the Neon DB connection string and Cloudflare R2 credentials to gain full read/write access to the application's database and object storage.",
+    "impact": "Full database and storage compromise.",
+    "recommendation": "Remove .env from git tracking immediately. Rotate all exposed credentials. Use a secure secret manager or Vercel Environment Variables.",
+    "playbook": "1. Revoke credentials 2. Rotate keys 3. Scrub git history 4. Add .env to .gitignore",
+    "verification": "self-verified"
+  }, {
+    "id": 2,
+    "severity": "HIGH",
+    "confidence": 9,
+    "status": "VERIFIED",
+    "phase": 9,
+    "phase_name": "OWASP Top 10 Assessment",
+    "category": "OWASP A02",
+    "fingerprint": "sha256-jwt-fallback-secret",
+    "title": "Hardcoded JWT Secret fallback in source code",
+    "file": "src/lib/utils/config.ts",
+    "line": 1,
+    "commit": "current",
+    "description": "A hardcoded default value ('E3purchase2026') is used for the JWT_SECRET if the environment variable is missing.",
+    "exploit_scenario": "If the environment variable is accidentally removed or not set in a new environment, the application will fallback to the hardcoded secret. An attacker who knows this secret from the source code can forge valid JWT tokens and impersonate any user, including admins.",
+    "impact": "Complete authentication bypass and account takeover.",
+    "recommendation": "Remove the hardcoded fallback. Throw an error if JWT_SECRET is not provided in the environment.",
+    "playbook": "Update config.ts to throw an error if process.env.JWT_SECRET is missing.",
+    "verification": "self-verified"
+  }, {
+    "id": 3,
+    "severity": "MEDIUM",
+    "confidence": 8,
+    "status": "VERIFIED",
+    "phase": 9,
+    "phase_name": "OWASP Top 10 Assessment",
+    "category": "OWASP A04",
+    "fingerprint": "sha256-unrestricted-file-upload",
+    "title": "Unrestricted File Upload missing Mime-Type/Extension validation",
+    "file": "src/app/api/attachments/upload/route.ts",
+    "line": 42,
+    "commit": "current",
+    "description": "The attachment upload endpoint accepts any file type and extension. R2 Storage generates signed URLs with 'inline' content disposition.",
+    "exploit_scenario": "An attacker can upload a malicious HTML file containing JavaScript. When a user clicks the presigned URL, the file is rendered inline on the Cloudflare R2 domain, executing the malicious script (Stored XSS).",
+    "impact": "Stored XSS on the CDN domain, potential phishing or session hijacking if the CDN domain shares cookies or trust with the main app.",
+    "recommendation": "Implement server-side validation to only allow specific safe file extensions (e.g., pdf, docx, png, jpg) and mime types.",
+    "playbook": "Add an allowed extensions array in the upload route and reject non-matching files.",
+    "verification": "self-verified"
+  }],
+  "supply_chain_summary": {
+    "direct_deps": 50, "transitive_deps": 500,
+    "critical_cves": 0, "high_cves": 0,
+    "install_scripts": 0, "lockfile_present": true, "lockfile_tracked": true,
+    "tools_skipped": ["npm audit"]
+  },
+  "filter_stats": {
+    "candidates_scanned": 15, "hard_exclusion_filtered": 5,
+    "confidence_gate_filtered": 2, "verification_filtered": 5, "reported": 3
+  },
+  "totals": { "critical": 1, "high": 1, "medium": 1, "tentative": 0 },
+  "trend": {
+    "prior_report_date": null,
+    "resolved": 0, "persistent": 0, "new": 3,
+    "direction": "first_run"
+  }
+}
