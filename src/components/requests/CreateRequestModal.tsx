@@ -8,7 +8,7 @@ import {
   Plus,
   AlertCircle,
   Loader2,
-  DollarSign,
+  Coins,
   Layout,
   AlignLeft,
   Truck,
@@ -409,7 +409,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 const tabMeta = {
                   general: { label: "Details", icon: <Layout className="w-4 h-4" /> },
                   items: { label: "Items", icon: <ClipboardList className="w-4 h-4" /> },
-                  payments: { label: "Payment", icon: <DollarSign className="w-4 h-4" /> },
+                  payments: { label: "Payment", icon: <Coins className="w-4 h-4" /> },
                   approvals: { label: "Files", icon: <ShieldCheck className="w-4 h-4" /> },
                 }[tabId];
                 const isInvalid = isTabInvalid(tabId);
@@ -640,7 +640,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <div className="space-y-3">
                           <label className="text-xs font-medium text-foreground mb-1 block">Currency</label>
                           <div className="relative group">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
+                            <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
                             <Controller
                               name="currency"
                               control={control}
@@ -780,8 +780,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               {installments.map((inst: any, idx) => {
                                 const totalCostBase = totalEstimatedCost + freightAmount;
                                 const calcAmt = inst.valueType === "PERCENTAGE"
-                                  ? Math.round((inst.amountValue / 100) * totalCostBase)
-                                  : Math.round(Number(inst.amountValue) || 0);
+                                  ? ((inst.amountValue / 100) * totalCostBase)
+                                  : (Number(inst.amountValue) || 0);
                                 return (
                                   <motion.div key={idx} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 space-y-4">
                                     <div className="flex items-center gap-3">

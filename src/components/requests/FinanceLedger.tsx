@@ -259,10 +259,10 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   // ── Calculation Engine (Strictly QAR) ───────────────────────────────────
   const activeExchangeRate = Number(request.exchangeRate || 1.0);
   const globalTargetRaw = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
-  const globalTargetQar = request.baseAmountQar ?? Math.round(globalTargetRaw * activeExchangeRate);
+  const globalTargetQar = request.baseAmountQar ?? (globalTargetRaw * activeExchangeRate);
   
-  const globalPaidQar = payments.reduce((sum: number, p: any) => sum + Math.round((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
-  const globalTotalQar = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmountQar) || Math.round((Number(p.calculatedAmount) || 0) * activeExchangeRate)), 0);
+  const globalPaidQar = payments.reduce((sum: number, p: any) => sum + ((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
+  const globalTotalQar = payments.reduce((sum: number, p: any) => sum + (Number(p.calculatedAmountQar) || ((Number(p.calculatedAmount) || 0) * activeExchangeRate)), 0);
   const globalPendingQar = globalTotalQar - globalPaidQar;
   const progressPercent = globalTotalQar > 0 ? Math.round((globalPaidQar / globalTotalQar) * 100) : 0;
   
@@ -270,7 +270,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
   const currentEntryValueRaw = Number(formData.paidAmount || 0);
   
-  const newGlobalPaidQar = globalPaidQar - Math.round(currentItemPaidRaw * activeExchangeRate) + Math.round(currentEntryValueRaw * activeExchangeRate);
+  const newGlobalPaidQar = globalPaidQar - (currentItemPaidRaw * activeExchangeRate) + (currentEntryValueRaw * activeExchangeRate);
   const isOverpaid = newGlobalPaidQar > globalTargetQar;
 
   const glassClass = highPerformanceMode ? "bg-secondary border border-border" : "glass-card";
@@ -330,7 +330,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                 <h3 className="text-foreground font-black text-xl uppercase tracking-tighter">Budget Variation Protocol</h3>
               </div>
               <p className="text-muted-foreground text-xs font-semibold mt-1">
-                Authorized Baseline: <span className="font-mono font-bold text-[#5B4B8A]">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span> <span className="opacity-60">({Math.round((request.totalEstimatedCost || 0) * activeExchangeRate).toLocaleString()} QAR)</span>
+                Authorized Baseline: <span className="font-mono font-bold text-[#5B4B8A]">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span> <span className="opacity-60">({((request.totalEstimatedCost || 0) * activeExchangeRate).toLocaleString()} QAR)</span>
                 {request.revisedTotalCost && (
                   <span className="ml-4 text-[#2FB7B2] font-mono font-bold bg-[#2FB7B2]/10 px-2 py-0.5 rounded">
                     → Revised Total: {request.revisedTotalCost.toLocaleString()} {request.currency} <span className="opacity-60">({globalTargetQar.toLocaleString()} QAR)</span>
@@ -344,7 +344,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
             {!showVariationConfirm ? (
               <button 
                 onClick={() => {
-                  if (isOverpaid) setVariationAmount(Math.round(newGlobalPaidQar / activeExchangeRate).toString());
+                  if (isOverpaid) setVariationAmount((newGlobalPaidQar / activeExchangeRate).toString());
                   setShowVariationConfirm(true);
                 }}
                 disabled={isLockedByStatus}
@@ -363,7 +363,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                   className="px-4 py-2 text-[16px] md:text-sm rounded-lg bg-secondary border-none outline-none focus:ring-2 focus:ring-[#5B4B8A]/30 font-mono w-full sm:w-56 text-foreground"
                 />
                 <button onClick={() => {
-                   const num = Math.round(Number(variationAmount));
+                   const num = Number(variationAmount);
                    const currentBudget = request.revisedTotalCost ?? request.totalEstimatedCost;
                    if (isNaN(num) || num <= currentBudget) {
                      toast.error("Revised cost must exceed authorized baseline."); return;
@@ -579,7 +579,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                               )}
                               {p.savingsAmount > 0 && (
                                  <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tighter flex items-center gap-1">
-                                    <TrendingDown className="w-2.5 h-2.5" /> org savings: {Math.round(p.savingsAmount * activeExchangeRate).toLocaleString()} QAR
+                                    <TrendingDown className="w-2.5 h-2.5" /> org savings: {(p.savingsAmount * activeExchangeRate).toLocaleString()} QAR
                                  </p>
                               )}
                            </div>

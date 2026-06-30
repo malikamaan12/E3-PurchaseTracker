@@ -10,15 +10,20 @@ import { safeParseItems } from "@/lib/utils/safe-parse";
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-async function fetchImageBuffer(url: string | null): Promise<Uint8Array | null> {
+async function fetchImageBuffer(url: string | null, reqUrl?: string): Promise<Uint8Array | null> {
   if (!url) return null;
   try {
-    const response = await fetch(url, { 
+    let fetchUrl = url;
+    if (url.startsWith('/') && reqUrl) {
+      const baseUrl = new URL(reqUrl).origin;
+      fetchUrl = `${baseUrl}${url}`;
+    }
+    const response = await fetch(fetchUrl, { 
       signal: AbortSignal.timeout(20000), // Extended timeout for R2
       redirect: 'follow'
     });
     if (!response.ok) {
-      console.error(`[Bundle Engine] Fetch failed for ${url}: ${response.status}`);
+      console.error(`[Bundle Engine] Fetch failed for ${fetchUrl}: ${response.status}`);
       return null;
     }
     const arrayBuffer = await response.arrayBuffer();
@@ -73,9 +78,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const settings = settingsResult[0] || null;
 
     const [headerImage, footerImage, logo] = await Promise.all([
-      fetchImageBuffer(settings?.headerImage || null),
-      fetchImageBuffer(settings?.footerImage || null),
-      fetchImageBuffer(settings?.logo || null)
+      fetchImageBuffer(settings?.headerImage || null, req.url),
+      fetchImageBuffer(settings?.footerImage || null, req.url),
+      fetchImageBuffer(settings?.logo || null, req.url)
     ]);
 
     // 1. Generate Unified PDF
@@ -130,7 +135,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (attachmentFolder) {
       for (const att of (requestData.attachments || [])) {
         try {
-          const fileBuffer = await fetchImageBuffer(att.fileUrl);
+          const fileBuffer = await fetchImageBuffer(att.fileUrl, req.url);
           if (fileBuffer && fileBuffer.length > 0) {
             attachmentFolder.file(sanitizeFilename(att.fileName), fileBuffer);
           }

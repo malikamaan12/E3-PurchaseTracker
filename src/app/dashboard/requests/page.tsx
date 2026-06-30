@@ -428,7 +428,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
   const { highPerformanceMode } = usePerformance();
   const { user, isAdmin } = useAuth();
 
-  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
+  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 hover:relative hover:z-50 ${isSelected ? 'bg-brand-primary/10' : ''}`;
 
   const renderCells = () => (
     <>

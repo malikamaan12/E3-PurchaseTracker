@@ -9,16 +9,21 @@ export const dynamic = 'force-dynamic';
 // The default 10-15s serverless limit consistently causes 504s on heavy documents.
 export const maxDuration = 60;
 
-async function fetchBuffer(url: string | null): Promise<Uint8Array | null> {
+async function fetchBuffer(url: string | null, reqUrl?: string): Promise<Uint8Array | null> {
   if (!url) return null;
   try {
-    const response = await fetch(url, { 
+    let fetchUrl = url;
+    if (url.startsWith('/') && reqUrl) {
+      const baseUrl = new URL(reqUrl).origin;
+      fetchUrl = `${baseUrl}${url}`;
+    }
+    const response = await fetch(fetchUrl, { 
       signal: AbortSignal.timeout(20000), 
       redirect: 'follow'
     });
     
     if (!response.ok) {
-      console.error(`[Full PDF Engine] Fetch failed for ${url}: ${response.status}`);
+      console.error(`[Full PDF Engine] Fetch failed for ${fetchUrl}: ${response.status}`);
       return null;
     }
     
@@ -73,9 +78,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const settings = settingsResult[0] || null;
 
     const [headerImage, footerImage, logo] = await Promise.all([
-      fetchBuffer(settings?.headerImage || null),
-      fetchBuffer(settings?.footerImage || null),
-      fetchBuffer(settings?.logo || null)
+      fetchBuffer(settings?.headerImage || null, req.url),
+      fetchBuffer(settings?.footerImage || null, req.url),
+      fetchBuffer(settings?.logo || null, req.url)
     ]);
 
     const basePdfBytes = await generatePurchaseRequestPdf(requestData, {
@@ -95,11 +100,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // We fetch all buffers in parallel to avoid sequential network delays
     const attachmentBuffers = await Promise.all(
       attachments.map(async (att: any) => {
-        const isPdf = att.fileType.toLowerCase().includes('pdf') || att.fileName.toLowerCase().endsWith('.pdf');
-        const isImage = att.fileType.toLowerCase().includes('image/') || /\.(jpg|jpeg|png)$/i.test(att.fileName);
+        const fileType = att.fileType || '';
+        const fileName = att.fileName || '';
+        const isPdf = fileType.toLowerCase().includes('pdf') || fileName.toLowerCase().endsWith('.pdf');
+        const isImage = fileType.toLowerCase().includes('image/') || /\.(jpg|jpeg|png)$/i.test(fileName);
         if (!isPdf && !isImage) return null;
         
-        const buffer = await fetchBuffer(att.fileUrl);
+        const buffer = await fetchBuffer(att.fileUrl, req.url);
         return buffer ? { ...att, buffer, isPdf, isImage } : null;
       })
     );
