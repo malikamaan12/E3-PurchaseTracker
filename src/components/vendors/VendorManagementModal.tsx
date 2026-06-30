@@ -7,10 +7,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard } from "lucide-react";
+import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 
 type VendorFormValues = z.infer<typeof vendorFormSchema>;
 
@@ -99,106 +100,118 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] transition-all" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] md:max-w-2xl z-[101] focus:outline-none">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-card p-6 md:p-8 border border-border shadow-2xl relative overflow-y-auto max-h-[95dvh] md:max-h-[85vh] rounded-3xl md:rounded-[2.5rem] custom-scrollbar"
+            className="bg-background/80 backdrop-blur-3xl p-0 border border-border shadow-2xl relative overflow-hidden flex flex-col max-h-[90dvh] rounded-3xl md:rounded-[2.5rem]"
           >
             {/* Header */}
-            <div className="flex justify-between items-start mb-10 relative">
-              <div className="absolute -top-16 -left-16 w-32 h-32 bg-brand-primary/20 blur-3xl rounded-full pointer-events-none" />
-              <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-brand-secondary/10 blur-[100px] rounded-full pointer-events-none" />
-              <div className="relative">
-                <Dialog.Title className="text-4xl font-serif font-black text-foreground tracking-tighter leading-none">
-                  {isEdit ? "Modify Supplier" : "Onboard Entity"}
-                </Dialog.Title>
-                <Dialog.Description className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mt-3">
-                  {isEdit ? "Update existing supplier credentials and financial data." : "Integrate a new supplier into the procurement matrix."}
-                </Dialog.Description>
+            <div className="p-6 md:p-8 border-b border-border/20 flex items-center justify-between bg-transparent relative z-10 shrink-0">
+              <div className="absolute -top-16 -left-16 w-32 h-32 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
+              <div className="flex items-center gap-5 relative">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg bg-primary/10 shadow-primary/20 shrink-0">
+                  <Building2 className="text-primary w-6 h-6" />
+                </div>
+                <div>
+                  <Dialog.Title className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
+                    {isEdit ? "Modify Supplier" : "Onboard Supplier"}
+                  </Dialog.Title>
+                  <Dialog.Description className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
+                    {isEdit ? "Update existing supplier credentials and financial data." : "Integrate a new supplier into the procurement matrix."}
+                  </Dialog.Description>
+                </div>
               </div>
-              <Dialog.Close className="p-2.5 rounded-2xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all border border-transparent hover:border-border relative">
+              <Dialog.Close className="p-2.5 hover:bg-secondary/50 rounded-xl text-muted-foreground hover:text-foreground transition-all shrink-0">
                 <X className="w-5 h-5" />
               </Dialog.Close>
             </div>
 
-            {/* Stepper Header */}
-            <div className="flex gap-2 sm:gap-4 mb-10 bg-secondary/30 p-4 rounded-3xl border border-border relative flex-wrap sm:flex-nowrap">
-              <StepIndicator current={step} target={1} label="Identity" />
-              <StepIndicator current={step} target={2} label="Finance" />
-              <StepIndicator current={step} target={3} label="Compliance" />
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto flex flex-col custom-scrollbar relative">
+              <div className="p-6 md:p-8 flex-1">
+                {/* Stepper Header */}
+                <div className="flex gap-2 sm:gap-6 mb-8 bg-secondary/30 backdrop-blur-sm p-3 rounded-2xl border border-border/50 relative overflow-hidden flex-wrap sm:flex-nowrap">
+                  <StepIndicator current={step} target={1} label="Identity" />
+                  <StepIndicator current={step} target={2} label="Finance" />
+                  <StepIndicator current={step} target={3} label="Compliance" />
+                </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <AnimatePresence mode="wait">
-                {step === 1 && (
-                  <motion.div 
-                    key="step1"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-                  >
-                    <FormField icon={Building2} label="Company Name*" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
-                    <FormField icon={User} label="Contact Person*" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
-                    <FormField icon={Mail} label="Business Email*" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
-                    <FormField icon={Phone} label="Contact Number*" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
-                    <div className="sm:col-span-2">
-                       <FormField icon={Globe} label="Headquarters Address*" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
-                    </div>
-                  </motion.div>
-                )}
+                <AnimatePresence mode="wait">
+                  {step === 1 && (
+                    <motion.div 
+                      key="step1"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                    >
+                      <FormField icon={Building2} label="Company Name" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
+                      <FormField icon={User} label="Contact Person" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
+                      <FormField icon={Mail} label="Business Email" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
+                      <FormField icon={Phone} label="Contact Number" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
+                      <div className="sm:col-span-2">
+                         <FormField icon={Globe} label="Headquarters Address" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
+                      </div>
+                    </motion.div>
+                  )}
 
-                {step === 2 && (
-                  <motion.div 
-                    key="step2"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-                  >
-                    <FormField icon={Landmark} label="Bank Name*" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
-                    <FormField icon={Landmark} label="Branch Name*" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
-                    <FormField icon={CreditCard} label="Account Number*" name="accountNumber" register={register} error={errors.accountNumber} />
-                    <FormField icon={CreditCard} label="IBAN Number*" name="ibanNumber" register={register} error={errors.ibanNumber} />
-                  </motion.div>
-                )}
+                  {step === 2 && (
+                    <motion.div 
+                      key="step2"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                    >
+                      <FormField icon={Landmark} label="Bank Name" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
+                      <FormField icon={Landmark} label="Branch Name" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
+                      <FormField icon={CreditCard} label="Account Number" name="accountNumber" register={register} error={errors.accountNumber} />
+                      <FormField icon={CreditCard} label="IBAN Number" name="ibanNumber" register={register} error={errors.ibanNumber} />
+                    </motion.div>
+                  )}
 
-                {step === 3 && (
-                  <motion.div 
-                    key="step3"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-                  >
-                    <FormField icon={FileCheck} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
-                    <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
-                    <FormField icon={FileCheck} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2">
-                        Vendor Reputation Index
-                      </label>
-                      <input 
-                        type="number"
-                        min="0"
-                        max="5"
-                        {...register("rating", { valueAsNumber: true })}
-                        placeholder="Rating 0-5"
-                        className="w-full bg-secondary/30 border border-border rounded-2xl px-5 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-8 focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-secondary/50 transition-all"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  {step === 3 && (
+                    <motion.div 
+                      key="step3"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                    >
+                      <FormField icon={FileCheck} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
+                      <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
+                      <FormField icon={FileCheck} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-2">
+                          Vendor Reputation Index
+                        </label>
+                        <input 
+                          type="number"
+                          min="0"
+                          max="5"
+                          {...register("rating", { valueAsNumber: true })}
+                          placeholder="Rating 0-5"
+                          className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Actions */}
-              <div className="flex justify-between items-center pt-8 border-t border-border">
+              <div className="p-6 md:p-8 border-t border-border/20 bg-background/50 backdrop-blur-md shrink-0 flex justify-between items-center mt-auto">
                 <button 
                   type="button"
                   onClick={() => setStep(s => Math.max(1, s - 1))}
-                  className={`text-muted-foreground hover:text-foreground transition-colors font-semibold ${step === 1 ? 'invisible' : ''}`}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all",
+                    step === 1 ? "opacity-0 pointer-events-none" : "opacity-100"
+                  )}
                 >
                   Previous Step
                 </button>
@@ -207,7 +220,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     <button 
                       type="button"
                       onClick={() => setStep(s => Math.min(3, s + 1))}
-                      className="bg-secondary text-foreground border border-border font-bold px-6 py-2.5 rounded-full hover:bg-secondary/80 transition-all active:scale-95"
+                      className="bg-secondary text-foreground font-medium px-8 py-2.5 rounded-xl hover:bg-secondary/80 transition-all flex items-center gap-2"
                     >
                       Next: {step === 1 ? 'Financials' : 'Compliance'}
                     </button>
@@ -215,12 +228,12 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                     <button 
                       type="submit"
                       disabled={mutation.isPending}
-                      className="bg-brand-primary text-primary-foreground font-black px-10 py-3.5 rounded-2xl hover:brightness-110 transition-all shadow-2xl shadow-brand-primary/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                      className="bg-primary text-primary-foreground font-bold px-8 py-2.5 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
                     >
                       {mutation.isPending ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Syncing...</span>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Processing...</span>
                         </>
                       ) : isEdit ? "Update Details" : "Finalize Onboarding"}
                     </button>
@@ -239,28 +252,37 @@ function StepIndicator({ current, target, label }: any) {
   const active = current >= target;
   return (
     <div className="flex items-center gap-3">
-      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black transition-all duration-500 border ${active ? 'bg-brand-primary text-primary-foreground border-brand-primary shadow-xl shadow-brand-primary/30' : 'bg-secondary text-muted-foreground border-border'}`}>
+      <div className={cn(
+        "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300",
+        active ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-background text-muted-foreground border border-border/50"
+      )}>
         {target}
       </div>
-      <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${active ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
-      {target < 3 && <div className="w-12 h-px bg-border ml-1" />}
+      <span className={cn(
+        "text-xs font-semibold tracking-wide",
+        active ? "text-foreground" : "text-muted-foreground"
+      )}>{label}</span>
+      {target < 3 && <div className="hidden sm:block w-8 h-px bg-border ml-2" />}
     </div>
   );
 }
 
 function FormField({ icon: Icon, label, name, register, error, placeholder }: any) {
   return (
-    <div className="space-y-2 group">
-      <label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
-        {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground group-focus-within:text-brand-primary transition-colors" strokeWidth={3} />}
+    <div className="space-y-1.5 group">
+      <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-1.5 transition-colors group-focus-within:text-primary">
+        {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />}
         {label}
       </label>
       <input 
         {...register(name)}
         placeholder={placeholder}
-        className={`w-full bg-secondary/30 border rounded-2xl px-5 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-8 transition-all ${error ? 'border-rose-500/40 focus:ring-rose-500/10' : 'border-border focus:ring-brand-primary/10 focus:border-brand-primary/40 focus:bg-secondary/50'}`}
+        className={cn(
+          "w-full bg-background/50 border rounded-xl px-4 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 transition-all",
+          error ? "border-rose-500/50 focus:ring-rose-500/20 focus:border-rose-500" : "border-border/50 focus:ring-primary focus:border-primary"
+        )}
       />
-      {error && <p className="text-[10px] text-rose-500 font-bold uppercase tracking-tight mt-1">{error.message}</p>}
+      {error && <p className="text-xs text-rose-500 font-medium mt-1 pl-1">{error.message}</p>}
     </div>
   );
 }
