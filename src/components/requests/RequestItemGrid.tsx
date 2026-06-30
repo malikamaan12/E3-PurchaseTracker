@@ -109,11 +109,11 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
         <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-secondary/50 text-xs font-medium text-muted-foreground uppercase leading-none">
-              <th className="px-6 py-4">Item Details</th>
-              <th className="px-6 py-4 w-32 text-center">Qty</th>
-              <th className="px-6 py-4 w-40">Unit Price ({currency})</th>
-              <th className="px-6 py-4 w-40 text-right">Subtotal (QAR)</th>
-              <th className="px-6 py-4 w-16"></th>
+              <th className="px-4 py-3">Item Details</th>
+              <th className="px-4 py-3 w-32 text-center">Qty</th>
+              <th className="px-4 py-3 w-40">Unit Price ({currency})</th>
+              <th className="px-4 py-3 w-40 text-right">Subtotal (QAR)</th>
+              <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -124,8 +124,8 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                   key={`item-row-${index}`}
                   className={`group transition-colors ${rowError ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}
                 >
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-3">
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
                         <Combobox
                           options={catalogItems}
                           value={item.name}
@@ -143,7 +143,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                         />
                     </div>
                   </td>
-                  <td className="px-6 py-4 align-top pt-5">
+                  <td className="px-4 py-3 align-top pt-4">
                     <div className="flex items-center justify-center bg-background border border-input shadow-sm rounded-md px-1 h-10 focus-within:ring-1 focus-within:ring-ring">
                         <Input
                           type="number"
@@ -155,7 +155,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                         />
                     </div>
                   </td>
-                  <td className="px-6 py-4 align-top pt-5">
+                  <td className="px-4 py-3 align-top pt-4">
                     <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-md px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
                       <span className="text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
                       <Input
@@ -168,12 +168,12 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                       />
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right align-top pt-5">
+                  <td className="px-4 py-3 text-right align-top pt-5">
                     <span className="text-sm font-bold text-foreground tracking-tight">
                       {(item.quantity * item.estimatedCost * exchangeRate).toLocaleString()}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right align-top pt-5">
+                  <td className="px-4 py-3 text-right align-top pt-4">
                     <button
                       type="button"
                       onClick={() => removeItem(index)}

@@ -135,7 +135,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (attachmentFolder) {
       for (const att of (requestData.attachments || [])) {
         try {
-          const fileBuffer = await fetchImageBuffer(att.fileUrl, req.url);
+          let downloadUrl = att.fileUrl;
+          if (downloadUrl && !downloadUrl.startsWith("http")) {
+             try {
+               const { r2Storage } = await import("@/lib/services/R2StorageService");
+               downloadUrl = await r2Storage.getReadPresignedUrl(downloadUrl, 3600);
+             } catch (e) {
+               console.error("Failed to generate presigned URL for export", e);
+             }
+          }
+          const fileBuffer = await fetchImageBuffer(downloadUrl, req.url);
           if (fileBuffer && fileBuffer.length > 0) {
             attachmentFolder.file(sanitizeFilename(att.fileName), fileBuffer);
           }

@@ -452,13 +452,13 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 }}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
                   <AnimatePresence mode="wait">
 
                     {/* ── Tab 1: General Details ── */}
                     {activeTab === "general" && (
-                      <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="md:col-span-2 space-y-3">
+                      <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Request Title</label>
                           <div className="relative group">
                             <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
@@ -471,7 +471,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <div className="flex items-center justify-between pl-1">
                             <label className="text-xs font-medium text-foreground mb-1 block ">Vendor Partnership</label>
                             {selectedVendorCompliance && (
@@ -547,7 +547,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </AnimatePresence>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Purpose Category</label>
                           <div className="relative group">
                             <FolderTree className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-primary transition-colors z-10" />
@@ -571,7 +571,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Project/Asset Selection</label>
                           <div className="relative group">
                             <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
@@ -613,7 +613,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           )}
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Priority</label>
                           <div className="relative group">
                             <AlertCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
@@ -637,7 +637,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Currency</label>
                           <div className="relative group">
                             <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
@@ -662,7 +662,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                         </div>
 
-                        <div className="md:col-span-2 space-y-3">
+                        <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Requirement Overview</label>
                           <div className="relative group">
                             <AlignLeft className="absolute left-3 top-5 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
