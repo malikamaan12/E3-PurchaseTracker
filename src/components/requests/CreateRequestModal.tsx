@@ -1035,7 +1035,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
 
                     <div className="flex items-center gap-3 h-full">
                       {/* Save Draft Action - Visible on final tab or if editing existing */}
-                      {(activeTab === "approvals" || requestId) && (
+                      {!(activeTab === "approvals" || requestId) ? (
                         <Button
                           variant={isOverBudget ? "outline" : "secondary"}
                           size="lg"
