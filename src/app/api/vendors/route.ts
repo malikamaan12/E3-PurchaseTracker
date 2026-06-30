@@ -56,9 +56,8 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     const isAuthorized = user.role === 'admin' || user.canManageVendors === true;
-    if (!isAuthorized) {
-      return NextResponse.json({ error: "Access denied. Admin or Vendor Management rights required." }, { status: 403 });
-    }
+    // Allow any authenticated user to create a vendor.
+    // We will set status based on authorization later.
 
     const body = await req.json();
     const validationResult = insertVendorSchema.safeParse(body);
@@ -86,10 +85,13 @@ export async function POST(req: NextRequest) {
     // Create new vendor
     const { id: _id, createdAt: _ca, updatedAt: _ua, ...vendorData } = validationResult.data as any;
 
+    const vendorStatus = isAuthorized ? (vendorData.status || "active") : "pending";
+
     const [newVendor] = await db
       .insert(vendors)
       .values({
         ...vendorData,
+        status: vendorStatus,
         createdAt: new Date(),
         updatedAt: new Date(),
       })

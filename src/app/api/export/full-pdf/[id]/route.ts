@@ -114,6 +114,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
            } catch (e) {
              console.error("Failed to generate presigned URL for export", e);
            }
+        } else if (downloadUrl) {
+           try {
+             const urlWithoutQuery = downloadUrl.split("?")[0];
+             const matchIndex = urlWithoutQuery.indexOf("attachments/");
+             if (matchIndex !== -1) {
+                const extractedKey = decodeURIComponent(urlWithoutQuery.substring(matchIndex));
+                const { r2Storage } = await import("@/lib/services/R2StorageService");
+                downloadUrl = await r2Storage.getReadPresignedUrl(extractedKey, 3600);
+             }
+           } catch (e) {
+             console.error("Failed to refresh legacy URL for export", e);
+           }
         }
         
         const buffer = await fetchBuffer(downloadUrl, req.url);

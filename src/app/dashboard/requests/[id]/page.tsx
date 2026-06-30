@@ -138,7 +138,7 @@ export default function RequestDetailPage() {
         isPending={approvalMutation.isPending}
       />
 
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm px-6 py-4 transition-all">
+      <header className="sticky top-0 z-50 bg-background/60 backdrop-blur-2xl border-b border-border/30 px-6 py-4 transition-all">
         <div className="max-w-[1400px] mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button 
@@ -263,7 +263,7 @@ export default function RequestDetailPage() {
         {/* Left Column - Details */}
         <div className="lg:col-span-2 space-y-8">
           
-          <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-primary/10 p-1.5 rounded-lg">
@@ -298,7 +298,32 @@ export default function RequestDetailPage() {
                 <div className="border-t border-border/50 pt-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Vendor Information</h3>
                   <div className="space-y-1.5 bg-muted/20 p-4 rounded-xl border border-border/30">
-                    <p className="text-sm font-bold text-foreground">{request.vendor?.companyName}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-foreground">{request.vendor?.companyName}</p>
+                      {request.vendor?.status === 'pending' && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded uppercase font-bold border border-amber-500/20 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> Pending Approval
+                          </span>
+                          {isAdmin && (
+                            <Button 
+                              size="sm" 
+                              className="h-6 text-[10px] px-2 rounded-full" 
+                              onClick={() => {
+                                apiClient.vendors.patchStatus(request.vendor?.id, "active")
+                                  .then(() => {
+                                    toast.success("Vendor approved successfully.");
+                                    queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+                                  })
+                                  .catch((err) => toast.error(err.message || "Failed to approve vendor"));
+                              }}
+                            >
+                              Approve Vendor
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <User className="w-3 h-3" /> {request.vendor?.contactPerson} • {request.vendor?.email}
                     </p>
@@ -311,7 +336,7 @@ export default function RequestDetailPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-emerald-500/10 p-1.5 rounded-lg">
@@ -349,7 +374,7 @@ export default function RequestDetailPage() {
 
           {/* Payment Milestones Display for Requester/Approvers */}
           {installments.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+            <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
               <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex items-center gap-2">
                 <div className="bg-blue-500/10 p-1.5 rounded-lg">
                   <Coins className="w-4 h-4 text-blue-600" />
@@ -398,7 +423,7 @@ export default function RequestDetailPage() {
             </div>
           )}
 
-          <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-purple-500/10 p-1.5 rounded-lg">
@@ -452,7 +477,7 @@ export default function RequestDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
+            <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
               <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent">
                 <div className="flex items-center gap-2">
                   <div className="bg-indigo-500/10 p-1.5 rounded-lg">
@@ -491,13 +516,13 @@ export default function RequestDetailPage() {
               </div>
             </div>
 
-            <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
+            <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
               <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent">
                 <h2 className="font-semibold text-sm tracking-tight">Document Preview</h2>
               </div>
               <div className="flex-1 bg-black/5 dark:bg-white/5 relative">
                  {activeAttachment ? (
-                   <iframe src={`/api/attachments/${activeAttachment.id}`} className="absolute inset-0 w-full h-full border-none bg-white" title="Preview" />
+                   <iframe src={`/api/attachments/${activeAttachment.id}`} className="absolute inset-0 w-full h-full border-none bg-transparent" title="Preview" />
                  ) : (
                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
                       <div className="bg-background border border-border/50 shadow-sm rounded-full p-4 mb-4">
@@ -520,7 +545,7 @@ export default function RequestDetailPage() {
 
         {/* Right Column - Sidebar */}
         <div className="space-y-8">
-          <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden sticky top-24">
+          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden sticky top-24">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-amber-500/10 p-1.5 rounded-lg">

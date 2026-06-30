@@ -32,6 +32,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
 import RequestItemGrid, { RequestItem } from "./RequestItemGrid";
 import DocumentUploadZone from "../shared/DocumentUploadZone";
+import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import {
@@ -114,6 +115,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const [activeTab, setActiveTab] = useState<"general" | "items" | "payments" | "approvals">("general");
   const [initialFiles, setInitialFiles] = useState<any[]>([]);
   const [exchangeRate, setExchangeRate] = useState(1);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
 
   const {
     register,
@@ -374,21 +376,21 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-[95vw] md:w-full md:max-w-5xl bg-card border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50 shadow-lg shadow-rose-500/10" : "border-border"}`}
+            className={`relative w-[95vw] md:w-[85vw] lg:w-[1000px] bg-background/70 backdrop-blur-3xl border rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50" : "border-border/30"}`}
           >
             {/* Header */}
-            <div className={`p-6 border-b border-border flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-card"}`}>
-              <div className="flex items-center gap-6">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-2xl transition-all ${isOverBudget ? "bg-rose-500/20 shadow-rose-500/20" : "bg-primary/20 shadow-primary/20"}`}>
-                  {isOverBudget ? <AlertCircle className="text-rose-500 w-8 h-8" /> : <Plus className="text-primary w-8 h-8" />}
+            <div className={`p-6 border-b border-border/20 flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-transparent"}`}>
+              <div className="flex items-center gap-5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all ${isOverBudget ? "bg-rose-500/10 shadow-rose-500/20" : "bg-primary/10 shadow-primary/20"}`}>
+                  {isOverBudget ? <AlertCircle className="text-rose-500 w-6 h-6" /> : <Plus className="text-primary w-6 h-6" />}
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-foreground tracking-tight transition-colors">
-                    {isOverBudget ? "Budget Variance Detected" : "Create Purchase Request"}
+                    {isOverBudget ? "Budget Variance Detected" : (requestId ? "Edit Purchase Request" : "Create Purchase Request")}
                   </h2>
-                  <div className="flex items-center gap-3 mt-1.5">
+                  <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-muted-foreground">Internal Procurement Engine</p>
-                    <div className={`w-1.5 h-1.5 rounded-full ${isOverBudget ? "bg-rose-500 animate-pulse" : "bg-primary/40"}`} />
+                    <div className={`w-1 h-1 rounded-full ${isOverBudget ? "bg-rose-500 animate-pulse" : "bg-primary/40"}`} />
                     <p className={`text-xs font-medium ${isOverBudget ? "text-rose-500" : "text-primary"}`}>
                       {isOverBudget ? "Finance Review Required" : "Draft Mode"}
                     </p>
@@ -397,14 +399,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
               </div>
               <button
                 onClick={onClose}
-                className="p-3 hover:bg-secondary rounded-2xl text-muted-foreground hover:text-foreground transition-all border border-transparent hover:border-border"
+                className="p-2.5 hover:bg-secondary/50 rounded-xl text-muted-foreground hover:text-foreground transition-all"
               >
-                <X className="w-7 h-7" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex px-6 gap-6 border-b border-border bg-card transition-colors shrink-0">
+            <div className="flex px-8 gap-8 border-b border-border/20 bg-transparent transition-colors shrink-0">
               {(["general", "items", "payments", "approvals"] as const).map((tabId) => {
                 const tabMeta = {
                   general: { label: "Details", icon: <Layout className="w-4 h-4" /> },
@@ -418,7 +420,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     key={tabId}
                     type="button"
                     onClick={() => setActiveTab(tabId)}
-                    className={`py-4 text-sm font-medium flex items-center gap-3 transition-all relative z-10 pointer-events-auto ${
+                    className={`py-4 text-sm font-medium flex items-center gap-2 transition-all relative z-10 pointer-events-auto ${
                       activeTab === tabId
                         ? isInvalid ? "text-rose-500" : "text-primary"
                         : isInvalid ? "text-rose-400/80" : "text-muted-foreground hover:text-foreground"
@@ -426,11 +428,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                   >
                     {isInvalid ? <AlertCircle className="w-4 h-4 animate-pulse" /> : tabMeta.icon}
                     {tabMeta.label}
-                    {isInvalid && <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-4 right-0 pointer-events-none" />}
+                    {isInvalid && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-4 -right-2 pointer-events-none" />}
                     {activeTab === tabId && (
                       <motion.div
                         layoutId="tab-underline"
-                        className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full shadow-lg pointer-events-none ${isInvalid ? "bg-rose-500 shadow-rose-500/50" : "bg-primary shadow-primary/50"}`}
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full pointer-events-none ${isInvalid ? "bg-rose-500" : "bg-primary"}`}
                       />
                     )}
                   </button>
@@ -473,7 +475,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
 
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between pl-1">
-                            <label className="text-xs font-medium text-foreground mb-1 block ">Vendor Partnership</label>
+                            <div className="flex items-center gap-2 mb-1">
+                              <label className="text-xs font-medium text-foreground block">Vendor Partnership</label>
+                              <button 
+                                type="button" 
+                                onClick={() => setIsVendorModalOpen(true)} 
+                                className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded uppercase font-bold hover:bg-brand-primary/20 transition-all border border-brand-primary/20"
+                              >
+                                + Add New
+                              </button>
+                            </div>
                             {selectedVendorCompliance && (
                               <span className={cn(
                                 "text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md",
@@ -1026,20 +1037,6 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                       {/* Save Draft Action - Visible on final tab or if editing existing */}
                       {(activeTab === "approvals" || requestId) && (
                         <Button
-                          variant="secondary"
-                          size="lg"
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={handleSubmit((data) => handleAction(data, "draft"))}
-                          className="flex items-center gap-3 px-6 rounded-lg font-bold bg-secondary/50 border border-border hover:bg-secondary transition-all"
-                        >
-                          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                          Save Draft
-                        </Button>
-                      )}
-
-                      {activeTab !== "approvals" ? (
-                        <Button
                           variant={isOverBudget ? "outline" : "secondary"}
                           size="lg"
                           type="button"
@@ -1093,6 +1090,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
           </motion.div>
         </div>
       )}
+      <VendorManagementModal open={isVendorModalOpen} onOpenChange={setIsVendorModalOpen} />
     </AnimatePresence>
   );
 }

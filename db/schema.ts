@@ -613,7 +613,7 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   remarks: z.string().optional().nullable(),
-  status: z.enum(["active", "blocked", "frozen"]).default("active"),
+  status: z.enum(["active", "blocked", "frozen", "pending"]).default("active"),
 });
 
 // Use the same schema for form validation
