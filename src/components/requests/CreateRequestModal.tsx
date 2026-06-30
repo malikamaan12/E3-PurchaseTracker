@@ -216,8 +216,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 : new Date(inst.dueDate).toISOString().split('T')[0]
             })) : [],
           });
-          if (reqData.subPurposeId) {
-            const subs = await apiClient.requests.subPurposes.list();
+          if (reqData.purposeCategoryId) {
+            const subs = await apiClient.requests.getSubPurposes(reqData.purposeCategoryId);
             setSubPurposes(subs);
           }
         } catch {
@@ -277,7 +277,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const fetchSubPurposes = async (categoryId: number) => {
     setIsLoadingSubPurposes(true);
     try {
-      const data = await apiClient.requests.subPurposes.list({ purposeCategoryId: categoryId });
+      const data = await apiClient.requests.getSubPurposes(categoryId);
       setSubPurposes(data);
     } catch {
       console.error("Failed to load sub-purposes");
@@ -447,12 +447,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     e.preventDefault();
                   }
                 }}
-                onSubmit={handleSubmit((data) => handleAction(data, "pending"), (err) => {
-                  if (Object.keys(err).length > 0) {
-                    const firstError = Object.values(err)[0] as any;
-                    toast.error(`Entry Error: ${firstError?.message || "Check all tabs for errors"}`);
-                  }
-                })}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                }}
                 className="flex-1 flex flex-col min-h-0"
               >
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">

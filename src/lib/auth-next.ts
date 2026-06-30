@@ -11,17 +11,13 @@ export interface AuthenticatedUser {
   canManageVendors?: boolean; // New permission flag
 }
 
-export async function getAuthenticatedUser(req: NextRequest): Promise<AuthenticatedUser | null> {
-  try {
-    const cookieHeader = req.headers.get("cookie") || "";
-    const cookies: Record<string, string> = {};
-    
-    cookieHeader.split(";").forEach((c) => {
-      const [key, value] = c.split("=").map((s) => s.trim());
-      if (key && value) cookies[key] = value;
-    });
+import { cookies } from "next/headers";
 
-    const token = cookies[TOKEN_COOKIE_NAME];
+export async function getAuthenticatedUser(req?: NextRequest): Promise<AuthenticatedUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
+
     if (!token) return null;
 
     const secret = new TextEncoder().encode(JWT_SECRET);

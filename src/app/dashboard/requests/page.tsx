@@ -125,22 +125,13 @@ function RequestsDashboardContent() {
 
   const approveMutation = useMutation({
     mutationFn: (requestId: number) => apiClient.requests.approve(requestId, { status: "approved" }),
-    onMutate: async (requestId) => {
-      const queryKey = ["requests", filters];
-      await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData(queryKey);
-      queryClient.setQueryData(queryKey, (old: any[]) => 
-        old?.map(r => r.id === requestId ? { ...r, status: "approved" } : r)
-      );
-      toast.success("Request approved optimistically");
-      return { previous };
-    },
-    onError: (err, id, context) => {
-      queryClient.setQueryData(["requests", filters], context?.previous);
-      toast.error("Failed to approve request. Rollback complete.");
-    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      toast.success("Request approval submitted successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to approve request.");
     }
   });
 

@@ -86,11 +86,9 @@ class ApiClient {
     },
     bulkApprove: (data: { requestIds: number[]; comments?: string }) => 
       this.request<any>("/requests/bulk-approve", { method: "POST", body: JSON.stringify(data) }),
-    subPurposes: {
-      list: (params: Record<string, any> = {}) => {
-        const search = new URLSearchParams(params).toString();
-        return this.request<any[]>(`/requests/sub-purposes?${search}`);
-      }
+    getSubPurposes: (purposeCategoryId?: number) => {
+      const qs = purposeCategoryId ? `?purposeCategoryId=${purposeCategoryId}` : '';
+      return this.request<any[]>(`/requests/sub-purposes${qs}`);
     },
     analyzeAi: (requestDetails: any) => 
       this.request<any>("/ai/analyze-request", { method: "POST", body: JSON.stringify({ requestDetails }) }),

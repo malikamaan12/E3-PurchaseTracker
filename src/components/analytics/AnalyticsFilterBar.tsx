@@ -46,7 +46,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
 
   const { data: subPurposes } = useQuery({
     queryKey: ["sub-purposes"],
-    queryFn: () => apiClient.requests.subPurposes.list(),
+    queryFn: () => apiClient.requests.getSubPurposes(),
   })
 
   const { data: purposes } = useQuery({

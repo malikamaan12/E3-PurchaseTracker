@@ -8,9 +8,20 @@ import { AuthProvider } from "@/context/AuthContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { PWAProvider } from "@/context/PWAContext";
 
+import { useEffect } from "react";
+
 function ThemeAwareToaster() {
   const { theme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) {
+    return null;
+  }
+
   // Resolve system theme to actual theme if 'system' is selected
   const currentTheme = theme === 'system' ? systemTheme : theme;
   
