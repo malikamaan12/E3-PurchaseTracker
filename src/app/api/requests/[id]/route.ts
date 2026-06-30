@@ -296,12 +296,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         details: { reason: "Financial/Scope change detected. Signatures invalidated.", changedFields: hasFinancialChange ? "Financials" : "Manual Withdrawal" },
         timestamp: new Date(),
       });
+    }
 
+    if (existing.status === "draft" || existing.status === "changes_requested" || forceReset) {
       if (!isWithdrawal) {
         cleanData.status = "pending";
         // Re-seed approvals by tricking the system into thinking it's transitioning to pending
         updateData.status = "pending"; 
       }
+    } else {
+      // SECURITY FIX: Never allow the client to arbitrarily update the status via PUT
+      // unless it's explicitly handled by the state transitions above.
+      delete cleanData.status;
     }
 
     let isTransitioningToPending = updateData.status === "pending" && (existing.status === "draft" || existing.status === "changes_requested" || forceReset);
