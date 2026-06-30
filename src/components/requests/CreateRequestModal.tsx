@@ -418,7 +418,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     key={tabId}
                     type="button"
                     onClick={() => setActiveTab(tabId)}
-                    className={`py-4 text-sm font-medium flex items-center gap-3 transition-all relative ${
+                    className={`py-4 text-sm font-medium flex items-center gap-3 transition-all relative z-10 pointer-events-auto ${
                       activeTab === tabId
                         ? isInvalid ? "text-rose-500" : "text-primary"
                         : isInvalid ? "text-rose-400/80" : "text-muted-foreground hover:text-foreground"
@@ -426,11 +426,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                   >
                     {isInvalid ? <AlertCircle className="w-4 h-4 animate-pulse" /> : tabMeta.icon}
                     {tabMeta.label}
-                    {isInvalid && <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-4 right-0" />}
+                    {isInvalid && <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-4 right-0 pointer-events-none" />}
                     {activeTab === tabId && (
                       <motion.div
                         layoutId="tab-underline"
-                        className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full shadow-lg ${isInvalid ? "bg-rose-500 shadow-rose-500/50" : "bg-primary shadow-primary/50"}`}
+                        className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-full shadow-lg pointer-events-none ${isInvalid ? "bg-rose-500 shadow-rose-500/50" : "bg-primary shadow-primary/50"}`}
                       />
                     )}
                   </button>
