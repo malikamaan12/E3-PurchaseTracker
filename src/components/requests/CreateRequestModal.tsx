@@ -503,7 +503,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               name="vendorId"
                               control={control}
                               render={({ field }) => (
-                                <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                                <Select 
+                                  onValueChange={(val) => {
+                                    if (val === "add_new") {
+                                      setIsVendorModalOpen(true);
+                                    } else {
+                                      field.onChange(val);
+                                    }
+                                  }} 
+                                  value={field.value?.toString() === "add_new" ? undefined : field.value?.toString()}
+                                >
                                   <SelectTrigger className={cn(
                                     "pl-9 h-10 text-sm transition-all",
                                     errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "",
@@ -512,6 +521,12 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                     <SelectValue placeholder="Select active vendor..." />
                                   </SelectTrigger>
                                   <SelectContent>
+                                    <SelectItem value="add_new" className="font-medium text-primary focus:text-primary focus:bg-primary/10 mb-1 border-b border-border/50 pb-2 cursor-pointer">
+                                      <div className="flex items-center gap-2">
+                                        <Plus className="w-4 h-4" />
+                                        Create New Vendor
+                                      </div>
+                                    </SelectItem>
                                     {vendors.map((v) => (
                                       <SelectItem key={v.id} value={v.id.toString()}>
                                         <div className="flex items-center justify-between w-full gap-4">
