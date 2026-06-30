@@ -27,14 +27,17 @@ class ApiClient {
       },
     });
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       const isAuthPage = typeof window !== "undefined" && (window.location.pathname.startsWith("/login") || window.location.pathname.startsWith("/signup"));
       let errorMessage = "Session expired. Please login again.";
       
+      const errorData = await response.json().catch(() => ({}));
+      
       // If we are on the login page, it's likely a bad password, read the actual message
-      if (isAuthPage && response.status === 401) {
-        const errorData = await response.json().catch(() => ({}));
+      if (isAuthPage) {
         errorMessage = errorData.message || errorData.error || "Invalid username or password";
+      } else if (errorData.error && errorData.error !== "Not authenticated") {
+        errorMessage = errorData.error;
       }
       
       throw new ApiError(response.status, errorMessage);
