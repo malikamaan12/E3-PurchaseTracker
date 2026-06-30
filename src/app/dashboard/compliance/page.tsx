@@ -48,12 +48,12 @@ interface ComplianceVendor {
 // ─── COMPONENT: KPI DISK ────────────────────────────────────────────────────
 const KpiDisk = ({ label, value, sub, color }: { label: string, value: string | number, sub: string, color: string }) => {
   return (
-    <div className="glass p-5 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-none relative overflow-hidden group">
+    <div className="bg-background/80 backdrop-blur-md p-5 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden group">
       <div className={cn("absolute -right-4 -top-4 w-24 h-24 blur-3xl opacity-20 transition-all duration-700 group-hover:scale-150 group-hover:opacity-40", color)} />
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 dark:text-muted-foreground mb-4">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 mb-4">{label}</p>
       <div className="flex items-baseline gap-2">
         <h3 className="text-4xl font-serif text-foreground tracking-tight">{value}</h3>
-        <span className="text-xs font-bold text-muted-foreground/60 dark:text-muted-foreground font-mono">{sub}</span>
+        <span className="text-xs font-bold text-foreground opacity-60 font-mono">{sub}</span>
       </div>
     </div>
   )
@@ -150,7 +150,7 @@ export default function ComplianceGatewayPage() {
             label="Fully Secured" 
             value={data?.summary.fullyCompliant || 0} 
             sub="vendors" 
-            color="bg-brand-primary" 
+            color="bg-primary" 
           />
           <KpiDisk 
             label="Regulatory Risk" 
@@ -162,7 +162,7 @@ export default function ComplianceGatewayPage() {
       </header>
 
       {/* 2. Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 sticky top-20 z-40 bg-background/50 backdrop-blur-md p-2 rounded-2xl border border-white/5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 sticky top-20 z-40 bg-background/80 backdrop-blur-md p-2 rounded-2xl border border-border/50">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input 
@@ -170,17 +170,17 @@ export default function ComplianceGatewayPage() {
             placeholder="Search vendor legal cache..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-brand-primary/20 transition-all outline-none"
+            className="w-full h-12 bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all outline-none text-foreground placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-          <button onClick={handleExport} className="h-12 px-6 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+          <button onClick={handleExport} className="h-12 px-6 bg-secondary hover:bg-secondary/80 border border-border/50 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground">
             <Download className="w-4 h-4" /> Export Audit
           </button>
           <button 
             onClick={handleScan}
             disabled={isScanning}
-            className="h-12 px-6 bg-brand-primary text-white rounded-xl shadow-lg shadow-brand-primary/20 transition-all hover:scale-[1.02] flex items-center gap-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none"
+            className="h-12 px-6 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] flex items-center gap-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none"
           >
             {isScanning ? <ShieldAlert className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} 
             {isScanning ? "Scanning..." : "Request Updates"}
@@ -189,41 +189,41 @@ export default function ComplianceGatewayPage() {
       </div>
 
       {/* 3. Compliance Matrix (DESKTOP) */}
-      <div className="hidden lg:block glass p-1 rounded-3xl border border-black/5 dark:border-white/10 mb-20 overflow-x-auto custom-scrollbar shadow-sm dark:shadow-none">
-        <div className="bg-white/40 dark:bg-white/[0.02] rounded-[22px] overflow-hidden">
+      <div className="hidden lg:block bg-background/80 backdrop-blur-md p-1 rounded-3xl border border-border/50 mb-20 overflow-x-auto custom-scrollbar shadow-sm">
+        <div className="bg-secondary/30 rounded-[22px] overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-white/5 bg-white/[0.02]">
-                <th className="p-6 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Vendor Entity</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40">Registration (CR)</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40">Tax Certificate</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40">Computer Card</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-40">Master Contract</th>
-                <th className="p-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground w-48">Score</th>
+              <tr className="border-b border-border/50 bg-secondary/50">
+                <th className="p-6 text-left text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80">Vendor Entity</th>
+                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Registration (CR)</th>
+                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Tax Certificate</th>
+                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Computer Card</th>
+                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Master Contract</th>
+                <th className="p-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-48">Score</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border/50">
                 {isLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="p-12 text-center text-muted-foreground">Hydrating Legal Matrix...</td>
+                      <td colSpan={6} className="p-12 text-center text-muted-foreground font-bold uppercase tracking-wider text-sm">Hydrating Legal Matrix...</td>
                     </tr>
                   ))
                 ) : filteredVendors.length === 0 ? (
-                  <tr><td colSpan={6} className="p-20 text-center text-muted-foreground">No records found matching your query.</td></tr>
+                  <tr><td colSpan={6} className="p-20 text-center text-muted-foreground font-bold uppercase tracking-wider text-sm">No records found matching your query.</td></tr>
                 ) : (
                   filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
                     <tr 
                       key={vendor.id}
-                      className="group hover:bg-white/[0.02] transition-colors animate-slide-up"
+                      className="group hover:bg-secondary/50 transition-colors animate-slide-up"
                       style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
                     >
                       <td className="p-6">
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                             {vendor.companyName}
                           </span>
-                          <span className="text-[10px] font-mono text-muted-foreground/60 mt-1 uppercase">
+                          <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">
                             ID: {vendor.id} • {vendor.registrationNumber || "Unrecognized registration"}
                           </span>
                         </div>
@@ -234,17 +234,17 @@ export default function ComplianceGatewayPage() {
                       <ComplianceCell doc={vendor.docs.contract} />
                       <td className="p-6 text-right">
                         <div className="flex items-center justify-end gap-3">
-                          <div className="w-24 h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                          <div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden">
                             <div 
                               className={cn(
                                 "h-full rounded-full shrink-0 transition-all duration-700",
-                                vendor.healthScore === 100 ? "bg-brand-secondary shadow-[0_0_10px_rgba(47,183,178,0.3)]" :
-                                vendor.healthScore > 50 ? "bg-brand-primary shadow-[0_0_10px_rgba(91,75,138,0.3)]" : "bg-rose-500"
+                                vendor.healthScore === 100 ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]" :
+                                vendor.healthScore > 50 ? "bg-primary shadow-[0_0_10px_rgba(var(--primary),0.3)]" : "bg-rose-500"
                               )}
                               style={{ width: `${vendor.healthScore}%` }}
                             />
                           </div>
-                          <span className="text-xs font-black tabular-nums opacity-80">{vendor.healthScore}%</span>
+                          <span className="text-xs font-black tabular-nums">{vendor.healthScore}%</span>
                         </div>
                       </td>
                     </tr>
@@ -259,27 +259,27 @@ export default function ComplianceGatewayPage() {
       <div className="lg:hidden space-y-4 mb-20">
           {isLoading ? (
             Array(3).fill(0).map((_, i) => (
-              <div key={i} className="glass p-6 rounded-3xl animate-pulse h-40 flex items-center justify-center text-muted-foreground">
+              <div key={i} className="bg-background/80 backdrop-blur-md p-6 rounded-3xl animate-pulse h-40 flex items-center justify-center text-muted-foreground font-bold uppercase tracking-wider text-sm">
                 Hydrating Legal Cache...
               </div>
             ))
           ) : filteredVendors.length === 0 ? (
-            <div className="glass p-12 rounded-3xl text-center text-muted-foreground">
+            <div className="bg-background/80 backdrop-blur-md p-12 rounded-3xl text-center text-muted-foreground font-bold uppercase tracking-wider text-sm">
               No matching legal records found.
             </div>
           ) : (
             filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
               <div 
                 key={vendor.id}
-                className="glass p-6 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm active-scale animate-slide-up"
+                className="bg-background/80 backdrop-blur-md p-6 rounded-3xl border border-border/50 shadow-sm active-scale animate-slide-up"
                 style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
               >
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex flex-col">
                     <span className="text-base font-bold text-foreground truncate max-w-[200px]">{vendor.companyName}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground mt-1 uppercase">ID: {vendor.id} • CR: {vendor.registrationNumber?.slice(0,8) || "—"}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">ID: {vendor.id} • CR: {vendor.registrationNumber?.slice(0,8) || "—"}</span>
                   </div>
-                  <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-black/5">
+                  <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-xl border border-border/50">
                     <span className="text-xs font-black tabular-nums">{vendor.healthScore}%</span>
                   </div>
                 </div>
@@ -291,12 +291,12 @@ export default function ComplianceGatewayPage() {
                   <MobileDocCell label="Contract" doc={vendor.docs.contract} />
                 </div>
 
-                <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
                   <div 
                     className={cn(
                       "h-full rounded-full transition-all duration-700",
                       vendor.healthScore === 100 ? "bg-emerald-500" :
-                      vendor.healthScore > 50 ? "bg-brand-primary" : "bg-rose-500"
+                      vendor.healthScore > 50 ? "bg-primary" : "bg-rose-500"
                     )}
                     style={{ width: `${vendor.healthScore}%` }}
                   />
@@ -315,13 +315,12 @@ export default function ComplianceGatewayPage() {
   )
 }
 
-// ─── HELPER: COMPLIANCE CELL ──────────────────────────────────────────────
 function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
   if (!doc || doc.status === "missing") {
     return (
       <td className="p-6 text-center">
         <div className="flex justify-center group/icon">
-          <div className="w-8 h-8 rounded-lg bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/10 flex items-center justify-center text-rose-500/60 dark:text-rose-500/30 group-hover/icon:bg-rose-500/20 group-hover/icon:text-rose-500 transition-all duration-300 cursor-help relative hover:scale-110 shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500/80 group-hover/icon:bg-rose-500/20 group-hover/icon:text-rose-500 transition-all duration-300 cursor-help relative hover:scale-110 shadow-sm">
             <AlertCircle className="w-4 h-4" />
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-32 bg-gray-900 dark:bg-black p-2.5 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-[9px] font-black uppercase tracking-widest text-white border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
               Missing Documentation
@@ -338,7 +337,7 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
       <div className="flex justify-center group/icon">
         <button 
           onClick={() => doc.file && window.open(doc.file.url, "_blank")}
-          className="w-8 h-8 rounded-lg bg-brand-secondary/10 dark:bg-brand-secondary/5 border border-brand-secondary/20 dark:border-brand-secondary/10 flex items-center justify-center text-brand-secondary group-hover/icon:bg-brand-secondary/20 group-hover/icon:text-brand-secondary transition-all duration-300 relative hover:scale-110 shadow-sm"
+          className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover/icon:bg-emerald-500/20 group-hover/icon:text-emerald-500 transition-all duration-300 relative hover:scale-110 shadow-sm"
         >
           <CheckCircle2 className="w-4 h-4" />
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-gray-900 dark:bg-black p-3 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-left border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">

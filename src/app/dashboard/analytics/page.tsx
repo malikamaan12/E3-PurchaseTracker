@@ -61,10 +61,10 @@ export default function AnalyticsDashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6">
         <div className="relative">
-          <Loader2 className="w-16 h-16 text-brand-primary animate-spin opacity-20" />
-          <Loader2 className="w-16 h-16 text-brand-secondary animate-spin absolute inset-0 [animation-duration:1.5s]" />
+          <Loader2 className="w-16 h-16 text-primary animate-spin opacity-20" />
+          <Loader2 className="w-16 h-16 text-emerald-500 animate-spin absolute inset-0 [animation-duration:1.5s]" />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary/60 animate-pulse">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary/80 animate-pulse">
           Synchronizing Executive Ledger...
         </p>
       </div>
@@ -91,8 +91,8 @@ export default function AnalyticsDashboardPage() {
     <div className="relative min-h-screen overflow-hidden">
       {/* Background Blobs */}
       <div className="fixed inset-0 pointer-events-none -z-10 bg-background transition-colors duration-700">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-primary/10 dark:bg-brand-primary/10 rounded-full blur-[120px] animate-fluid-drift" />
-        <div className="absolute bottom-[20%] left-[-5%] w-[35%] h-[35%] bg-brand-secondary/10 dark:bg-brand-secondary/10 rounded-full blur-[100px] animate-fluid-drift [animation-delay:4s]" />
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 dark:bg-primary/10 rounded-full blur-[120px] animate-fluid-drift" />
+        <div className="absolute bottom-[20%] left-[-5%] w-[35%] h-[35%] bg-emerald-500/10 dark:bg-emerald-500/10 rounded-full blur-[100px] animate-fluid-drift [animation-delay:4s]" />
       </div>
 
       <div className="flex-1 space-y-8 md:space-y-12 p-4 md:p-8 pt-6 w-full relative z-10">
@@ -105,10 +105,10 @@ export default function AnalyticsDashboardPage() {
               </Link>
               <div className="h-8 w-px bg-border/20 mx-2" />
               <h1 className="text-3xl lg:text-4xl font-serif tracking-tighter text-foreground">
-                Intelligence <span className="text-brand-primary">Console</span>
+                Intelligence <span className="text-primary">Console</span>
               </h1>
             </div>
-            <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-[0.2em] opacity-60 pl-1">
+            <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider pl-1">
               Global procurement velocity and liquidity forecast engine.
             </p>
           </div>
@@ -150,12 +150,12 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
           <div className={cn(
-            "col-span-full lg:col-span-4 glass-card p-8 border-white/10 opacity-0 relative overflow-hidden",
+            "col-span-full lg:col-span-4 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 relative overflow-hidden",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
-              <h3 className="text-2xl font-serif tracking-tight">Financial Liquidity</h3>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-60">Cash Flow Projection Matrix</p>
+              <h3 className="text-2xl font-serif tracking-tight text-foreground">Financial Liquidity</h3>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Cash Flow Projection Matrix</p>
             </div>
             <div className="chart-container h-[350px]">
               <CashFlowChart data={cashFlow} />
@@ -163,12 +163,12 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "col-span-full lg:col-span-3 glass-card p-8 border-white/10 opacity-0",
+            "col-span-full lg:col-span-3 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
-              <h3 className="text-2xl font-serif tracking-tight">Compliance Score</h3>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-60">Adherence vs Burn Velocity</p>
+              <h3 className="text-2xl font-serif tracking-tight text-foreground">Compliance Score</h3>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Adherence vs Burn Velocity</p>
             </div>
             <div className="chart-container h-[350px] flex items-center justify-center">
               <ComplianceRadar data={compliance} />
@@ -178,12 +178,12 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[600px]">
           <div className={cn(
-            "col-span-full lg:col-span-3 glass-card p-8 border-white/10 opacity-0 flex flex-col h-[400px] lg:h-full",
+            "col-span-full lg:col-span-3 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 flex flex-col h-[400px] lg:h-full",
             highPerformanceMode && "backdrop-blur-none"
           )}>
              <div className="flex flex-col gap-1 mb-10">
-              <h3 className="text-2xl font-serif tracking-tight">Department Yield</h3>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-60">Spent vs Savings Recovery</p>
+              <h3 className="text-2xl font-serif tracking-tight text-foreground">Department Yield</h3>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Spent vs Savings Recovery</p>
             </div>
             <div className="chart-container flex-1 min-h-[300px]">
               <BudgetSavingsChart data={budgetVsSavings} />
@@ -191,7 +191,7 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "col-span-full lg:col-span-2 glass-card p-8 border-white/10 opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8",
+            "col-span-full lg:col-span-2 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="w-full flex-1 min-h-[250px]">
@@ -227,7 +227,7 @@ function KpiCard({ title, value, description, icon, trend, positive }: any) {
     <div 
       ref={cardRef}
       className={cn(
-        "glass-card p-8 relative group overflow-hidden opacity-0 cursor-default",
+        "glass p-8 rounded-3xl border border-border/50 shadow-sm relative group overflow-hidden opacity-0 cursor-default",
         highPerformanceMode && "backdrop-blur-none transform-none"
       )}
     >
@@ -236,31 +236,31 @@ function KpiCard({ title, value, description, icon, trend, positive }: any) {
         ref={glowRef}
         className={cn(
           "absolute w-64 h-64 rounded-full blur-[100px] opacity-0 pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0",
-          positive ? "bg-brand-secondary/20" : "bg-brand-primary/20"
+          positive ? "bg-emerald-500/20" : "bg-primary/20"
         )}
       />
       
       <div className="relative z-10">
         <div className="flex flex-row items-center justify-between space-y-0 pb-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
             {title}
           </h3>
-          <div className="w-12 h-12 rounded-2xl bg-white/5 dark:bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500">
+          <div className="w-12 h-12 rounded-2xl bg-secondary/50 border border-border flex items-center justify-center shadow-inner group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 text-primary">
             {icon}
           </div>
         </div>
         <div>
-          <div className="text-4xl font-serif font-bold tracking-tighter text-foreground group-hover:text-brand-primary transition-colors duration-500">
+          <div className="text-4xl font-serif font-bold tracking-tighter text-foreground group-hover:text-primary transition-colors duration-500">
             {value}
           </div>
-          <p className="text-[10px] text-muted-foreground/60 mt-2 font-bold uppercase tracking-widest">
+          <p className="text-xs text-muted-foreground mt-2 font-semibold uppercase tracking-wider">
             {description}
           </p>
           <div className={cn(
-            "mt-6 inline-flex items-center px-4 py-1.5 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border shadow-sm transition-all duration-500",
+            "mt-6 inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase border shadow-sm transition-all duration-500",
             positive 
-              ? "bg-brand-secondary/10 text-brand-secondary border-brand-secondary/20 hover:bg-brand-secondary/20 hover:scale-105" 
-              : "bg-brand-primary/10 text-brand-primary border-brand-primary/20 hover:bg-brand-primary/20 hover:scale-105"
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:scale-105" 
+              : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:scale-105"
           )}>
             {trend}
           </div>
