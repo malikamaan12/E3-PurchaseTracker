@@ -152,50 +152,52 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       )}
 
       {/* Variation Panel */}
-      <div className={cn("rounded-2xl p-6 border shadow-sm transition-all duration-300", isOverpaid ? "border-destructive/50 bg-destructive/5" : "border-border/50 bg-card hover:shadow-md")}>
-        <div className="flex items-center justify-between gap-6 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className={cn("p-2 rounded-xl", isOverpaid ? "bg-destructive/10" : "bg-muted")}>
-              <Calculator className={cn("w-5 h-5", isOverpaid ? "text-destructive" : "text-muted-foreground")} />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm tracking-tight">Budget Variation Protocol</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Authorized Baseline: <span className="font-mono font-bold text-foreground">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
-                {request.revisedTotalCost && <span className="ml-3 text-primary font-mono font-bold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">Revised: {request.revisedTotalCost.toLocaleString()} {request.currency}</span>}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {!showVariationConfirm ? (
-              <Button size="sm" variant={isOverpaid ? "destructive" : "outline"} onClick={() => {
-                if (isOverpaid) setVariationAmount((newGlobalPaidQar / activeExchangeRate).toString());
-                setShowVariationConfirm(true);
-              }} disabled={isLockedByStatus} className="rounded-full px-5">
-                {isOverpaid ? "Initiate Variation" : "Request Overrun"}
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2 bg-background p-1.5 rounded-full border border-border/50 shadow-sm">
-                <input type="number" placeholder="New Total" value={variationAmount} onChange={(e) => setVariationAmount(e.target.value)}
-                  className="px-4 py-1.5 text-sm rounded-full bg-transparent outline-none w-32 font-mono font-bold" />
-                <Button size="sm" className="rounded-full px-4" onClick={() => variationMutation.mutate(Number(variationAmount))} disabled={variationMutation.isPending}>
-                  {variationMutation.isPending && <Loader2 className="w-3 h-3 animate-spin mr-2" />} Finalize
-                </Button>
-                <Button size="icon" variant="ghost" className="rounded-full h-8 w-8 text-muted-foreground" onClick={() => setShowVariationConfirm(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
+      {!isLockedByStatus && (
+        <div className={cn("rounded-2xl p-6 border shadow-sm transition-all duration-300", isOverpaid ? "border-destructive/50 bg-destructive/5" : "border-border/50 bg-card hover:shadow-md")}>
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className={cn("p-2 rounded-xl", isOverpaid ? "bg-destructive/10" : "bg-muted")}>
+                <Calculator className={cn("w-5 h-5", isOverpaid ? "text-destructive" : "text-muted-foreground")} />
               </div>
-            )}
+              <div>
+                <h3 className="font-bold text-sm tracking-tight">Budget Variation Protocol</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Authorized Baseline: <span className="font-mono font-bold text-foreground">{(request.totalEstimatedCost || 0).toLocaleString()} {request.currency}</span>
+                  {request.revisedTotalCost && <span className="ml-3 text-primary font-mono font-bold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">Revised: {request.revisedTotalCost.toLocaleString()} {request.currency}</span>}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {!showVariationConfirm ? (
+                <Button size="sm" variant={isOverpaid ? "destructive" : "outline"} onClick={() => {
+                  if (isOverpaid) setVariationAmount((newGlobalPaidQar / activeExchangeRate).toString());
+                  setShowVariationConfirm(true);
+                }} disabled={isLockedByStatus} className="rounded-full px-5">
+                  {isOverpaid ? "Initiate Variation" : "Request Overrun"}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 bg-background p-1.5 rounded-full border border-border/50 shadow-sm">
+                  <input type="number" placeholder="New Total" value={variationAmount} onChange={(e) => setVariationAmount(e.target.value)}
+                    className="px-4 py-1.5 text-sm rounded-full bg-transparent outline-none w-32 font-mono font-bold" />
+                  <Button size="sm" className="rounded-full px-4" onClick={() => variationMutation.mutate(Number(variationAmount))} disabled={variationMutation.isPending}>
+                    {variationMutation.isPending && <Loader2 className="w-3 h-3 animate-spin mr-2" />} Finalize
+                  </Button>
+                  <Button size="icon" variant="ghost" className="rounded-full h-8 w-8 text-muted-foreground" onClick={() => setShowVariationConfirm(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
+          {isOverpaid && (
+            <div className="mt-4 bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-2 text-destructive text-sm font-bold">
+              <AlertCircle className="w-4 h-4" /> 
+              <span>Variation protocol is mandatory due to overpayment on scheduled disbursements.</span>
+            </div>
+          )}
         </div>
-        {isOverpaid && (
-          <div className="mt-4 bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-2 text-destructive text-sm font-bold">
-            <AlertCircle className="w-4 h-4" /> 
-            <span>Variation protocol is mandatory due to overpayment on scheduled disbursements.</span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Ledger Table */}
       <div className="bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">

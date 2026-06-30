@@ -20,6 +20,7 @@ import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
 import { evaluateCompliance } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
+import { getExchangeRateToQAR } from "@/lib/utils/currency";
 
 export const dynamic = 'force-dynamic';
 
@@ -256,11 +257,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Sanitize update data
-    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, id: _id, revisedTotalCost: _rvc, ...cleanData } = rawBody;
+    const { requester, vendor, subPurpose, approvals: _a, attachments: _att, attachmentIds, id: _id, revisedTotalCost: _rvc, installments, paymentStructure, ...cleanData } = rawBody;
 
     // Financial Integer Safety
-    if (cleanData.totalEstimatedCost) cleanData.totalEstimatedCost = Math.round(Number(cleanData.totalEstimatedCost));
-    if (cleanData.freightAmount) cleanData.freightAmount = Math.round(Number(cleanData.freightAmount));
+    if (cleanData.totalEstimatedCost !== undefined) cleanData.totalEstimatedCost = Math.round(Number(cleanData.totalEstimatedCost));
+    if (cleanData.freightAmount !== undefined) cleanData.freightAmount = Math.round(Number(cleanData.freightAmount));
+
+    const updatedTotalCost = (cleanData.totalEstimatedCost ?? existing.totalEstimatedCost) + (cleanData.freightAmount ?? existing.freightAmount ?? 0);
+    const updatedCurrency = cleanData.currency ?? existing.currency ?? "QAR";
+    const activeRate = await getExchangeRateToQAR(updatedCurrency);
+    
+    cleanData.baseAmountQar = Math.round(updatedTotalCost * activeRate);
+    cleanData.exchangeRate = activeRate.toString();
+    if (paymentStructure) cleanData.paymentStructure = paymentStructure;
 
     // Handle array primitives converting to DB text columns for storage
     const itemsJson = cleanData.items && Array.isArray(cleanData.items) ? JSON.stringify(cleanData.items) : null;
@@ -341,6 +350,55 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await db.update(fileAttachments)
         .set({ requestId: requestId })
         .where(inArray(fileAttachments.id, attachmentIds));
+    }
+
+    // Process updated installments ONLY if not approved and provided
+    if (installments && Array.isArray(installments) && existing.status !== "approved" && existing.status !== "partially_approved") {
+      await db.delete(paymentInstallments).where(eq(paymentInstallments.requestId, requestId));
+      
+      let finalInstallments: any[] = [];
+      const targetPaymentStructure = paymentStructure || existing.paymentStructure;
+      const targetVendorId = cleanData.vendorId || existing.vendorId;
+
+      if (targetPaymentStructure === "IN_PARTS" && installments.length > 0) {
+        finalInstallments = installments.map((inst: any) => ({
+          requestId: requestId,
+          vendorId: targetVendorId,
+          installmentName: inst.installmentName,
+          dueDate: new Date(inst.dueDate),
+          valueType: inst.valueType,
+          amountValue: inst.amountValue,
+          calculatedAmount: inst.valueType === "PERCENTAGE"
+            ? Math.round((inst.amountValue / 100) * updatedTotalCost)
+            : Math.round(Number(inst.amountValue) || 0),
+          currency: updatedCurrency,
+          exchangeRate: activeRate.toString(),
+          calculatedAmountQar: Math.round(
+            (inst.valueType === "PERCENTAGE"
+              ? Math.round((inst.amountValue / 100) * updatedTotalCost)
+              : Math.round(Number(inst.amountValue) || 0)) * activeRate
+          ),
+          createdBy: user.id,
+        }));
+      } else {
+        finalInstallments = [{
+          requestId: requestId,
+          vendorId: targetVendorId,
+          installmentName: targetPaymentStructure === "ADVANCE" ? "100% Advance Payment" : "Post-Project Settlement",
+          dueDate: new Date(),
+          valueType: "PERCENTAGE",
+          amountValue: 100,
+          calculatedAmount: updatedTotalCost,
+          currency: updatedCurrency,
+          exchangeRate: activeRate.toString(),
+          calculatedAmountQar: cleanData.baseAmountQar,
+          createdBy: user.id,
+        }];
+      }
+
+      if (finalInstallments.length > 0) {
+        await db.insert(paymentInstallments).values(finalInstallments);
+      }
     }
 
     // Transition to pending: Create approval records and send notifications
