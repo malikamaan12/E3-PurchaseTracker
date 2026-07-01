@@ -48,12 +48,12 @@ interface ComplianceVendor {
 // ─── COMPONENT: KPI DISK ────────────────────────────────────────────────────
 const KpiDisk = ({ label, value, sub, color }: { label: string, value: string | number, sub: string, color: string }) => {
   return (
-    <div className="bg-background/80 backdrop-blur-md p-5 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden group">
+    <div className="bg-background/80 backdrop-blur-xl p-6 rounded-[2rem] border border-border/50 shadow-lg relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40">
       <div className={cn("absolute -right-4 -top-4 w-24 h-24 blur-3xl opacity-20 transition-all duration-700 group-hover:scale-150 group-hover:opacity-40", color)} />
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 mb-4">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors mb-4">{label}</p>
       <div className="flex items-baseline gap-2">
-        <h3 className="text-4xl font-serif text-foreground tracking-tight">{value}</h3>
-        <span className="text-xs font-bold text-foreground opacity-60 font-mono">{sub}</span>
+        <h3 className="text-4xl font-serif text-foreground tracking-tight group-hover:text-primary transition-colors">{value}</h3>
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{sub}</span>
       </div>
     </div>
   )
@@ -162,44 +162,45 @@ export default function ComplianceGatewayPage() {
       </header>
 
       {/* 2. Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 sticky top-20 z-40 bg-background/80 backdrop-blur-md p-2 rounded-2xl border border-border/50">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <section className="bg-background/80 backdrop-blur-md rounded-[2rem] p-5 flex flex-col md:flex-row gap-6 items-center shadow-lg border border-border/50 relative overflow-hidden mb-8 sticky top-20 z-40">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
+        <div className="relative flex-1 group w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <input 
             type="text"
             placeholder="Search vendor legal cache..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-12 bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all outline-none text-foreground placeholder:text-muted-foreground"
+            className="w-full bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-6 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
           />
         </div>
-        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-          <button onClick={handleExport} className="h-12 px-6 bg-secondary hover:bg-secondary/80 border border-border/50 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+          <button onClick={handleExport} className="h-[50px] px-6 bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border/50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground">
             <Download className="w-4 h-4" /> Export Audit
           </button>
           <button 
             onClick={handleScan}
             disabled={isScanning}
-            className="h-12 px-6 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] flex items-center gap-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none"
+            className="h-[50px] px-6 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02] flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none shrink-0"
           >
             {isScanning ? <ShieldAlert className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} 
             {isScanning ? "Scanning..." : "Request Updates"}
           </button>
         </div>
-      </div>
+      </section>
 
       {/* 3. Compliance Matrix (DESKTOP) */}
-      <div className="hidden lg:block bg-background/80 backdrop-blur-md p-1 rounded-3xl border border-border/50 mb-20 overflow-x-auto custom-scrollbar shadow-sm">
-        <div className="bg-secondary/30 rounded-[22px] overflow-hidden">
+      <div className="hidden lg:block bg-background/80 backdrop-blur-xl p-1 rounded-[2rem] border border-border/50 mb-20 overflow-x-auto custom-scrollbar shadow-lg">
+        <div className="rounded-[30px] overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-border/50 bg-secondary/50">
-                <th className="p-6 text-left text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80">Vendor Entity</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Registration (CR)</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Tax Certificate</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Computer Card</th>
-                <th className="p-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-40">Master Contract</th>
-                <th className="p-6 text-right text-[10px] font-black uppercase tracking-[0.2em] text-foreground opacity-80 w-48">Score</th>
+              <tr className="border-b border-border/50 bg-secondary/30">
+                <th className="p-6 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Vendor Entity</th>
+                <th className="p-6 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground w-40">Registration (CR)</th>
+                <th className="p-6 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground w-40">Tax Certificate</th>
+                <th className="p-6 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground w-40">Computer Card</th>
+                <th className="p-6 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground w-40">Master Contract</th>
+                <th className="p-6 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground w-48">Score</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -215,7 +216,7 @@ export default function ComplianceGatewayPage() {
                   filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
                     <tr 
                       key={vendor.id}
-                      className="group hover:bg-secondary/50 transition-colors animate-slide-up"
+                      className="group hover:bg-primary/[0.02] transition-colors animate-slide-up"
                       style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
                     >
                       <td className="p-6">
@@ -223,7 +224,7 @@ export default function ComplianceGatewayPage() {
                           <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                             {vendor.companyName}
                           </span>
-                          <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase">
+                          <span className="text-[11px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">
                             ID: {vendor.id} • {vendor.registrationNumber || "Unrecognized registration"}
                           </span>
                         </div>
@@ -271,7 +272,7 @@ export default function ComplianceGatewayPage() {
             filteredVendors.map((vendor: ComplianceVendor, idx: number) => (
               <div 
                 key={vendor.id}
-                className="bg-background/80 backdrop-blur-md p-6 rounded-3xl border border-border/50 shadow-sm active-scale animate-slide-up"
+                className="bg-background/80 backdrop-blur-xl p-6 rounded-[2rem] border border-border/50 shadow-lg animate-slide-up group hover:border-primary/40 hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
                 style={{ animationDelay: `${Math.min(idx * 0.03, 0.3)}s` }}
               >
                 <div className="flex items-start justify-between mb-6">

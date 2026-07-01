@@ -150,7 +150,7 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
           <div className={cn(
-            "glass-card col-span-full lg:col-span-4 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 relative overflow-hidden",
+            "glass-card col-span-full lg:col-span-4 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 relative overflow-hidden transition-all duration-300 hover:border-primary/40",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
@@ -163,7 +163,7 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "glass-card col-span-full lg:col-span-3 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0",
+            "glass-card col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 transition-all duration-300 hover:border-primary/40",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="flex flex-col gap-1 mb-10">
@@ -178,7 +178,7 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[600px]">
           <div className={cn(
-            "glass-card col-span-full lg:col-span-3 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 flex flex-col h-[400px] lg:h-full",
+            "glass-card col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 flex flex-col h-[400px] lg:h-full transition-all duration-300 hover:border-primary/40",
             highPerformanceMode && "backdrop-blur-none"
           )}>
              <div className="flex flex-col gap-1 mb-10">
@@ -191,7 +191,7 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "glass-card col-span-full lg:col-span-2 glass p-8 rounded-3xl border border-border/50 shadow-sm opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8",
+            "glass-card col-span-full lg:col-span-2 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8 transition-all duration-300 hover:border-primary/40",
             highPerformanceMode && "backdrop-blur-none"
           )}>
             <div className="w-full flex-1 min-h-[250px]">
@@ -227,7 +227,7 @@ function KpiCard({ title, value, description, icon, trend, positive }: any) {
     <div 
       ref={cardRef}
       className={cn(
-        "glass-card glass p-8 rounded-3xl border border-border/50 shadow-sm relative group overflow-hidden opacity-0 cursor-default",
+        "glass-card bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg relative group overflow-hidden opacity-0 cursor-default transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40",
         highPerformanceMode && "backdrop-blur-none transform-none"
       )}
     >
