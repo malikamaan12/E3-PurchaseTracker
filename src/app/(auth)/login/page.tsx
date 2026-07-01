@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LogIn, 
@@ -21,12 +22,13 @@ import { ThemeToggle } from "@/components/shared/ThemeToggle";
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setUser } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
   });
 
@@ -57,10 +59,11 @@ function LoginContent() {
     setError(null);
 
     try {
-      await apiClient.auth.login({
-        username: formData.username,
+      const res = await apiClient.auth.login({
+        email: formData.email,
         password: formData.password
       });
+      setUser(res.user);
       toast.success("Welcome back!");
       router.push("/dashboard/requests");
     } catch (err: any) {
@@ -137,12 +140,13 @@ function LoginContent() {
             <div className="space-y-4">
               <AuthInput 
                 icon={<User className="w-4 h-4" />}
-                label="Username"
-                name="username"
-                type="text"
-                value={formData.username}
+                label="Email"
+                name="email"
+                type="email"
+                value={formData.email}
                 onChange={handleInputChange}
                 required
+                autoComplete="email username"
               />
 
               <AuthInput 
@@ -153,6 +157,7 @@ function LoginContent() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
+                autoComplete="current-password"
               />
             </div>
 

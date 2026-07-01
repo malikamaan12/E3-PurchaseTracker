@@ -35,7 +35,7 @@ class ApiClient {
       
       // If we are on the login page, it's likely a bad password, read the actual message
       if (isAuthPage) {
-        errorMessage = errorData.message || errorData.error || "Invalid username or password";
+        errorMessage = errorData.message || errorData.error || "Invalid email or password";
       } else if (errorData.error && errorData.error !== "Not authenticated") {
         errorMessage = errorData.error;
       }

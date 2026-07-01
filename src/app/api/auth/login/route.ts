@@ -17,22 +17,22 @@ export async function POST(req: NextRequest) {
   console.log(`[Auth][Native][${traceId}] Login Request Start`);
 
   try {
-    const { username, password } = await req.json();
+    const { email, password } = await req.json();
 
     // 1. Database Lookup
-    console.log(`[Auth][Native][${traceId}] Querying user: ${username}`);
-    const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    console.log(`[Auth][Native][${traceId}] Querying user: ${email}`);
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
     if (!user || !user.isActive) {
-      console.warn(`[Auth][Native][${traceId}] Auth failed: ${username}`);
-      return NextResponse.json({ message: "Invalid username or password" }, { status: 401 });
+      console.warn(`[Auth][Native][${traceId}] Auth failed: ${email}`);
+      return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
     }
 
     // 2. Password Comparison
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.warn(`[Auth][Native][${traceId}] Password mismatch: ${username}`);
-      return NextResponse.json({ message: "Invalid username or password" }, { status: 401 });
+      console.warn(`[Auth][Native][${traceId}] Password mismatch: ${email}`);
+      return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
     }
 
     // 3. Department Lookup to determine Approval Authority
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       path: '/'
     });
 
-    console.log(`[Auth][Native][${traceId}] SUCCESS: ${username}`);
+    console.log(`[Auth][Native][${traceId}] SUCCESS: ${email}`);
     return response;
 
   } catch (error: any) {

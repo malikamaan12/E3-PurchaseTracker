@@ -20,6 +20,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   isApprover: boolean;
   refetch: () => void;
+  setUser: (user: AuthUser | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAdmin: false,
   isApprover: false,
   refetch: () => {},
+  setUser: () => {},
 });
 
 // TTL: 5 minutes in ms
@@ -119,6 +121,7 @@ export function AuthProvider({
     isAdmin,
     isApprover,
     refetch: () => fetchUser(false),
+    setUser,
   }), [user, isLoading, isRevalidating, isAdmin, isApprover, fetchUser]);
 
   return (
