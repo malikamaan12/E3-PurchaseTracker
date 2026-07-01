@@ -52,9 +52,8 @@ export default function AnalyticsDashboardPage() {
   })
 
   React.useEffect(() => {
-    if (!isLoading && !isError) {
-      pageLoad(".chart-container, .dashboard-header");
-    }
+    // Relying entirely on CSS animate-slide-up instead of manual DOM manipulation
+    // to prevent opacity bugs with chart-container.
   }, [isLoading, isError]);
 
   if (isLoading) {
@@ -96,7 +95,7 @@ export default function AnalyticsDashboardPage() {
       </div>
 
       <div className="flex-1 space-y-8 md:space-y-12 p-4 md:p-8 pt-6 w-full relative z-10">
-        <div className="dashboard-header flex flex-col lg:flex-row lg:items-center justify-between gap-6 opacity-0">
+        <div className="dashboard-header flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-slide-up">
           <div className="space-y-2">
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="flex items-center group">

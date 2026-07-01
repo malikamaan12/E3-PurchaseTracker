@@ -28,12 +28,14 @@ import { cn } from "@/lib/utils"
 const COLOR_PRIMARY = "hsl(var(--brand-primary))"
 const COLOR_SECONDARY = "hsl(var(--brand-secondary))"
 const COLOR_FOREGROUND = "hsl(var(--foreground))"
+const COLOR_MUTED_FOREGROUND = "hsl(var(--muted-foreground))"
+const COLOR_BORDER = "hsl(var(--border))"
 
 // ─── PREMIUM GLASS TOOLTIP ────────────────────────────────────────────────
 const GlassTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     return (
-      <div className="z-[2000] glass p-4 border border-white/20 shadow-[0_16px_32px_-8px_rgba(0,0,0,0.3)] backdrop-blur-xl rounded-2xl relative overflow-hidden">
+      <div className="z-[2000] bg-background/90 p-4 border border-border shadow-xl backdrop-blur-xl rounded-2xl relative overflow-hidden">
         {/* Accent Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-brand-gradient opacity-80" />
         
@@ -45,7 +47,7 @@ const GlassTooltip = ({ active, payload, label }: TooltipProps<number, string>) 
             <div key={index} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2.5">
                 <div 
-                  className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(167,139,250,0.5)]" 
+                  className="w-2.5 h-2.5 rounded-full shadow-sm" 
                   style={{ backgroundColor: entry.color }}
                 />
                 <span className="text-[11px] font-bold text-foreground/80 lowercase tracking-wide">
@@ -92,12 +94,12 @@ export function CashFlowChart({ data }: { data: any[] }) {
               </feMerge>
             </filter>
           </defs>
-          <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="rgba(255,255,255,0.03)" />
+          <CartesianGrid strokeDasharray="5 5" vertical={false} stroke={COLOR_BORDER} />
           <XAxis 
             dataKey="date" 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: 700 }}
+            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 9, fontWeight: 700 }}
             dy={10}
             tickFormatter={(str) => {
               const date = new Date(str);
@@ -107,12 +109,12 @@ export function CashFlowChart({ data }: { data: any[] }) {
           <YAxis 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: 700 }}
+            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 9, fontWeight: 700 }}
             tickFormatter={(val) => `${val / 1000}K`}
           />
           <Tooltip 
             content={<GlassTooltip />} 
-            cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1, strokeDasharray: "5 5" }}
+            cursor={{ stroke: COLOR_BORDER, strokeWidth: 1, strokeDasharray: "5 5" }}
           />
           <Area 
             type="monotone" 
@@ -144,22 +146,22 @@ export function BudgetSavingsChart({ data }: { data: any[] }) {
       ) : (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: -20, right: 30 }} barGap={0}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.03)" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COLOR_BORDER} />
           <XAxis 
             type="number" 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: 700 }}
+            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 9, fontWeight: 700 }}
           />
           <YAxis 
             type="category" 
             dataKey="department" 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: 700 }}
+            tick={{ fill: COLOR_FOREGROUND, fontSize: 10, fontWeight: 700 }}
             width={100}
           />
-          <Tooltip content={<GlassTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+          <Tooltip content={<GlassTooltip />} cursor={{ fill: COLOR_BORDER, opacity: 0.2 }} />
           <Bar 
             dataKey="spent" 
             name="Expenditure" 
@@ -241,10 +243,10 @@ export function ComplianceRadar({ data }: { data: any }) {
       ) : (
       <ResponsiveContainer width="100%" height={300}>
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formattedData}>
-          <PolarGrid stroke="rgba(255,255,255,0.05)" />
+          <PolarGrid stroke={COLOR_BORDER} />
           <PolarAngleAxis 
             dataKey="subject" 
-            tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 900 }} 
+            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 10, fontWeight: 900 }} 
           />
           <Radar
             name="Compliance"
