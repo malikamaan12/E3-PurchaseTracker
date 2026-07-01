@@ -147,7 +147,6 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     },
   });
 
-  const formItems = useWatch({ control, name: "items" }) || [];
   const formCategoryId = useWatch({ control, name: "purposeCategoryId" });
   const formSubPurposeId = useWatch({ control, name: "subPurposeId" });
   const paymentStructure = useWatch({ control, name: "paymentStructure" });
@@ -172,14 +171,6 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   }, [vendorId, vendors]);
 
   const isNonCompliant = selectedVendorCompliance && selectedVendorCompliance.score < 50;
-
-  const totals = useMemo(() => {
-    return formItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.estimatedCost || 0)), 0);
-  }, [formItems]);
-
-  useEffect(() => {
-    setValue("totalEstimatedCost", totals);
-  }, [totals, setValue]);
 
   useEffect(() => {
     async function loadRequestData() {
@@ -300,7 +291,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     }
   };
 
-  const isOverBudget = selectedBudget !== null && (totals * exchangeRate) > selectedBudget;
+  const isOverBudget = selectedBudget !== null && (totalEstimatedCost * exchangeRate) > selectedBudget;
 
   const isTabInvalid = (tab: "general" | "items" | "payments" | "approvals") => {
     if (Object.keys(errors).length === 0) return false;
@@ -719,6 +710,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               exchangeRate={exchangeRate}
                               freightAmount={watch("freightAmount")}
                               onFreightChange={(val) => setValue("freightAmount", val)}
+                              onTotalsChange={(val) => setValue("totalEstimatedCost", val)}
                             />
                           )}
                         />

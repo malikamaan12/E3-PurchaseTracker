@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { usePerformance } from "@/context/PerformanceContext";
+import { usePWA } from "@/context/PWAContext";
 import { PWASettings } from "./PWASettings";
 import { cn } from "@/lib/utils";
 import {
@@ -58,6 +59,7 @@ const NAV_ITEMS = [
 ];
 
 export default function TopNav() {
+  const { unreadCount } = usePWA();
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -80,12 +82,6 @@ export default function TopNav() {
       toast.error("Logout failed: " + error.message);
     }
   };
-
-  const { data: unreadStats } = useQuery({
-    queryKey: ["notifications-unread-count"],
-    queryFn: () => apiClient.notifications.getUnreadCount(),
-    refetchInterval: 30000,
-  });
 
   const { data: notifications = [], isLoading: isLoadingNotifs } = useQuery({
     queryKey: ["notifications"],
@@ -232,9 +228,9 @@ export default function TopNav() {
             )}
           >
             <Bell className="w-4 h-4" />
-            {unreadStats && unreadStats.count > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-sm ring-2 ring-background">
-                {unreadStats.count > 99 ? '99+' : unreadStats.count}
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>

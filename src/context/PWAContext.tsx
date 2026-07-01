@@ -24,6 +24,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     queryKey: ["notifications-unread-count"],
     queryFn: () => apiClient.notifications.getUnreadCount(),
     refetchInterval: 30000, // Sync every 30s
+    refetchIntervalInBackground: false,
+    staleTime: 10000,
   })
 
   const unreadCount = unreadStats?.count || 0

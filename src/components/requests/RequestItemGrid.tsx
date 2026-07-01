@@ -38,9 +38,10 @@ interface RequestItemGridProps {
   exchangeRate: number;
   freightAmount: number;
   onFreightChange: (amount: number) => void;
+  onTotalsChange?: (amount: number) => void;
 }
 
-export default function RequestItemGrid({ items, errors, onChange, currency, exchangeRate, freightAmount, onFreightChange }: RequestItemGridProps) {
+export default function RequestItemGrid({ items, errors, onChange, currency, exchangeRate, freightAmount, onFreightChange, onTotalsChange }: RequestItemGridProps) {
   const addItem = () => {
     onChange([...items, { name: "", quantity: 1, estimatedCost: 0, description: "" }]);
   };
@@ -80,8 +81,14 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
     onChange(newItems);
   };
 
-  const itemsTotal = items.reduce((sum, item) => sum + (item.quantity * item.estimatedCost), 0);
+  const itemsTotal = items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.estimatedCost || 0)), 0);
   const grandTotal = itemsTotal + freightAmount;
+
+  useEffect(() => {
+    if (onTotalsChange) {
+      onTotalsChange(itemsTotal);
+    }
+  }, [itemsTotal, onTotalsChange]);
 
   return (
     <div className="space-y-6">
