@@ -53,7 +53,7 @@ export default function AnalyticsDashboardPage() {
 
   React.useEffect(() => {
     if (!isLoading && !isError) {
-      pageLoad(".glass-card, .chart-container, .dashboard-header");
+      pageLoad(".chart-container, .dashboard-header");
     }
   }, [isLoading, isError]);
 
@@ -123,6 +123,7 @@ export default function AnalyticsDashboardPage() {
             description="Creation to sign-off"
             icon={<Clock className="w-5 h-5" />}
             trend="+12% efficiency"
+            index={0}
           />
           <KpiCard 
             title="Budget Adherence" 
@@ -130,6 +131,7 @@ export default function AnalyticsDashboardPage() {
             description="Zero-variation PRs"
             icon={<Target className="w-5 h-5" />}
             trend="Baseline Met"
+            index={1}
           />
           <KpiCard 
             title="Forecasted Liability" 
@@ -137,6 +139,7 @@ export default function AnalyticsDashboardPage() {
             description="Next 30D projected"
             icon={<TrendingUp className="w-5 h-5" />}
             trend="Liquid"
+            index={2}
           />
           <KpiCard 
             title="Negotiated Savings" 
@@ -145,14 +148,15 @@ export default function AnalyticsDashboardPage() {
             icon={<Zap className="w-5 h-5" />}
             trend={`${budgetVsSavings.length} Depts`}
             positive
+            index={3}
           />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
           <div className={cn(
-            "glass-card col-span-full lg:col-span-4 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 relative overflow-hidden transition-all duration-300 hover:border-primary/40",
+            "col-span-full lg:col-span-4 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg relative overflow-hidden transition-all duration-300 hover:border-primary/40 animate-slide-up",
             highPerformanceMode && "backdrop-blur-none"
-          )}>
+          )} style={{ animationDelay: "0.2s" }}>
             <div className="flex flex-col gap-1 mb-10">
               <h3 className="text-2xl font-serif tracking-tight text-foreground">Financial Liquidity</h3>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Cash Flow Projection Matrix</p>
@@ -163,9 +167,9 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "glass-card col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 transition-all duration-300 hover:border-primary/40",
+            "col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg transition-all duration-300 hover:border-primary/40 animate-slide-up",
             highPerformanceMode && "backdrop-blur-none"
-          )}>
+          )} style={{ animationDelay: "0.25s" }}>
             <div className="flex flex-col gap-1 mb-10">
               <h3 className="text-2xl font-serif tracking-tight text-foreground">Compliance Score</h3>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Adherence vs Burn Velocity</p>
@@ -178,9 +182,9 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 h-auto lg:h-[600px]">
           <div className={cn(
-            "glass-card col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 flex flex-col h-[400px] lg:h-full transition-all duration-300 hover:border-primary/40",
+            "col-span-full lg:col-span-3 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg flex flex-col h-[400px] lg:h-full transition-all duration-300 hover:border-primary/40 animate-slide-up",
             highPerformanceMode && "backdrop-blur-none"
-          )}>
+          )} style={{ animationDelay: "0.3s" }}>
              <div className="flex flex-col gap-1 mb-10">
               <h3 className="text-2xl font-serif tracking-tight text-foreground">Department Yield</h3>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Spent vs Savings Recovery</p>
@@ -191,9 +195,9 @@ export default function AnalyticsDashboardPage() {
           </div>
 
           <div className={cn(
-            "glass-card col-span-full lg:col-span-2 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg opacity-0 flex flex-col h-auto lg:h-full justify-around items-center gap-8 transition-all duration-300 hover:border-primary/40",
+            "col-span-full lg:col-span-2 bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg flex flex-col h-auto lg:h-full justify-around items-center gap-8 transition-all duration-300 hover:border-primary/40 animate-slide-up",
             highPerformanceMode && "backdrop-blur-none"
-          )}>
+          )} style={{ animationDelay: "0.35s" }}>
             <div className="w-full flex-1 min-h-[250px]">
               <DistributionDonut data={distribution.vendor} name="Vendor Concentration" />
             </div>
@@ -207,7 +211,7 @@ export default function AnalyticsDashboardPage() {
   )
 }
 
-function KpiCard({ title, value, description, icon, trend, positive }: any) {
+function KpiCard({ title, value, description, icon, trend, positive, index = 0 }: any) {
   const { highPerformanceMode } = usePerformance()
   const cardRef = React.useRef<HTMLDivElement>(null)
   const glowRef = React.useRef<HTMLDivElement>(null)
@@ -227,9 +231,10 @@ function KpiCard({ title, value, description, icon, trend, positive }: any) {
     <div 
       ref={cardRef}
       className={cn(
-        "glass-card bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg relative group overflow-hidden opacity-0 cursor-default transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40",
+        "bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg relative group overflow-hidden cursor-default transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40 animate-slide-up",
         highPerformanceMode && "backdrop-blur-none transform-none"
       )}
+      style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
       {/* Dynamic Cursor Glow */}
       <div 
