@@ -91,10 +91,12 @@ function RequestsDashboardContent() {
     }
   }, [highPerformanceMode]);
 
+  const [page, setPage] = useState(1);
+
   const { data: requests, isLoading } = useQuery({
-    queryKey: ["requests", filters],
+    queryKey: ["requests", filters, page],
     queryFn: () => {
-      const params: any = {};
+      const params: any = { limit: page * 50 };
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== "all") {
           params[key] = value;
@@ -240,6 +242,16 @@ function RequestsDashboardContent() {
             )}
           </tbody>
         </table>
+        {requests && requests.length >= page * 50 && (
+          <div className="p-4 flex justify-center border-t border-border">
+            <button 
+              onClick={() => setPage(p => p + 1)}
+              className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary/80 transition-colors"
+            >
+              Load More
+            </button>
+          </div>
+        )}
       </main>
 
       <BulkActionToolbar 

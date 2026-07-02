@@ -151,7 +151,8 @@ export async function GET(req: NextRequest) {
       .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
       .leftJoin(subPurposes, eq(subPurposes.id, purchaseRequests.subPurposeId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(purchaseRequests.createdAt));
+      .orderBy(desc(purchaseRequests.createdAt))
+      .limit(searchParams.has("limit") ? parseInt(searchParams.get("limit") as string, 10) : 50);
 
     // Race the query against the safety timeout
     listPromise.catch(() => {}); // Prevent unhandled promise rejection if query fails after timeout
