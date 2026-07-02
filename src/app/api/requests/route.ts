@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(purchaseRequests.createdAt));
 
     // Race the query against the safety timeout
+    listPromise.catch(() => {}); // Prevent unhandled promise rejection if query fails after timeout
     const requests = await Promise.race([listPromise, timeoutPromise]);
     clearTimeout(timeoutHandle!); // Cancel the timer if query won
 

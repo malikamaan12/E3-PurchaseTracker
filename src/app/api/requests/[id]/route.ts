@@ -100,6 +100,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .orderBy(desc(auditLogs.timestamp))
     ]);
 
+    dataFetchPromise.catch(() => {}); // Prevent unhandled promise rejection if query fails after timeout
     const [
       [requester],
       [vendor],
