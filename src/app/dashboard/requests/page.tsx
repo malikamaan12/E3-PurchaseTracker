@@ -85,8 +85,10 @@ function RequestsDashboardContent() {
   });
 
   useEffect(() => {
-    pageLoad(".glass-card, .glass");
-  }, []);
+    if (!highPerformanceMode) {
+      pageLoad(".glass-card, .glass");
+    }
+  }, [highPerformanceMode]);
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["requests", filters],

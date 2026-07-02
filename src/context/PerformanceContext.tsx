@@ -15,11 +15,16 @@ const PerformanceContext = createContext<PerformanceContextValue>({
 export function PerformanceProvider({ children }: { children: ReactNode }) {
   const [highPerformanceMode, setHighPerformanceModeState] = useState(false);
 
-  // Sync with localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem("high-performance-mode");
     if (saved === "true") {
       setHighPerformanceModeState(true);
+    } else if (saved === null && typeof window !== "undefined") {
+      // Auto-detect mobile to enable high performance mode by default
+      const isMobile = window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        setHighPerformanceModeState(true);
+      }
     }
   }, []);
 

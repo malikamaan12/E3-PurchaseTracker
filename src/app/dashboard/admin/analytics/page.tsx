@@ -30,9 +30,87 @@ export default function DepartmentAnalyticsPage() {
 
   const handlePrint = () => {
     toast.message("Executive Summary", {
-      description: "Generating high-fidelity PDF report of departmental spend...",
+      description: "Generating formal PDF report of departmental spend...",
     });
-    setTimeout(() => window.print(), 1000);
+
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then(({ default: autoTable }) => {
+        const doc = new jsPDF();
+        const dateStr = new Date().toLocaleDateString();
+
+        // Title
+        doc.setFontSize(20);
+        doc.text("Executive Analytics Report", 14, 22);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${dateStr}`, 14, 30);
+
+        // High Level Stats
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text("Overview", 14, 45);
+
+        autoTable(doc, {
+          startY: 50,
+          head: [['Aggregate Spend (QAR)', 'Active Departments', 'Average Per Dept']],
+          body: [
+            [
+              totalSpend.toLocaleString(),
+              stats.length.toString(),
+              (stats.length ? Math.round(totalSpend / stats.length) : 0).toLocaleString()
+            ]
+          ],
+          theme: 'grid',
+          headStyles: { fillColor: [16, 185, 129] }
+        });
+
+        // Departmental Spend Table
+        doc.text("Departmental Breakdown", 14, (doc as any).lastAutoTable.finalY + 15);
+        
+        const deptBody = stats
+          .sort((a: any, b: any) => b.totalCost - a.totalCost)
+          .map((stat: any) => [
+            stat.department,
+            stat.count.toString(),
+            `${stat.totalCost.toLocaleString()} QAR`
+          ]);
+
+        autoTable(doc, {
+          startY: (doc as any).lastAutoTable.finalY + 20,
+          head: [['Department', 'Request Count', 'Total Spend']],
+          body: deptBody,
+          theme: 'striped',
+          headStyles: { fillColor: [16, 185, 129] }
+        });
+
+        // Projects (if available)
+        const projects = (analyticsGroups as any)?.projects || [];
+        if (projects.length > 0) {
+          doc.addPage();
+          doc.setFontSize(14);
+          doc.text("Top 10 Project Utilization", 14, 22);
+
+          const projectBody = projects.map((p: any) => [
+            p.projectName,
+            `${p.totalBudget.toLocaleString()} QAR`,
+            `${p.spent.toLocaleString()} QAR`,
+            `${Math.round((p.spent / p.totalBudget) * 100)}%`
+          ]);
+
+          autoTable(doc, {
+            startY: 30,
+            head: [['Project Name', 'Total Budget', 'Spent', 'Utilization']],
+            body: projectBody,
+            theme: 'striped',
+            headStyles: { fillColor: [59, 130, 246] }
+          });
+        }
+
+        doc.save(`Executive_Report_${dateStr.replace(/\//g, '-')}.pdf`);
+        toast.success("PDF Report generated successfully");
+      });
+    });
   };
 
   return (
