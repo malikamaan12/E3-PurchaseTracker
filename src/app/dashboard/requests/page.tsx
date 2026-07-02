@@ -41,6 +41,7 @@ function RequestsDashboardContent() {
   const { user, isAdmin, isApprover } = useAuth();
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
+  const { highPerformanceMode } = usePerformance();
 
   const [filters, setFilters] = useState({
     status: "all",
@@ -163,8 +164,6 @@ function RequestsDashboardContent() {
       setSelectedIds(prev => prev.filter(item => item !== id));
     }
   };
-
-  const { highPerformanceMode } = usePerformance();
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 w-full">
