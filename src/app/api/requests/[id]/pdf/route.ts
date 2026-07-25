@@ -3,21 +3,10 @@ import { db } from "@db";
 import { purchaseRequests, pdfSettings } from "@db/schema";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
+import { fetchPdfAssetBuffer } from "@/lib/pdf/image-loader";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-async function fetchImageBuffer(url: string | null): Promise<Uint8Array | null> {
-  if (!url) return null;
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!response.ok) return null;
-    const arrayBuffer = await response.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
-  } catch (error) {
-    return null;
-  }
-}
 
 async function getFullRequestData(requestId: number) {
   return await db.query.purchaseRequests.findFirst({
@@ -60,22 +49,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const settings = settingsResult[0] || null;
 
     const [headerImage, footerImage, logo] = await Promise.all([
-      fetchImageBuffer(settings?.headerImage || null),
-      fetchImageBuffer(settings?.footerImage || null),
-      fetchImageBuffer(settings?.logo || null)
+      fetchPdfAssetBuffer(settings?.headerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.footerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.logo || null, req.url)
     ]);
 
     const pdfBytes = await generatePurchaseRequestPdf(requestData, {
       headerImage,
       footerImage,
-      logo
+      logo,
+      headerTitle: settings?.headerTitle,
+      headerSubtitle: settings?.headerSubtitle,
+      headerColor: settings?.headerColor,
+      footerText: settings?.footerText,
+      footerColor: settings?.footerColor,
+      watermarkText: settings?.watermarkText,
+      watermarkOpacity: settings?.watermarkOpacity,
     });
     
     return new Response(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="E3-Request-${requestData.requestNumber}.pdf"`,
-        'X-PDF-Engine': 'Unified-E3-v3',
+        'Content-Disposition': `inline; filename="E3-Request-${requestData.requestNumber || requestData.id}.pdf"`,
+        'X-PDF-Engine': 'Unified-E3-v3-Premium',
         'X-Consistency-Locked': 'true'
       }
     });

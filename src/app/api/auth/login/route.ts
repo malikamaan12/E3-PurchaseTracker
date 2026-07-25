@@ -63,12 +63,12 @@ export async function POST(req: NextRequest) {
       .setExpirationTime('300h')
       .sign(secret);
     
-    // 4. Response with Strict HTTP-Only Cookie
+    // 4. Response with HTTP-Only Cookie (Lax sameSite for reliable multi-tab & export navigation)
     const response = NextResponse.json({ user: sanitizedUser });
     response.cookies.set(TOKEN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 300 * 60 * 60, // 300 hours
       path: '/'
     });

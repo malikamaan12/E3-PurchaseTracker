@@ -3,6 +3,7 @@ import { db } from "@db";
 import { purchaseRequests, pdfSettings } from "@db/schema";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
+import { fetchPdfAssetBuffer } from "@/lib/pdf/image-loader";
 
 export const dynamic = 'force-dynamic';
 // Promote to Vercel Fluid Function — allows 60s execution for large PDF packages.
@@ -78,15 +79,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const settings = settingsResult[0] || null;
 
     const [headerImage, footerImage, logo] = await Promise.all([
-      fetchBuffer(settings?.headerImage || null, req.url),
-      fetchBuffer(settings?.footerImage || null, req.url),
-      fetchBuffer(settings?.logo || null, req.url)
+      fetchPdfAssetBuffer(settings?.headerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.footerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.logo || null, req.url)
     ]);
 
     const basePdfBytes = await generatePurchaseRequestPdf(requestData, {
       headerImage,
       footerImage,
-      logo
+      logo,
+      headerTitle: settings?.headerTitle,
+      headerSubtitle: settings?.headerSubtitle,
+      headerColor: settings?.headerColor,
+      footerText: settings?.footerText,
+      footerColor: settings?.footerColor,
+      watermarkText: settings?.watermarkText,
+      watermarkOpacity: settings?.watermarkOpacity,
     });
 
     const finalDoc = await PDFDocument.create();

@@ -1,5 +1,5 @@
 import { safeParseItems } from "@/lib/utils/safe-parse";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 import { format } from "date-fns";
 import { generateUniqueRequestId } from "@/lib/utils/request-number";
 
@@ -16,6 +16,25 @@ export interface PdfGeneratorOptions {
   logo?: Uint8Array | null;
   headerImage?: Uint8Array | null;
   footerImage?: Uint8Array | null;
+  headerTitle?: string | null;
+  headerSubtitle?: string | null;
+  headerColor?: string | null;
+  footerText?: string | null;
+  footerColor?: string | null;
+  watermarkText?: string | null;
+  watermarkOpacity?: number | null;
+}
+
+function parseHexColor(hex?: string | null, fallback = COLOR_BRAND_BLUE) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return rgb(fallback.r, fallback.g, fallback.b);
+  try {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return rgb(r, g, b);
+  } catch {
+    return rgb(fallback.r, fallback.g, fallback.b);
+  }
 }
 
 function wrapText(text: string, maxWidth: number, font: any, fontSize: number): string[] {
@@ -33,7 +52,7 @@ function wrapText(text: string, maxWidth: number, font: any, fontSize: number): 
       if (currentLine) {
         lines.push(currentLine);
         currentLine = "";
-        i--; // Re-process this word
+        i--;
       } else {
         let splitStr = "";
         let remaining = word;
@@ -65,59 +84,102 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     pdfDoc.embedFont(StandardFonts.Helvetica),
   ]);
 
-  const headerImg = options.headerImage ? await pdfDoc.embedPng(options.headerImage).catch(() => null) : null;
-  const footerImg = options.footerImage ? await pdfDoc.embedPng(options.footerImage).catch(() => null) : null;
-  const logoImg = options.logo ? await pdfDoc.embedPng(options.logo).catch(() => null) : null;
+  const headerImg = options.headerImage ? await pdfDoc.embedPng(options.headerImage).catch(async () => {
+    return await pdfDoc.embedJpg(options.headerImage!).catch(() => null);
+  }) : null;
+
+  const footerImg = options.footerImage ? await pdfDoc.embedPng(options.footerImage).catch(async () => {
+    return await pdfDoc.embedJpg(options.footerImage!).catch(() => null);
+  }) : null;
+
+  const logoImg = options.logo ? await pdfDoc.embedPng(options.logo).catch(async () => {
+    return await pdfDoc.embedJpg(options.logo!).catch(() => null);
+  }) : null;
 
   const PAGE_HEIGHT = 841.89;
   const PAGE_WIDTH = 595.28;
-  const SAFE_ZONE_TOP = 80;
-  const SAFE_ZONE_BOTTOM = 100;
+  const SAFE_ZONE_TOP = 85;
+  const SAFE_ZONE_BOTTOM = 95;
   
   const black = rgb(COLOR_BLACK.r, COLOR_BLACK.g, COLOR_BLACK.b);
   const indigo = rgb(COLOR_INDIGO.r, COLOR_INDIGO.g, COLOR_INDIGO.b);
-  const brandBlue = rgb(COLOR_BRAND_BLUE.r, COLOR_BRAND_BLUE.g, COLOR_BRAND_BLUE.b);
+  const headerAccentColor = parseHexColor(options.headerColor, COLOR_BRAND_BLUE);
+  const footerAccentColor = parseHexColor(options.footerColor, COLOR_BRAND_BLUE);
   const white = rgb(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b);
   const lightBg = rgb(COLOR_LIGHT_BG.r, COLOR_LIGHT_BG.g, COLOR_LIGHT_BG.b);
   const borderGray = rgb(COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b);
   const darkGray = rgb(COLOR_DARK_GRAY.r, COLOR_DARK_GRAY.g, COLOR_DARK_GRAY.b);
 
   const drawHeaderAndFooter = (page: any) => {
-    // Header
+    // 1. Watermark Background
+    const watermarkText = options.watermarkText || "CONFIDENTIAL";
+    const opacityVal = Math.min(Math.max((options.watermarkOpacity || 8) / 100, 0.03), 0.25);
+    
+    page.drawText(watermarkText.toUpperCase(), {
+      x: 70,
+      y: PAGE_HEIGHT / 2 - 30,
+      size: 42,
+      font: fontBold,
+      color: rgb(203 / 255, 213 / 255, 225 / 255),
+      rotate: degrees(35),
+      opacity: opacityVal,
+    });
+
+    // 2. Header
     if (headerImg) {
       page.drawImage(headerImg, { x: 0, y: PAGE_HEIGHT - 80, width: PAGE_WIDTH, height: 80 });
-    } else if (logoImg) {
-      const logoWidth = 60;
-      const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-      page.drawImage(logoImg, { x: 40, y: PAGE_HEIGHT - 65, width: logoWidth, height: logoHeight });
+    } else {
+      page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 6, width: PAGE_WIDTH, height: 6, color: headerAccentColor });
+
+      if (logoImg) {
+        const logoWidth = 65;
+        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+        page.drawImage(logoImg, { x: 40, y: PAGE_HEIGHT - 65, width: logoWidth, height: logoHeight });
+      }
+
+      if (options.headerTitle) {
+        page.drawText(options.headerTitle.toUpperCase(), {
+          x: logoImg ? 120 : 40,
+          y: PAGE_HEIGHT - 42,
+          size: 11,
+          font: fontBold,
+          color: headerAccentColor
+        });
+      }
+
+      if (options.headerSubtitle) {
+        page.drawText(options.headerSubtitle, {
+          x: logoImg ? 120 : 40,
+          y: PAGE_HEIGHT - 56,
+          size: 8,
+          font: fontRegular,
+          color: darkGray
+        });
+      }
     }
 
-    // Top Accent Bar
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 4, width: PAGE_WIDTH, height: 4, color: brandBlue });
-
-    // Footer
+    // 3. Footer
     if (footerImg) {
       page.drawImage(footerImg, { x: 0, y: 0, width: PAGE_WIDTH, height: 80 });
     } else {
       page.drawLine({
-        start: { x: 40, y: 40 },
-        end: { x: PAGE_WIDTH - 40, y: 40 },
-        thickness: 0.5,
+        start: { x: 40, y: 45 },
+        end: { x: PAGE_WIDTH - 40, y: 45 },
+        thickness: 0.75,
         color: borderGray,
       });
-      page.drawText("E3 PurchaseTracker • Institutional Procurement Engine", { x: 40, y: 25, size: 8, font: fontBold, color: brandBlue });
+
+      const footerLabel = options.footerText || "E3 PurchaseTracker • Enterprise Financial Procurement System";
+      page.drawText(footerLabel, { x: 40, y: 28, size: 8, font: fontBold, color: footerAccentColor });
     }
 
     const timestamp = format(new Date(), "dd MMM yyyy, hh:mm a");
-    if (footerImg) {
-      page.drawText(`Verified Document • Generated: ${timestamp}`, { x: PAGE_WIDTH - 210, y: 85, size: 6, font: fontRegular, color: darkGray });
-    } else {
-      page.drawText(`Verified Document • Generated: ${timestamp}`, { x: PAGE_WIDTH - 210, y: 25, size: 6, font: fontRegular, color: darkGray });
-    }
+    const timestampY = footerImg ? 85 : 28;
+    page.drawText(`Verified Document • Generated: ${timestamp}`, { x: PAGE_WIDTH - 210, y: timestampY, size: 6, font: fontRegular, color: darkGray });
   };
 
   const drawMeta = (p: any, xVal: number, yVal: number, key: string, val: string) => {
-    p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: brandBlue });
+    p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: headerAccentColor });
     const safeVal = val || "N/A";
     const truncatedVal = safeVal.length > 35 ? safeVal.substring(0, 32) + "..." : safeVal;
     p.drawText(truncatedVal, { x: xVal + 75, y: yVal, size: 8, font: fontRegular, color: black });
@@ -222,8 +284,8 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   }
 
   // Requirement Overview
-  page.drawRectangle({ x: 40, y: y - 2, width: 4, height: 14, color: brandBlue });
-  page.drawText("REQUIREMENT OVERVIEW", { x: 50, y, size: 9, font: fontBold, color: brandBlue });
+  page.drawRectangle({ x: 40, y: y - 2, width: 4, height: 14, color: headerAccentColor });
+  page.drawText("REQUIREMENT OVERVIEW", { x: 50, y, size: 9, font: fontBold, color: headerAccentColor });
   y -= 18;
 
   const titleLines = wrapText(requestData.title || "Untitled Request", PAGE_WIDTH - 80, fontBold, 12);
@@ -265,10 +327,10 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   y -= 25;
 
   page.drawRectangle({ x: 40, y: y - 3, width: PAGE_WIDTH - 80, height: 16, color: lightBg });
-  page.drawText("DESCRIPTION", { x: 48, y, size: 8, font: fontBold, color: brandBlue });
-  page.drawText("QTY", { x: 350, y, size: 8, font: fontBold, color: brandBlue });
-  page.drawText("COST", { x: 420, y, size: 8, font: fontBold, color: brandBlue });
-  page.drawText("TOTAL", { x: 490, y, size: 8, font: fontBold, color: brandBlue });
+  page.drawText("DESCRIPTION", { x: 48, y, size: 8, font: fontBold, color: headerAccentColor });
+  page.drawText("QTY", { x: 350, y, size: 8, font: fontBold, color: headerAccentColor });
+  page.drawText("COST", { x: 420, y, size: 8, font: fontBold, color: headerAccentColor });
+  page.drawText("TOTAL", { x: 490, y, size: 8, font: fontBold, color: headerAccentColor });
   y -= 8;
   page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
   y -= 15;
@@ -287,7 +349,6 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     const itemTotal = (item.quantity || 0) * (item.estimatedCost || 0);
     subtotal += itemTotal;
 
-    // Alternating Row Fill
     if (rowIndex % 2 === 1) {
       page.drawRectangle({ x: 40, y: y - 4, width: PAGE_WIDTH - 80, height: 16, color: lightBg });
     }
@@ -346,9 +407,9 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   const hasRevisedCost = requestData.revisedTotalCost && requestData.revisedTotalCost !== grandTotal;
   const boxHeight = hasRevisedCost ? 75 : 60;
   
-  page.drawRectangle({ x: summaryX, y: y - (hasRevisedCost ? 70 : 55), width: 190, height: boxHeight, color: lightBg, borderColor: brandBlue, borderWidth: 1 });
+  page.drawRectangle({ x: summaryX, y: y - (hasRevisedCost ? 70 : 55), width: 190, height: boxHeight, color: lightBg, borderColor: headerAccentColor, borderWidth: 1 });
   
-  page.drawText("FINANCIAL SUMMARY", { x: summaryX + 10, y: y - 2, size: 8, font: fontBold, color: brandBlue });
+  page.drawText("FINANCIAL SUMMARY", { x: summaryX + 10, y: y - 2, size: 8, font: fontBold, color: headerAccentColor });
   page.drawText(`Subtotal:`, { x: summaryX + 10, y: y - 15, size: 7, font: fontRegular, color: darkGray });
   page.drawText(`${subtotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 15, size: 7, font: fontRegular, color: black });
   
@@ -357,7 +418,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   
   page.drawLine({ start: { x: summaryX + 10, y: y - 34 }, end: { x: summaryX + 180, y: y - 34 }, thickness: 0.5, color: borderGray });
   
-  page.drawText(hasRevisedCost ? `Orig Total:` : `Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: brandBlue });
+  page.drawText(hasRevisedCost ? `Orig Total:` : `Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: headerAccentColor });
   page.drawText(`${grandTotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 46, size: 9, font: fontBold, color: black });
 
   if (hasRevisedCost) {
@@ -382,11 +443,11 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     page.drawText("PAYMENT SCHEDULE", { x: 48, y: y + 1, size: 8, font: fontBold, color: white });
     y -= 20;
 
-    page.drawText("INSTALLMENT", { x: 48, y, size: 7, font: fontBold, color: brandBlue });
-    page.drawText("DUE DATE", { x: 200, y, size: 7, font: fontBold, color: brandBlue });
-    page.drawText("VALUE", { x: 300, y, size: 7, font: fontBold, color: brandBlue });
-    page.drawText("AMOUNT", { x: 400, y, size: 7, font: fontBold, color: brandBlue });
-    page.drawText("STATUS", { x: 490, y, size: 7, font: fontBold, color: brandBlue });
+    page.drawText("INSTALLMENT", { x: 48, y, size: 7, font: fontBold, color: headerAccentColor });
+    page.drawText("DUE DATE", { x: 200, y, size: 7, font: fontBold, color: headerAccentColor });
+    page.drawText("VALUE", { x: 300, y, size: 7, font: fontBold, color: headerAccentColor });
+    page.drawText("AMOUNT", { x: 400, y, size: 7, font: fontBold, color: headerAccentColor });
+    page.drawText("STATUS", { x: 490, y, size: 7, font: fontBold, color: headerAccentColor });
     y -= 5;
     page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
     y -= 12;
@@ -464,8 +525,8 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
 
   let blockX = 50;
   for (const sig of sigs) {
-    page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 110, y }, thickness: 1, color: brandBlue });
-    page.drawText(sig.title, { x: blockX, y: y - 12, size: 7, font: fontBold, color: brandBlue });
+    page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 110, y }, thickness: 1, color: headerAccentColor });
+    page.drawText(sig.title, { x: blockX, y: y - 12, size: 7, font: fontBold, color: headerAccentColor });
     
     let statusText = "Awaiting Sign-off";
     let statusColor = darkGray;
