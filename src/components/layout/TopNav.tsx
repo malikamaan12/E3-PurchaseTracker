@@ -219,6 +219,20 @@ export default function TopNav() {
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
+        {/* Global Command Palette Trigger */}
+        <button
+          onClick={() => {
+            const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true });
+            document.dispatchEvent(event);
+          }}
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary/30 text-xs text-muted-foreground hover:bg-secondary/60 transition-all mr-1 group"
+          title="Global Command Palette (Cmd+K / Ctrl+K)"
+        >
+          <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <span className="hidden md:inline font-medium">Search system...</span>
+          <kbd className="px-1.5 py-0.5 text-[10px] font-bold bg-secondary rounded border border-border text-foreground font-mono">⌘K</kbd>
+        </button>
+
         <div className="flex items-center gap-1 lg:gap-2" ref={notifRef}>
           <button 
             onClick={() => setIsNotifOpen(!isNotifOpen)}

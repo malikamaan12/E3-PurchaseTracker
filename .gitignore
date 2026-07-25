@@ -13,3 +13,5 @@ vite.config.ts.*
 *.log
 tmp/
 .DS_Store
+scratch/
+strix/

@@ -153,58 +153,91 @@ export default function ProjectManagementPage() {
             <tr className="border-b border-border bg-secondary/20">
               <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Status</th>
               <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Project Identity</th>
-              <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Financial Ceiling</th>
+              <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Budget Ceiling</th>
+              <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Live Utilization</th>
               <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Schedule</th>
               <th className="p-6 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap text-right">Governance</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
-            {projects.map((proj: any) => (
-              <tr key={proj.id} className="hover:bg-secondary/30 transition-colors group">
-                <td className="p-6">
-                    <StatusBadge status={proj.status} />
-                </td>
-                <td className="p-6">
-                   <div className="flex flex-col">
-                      <span className="text-foreground font-black text-base">{proj.name}</span>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight flex items-center gap-1 mt-1">
-                        <FolderTreeIcon className="w-3 h-3" />
-                         {Array.isArray(categories) && categories.find((c: any) => c.id === proj.purposeCategoryId)?.name || "Uncategorized"}
-                      </span>
-                   </div>
-                </td>
-                <td className="p-6">
-                    <div className="flex flex-col">
-                        <span className="text-foreground font-bold font-serif">${(proj.totalBudget || 0).toLocaleString()}</span>
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase">Total Allocation</span>
+            {projects.map((proj: any) => {
+              const committed = Number(proj.committedAmount || 0);
+              const total = Number(proj.totalBudget || 0);
+              const remaining = total - committed;
+              const pct = total > 0 ? Math.round((committed / total) * 100) : 0;
+              const isOver = committed > total && total > 0;
+
+              return (
+                <tr key={proj.id} className="hover:bg-secondary/30 transition-colors group">
+                  <td className="p-6">
+                      <StatusBadge status={proj.status} />
+                  </td>
+                  <td className="p-6">
+                     <div className="flex flex-col">
+                        <span className="text-foreground font-black text-base">{proj.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight flex items-center gap-1 mt-1">
+                          <FolderTreeIcon className="w-3 h-3" />
+                           {Array.isArray(categories) && categories.find((c: any) => c.id === proj.purposeCategoryId)?.name || "Uncategorized"}
+                        </span>
+                     </div>
+                  </td>
+                  <td className="p-6 whitespace-nowrap">
+                      <div className="flex flex-col">
+                          <span className="text-foreground font-bold font-serif">QAR {(proj.totalBudget || 0).toLocaleString()}</span>
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase">Total Cap</span>
+                      </div>
+                  </td>
+                  <td className="p-6 min-w-[200px]">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-muted-foreground">Committed:</span>
+                        <span className={`font-mono font-bold ${isOver ? 'text-rose-500' : 'text-foreground'}`}>
+                          QAR {committed.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full transition-all duration-500 rounded-full ${
+                            isOver ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} 
+                          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} 
+                        />
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span>{pct}% Used</span>
+                        <span className={remaining < 0 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                          {remaining < 0 ? `QAR ${Math.abs(remaining).toLocaleString()} Over` : `QAR ${remaining.toLocaleString()} Left`}
+                        </span>
+                      </div>
                     </div>
-                </td>
-                <td className="p-6">
-                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                        <span className="opacity-50 font-medium">FROM:</span>
-                        {proj.validFrom ? new Date(proj.validFrom).toLocaleDateString() : "INF"}
-                        <ChevronRight className="w-3 h-3 mx-1 opacity-20" />
-                        <span className="opacity-50 font-medium">TO:</span>
-                        {proj.validTo ? new Date(proj.validTo).toLocaleDateString() : "INF"}
-                    </div>
-                </td>
-                <td className="p-6 text-right space-x-1">
-                   <button 
-                      onClick={() => updateStatusMutation.mutate({ id: proj.id, data: { status: proj.status === 'active' ? 'frozen' : 'active' }})}
-                      className="w-11 h-11 flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-brand-primary transition-all shadow-none hover:shadow-xl active:scale-95"
-                      title="Toggle Freeze Status"
-                    >
-                      <Snowflake className={`w-5 h-5 ${proj.status === 'frozen' ? 'fill-brand-primary/20' : ''}`} />
-                    </button>
-                    <button 
-                      className="w-11 h-11 flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-rose-500 transition-all shadow-none hover:shadow-xl active:scale-95"
-                      title="Archive Project"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="p-6">
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground whitespace-nowrap">
+                          <span className="opacity-50 font-medium">FROM:</span>
+                          {proj.validFrom ? new Date(proj.validFrom).toLocaleDateString() : "INF"}
+                          <ChevronRight className="w-3 h-3 mx-1 opacity-20" />
+                          <span className="opacity-50 font-medium">TO:</span>
+                          {proj.validTo ? new Date(proj.validTo).toLocaleDateString() : "INF"}
+                      </div>
+                  </td>
+                  <td className="p-6 text-right space-x-1 whitespace-nowrap">
+                     <button 
+                        onClick={() => updateStatusMutation.mutate({ id: proj.id, data: { status: proj.status === 'active' ? 'frozen' : 'active' }})}
+                        className="w-11 h-11 inline-flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-brand-primary transition-all shadow-none hover:shadow-xl active:scale-95"
+                        title="Toggle Freeze Status"
+                      >
+                        <Snowflake className={`w-5 h-5 ${proj.status === 'frozen' ? 'fill-brand-primary/20' : ''}`} />
+                      </button>
+                      <button 
+                        className="w-11 h-11 inline-flex items-center justify-center hover:bg-white rounded-2xl text-muted-foreground hover:text-rose-500 transition-all shadow-none hover:shadow-xl active:scale-95"
+                        title="Archive Project"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
          {projects.length === 0 && (

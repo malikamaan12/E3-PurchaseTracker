@@ -553,8 +553,20 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
+  const handleExportExcel = () => {
+    toast.info("Generating corporate Excel report...");
+    window.open("/api/export/excel", "_blank");
+  };
+
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-2">
+      <button 
+        onClick={handleExportExcel}
+        className="flex items-center gap-2 bg-secondary/80 hover:bg-secondary text-foreground text-sm font-medium px-4 py-2 rounded-md border border-border shadow-sm transition-all"
+        title="Export Corporate Excel Report"
+      >
+        <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Export Excel
+      </button>
       <button 
         onClick={onNewRequest}
         className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 transition-colors"

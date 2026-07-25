@@ -3,7 +3,7 @@
 import TopNav from "@/components/layout/TopNav";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { CommandPalette } from "@/components/shared/CommandPalette";
 
 export default function DashboardLayout({
   children,
@@ -28,6 +28,7 @@ export default function DashboardLayout({
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       {/* Global Top Nav - Now handles all primary navigation */}
       <TopNav />
+      <CommandPalette />
       
       {/* Scrollable Page Content */}
       <main className="flex-1 overflow-y-auto bg-background custom-scrollbar relative pb-safe">

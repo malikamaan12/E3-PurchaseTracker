@@ -18,6 +18,7 @@ import { createRequestSchema } from "@/lib/validation";
 import { evaluateCompliance } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
+import { generateUniqueRequestId } from "@/lib/utils/request-number";
 
 export const dynamic = 'force-dynamic';
 
@@ -266,11 +267,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate unique request number (PR-2026-XXXX)
-    const year = new Date().getFullYear();
+    // Generate unique structured request number (PROJECT-DEPARTMENT-DATE-SEQUENCE)
+    let projectNameStr: string | null = null;
+    if (subPurposeId) {
+      const [proj] = await db.select({ name: subPurposes.name }).from(subPurposes).where(eq(subPurposes.id, subPurposeId)).limit(1);
+      if (proj) projectNameStr = proj.name;
+    }
+
     const countResult = await db.select({ count: count() }).from(purchaseRequests);
     const nextNum = (Number(countResult[0]?.count) || 0) + 1;
-    const requestNumber = `PR-${year}-${nextNum.toString().padStart(4, '0')}`;
+
+    const requestNumber = generateUniqueRequestId({
+      projectName: projectNameStr,
+      departmentName: user.department,
+      date: new Date(),
+      sequence: nextNum
+    });
 
     // --- Sequential Inserts (Neon HTTP driver is incompatible with db.transaction()) ---
     // 1. Insert the Purchase Request

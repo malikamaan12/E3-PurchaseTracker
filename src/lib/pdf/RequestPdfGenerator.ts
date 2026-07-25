@@ -1,13 +1,16 @@
 import { safeParseItems } from "@/lib/utils/safe-parse";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { format } from "date-fns";
+import { generateUniqueRequestId } from "@/lib/utils/request-number";
 
-// Design Tokens for E3 Minimal Engine
-const COLOR_BLACK = { r: 0, g: 0, b: 0 }; 
-const COLOR_INDIGO = { r: 46 / 255, g: 42 / 255, b: 94 / 255 }; 
+// Design Tokens for E3 Corporate PDF Engine
+const COLOR_BLACK = { r: 15 / 255, g: 23 / 255, b: 42 / 255 }; // Slate 900
+const COLOR_INDIGO = { r: 30 / 255, g: 30 / 255, b: 46 / 255 }; // Dark Corporate Slate/Indigo #1E1E2E
+const COLOR_BRAND_BLUE = { r: 79 / 255, g: 70 / 255, b: 229 / 255 }; // Indigo 600 #4F46E5
 const COLOR_WHITE = { r: 1, g: 1, b: 1 };
-const COLOR_GRAY = { r: 0.9, g: 0.9, b: 0.9 };
-const COLOR_DARK_GRAY = { r: 0.4, g: 0.4, b: 0.4 };
+const COLOR_LIGHT_BG = { r: 248 / 255, g: 250 / 255, b: 252 / 255 }; // Slate 50
+const COLOR_BORDER = { r: 226 / 255, g: 232 / 255, b: 240 / 255 }; // Slate 200
+const COLOR_DARK_GRAY = { r: 100 / 255, g: 116 / 255, b: 139 / 255 }; // Slate 500
 
 export interface PdfGeneratorOptions {
   logo?: Uint8Array | null;
@@ -73,8 +76,10 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   
   const black = rgb(COLOR_BLACK.r, COLOR_BLACK.g, COLOR_BLACK.b);
   const indigo = rgb(COLOR_INDIGO.r, COLOR_INDIGO.g, COLOR_INDIGO.b);
+  const brandBlue = rgb(COLOR_BRAND_BLUE.r, COLOR_BRAND_BLUE.g, COLOR_BRAND_BLUE.b);
   const white = rgb(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b);
-  const borderGray = rgb(COLOR_GRAY.r, COLOR_GRAY.g, COLOR_GRAY.b);
+  const lightBg = rgb(COLOR_LIGHT_BG.r, COLOR_LIGHT_BG.g, COLOR_LIGHT_BG.b);
+  const borderGray = rgb(COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b);
   const darkGray = rgb(COLOR_DARK_GRAY.r, COLOR_DARK_GRAY.g, COLOR_DARK_GRAY.b);
 
   const drawHeaderAndFooter = (page: any) => {
@@ -87,6 +92,9 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       page.drawImage(logoImg, { x: 40, y: PAGE_HEIGHT - 65, width: logoWidth, height: logoHeight });
     }
 
+    // Top Accent Bar
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 4, width: PAGE_WIDTH, height: 4, color: brandBlue });
+
     // Footer
     if (footerImg) {
       page.drawImage(footerImg, { x: 0, y: 0, width: PAGE_WIDTH, height: 80 });
@@ -97,25 +105,21 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
         thickness: 0.5,
         color: borderGray,
       });
-      page.drawText("PurchaseTracker Enterprise Platform", { x: 40, y: 25, size: 8, font: fontBold, color: indigo });
+      page.drawText("E3 PurchaseTracker • Institutional Procurement Engine", { x: 40, y: 25, size: 8, font: fontBold, color: brandBlue });
     }
 
     const timestamp = format(new Date(), "dd MMM yyyy, hh:mm a");
     if (footerImg) {
-      // Draw above the footer image to avoid overlapping text inside the image
-      page.drawText(`Generated on: ${timestamp}`, { x: PAGE_WIDTH - 150, y: 85, size: 6, font: fontRegular, color: darkGray });
+      page.drawText(`Verified Document • Generated: ${timestamp}`, { x: PAGE_WIDTH - 210, y: 85, size: 6, font: fontRegular, color: darkGray });
     } else {
-      page.drawText(`Generated on: ${timestamp}`, { x: PAGE_WIDTH - 150, y: 25, size: 6, font: fontRegular, color: darkGray });
+      page.drawText(`Verified Document • Generated: ${timestamp}`, { x: PAGE_WIDTH - 210, y: 25, size: 6, font: fontRegular, color: darkGray });
     }
   };
 
   const drawMeta = (p: any, xVal: number, yVal: number, key: string, val: string) => {
-    p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: indigo });
-    
-    // Truncate text if it's too long to prevent overlapping the next column
+    p.drawText(`${key}:`, { x: xVal, y: yVal, size: 8, font: fontBold, color: brandBlue });
     const safeVal = val || "N/A";
-    const truncatedVal = safeVal.length > 40 ? safeVal.substring(0, 37) + "..." : safeVal;
-    
+    const truncatedVal = safeVal.length > 35 ? safeVal.substring(0, 32) + "..." : safeVal;
     p.drawText(truncatedVal, { x: xVal + 75, y: yVal, size: 8, font: fontRegular, color: black });
   };
 
@@ -124,46 +128,105 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
 
   let y = PAGE_HEIGHT - SAFE_ZONE_TOP - 20;
 
-  // Title & Core Tracking
-  page.drawText("PURCHASE REQUEST", { x: 40, y, size: 24, font: fontBold, color: black });
-  page.drawText(`PR REF: ${requestData.requestNumber}`, { x: PAGE_WIDTH - 150, y, size: 12, font: fontBold, color: indigo });
-  
+  // Format Request ID: PROJECT - DEPARTMENT - DATE - SEQUENCE
+  const formattedReqNumber = (() => {
+    if (requestData.requestNumber && !requestData.requestNumber.startsWith("PR-2026")) {
+      return requestData.requestNumber;
+    }
+    const projName = requestData.subPurpose?.name || requestData.purposeType;
+    const deptName = requestData.requester?.department;
+    const dateVal = requestData.createdAt ? new Date(requestData.createdAt) : new Date();
+    const seq = requestData.id || 1;
+    return generateUniqueRequestId({
+      projectName: projName,
+      departmentName: deptName,
+      date: dateVal,
+      sequence: seq
+    });
+  })();
+
+  // Document Header Title
+  page.drawText("PURCHASE REQUEST", { x: 40, y: y + 5, size: 20, font: fontBold, color: black });
+
+  // Prominent Unique Request ID Badge Box (PROJECT-DEPARTMENT-DATE-SEQUENCE)
+  const reqNumText = `ID: ${formattedReqNumber}`;
+  const reqNumWidth = fontBold.widthOfTextAtSize(reqNumText, 9) + 20;
+  page.drawRectangle({
+    x: PAGE_WIDTH - 40 - Math.max(reqNumWidth, 180),
+    y: y - 2,
+    width: Math.max(reqNumWidth, 180),
+    height: 24,
+    color: indigo
+  });
+  page.drawText(reqNumText, {
+    x: PAGE_WIDTH - 30 - Math.max(reqNumWidth, 180),
+    y: y + 5,
+    size: 9,
+    font: fontBold,
+    color: white
+  });
+
   y -= 25;
-  page.drawText(`STATUS: `, { x: 40, y, size: 9, font: fontBold, color: indigo });
-  page.drawText(`${(requestData.status || "DRAFT").toUpperCase().replace(/_/g, ' ')}`, { x: 85, y, size: 9, font: fontBold, color: black });
+
+  // Color-coded Status Pill
+  const statusStr = (requestData.status || "DRAFT").toUpperCase().replace(/_/g, ' ');
+  let statusBg = darkGray;
+  if (statusStr === "APPROVED") {
+    statusBg = rgb(16 / 255, 185 / 255, 129 / 255); // Emerald
+  } else if (statusStr === "REJECTED") {
+    statusBg = rgb(244 / 255, 63 / 255, 94 / 255); // Rose
+  } else {
+    statusBg = rgb(245 / 255, 158 / 255, 11 / 255); // Amber
+  }
+
+  page.drawRectangle({ x: 40, y: y - 2, width: 100, height: 18, color: statusBg });
+  page.drawText(statusStr, { x: 48, y: y + 3, size: 8, font: fontBold, color: white });
 
   y -= 15;
   page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 1, color: borderGray });
   y -= 20;
 
-  // Metadata Grid
-  drawMeta(page, 40, y, "Requester", requestData.requester?.username || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Department", requestData.requester?.department || "N/A");
-  y -= 15;
-  drawMeta(page, 40, y, "Created Date", requestData.createdAt ? format(new Date(requestData.createdAt), "dd MMM yyyy") : "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Priority", requestData.priority?.toUpperCase() || "MEDIUM");
-  y -= 15;
-  drawMeta(page, 40, y, "Vendor", requestData.vendor?.companyName || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Vendor Contact", requestData.vendor?.contactPerson || "N/A");
-  y -= 15;
-  drawMeta(page, 40, y, "Currency", requestData.currency || "QAR");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Purpose Type", requestData.purposeType || "N/A");
-  y -= 15;
-  drawMeta(page, 40, y, "Sub-Purpose", requestData.subPurpose?.name || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2, y, "Payment Mode", requestData.paymentStructure?.replace(/_/g, ' ') || "POST PROJECT");
-  y -= 15;
-  drawMeta(page, 40, y, "Priority Reason", (requestData.priorityReason || "None provided").substring(0, 40));
-  drawMeta(page, PAGE_WIDTH / 2, y, "System Lock", requestData.isLocked ? "YES (Approved/Processing)" : "NO");
+  // Metadata Grid Box Background
+  page.drawRectangle({
+    x: 40,
+    y: y - 95,
+    width: PAGE_WIDTH - 80,
+    height: 110,
+    color: lightBg,
+    borderColor: borderGray,
+    borderWidth: 1
+  });
 
-  y -= 30;
+  const gridY = y;
+  drawMeta(page, 50, gridY, "Requester", requestData.requester?.username || "N/A");
+  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY, "Department", requestData.requester?.department || "N/A");
+  
+  drawMeta(page, 50, gridY - 18, "Created Date", requestData.createdAt ? format(new Date(requestData.createdAt), "dd MMM yyyy") : "N/A");
+  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 18, "Priority", requestData.priority?.toUpperCase() || "MEDIUM");
+  
+  drawMeta(page, 50, gridY - 36, "Vendor", requestData.vendor?.companyName || "N/A");
+  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 36, "Vendor Contact", requestData.vendor?.contactPerson || "N/A");
+  
+  drawMeta(page, 50, gridY - 54, "Currency", requestData.currency || "QAR");
+  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 54, "Purpose Type", requestData.purposeType || "N/A");
+  
+  drawMeta(page, 50, gridY - 72, "Project / Sub-Purpose", requestData.subPurpose?.name || "N/A");
+  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 72, "Payment Structure", requestData.paymentStructure?.replace(/_/g, ' ') || "POST PROJECT");
+
+  y -= 115;
+
   if (y < SAFE_ZONE_BOTTOM + 60) {
     page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     drawHeaderAndFooter(page);
     y = PAGE_HEIGHT - SAFE_ZONE_TOP;
   }
-  page.drawText("REQUIREMENT OVERVIEW", { x: 40, y, size: 9, font: fontBold, color: indigo });
-  y -= 15;
-  const titleLines = wrapText(requestData.title || "Untitled", PAGE_WIDTH - 80, fontBold, 12);
+
+  // Requirement Overview
+  page.drawRectangle({ x: 40, y: y - 2, width: 4, height: 14, color: brandBlue });
+  page.drawText("REQUIREMENT OVERVIEW", { x: 50, y, size: 9, font: fontBold, color: brandBlue });
+  y -= 18;
+
+  const titleLines = wrapText(requestData.title || "Untitled Request", PAGE_WIDTH - 80, fontBold, 12);
   for (const line of titleLines) {
     if (y < SAFE_ZONE_BOTTOM + 15) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -173,11 +236,10 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     page.drawText(line, { x: 40, y, size: 12, font: fontBold, color: black });
     y -= 15;
   }
-  y += 15; // Revert extra jump
   
   // Description
   if (requestData.description) {
-    y -= 15;
+    y -= 10;
     const descLines = wrapText(requestData.description, PAGE_WIDTH - 80, fontRegular, 8);
     for (const line of descLines) {
       if (y < SAFE_ZONE_BOTTOM + 15) {
@@ -186,33 +248,35 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
         y = PAGE_HEIGHT - SAFE_ZONE_TOP;
       }
       page.drawText(line, { x: 40, y, size: 8, font: fontRegular, color: darkGray });
-      y -= 10;
+      y -= 11;
     }
   }
 
-  y -= 25;
+  y -= 20;
   if (y < SAFE_ZONE_BOTTOM + 50) {
     page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     drawHeaderAndFooter(page);
     y = PAGE_HEIGHT - SAFE_ZONE_TOP;
   }
 
-  // Items Breakdown Table
+  // Items Breakdown Table Header
   page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 20, color: indigo });
-  page.drawText("REQUEST ITEM BREAKDOWN", { x: 45, y: y + 2, size: 9, font: fontBold, color: white });
+  page.drawText("REQUEST ITEM BREAKDOWN", { x: 48, y: y + 2, size: 9, font: fontBold, color: white });
   y -= 25;
 
-  page.drawLine({ start: { x: 40, y: y + 15 }, end: { x: PAGE_WIDTH - 40, y: y + 15 }, thickness: 1, color: indigo });
-  page.drawText("DESCRIPTION", { x: 45, y, size: 8, font: fontBold, color: indigo });
-  page.drawText("QTY", { x: 350, y, size: 8, font: fontBold, color: indigo });
-  page.drawText("COST", { x: 420, y, size: 8, font: fontBold, color: indigo });
-  page.drawText("TOTAL", { x: 490, y, size: 8, font: fontBold, color: indigo });
-  y -= 10;
+  page.drawRectangle({ x: 40, y: y - 3, width: PAGE_WIDTH - 80, height: 16, color: lightBg });
+  page.drawText("DESCRIPTION", { x: 48, y, size: 8, font: fontBold, color: brandBlue });
+  page.drawText("QTY", { x: 350, y, size: 8, font: fontBold, color: brandBlue });
+  page.drawText("COST", { x: 420, y, size: 8, font: fontBold, color: brandBlue });
+  page.drawText("TOTAL", { x: 490, y, size: 8, font: fontBold, color: brandBlue });
+  y -= 8;
   page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
   y -= 15;
 
   const items = safeParseItems(requestData.items);
   let subtotal = 0;
+  let rowIndex = 0;
+
   for (const item of items) {
     if (y < SAFE_ZONE_BOTTOM + 30) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -223,10 +287,16 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     const itemTotal = (item.quantity || 0) * (item.estimatedCost || 0);
     subtotal += itemTotal;
 
-    const nameLines = wrapText(item.name || "", 290, fontRegular, 8); // x is 45, QTY is 350
+    // Alternating Row Fill
+    if (rowIndex % 2 === 1) {
+      page.drawRectangle({ x: 40, y: y - 4, width: PAGE_WIDTH - 80, height: 16, color: lightBg });
+    }
+    rowIndex++;
+
+    const nameLines = wrapText(item.name || "", 290, fontRegular, 8);
     const firstLineName = nameLines.length > 0 ? nameLines[0] : "";
     
-    page.drawText(firstLineName, { x: 45, y, size: 8, font: fontRegular, color: black });
+    page.drawText(firstLineName, { x: 48, y, size: 8, font: fontRegular, color: black });
     page.drawText((item.quantity || 0).toString(), { x: 350, y, size: 8, font: fontRegular, color: black });
     page.drawText((item.estimatedCost || 0).toLocaleString(), { x: 420, y, size: 8, font: fontRegular, color: black });
     page.drawText(itemTotal.toLocaleString(), { x: 490, y, size: 8, font: fontBold, color: black });
@@ -238,7 +308,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
             drawHeaderAndFooter(page);
             y = PAGE_HEIGHT - SAFE_ZONE_TOP;
         }
-        page.drawText(nameLines[i], { x: 45, y, size: 8, font: fontRegular, color: black });
+        page.drawText(nameLines[i], { x: 48, y, size: 8, font: fontRegular, color: black });
     }
 
     if (item.description) {
@@ -250,7 +320,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
              drawHeaderAndFooter(page);
              y = PAGE_HEIGHT - SAFE_ZONE_TOP;
          }
-         page.drawText(line, { x: 45, y, size: 6, font: fontRegular, color: darkGray });
+         page.drawText(line, { x: 48, y, size: 6, font: fontRegular, color: darkGray });
          y -= 10;
       }
     }
@@ -272,28 +342,28 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   const freightVal = Number(requestData.freightAmount) || 0;
   const grandTotal = subtotal + freightVal;
 
-  const summaryX = PAGE_WIDTH - 220;
+  const summaryX = PAGE_WIDTH - 230;
   const hasRevisedCost = requestData.revisedTotalCost && requestData.revisedTotalCost !== grandTotal;
   const boxHeight = hasRevisedCost ? 75 : 60;
   
-  page.drawRectangle({ x: summaryX, y: y - (hasRevisedCost ? 70 : 55), width: 180, height: boxHeight, color: white, borderColor: indigo, borderWidth: 1 });
+  page.drawRectangle({ x: summaryX, y: y - (hasRevisedCost ? 70 : 55), width: 190, height: boxHeight, color: lightBg, borderColor: brandBlue, borderWidth: 1 });
   
-  page.drawText("FINANCIAL SUMMARY", { x: summaryX + 10, y: y - 2, size: 8, font: fontBold, color: indigo });
+  page.drawText("FINANCIAL SUMMARY", { x: summaryX + 10, y: y - 2, size: 8, font: fontBold, color: brandBlue });
   page.drawText(`Subtotal:`, { x: summaryX + 10, y: y - 15, size: 7, font: fontRegular, color: darkGray });
-  page.drawText(`${subtotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 15, size: 7, font: fontRegular, color: black });
+  page.drawText(`${subtotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 15, size: 7, font: fontRegular, color: black });
   
   page.drawText(`Freight:`, { x: summaryX + 10, y: y - 27, size: 7, font: fontRegular, color: darkGray });
-  page.drawText(`${freightVal.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 27, size: 7, font: fontRegular, color: black });
+  page.drawText(`${freightVal.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 27, size: 7, font: fontRegular, color: black });
   
-  page.drawLine({ start: { x: summaryX + 10, y: y - 34 }, end: { x: summaryX + 170, y: y - 34 }, thickness: 0.5, color: borderGray });
+  page.drawLine({ start: { x: summaryX + 10, y: y - 34 }, end: { x: summaryX + 180, y: y - 34 }, thickness: 0.5, color: borderGray });
   
-  page.drawText(hasRevisedCost ? `Orig Total:` : `Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: indigo });
-  page.drawText(`${grandTotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 46, size: 9, font: fontBold, color: black });
+  page.drawText(hasRevisedCost ? `Orig Total:` : `Grand Total:`, { x: summaryX + 10, y: y - 46, size: 8, font: fontBold, color: brandBlue });
+  page.drawText(`${grandTotal.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 46, size: 9, font: fontBold, color: black });
 
   if (hasRevisedCost) {
-    page.drawLine({ start: { x: summaryX + 10, y: y - 53 }, end: { x: summaryX + 170, y: y - 53 }, thickness: 0.5, color: borderGray });
+    page.drawLine({ start: { x: summaryX + 10, y: y - 53 }, end: { x: summaryX + 180, y: y - 53 }, thickness: 0.5, color: borderGray });
     page.drawText(`Revised Total:`, { x: summaryX + 10, y: y - 65, size: 8, font: fontBold, color: rgb(0.8, 0.2, 0.2) });
-    page.drawText(`${requestData.revisedTotalCost.toLocaleString()} ${currencyStr}`, { x: summaryX + 90, y: y - 65, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) });
+    page.drawText(`${requestData.revisedTotalCost.toLocaleString()} ${currencyStr}`, { x: summaryX + 100, y: y - 65, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) });
     y -= 15;
   }
 
@@ -308,16 +378,15 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       y = PAGE_HEIGHT - SAFE_ZONE_TOP;
     }
 
-    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 15, color: indigo });
-    page.drawText("PAYMENT SCHEDULE", { x: 45, y: y + 1, size: 8, font: fontBold, color: white });
+    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 18, color: indigo });
+    page.drawText("PAYMENT SCHEDULE", { x: 48, y: y + 1, size: 8, font: fontBold, color: white });
     y -= 20;
 
-    // Table Header
-    page.drawText("INSTALLMENT", { x: 45, y, size: 7, font: fontBold, color: indigo });
-    page.drawText("DUE DATE", { x: 200, y, size: 7, font: fontBold, color: indigo });
-    page.drawText("VALUE", { x: 300, y, size: 7, font: fontBold, color: indigo });
-    page.drawText("AMOUNT", { x: 400, y, size: 7, font: fontBold, color: indigo });
-    page.drawText("STATUS", { x: 490, y, size: 7, font: fontBold, color: indigo });
+    page.drawText("INSTALLMENT", { x: 48, y, size: 7, font: fontBold, color: brandBlue });
+    page.drawText("DUE DATE", { x: 200, y, size: 7, font: fontBold, color: brandBlue });
+    page.drawText("VALUE", { x: 300, y, size: 7, font: fontBold, color: brandBlue });
+    page.drawText("AMOUNT", { x: 400, y, size: 7, font: fontBold, color: brandBlue });
+    page.drawText("STATUS", { x: 490, y, size: 7, font: fontBold, color: brandBlue });
     y -= 5;
     page.drawLine({ start: { x: 40, y }, end: { x: PAGE_WIDTH - 40, y }, thickness: 0.5, color: borderGray });
     y -= 12;
@@ -333,7 +402,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       const valueStr = inst.valueType === "PERCENTAGE" ? `${inst.amountValue}%` : "Fixed";
       const calculatedAmtStr = `${(inst.calculatedAmount || 0).toLocaleString()} ${inst.currency || "QAR"}`;
 
-      page.drawText(inst.installmentName || "Milestone", { x: 45, y, size: 7, font: fontRegular, color: black });
+      page.drawText(inst.installmentName || "Milestone", { x: 48, y, size: 7, font: fontRegular, color: black });
       page.drawText(formattedDueDate, { x: 200, y, size: 7, font: fontRegular, color: black });
       page.drawText(valueStr, { x: 300, y, size: 7, font: fontRegular, color: black });
       page.drawText(calculatedAmtStr, { x: 400, y, size: 7, font: fontRegular, color: black });
@@ -355,8 +424,8 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       y = PAGE_HEIGHT - SAFE_ZONE_TOP;
     }
 
-    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 15, color: indigo });
-    page.drawText("ATTACHED DOCUMENTS", { x: 45, y: y + 1, size: 8, font: fontBold, color: white });
+    page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 18, color: indigo });
+    page.drawText("ATTACHED DOCUMENTS", { x: 48, y: y + 1, size: 8, font: fontBold, color: white });
     y -= 20;
 
     for (const file of attachments) {
@@ -367,7 +436,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       }
       
       const sizeStr = (file.fileSize / 1024).toFixed(1) + " KB";
-      page.drawText(`• ${file.fileName} (${sizeStr})`, { x: 45, y, size: 7, font: fontRegular, color: black });
+      page.drawText(`• ${file.fileName} (${sizeStr})`, { x: 48, y, size: 7, font: fontRegular, color: black });
       y -= 12;
     }
     y -= 10;
@@ -380,8 +449,8 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
     y = PAGE_HEIGHT - SAFE_ZONE_TOP;
   }
 
-  page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 15, color: indigo });
-  page.drawText("MANDATORY SIGN-OFFS", { x: 45, y: y + 1, size: 8, font: fontBold, color: white });
+  page.drawRectangle({ x: 40, y: y - 5, width: PAGE_WIDTH - 80, height: 18, color: indigo });
+  page.drawText("MANDATORY SIGN-OFFS & APPROVAL TRAIL", { x: 48, y: y + 1, size: 8, font: fontBold, color: white });
   
   y -= 55;
 
@@ -395,10 +464,10 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
 
   let blockX = 50;
   for (const sig of sigs) {
-    page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 110, y }, thickness: 1, color: black });
-    page.drawText(sig.title, { x: blockX, y: y - 12, size: 7, font: fontBold, color: indigo });
+    page.drawLine({ start: { x: blockX, y }, end: { x: blockX + 110, y }, thickness: 1, color: brandBlue });
+    page.drawText(sig.title, { x: blockX, y: y - 12, size: 7, font: fontBold, color: brandBlue });
     
-    let statusText = "Awaiting Approval";
+    let statusText = "Awaiting Sign-off";
     let statusColor = darkGray;
     let commentText = "";
     let dateText = "";
@@ -414,6 +483,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       }
     } else if (sig.data?.status === 'rejected') {
       statusText = "REJECTED";
+      statusColor = rgb(244 / 255, 63 / 255, 94 / 255);
       if (sig.data.processedAt) {
         dateText = format(new Date(sig.data.processedAt), "dd MMM yyyy HH:mm");
       }
@@ -422,7 +492,7 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
       }
     }
 
-    page.drawText(statusText, { x: blockX, y: y + 5, size: 6, font: fontRegular, color: statusColor });
+    page.drawText(statusText, { x: blockX, y: y + 5, size: 6, font: fontBold, color: statusColor });
     if (dateText) {
       page.drawText(dateText, { x: blockX, y: y - 22, size: 5, font: fontRegular, color: darkGray });
     }

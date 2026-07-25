@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { subPurposes, subPurposeBudgets, insertSubPurposeSchema } from "@db/schema";
-import { eq, desc } from "drizzle-orm";
+import { subPurposes, subPurposeBudgets, purchaseRequests, insertSubPurposeSchema } from "@db/schema";
+import { eq, desc, sql } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/admin/sub-purposes
- * List all sub-purposes for management.
+ * List all sub-purposes with live committed budget calculations for management.
  * Access: Admin only.
  */
 export async function GET(req: NextRequest) {
@@ -21,8 +21,23 @@ export async function GET(req: NextRequest) {
     }
 
     const allSubPurposes = await db
-      .select()
+      .select({
+        id: subPurposes.id,
+        name: subPurposes.name,
+        purposeCategoryId: subPurposes.purposeCategoryId,
+        purposeType: subPurposes.purposeType,
+        status: subPurposes.status,
+        totalBudget: subPurposes.totalBudget,
+        isFrozen: subPurposes.isFrozen,
+        validFrom: subPurposes.validFrom,
+        validTo: subPurposes.validTo,
+        createdAt: subPurposes.createdAt,
+        updatedAt: subPurposes.updatedAt,
+        committedAmount: sql`COALESCE(SUM(CASE WHEN ${purchaseRequests.status} != 'rejected' THEN COALESCE(${purchaseRequests.baseAmountQar}, ${purchaseRequests.totalEstimatedCost}) ELSE 0 END), 0)`.mapWith(Number),
+      })
       .from(subPurposes)
+      .leftJoin(purchaseRequests, eq(subPurposes.id, purchaseRequests.subPurposeId))
+      .groupBy(subPurposes.id)
       .orderBy(desc(subPurposes.createdAt));
 
     return NextResponse.json(allSubPurposes);

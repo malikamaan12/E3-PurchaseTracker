@@ -28,12 +28,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
     }
 
+    // 1. Fetch current department first
+    const [oldDept] = await db.select().from(departments).where(eq(departments.id, id)).limit(1);
+    if (!oldDept) return NextResponse.json({ error: "Department not found" }, { status: 404 });
+
     const [updated] = await db.update(departments)
       .set({ ...result.data, updatedAt: new Date() })
       .where(eq(departments.id, id))
       .returning();
 
-    if (!updated) return NextResponse.json({ error: "Department not found" }, { status: 404 });
+    // 2. Cascade department name changes to associated users and accountRequests
+    if (result.data.name && result.data.name !== oldDept.name) {
+      await db.update(users)
+        .set({ department: result.data.name, updatedAt: new Date() })
+        .where(eq(users.department, oldDept.name));
+
+      await db.update(accountRequests)
+        .set({ department: result.data.name, updatedAt: new Date() })
+        .where(eq(accountRequests.department, oldDept.name));
+    }
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("[Admin Department API] PATCH Error:", error);

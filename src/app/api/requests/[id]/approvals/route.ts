@@ -48,6 +48,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    // High-Value Approval Safeguard (> 50,000 QAR)
+    if (status === 'approved') {
+      const [reqCheck] = await db
+        .select({ baseAmountQar: purchaseRequests.baseAmountQar, totalEstimatedCost: purchaseRequests.totalEstimatedCost })
+        .from(purchaseRequests)
+        .where(eq(purchaseRequests.id, requestId))
+        .limit(1);
+      
+      const requestCost = reqCheck?.baseAmountQar ?? reqCheck?.totalEstimatedCost ?? 0;
+      if (requestCost >= 50000 && (!comments || comments.trim().length < 5)) {
+        return NextResponse.json(
+          {
+            error: "High-Value Approval Rationale Required",
+            hint: "This request exceeds 50,000 QAR. Please provide a brief approval comment explaining the financial sign-off rationale."
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // 2. Resolve target approval record for this user's department
     let targetApproval = (await db
       .select()
@@ -274,6 +294,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           finalStatus: finalRequest.status,
           processedBy: user.username,
           isMandatoryStep: targetApproval?.isMandatory ?? false,
+          isAdminBypass: isAdminOverride && targetSequenceIndex > 0,
         },
         timestamp: new Date(),
       });

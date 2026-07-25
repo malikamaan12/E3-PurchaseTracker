@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/apiClient"
+import { toast } from "sonner"
 import { 
   ShieldCheck, 
   ShieldAlert, 
@@ -68,19 +69,26 @@ export default function ComplianceGatewayPage() {
 
   const handleScan = async () => {
     setIsScanning(true);
+    toast.info("Executing system-wide compliance audit scan...");
     try {
       const res = await fetch("/api/admin/compliance/scan", { method: "POST" });
-      if (!res.ok) throw new Error("Scan failed");
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Scan failed");
+      toast.success(resData.message || "Compliance audit completed successfully!");
       await queryClient.invalidateQueries({ queryKey: ["compliance-status"] });
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to complete compliance scan");
     } finally {
       setIsScanning(false);
     }
   }
 
   const handleExport = () => {
-    if (!data?.vendors) return;
+    if (!data?.vendors || data.vendors.length === 0) {
+      toast.error("No compliance data available to export");
+      return;
+    }
+    toast.info("Exporting compliance audit CSV...");
     const csvContent = [
       ["Vendor Entity", "Registration", "Tax", "Establishment", "Contract", "Health Score"],
       ...data.vendors.map((v: ComplianceVendor) => [
@@ -97,10 +105,11 @@ export default function ComplianceGatewayPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `compliance_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `E3_Compliance_Audit_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("Compliance Audit CSV downloaded");
   }
 
   const { data, isLoading } = useQuery({
@@ -184,7 +193,7 @@ export default function ComplianceGatewayPage() {
             className="h-[50px] px-6 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02] flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none shrink-0"
           >
             {isScanning ? <ShieldAlert className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} 
-            {isScanning ? "Scanning..." : "Request Updates"}
+            {isScanning ? "Scanning Vault..." : "Run Compliance Scan"}
           </button>
         </div>
       </section>
