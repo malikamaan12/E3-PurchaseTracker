@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
     const deptFilter = searchParams.get("department");
     const vendorFilter = searchParams.get("vendor");
     const purposeFilter = searchParams.get("purpose");
-    const categoryFilter = searchParams.get("purposeCategoryId");
-    const subPurposeFilter = searchParams.get("subPurpose");
+    const categoryFilter = searchParams.get("purposeCategoryId") || searchParams.get("category");
+    const subPurposeFilter = searchParams.get("subPurposeId") || searchParams.get("subPurpose");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
     const priority = searchParams.get("priority");
@@ -45,46 +45,62 @@ export async function GET(req: NextRequest) {
     const whereConditions: any[] = [];
 
     // Filter Logic
-    if (status) {
+    if (status && status !== "all") {
       whereConditions.push(inArray(purchaseRequests.status, status.split(",")));
     }
 
-    if (deptFilter) {
-      whereConditions.push(eq(users.department, deptFilter));
+    if (deptFilter && deptFilter !== "all") {
+      whereConditions.push(ilike(users.department, deptFilter));
     }
 
-    if (vendorFilter) {
-      whereConditions.push(eq(purchaseRequests.vendorId, parseInt(vendorFilter)));
+    if (vendorFilter && vendorFilter !== "all") {
+      const vId = parseInt(vendorFilter, 10);
+      if (!isNaN(vId)) {
+        whereConditions.push(eq(purchaseRequests.vendorId, vId));
+      }
     }
 
-    if (purposeFilter) {
-      whereConditions.push(eq(purchaseRequests.purposeType, purposeFilter));
+    if (purposeFilter && purposeFilter !== "all") {
+      whereConditions.push(ilike(purchaseRequests.purposeType, purposeFilter));
     }
 
-    if (categoryFilter) {
-      whereConditions.push(eq(purchaseRequests.purposeCategoryId, parseInt(categoryFilter)));
+    if (categoryFilter && categoryFilter !== "all") {
+      const catId = parseInt(categoryFilter, 10);
+      if (!isNaN(catId)) {
+        whereConditions.push(eq(purchaseRequests.purposeCategoryId, catId));
+      }
     }
 
-    if (subPurposeFilter) {
-      whereConditions.push(eq(purchaseRequests.subPurposeId, parseInt(subPurposeFilter)));
+    if (subPurposeFilter && subPurposeFilter !== "all") {
+      const subId = parseInt(subPurposeFilter, 10);
+      if (!isNaN(subId)) {
+        whereConditions.push(eq(purchaseRequests.subPurposeId, subId));
+      }
     }
 
     if (dateFrom) {
       whereConditions.push(gte(purchaseRequests.createdAt, new Date(dateFrom)));
     }
     if (dateTo) {
-      whereConditions.push(lte(purchaseRequests.createdAt, new Date(dateTo)));
+      const endDate = dateTo.includes("T") ? new Date(dateTo) : new Date(`${dateTo}T23:59:59.999Z`);
+      whereConditions.push(lte(purchaseRequests.createdAt, endDate));
     }
 
-    if (priority) {
+    if (priority && priority !== "all") {
       whereConditions.push(inArray(purchaseRequests.priority, priority.split(",")));
     }
 
     if (costMin) {
-      whereConditions.push(gte(purchaseRequests.totalEstimatedCost, parseInt(costMin)));
+      const minVal = parseFloat(costMin);
+      if (!isNaN(minVal)) {
+        whereConditions.push(gte(purchaseRequests.totalEstimatedCost, minVal));
+      }
     }
     if (costMax) {
-      whereConditions.push(lte(purchaseRequests.totalEstimatedCost, parseInt(costMax)));
+      const maxVal = parseFloat(costMax);
+      if (!isNaN(maxVal)) {
+        whereConditions.push(lte(purchaseRequests.totalEstimatedCost, maxVal));
+      }
     }
 
     if (requestNo) {
@@ -94,7 +110,10 @@ export async function GET(req: NextRequest) {
     if (search) {
       whereConditions.push(or(
         ilike(purchaseRequests.title, `%${search}%`),
-        ilike(purchaseRequests.requestNumber, `%${search}%`)
+        ilike(purchaseRequests.requestNumber, `%${search}%`),
+        ilike(users.username, `%${search}%`),
+        ilike(users.department, `%${search}%`),
+        ilike(subPurposes.name, `%${search}%`)
       ));
     }
 

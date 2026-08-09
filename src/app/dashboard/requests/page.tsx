@@ -85,6 +85,11 @@ function RequestsDashboardContent() {
     queryFn: () => apiClient.purposes.list(),
   });
 
+  const { data: subPurposes = [] } = useQuery({
+    queryKey: ["sub-purposes"],
+    queryFn: () => apiClient.requests.getSubPurposes(),
+  });
+
   useEffect(() => {
     if (!highPerformanceMode) {
       pageLoad(".glass-card, .glass");
@@ -182,7 +187,7 @@ function RequestsDashboardContent() {
       <RequestFilters 
         filters={filters} 
         setFilters={setFilters} 
-        metadata={{ departments, vendors, purposes }} 
+        metadata={{ departments, vendors, purposes, subPurposes }} 
       />
 
       <main className="bg-card border border-border overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">

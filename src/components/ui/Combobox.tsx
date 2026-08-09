@@ -61,7 +61,7 @@ export function Combobox({
           )}
         >
           {value
-            ? options.find((option) => option.value === value)?.label || value
+            ? (options.find((option) => option.value === value || option.value.toLowerCase() === value.toLowerCase())?.label || value)
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -110,10 +110,11 @@ export function Combobox({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
-                    setOpen(false)
+                  value={option.label || option.value}
+                  onSelect={() => {
+                    const nextVal = option.value === value ? "" : option.value;
+                    onChange(nextVal);
+                    setOpen(false);
                   }}
                 >
                   <Check

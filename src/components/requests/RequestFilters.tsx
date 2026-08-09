@@ -98,6 +98,7 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
 
   const updatePending = (key: string, value: any) => {
     setPendingAdvanced(prev => ({ ...prev, [key]: value }));
+    setFilters((prev: any) => ({ ...prev, [key]: value }));
   };
 
   const applyAdvanced = () => {
