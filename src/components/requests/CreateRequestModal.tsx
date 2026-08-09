@@ -351,6 +351,52 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const MANDATORY_DEPTS = ["CEO Office", "Finance", "Management"];
   const additionalDeptOptions = (Array.isArray(globalDepartments) ? globalDepartments : []).filter((d: any) => !MANDATORY_DEPTS.includes(d.name));
 
+  const handleCloseWithDraft = async () => {
+    if (!requestId) {
+      const currentValues = watch();
+      const hasData = 
+        (currentValues.title && currentValues.title.trim().length > 0) ||
+        (currentValues.description && currentValues.description.trim().length > 0) ||
+        (currentValues.vendorId && String(currentValues.vendorId) !== "") ||
+        (currentValues.items && currentValues.items.some((i: any) => i.name && i.name.trim().length > 0));
+
+      if (hasData) {
+        const draftTitle = currentValues.title && currentValues.title.trim().length >= 3 
+          ? currentValues.title.trim() 
+          : `Draft Request (${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})`;
+        
+        const draftVendorId = currentValues.vendorId && Number(currentValues.vendorId) > 0
+          ? Number(currentValues.vendorId)
+          : (vendors.length > 0 ? vendors[0].id : 1);
+
+        const draftPurposeCategoryId = currentValues.purposeCategoryId && Number(currentValues.purposeCategoryId) > 0
+          ? Number(currentValues.purposeCategoryId)
+          : (categories.length > 0 ? categories[0].id : 1);
+
+        const draftItems = currentValues.items && currentValues.items.length > 0 && currentValues.items[0].name
+          ? currentValues.items
+          : [{ name: draftTitle, quantity: 1, estimatedCost: currentValues.totalEstimatedCost || 0, description: currentValues.description || "Draft request item" }];
+
+        const draftPayload: RequestFormValues = {
+          ...currentValues,
+          title: draftTitle,
+          vendorId: draftVendorId,
+          purposeCategoryId: draftPurposeCategoryId,
+          items: draftItems,
+        };
+
+        try {
+          await handleAction(draftPayload, "draft");
+          return;
+        } catch (err) {
+          console.error("Failed to save draft on close", err);
+        }
+      }
+    }
+    reset();
+    onClose();
+  };
+
   return (
     <AnimatePresence mode="wait">
       {isOpen && (
@@ -359,7 +405,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleCloseWithDraft}
             className="absolute inset-0 bg-background/90 backdrop-blur-md cursor-pointer"
           />
 
@@ -389,7 +435,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleCloseWithDraft}
                 className="p-2.5 hover:bg-secondary/50 rounded-xl text-muted-foreground hover:text-foreground transition-all"
               >
                 <X className="w-5 h-5" />

@@ -342,11 +342,13 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
     )
   }
 
+  const viewUrl = doc.file?.url ? `/api/documents/view?url=${encodeURIComponent(doc.file.url)}` : undefined;
+
   return (
     <td className="p-6 text-center">
       <div className="flex justify-center group/icon">
         <button 
-          onClick={() => doc.file && window.open(doc.file.url, "_blank")}
+          onClick={() => viewUrl && window.open(viewUrl, "_blank")}
           className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover/icon:bg-emerald-500/20 group-hover/icon:text-emerald-500 transition-all duration-300 relative hover:scale-110 shadow-sm"
         >
           <CheckCircle2 className="w-4 h-4" />
@@ -364,9 +366,10 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
 
 function MobileDocCell({ label, doc }: { label: string, doc: ComplianceDoc }) {
   const isMissing = !doc || doc.status === "missing";
+  const viewUrl = doc?.file?.url ? `/api/documents/view?url=${encodeURIComponent(doc.file.url)}` : undefined;
   return (
     <div 
-      onClick={() => (!isMissing && doc?.file) ? window.open(doc.file.url, "_blank") : undefined}
+      onClick={() => (!isMissing && viewUrl) ? window.open(viewUrl, "_blank") : undefined}
       className={cn(
         "flex flex-col gap-2 p-3.5 rounded-2xl border transition-all duration-300",
         isMissing 

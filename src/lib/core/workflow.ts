@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
  * PROPRIETARY INTELLECTUAL PROPERTY
  * Approval State Machine and Mandatory Gatekeeper Logic
  */
-export const MANDATORY_DEPARTMENTS = ["Finance", "CEO Office", "Management"];
+export const MANDATORY_DEPARTMENTS = ["Management", "Finance", "CEO Office"];
 
 /**
  * Seeds initial approval rows for a new purchase request transitioning to 'pending'.
@@ -30,7 +30,7 @@ export async function seedInitialApprovals(
 
   // Filter out any overlap with mandatory departments
   const filteredAdditional = additionalDepts.filter(d => !MANDATORY_DEPARTMENTS.includes(d));
-  const allRequiredDepts = [...MANDATORY_DEPARTMENTS, ...filteredAdditional];
+  const allRequiredDepts = [...filteredAdditional, ...MANDATORY_DEPARTMENTS];
 
   for (const dept of allRequiredDepts) {
     const [existingApproval] = await db

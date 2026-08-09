@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, 
@@ -18,7 +18,10 @@ import {
   Unlock,
   Building2,
   Wallet,
-  ArrowRight
+  ArrowRight,
+  Trash2,
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -37,6 +40,7 @@ export default function AdminProjectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [projectToDelete, setProjectToDelete] = useState<any>(null);
 
   // 1. Fetch all projects (sub-purposes)
   const { data: projects = [], isLoading } = useQuery({
@@ -76,6 +80,22 @@ export default function AdminProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin_projects"] });
     },
     onError: (err: any) => toast.error(err.message)
+  });
+
+  // 4. Delete Project Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/sub-purposes/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to delete project");
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Project deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin_projects"] });
+      setProjectToDelete(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to delete project")
   });
 
   const filteredProjects = projects.filter((p: any) => 
@@ -170,6 +190,7 @@ export default function AdminProjectsPage() {
                        setIsModalOpen(true);
                      }}
                      className="p-3 hover:bg-secondary rounded-2xl transition-all text-muted-foreground hover:text-primary outline-none"
+                     title="Edit Project"
                    >
                      <Edit className="w-5 h-5" />
                    </button>
@@ -186,6 +207,13 @@ export default function AdminProjectsPage() {
                      title={project.status === 'active' ? "Freeze Project" : "Activate Project"}
                    >
                      <Snowflake className={`w-5 h-5 ${project.status === 'frozen' ? 'animate-pulse' : ''}`} />
+                   </button>
+                   <button 
+                     onClick={() => setProjectToDelete(project)}
+                     className="p-3 hover:bg-rose-500/10 rounded-2xl transition-all text-muted-foreground hover:text-rose-500 outline-none"
+                     title="Delete Project"
+                   >
+                     <Trash2 className="w-5 h-5" />
                    </button>
                 </div>
               </div>
@@ -262,6 +290,167 @@ export default function AdminProjectsPage() {
           queryClient.invalidateQueries({ queryKey: ["admin_projects"] });
         }}
       />
+
+      {/* Delete / Freeze Safeguard Modal with Keyboard Tab Navigation */}
+      <DeleteProjectModal 
+        project={projectToDelete}
+        isOpen={Boolean(projectToDelete)}
+        onClose={() => setProjectToDelete(null)}
+        onConfirmDelete={(id) => deleteMutation.mutate(id)}
+        onConfirmFreeze={(id) => {
+          toggleStatusMutation.mutate({ id, status: "frozen" });
+          setProjectToDelete(null);
+        }}
+        isDeleting={deleteMutation.isPending}
+      />
     </div>
+  );
+}
+
+function DeleteProjectModal({ 
+  project, 
+  isOpen, 
+  onClose, 
+  onConfirmDelete, 
+  onConfirmFreeze, 
+  isDeleting 
+}: { 
+  project: any; 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirmDelete: (id: number) => void; 
+  onConfirmFreeze: (id: number) => void; 
+  isDeleting: boolean;
+}) {
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement>(null);
+  const freezeBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        if (project?.committedAmount > 0) {
+          freezeBtnRef.current?.focus();
+        } else {
+          cancelBtnRef.current?.focus();
+        }
+      }, 50);
+    }
+  }, [isOpen, project]);
+
+  if (!isOpen || !project) return null;
+
+  const usedAmount = Number(project.committedAmount || 0);
+  const hasUsedAmount = usedAmount > 0;
+
+  // Keyboard navigation & Focus trapping (Tab / Shift+Tab / Esc)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (e.key === "Tab") {
+      const focusables = [
+        cancelBtnRef.current,
+        hasUsedAmount ? freezeBtnRef.current : deleteBtnRef.current,
+      ].filter(Boolean) as HTMLElement[];
+
+      if (focusables.length === 0) return;
+
+      const currentIndex = focusables.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey) {
+        if (currentIndex <= 0) {
+          e.preventDefault();
+          focusables[focusables.length - 1].focus();
+        }
+      } else {
+        if (currentIndex === focusables.length - 1) {
+          e.preventDefault();
+          focusables[0].focus();
+        }
+      }
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      <div 
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+        onKeyDown={handleKeyDown}
+      >
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          className="bg-card border border-border/80 w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative"
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <div className={`p-4 rounded-2xl ${hasUsedAmount ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"}`}>
+              {hasUsedAmount ? <Snowflake className="w-7 h-7 animate-pulse" /> : <Trash2 className="w-7 h-7" />}
+            </div>
+            <div>
+              <h3 className="text-xl font-serif font-black tracking-tight text-foreground">
+                {hasUsedAmount ? "Project Can Only Be Frozen" : "Delete Strategic Project"}
+              </h3>
+              <p className="text-xs font-mono font-bold text-muted-foreground mt-0.5 uppercase tracking-wider">{project.name}</p>
+            </div>
+          </div>
+
+          {hasUsedAmount ? (
+            <div className="bg-cyan-500/10 border border-cyan-500/30 p-5 rounded-2xl mb-6 space-y-2">
+              <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Financial History Detected</span>
+              </div>
+              <p className="text-xs text-foreground/80 leading-relaxed font-medium">
+                This project has used/committed funds of <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">QAR {usedAmount.toLocaleString()}</span>. Under governance rules, projects with spent funds <span className="font-bold underline">cannot be deleted</span>. You can freeze this project to restrict future requests while preserving audit logs.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6 font-medium">
+              Are you sure you want to delete <span className="font-bold text-foreground">"{project.name}"</span>? This will permanently remove the project definition and budget allocations.
+            </p>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              ref={cancelBtnRef}
+              type="button"
+              tabIndex={0}
+              onClick={onClose}
+              className="px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-secondary border border-border/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            {hasUsedAmount ? (
+              <button
+                ref={freezeBtnRef}
+                type="button"
+                tabIndex={0}
+                onClick={() => onConfirmFreeze(project.id)}
+                className="px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-cyan-500 text-white hover:bg-cyan-600 shadow-lg shadow-cyan-500/20 focus:ring-2 focus:ring-cyan-500/40 outline-none transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <Snowflake className="w-4 h-4" /> Freeze Project Now
+              </button>
+            ) : (
+              <button
+                ref={deleteBtnRef}
+                type="button"
+                tabIndex={0}
+                disabled={isDeleting}
+                onClick={() => onConfirmDelete(project.id)}
+                className="px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/20 focus:ring-2 focus:ring-rose-500/40 outline-none transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Delete Project
+              </button>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 }

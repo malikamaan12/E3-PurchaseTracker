@@ -6,7 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   ChevronLeft, Download, CheckCircle2, XCircle, Clock, FileText, 
   User, Building2, CreditCard, History, FileBadge, MessageSquare,
-  AlertTriangle, RotateCcw, Loader2, ShieldCheck, Calendar, Lock, Edit3, Trash2, Landmark, Coins, CircleDashed
+  AlertTriangle, RotateCcw, Loader2, ShieldCheck, Calendar, Lock, Edit3, Trash2, Landmark, Coins, CircleDashed,
+  Maximize2, ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ export default function RequestDetailPage() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConfirmAction, setShowConfirmAction] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [confirmData, setConfirmData] = useState<{
     status: "approved" | "rejected" | "changes_requested";
     title: string;
@@ -517,8 +519,30 @@ export default function RequestDetailPage() {
             </div>
 
             <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
-              <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent">
+              <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
                 <h2 className="font-semibold text-sm tracking-tight">Document Preview</h2>
+                {activeAttachment && (
+                  <div className="flex items-center gap-1.5">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center gap-1.5 transition-all"
+                      onClick={() => setIsPreviewModalOpen(true)}
+                      title="Expand Preview (Fullscreen)"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" /> Expand
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center gap-1.5 transition-all"
+                      onClick={() => window.open(`/api/attachments/${activeAttachment.id}`, '_blank')}
+                      title="Popout preview in new window"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Popout
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 bg-black/5 dark:bg-white/5 relative">
                  {activeAttachment ? (
@@ -566,22 +590,35 @@ export default function RequestDetailPage() {
                   status="completed"
                 />
                 
-                {Array.isArray(request.approvals) && request.approvals.map((approval: any, idx: number) => {
-                  const isPending = approval.status === 'pending';
-                  const isApproved = approval.status === 'approved';
-                  const isRejected = approval.status === 'rejected';
-                  const isCurrent = isPending && (idx === 0 || request.approvals[idx-1]?.status === 'approved');
-                  
-                  return (
-                    <TimelineItem 
-                      key={approval.id}
-                      title={`${approval.department} Approval`}
-                      desc={isApproved ? `Approved by ${approval.approver?.username}` : isRejected ? "Rejected" : "Pending Action"}
-                      time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy") : undefined}
-                      status={isApproved ? 'completed' : isRejected ? 'error' : isCurrent ? 'current' : 'pending'}
-                    />
-                  );
-                })}
+                {(() => {
+                  const getDeptWeight = (deptName: string) => {
+                    const name = (deptName || "").toLowerCase().trim();
+                    if (name.includes("management")) return 2;
+                    if (name.includes("finance")) return 3;
+                    if (name.includes("ceo")) return 4;
+                    return 1; // Additional approvers (e.g. IT, Legal, Marketing, Operations)
+                  };
+
+                  const sortedApprovals = Array.isArray(request.approvals)
+                    ? [...request.approvals].sort((a: any, b: any) => getDeptWeight(a.department) - getDeptWeight(b.department))
+                    : [];
+
+                  return sortedApprovals.map((approval: any) => {
+                    const isPending = approval.status === 'pending';
+                    const isApproved = approval.status === 'approved';
+                    const isRejected = approval.status === 'rejected';
+                    
+                    return (
+                      <TimelineItem 
+                        key={approval.id}
+                        title={`${approval.department} Approval`}
+                        desc={isApproved ? `Approved by ${approval.approver?.username}` : isRejected ? "Rejected" : "Pending Action"}
+                        time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy") : undefined}
+                        status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
+                      />
+                    );
+                  });
+                })()}
 
                 <TimelineItem 
                   title="Final Status"
@@ -620,6 +657,44 @@ export default function RequestDetailPage() {
           onClose={() => setShowAuditModal(false)} 
           auditLogs={request.auditLogs || []} 
         />
+      )}
+
+      {/* Expanded Document Preview Modal */}
+      {isPreviewModalOpen && activeAttachment && (
+        <div className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-xl flex flex-col p-4 md:p-6 animate-in fade-in duration-200">
+          <div className="flex justify-between items-center bg-card border border-border/50 px-6 py-4 rounded-2xl mb-4 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-600">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base tracking-tight">{activeAttachment.fileName}</h3>
+                <p className="text-xs text-muted-foreground font-mono">{(activeAttachment.fileSize / 1024).toFixed(1)} KB • Fullscreen Preview</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-xl gap-2 text-xs font-semibold"
+                onClick={() => window.open(`/api/attachments/${activeAttachment.id}`, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4" /> Popout to New Tab
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setIsPreviewModalOpen(false)}
+              >
+                <XCircle className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 bg-card border border-border/50 rounded-2xl overflow-hidden relative shadow-2xl">
+            <iframe src={`/api/attachments/${activeAttachment.id}`} className="absolute inset-0 w-full h-full border-none bg-transparent" title="Expanded Document Preview" />
+          </div>
+        </div>
       )}
     </div>
   );

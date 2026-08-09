@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * before the next one in the chain is permitted to act.
  * Directors / GM sit at the same sequential level (either can satisfy).
  */
-const MANDATORY_SEQUENCE: string[] = ["Finance", "CEO Office", "Management"];
+const MANDATORY_SEQUENCE: string[] = ["Management", "Finance", "CEO Office"];
 
 /**
  * Neon-HTTP Compatible Approval Lifecycle (Phase 16 — State Machine Fix)
@@ -22,13 +22,9 @@ const MANDATORY_SEQUENCE: string[] = ["Finance", "CEO Office", "Management"];
  *   Users with role='user' (e.g. Accountants) cannot satisfy a mandatory
  *   gatekeeper approval step. Only role='approver' or role='admin' may do so.
  *
- * Fix 2 — Strict Array Validation:
- *   The request only transitions to 'approved' when ALL approval rows
- *   (both mandatory and additionalApprovers) are resolved as 'approved'.
- *
- * Fix 3 — Sequential Stepping:
- *   Enforces Finance → CEO Office → Directors ordering. A department
- *   cannot approve until every earlier mandatory step is 'approved'.
+ * Fix 2 — Flexible / Out-of-Order Approval:
+ *   Any authorized approver (Additional Approver, Management, Finance, CEO)
+ *   can review and approve their stage at any time ("any approver can approve first").
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let user: any = null;
@@ -114,50 +110,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
         { status: 403 }
       );
-    }
-
-    // ── FIX 3: Sequential Stepping ──────────────────────────────────────────
-    // Fetch all current approvals for sequencing check before any update.
-    const currentApprovals = await db
-      .select()
-      .from(approvals)
-      .where(eq(approvals.requestId, requestId));
-
-    // Fix: Base the sequence check on the TARGET department being approved, not the user's department.
-    // This allows Admins in later departments (e.g. Management) to approve earlier steps (e.g. Finance).
-    const targetDeptName = targetApproval?.department?.trim() || "";
-    const targetSequenceIndex = MANDATORY_SEQUENCE.findIndex(
-      dept => dept.toLowerCase().trim() === targetDeptName.toLowerCase()
-    );
-
-    // Skip the check if:
-    // 1. The user is an ADMIN (Admins have super-user bypass authority)
-    // 2. The step is NOT a mandatory sign-off step
-    // 3. The step is the first one in the sequence (Finance)
-    const isAdminOverride = user.role === 'admin';
-    
-    if (!isAdminOverride && targetSequenceIndex > 0 && targetApproval?.isMandatory) {
-      // Every department that appears BEFORE this one in the sequence must
-      // already be 'approved' before this user can act.
-      const priorDepts = MANDATORY_SEQUENCE.slice(0, targetSequenceIndex);
-      const priorMandatory = currentApprovals.filter(
-        a => a.isMandatory && priorDepts.some(d => d.toLowerCase().trim() === a.department.toLowerCase().trim())
-      );
-      const priorAllApproved = priorMandatory.every(a => a.status === 'approved');
-
-      if (!priorAllApproved) {
-        const pendingDepts = priorMandatory
-          .filter(a => a.status !== 'approved')
-          .map(a => a.department)
-          .join(', ');
-        return NextResponse.json(
-          {
-            error: `Sequential approval requirement not met.`,
-            hint: `The following mandatory steps must be completed before the ${targetDeptName} stage can be approved: ${pendingDepts}.`
-          },
-          { status: 409 }
-        );
-      }
     }
 
     // 3. SEQUENTIAL UPDATES — update only the specific approval record
@@ -294,7 +246,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           finalStatus: finalRequest.status,
           processedBy: user.username,
           isMandatoryStep: targetApproval?.isMandatory ?? false,
-          isAdminBypass: isAdminOverride && targetSequenceIndex > 0,
+          isAdminBypass: user.role === 'admin',
         },
         timestamp: new Date(),
       });

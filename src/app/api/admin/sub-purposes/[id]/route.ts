@@ -123,3 +123,60 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/admin/sub-purposes/[id]
+ * Delete a project if it has NO committed/used funds.
+ * If project has used amount / purchase requests, deletion is blocked (freeze only).
+ * Access: Admin only.
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Params }) {
+  try {
+    const admin = await getAuthenticatedUser(req);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
+    }
+
+    const { id: projectId } = await params;
+    const pId = parseInt(projectId);
+    if (isNaN(pId)) return NextResponse.json({ error: "Invalid project ID" }, { status: 400 });
+
+    const [project] = await db
+      .select()
+      .from(subPurposes)
+      .where(eq(subPurposes.id, pId))
+      .limit(1);
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Check if project has purchase requests or used/committed funds
+    const { purchaseRequests } = await import("@db/schema");
+    const { sql } = await import("drizzle-orm");
+    const [reqCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.subPurposeId, pId));
+
+    if (reqCount && Number(reqCount.count) > 0) {
+      return NextResponse.json(
+        { 
+          error: "Project Has Used Funds", 
+          message: "This project has existing purchase requests or committed funds. It can only be frozen, not deleted." 
+        }, 
+        { status: 400 }
+      );
+    }
+
+    // Safe to delete if no used funds/requests
+    await db.delete(subPurposeBudgets).where(eq(subPurposeBudgets.subPurposeId, pId));
+    await db.delete(subPurposes).where(eq(subPurposes.id, pId));
+
+    return NextResponse.json({ success: true, message: "Project deleted successfully" });
+  } catch (error: any) {
+    console.error("[Native Admin API] Sub-Purpose DELETE Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
